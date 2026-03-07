@@ -60,13 +60,13 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
                     responseBodyBytes,
                     response.request.url.toString()
                 )
-                cancellableCall.setFinished()
                 callback.onSuccess(extractorResponse)
+                cancellableCall.setFinished()
             }
 
             override fun onFailure(call: Call, e: java.io.IOException) {
-                cancellableCall.setFinished()
                 callback.onError(e)
+                cancellableCall.setFinished()
             }
         })
 
