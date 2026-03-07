@@ -8,74 +8,84 @@ import java.nio.charset.StandardCharsets
 
 class ManifestService(private val streamService: StreamService) {
 
-    suspend fun masterPlaylist(videoUrl: String): ExtractionResult<String> {
+    suspend fun dashManifest(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
         if (result !is ExtractionResult.Success) return result.recast()
         val info = result.data
         val videos = compatibleVideoStreams(info.videoOnlyStreams)
-        val audio = bestAudio(info.audioStreams)
-        if (videos.isEmpty() || audio == null) {
-            return ExtractionResult.Failure("No compatible streams found for HLS manifest")
-        }
-        return ExtractionResult.Success(buildMaster(videoUrl, videos, audio, info.duration))
-    }
-
-    suspend fun mediaPlaylist(videoUrl: String, index: Int, duration: Long): ExtractionResult<String> {
-        val result = streamService.getStreamInfo(videoUrl)
-        if (result !is ExtractionResult.Success) return result.recast()
-        val videos = compatibleVideoStreams(result.data.videoOnlyStreams)
-        val stream = videos.getOrNull(index)
-            ?: return ExtractionResult.BadRequest("Stream index $index not found")
-        return ExtractionResult.Success(buildMediaPlaylist(stream.url, duration))
-    }
-
-    suspend fun audioPlaylist(videoUrl: String, duration: Long): ExtractionResult<String> {
-        val result = streamService.getStreamInfo(videoUrl)
-        if (result !is ExtractionResult.Success) return result.recast()
-        val audio = bestAudio(result.data.audioStreams)
-            ?: return ExtractionResult.Failure("No compatible audio stream found")
-        return ExtractionResult.Success(buildMediaPlaylist(audio.url, duration))
+        val audios = compatibleAudioStreams(info.audioStreams)
+        if (videos.isEmpty() && audios.isEmpty())
+            return ExtractionResult.Failure("No compatible streams found for DASH manifest")
+        return ExtractionResult.Success(buildMpd(videos, audios, info.duration))
     }
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
-        streams.filter { it.format == "MPEG-4" && it.url.isNotBlank() }
-            .sortedByDescending { it.bitrate ?: resolutionHeight(it.resolution) * 1000 }
+        streams.filter { !it.codec.startsWith("av01") && it.url.isNotBlank() && it.codec.isNotBlank() }
+            .sortedWith(compareBy({ codecPriority(it.codec) }, { -(it.bitrate ?: 0) }))
 
-    private fun bestAudio(streams: List<AudioStreamItem>): AudioStreamItem? =
-        streams.filter { it.format == "m4a" && it.url.isNotBlank() }
-            .maxByOrNull { it.bitrate ?: 0 }
+    private fun compatibleAudioStreams(streams: List<AudioStreamItem>): List<AudioStreamItem> =
+        streams.filter { it.url.isNotBlank() && it.codec.isNotBlank() }
+            .sortedByDescending { it.bitrate ?: 0 }
 
-    private fun buildMaster(videoUrl: String, videos: List<VideoStreamItem>, audio: AudioStreamItem, duration: Long): String {
-        val sb = StringBuilder()
-        sb.appendLine("#EXTM3U")
-        sb.appendLine("#EXT-X-VERSION:3")
-        val encodedVideoUrl = encode(videoUrl)
-        val audioUri = "/streams/manifest/audio?url=$encodedVideoUrl&duration=$duration"
-        sb.appendLine("#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"default\",DEFAULT=YES,URI=\"$audioUri\"")
-        videos.forEachIndexed { i, v ->
-            val bandwidth = (v.bitrate ?: (resolutionHeight(v.resolution) * 1000)).coerceAtLeast(1)
-            val height = resolutionHeight(v.resolution)
-            val resolution = if (height > 0) "RESOLUTION=${height * 16 / 9}x$height," else ""
-            val codec = v.codec.takeIf { it.isNotBlank() }?.let { "CODECS=\"$it,mp4a.40.2\"," } ?: ""
-            val mediaUri = "/streams/manifest/media?url=$encodedVideoUrl&index=$i&duration=$duration"
-            sb.appendLine("#EXT-X-STREAM-INF:BANDWIDTH=$bandwidth,${resolution}${codec}AUDIO=\"audio\"")
-            sb.appendLine(mediaUri)
-        }
-        return sb.toString().trimEnd()
+    private fun codecPriority(codec: String): Int = when {
+        codec.startsWith("avc1") -> 0
+        codec.startsWith("vp9") || codec.startsWith("vp09") -> 1
+        else -> 2
     }
 
-    private fun buildMediaPlaylist(streamUrl: String, duration: Long): String {
-        val safeDuration = duration.coerceAtLeast(1L)
-        val proxied = "/proxy?url=${encode(streamUrl)}"
-        return buildString {
-            appendLine("#EXTM3U")
-            appendLine("#EXT-X-VERSION:3")
-            appendLine("#EXT-X-TARGETDURATION:$safeDuration")
-            appendLine("#EXT-X-PLAYLIST-TYPE:VOD")
-            appendLine("#EXTINF:$safeDuration.0,")
-            appendLine(proxied)
-            append("#EXT-X-ENDLIST")
+    private fun buildMpd(videos: List<VideoStreamItem>, audios: List<AudioStreamItem>, duration: Long): String {
+        val sb = StringBuilder()
+        sb.appendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+        sb.appendLine("<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\"")
+        sb.appendLine("     profiles=\"urn:mpeg:dash:profile:full:2011\"")
+        sb.appendLine("     type=\"static\"")
+        sb.appendLine("     mediaPresentationDuration=\"PT${duration}S\"")
+        sb.appendLine("     minBufferTime=\"PT4S\">")
+        sb.appendLine("  <Period>")
+        videos.groupBy { videoMimeType(it.format) to codecFamily(it.codec) }
+            .forEach { (key, streams) -> appendVideoAdaptationSet(sb, key.first, streams) }
+        audios.groupBy { audioMimeType(it.format) }
+            .forEach { (mime, streams) -> appendAudioAdaptationSet(sb, mime, streams) }
+        sb.appendLine("  </Period>")
+        sb.append("</MPD>")
+        return sb.toString()
+    }
+
+    private fun appendVideoAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<VideoStreamItem>) {
+        sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\" startWithSAP=\"1\">")
+        streams.forEachIndexed { i, s ->
+            val height = resolutionHeight(s.resolution)
+            val width = if (height > 0) height * 16 / 9 else 0
+            val bandwidth = (s.bitrate ?: (height * 1000)).coerceAtLeast(1)
+            val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
+            sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec}\">")
+            sb.appendLine("        <BaseURL>/proxy?url=${encode(s.url)}</BaseURL>")
+            sb.appendLine("      </Representation>")
         }
+        sb.appendLine("    </AdaptationSet>")
+    }
+
+    private fun appendAudioAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<AudioStreamItem>) {
+        sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\">")
+        streams.forEachIndexed { i, a ->
+            val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
+            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${a.codec}\">")
+            sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
+            sb.appendLine("      </Representation>")
+        }
+        sb.appendLine("    </AdaptationSet>")
+    }
+
+    private fun videoMimeType(format: String): String =
+        if (format.lowercase().contains("webm")) "video/webm" else "video/mp4"
+
+    private fun audioMimeType(format: String): String =
+        if (format.lowercase().contains("webm")) "audio/webm" else "audio/mp4"
+
+    private fun codecFamily(codec: String): String = when {
+        codec.startsWith("avc1") -> "avc"
+        codec.startsWith("vp9") || codec.startsWith("vp09") -> "vp9"
+        else -> "other"
     }
 
     private fun resolutionHeight(resolution: String): Int =
