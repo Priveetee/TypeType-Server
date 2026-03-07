@@ -1,9 +1,13 @@
 package dev.typetype.server
 
 import dev.typetype.server.downloader.OkHttpDownloader
+import dev.typetype.server.routes.channelRoutes
+import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.trendingRoutes
+import dev.typetype.server.services.PipePipeChannelService
+import dev.typetype.server.services.PipePipeCommentService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeTrendingService
@@ -38,10 +42,14 @@ fun Application.module() {
     val streamService = PipePipeStreamService()
     val searchService = PipePipeSearchService()
     val trendingService = PipePipeTrendingService()
+    val commentService = PipePipeCommentService()
+    val channelService = PipePipeChannelService()
 
     routing {
         streamRoutes(streamService)
         searchRoutes(searchService)
         trendingRoutes(trendingService)
+        commentRoutes(commentService)
+        channelRoutes(channelService)
     }
 }
