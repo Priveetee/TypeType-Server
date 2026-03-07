@@ -87,6 +87,78 @@ TypeType-Server/
 
 The REST API is the only point of contact between the two repositories. No code, no types, no logic crosses this boundary. Types consumed by the frontend are defined in its own `packages/types` workspace and derived from API contracts — not from Kotlin classes.
 
+## API Contract
+
+All endpoints respond with JSON. Errors return `{ "error": "<message>" }`.
+
+Service identifiers accepted by `service` query parameter: `YouTube`, `NicoNico`, `BiliBili`.
+
+### `GET /streams?url={fullVideoUrl}`
+
+Full video URL required (e.g. `https://www.youtube.com/watch?v=...`).
+
+```
+StreamResponse
+  id                      string
+  title                   string
+  uploaderName            string
+  uploaderUrl             string
+  thumbnailUrl            string
+  description             string
+  duration                number        (seconds)
+  viewCount               number
+  likeCount               number
+  dislikeCount            number        (-1 if unavailable)
+  uploadDate              string        (textual, e.g. "3 days ago" — not ISO 8601)
+  hlsUrl                  string        (empty string if unavailable)
+  dashMpdUrl              string        (empty string if unavailable)
+  videoStreams            VideoStreamItem[]   (muxed — video + audio)
+  audioStreams            AudioStreamItem[]   (audio only)
+  videoOnlyStreams        VideoStreamItem[]   (video only — no audio track)
+  sponsorBlockSegments    SponsorBlockSegmentItem[]
+
+VideoStreamItem
+  url           string
+  format        string        ("MPEG_4" | "WEBM" | "v3GPP")
+  resolution    string        ("1080p", "720p", …)
+  bitrate       number | null (null if unavailable)
+  codec         string        (e.g. "vp9", "avc1", "av01" — empty string if unavailable)
+  isVideoOnly   boolean
+
+AudioStreamItem
+  url           string
+  format        string
+  bitrate       number | null (null if unavailable)
+  codec         string        (e.g. "opus", "mp4a" — empty string if unavailable)
+  quality       string | null (e.g. "medium" — null if unavailable)
+
+SponsorBlockSegmentItem
+  startTime     number        (milliseconds)
+  endTime       number        (milliseconds)
+  category      string        (e.g. "sponsor", "intro", "outro")
+  action        string        (e.g. "skip", "mute")
+```
+
+### `GET /search?q={query}&service={service}`
+
+### `GET /trending?service={service}`
+
+Both return `VideoItem[]`:
+
+```
+VideoItem
+  id                  string        (full video URL)
+  title               string
+  url                 string        (full video URL)
+  thumbnailUrl        string
+  uploaderName        string
+  uploaderUrl         string        (channel page URL — empty string if unavailable)
+  uploaderAvatarUrl   string        (uploader avatar image URL — empty string if unavailable)
+  duration            number        (seconds)
+  viewCount           number
+  uploadDate          string        (textual — empty string if unavailable)
+```
+
 ## Reference Material
 
 - `InfinityLoop1308/PipePipeExtractor` — the extraction engine this server wraps
