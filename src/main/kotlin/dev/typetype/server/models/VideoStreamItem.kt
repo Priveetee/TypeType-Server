@@ -7,7 +7,7 @@ data class VideoStreamItem(
     val url: String,
     val format: String,
     val resolution: String,
-    val bitrate: Int,
+    val bitrate: Int?,
     val codec: String,
     val isVideoOnly: Boolean,
 )

@@ -34,8 +34,8 @@ class PipePipeStreamService : StreamService {
         likeCount = likeCount,
         dislikeCount = dislikeCount,
         uploadDate = textualUploadDate ?: "",
-        hlsUrl = hlsUrl ?: "",
-        dashMpdUrl = dashMpdUrl ?: "",
+        hlsUrl = hlsUrl?.takeIf { it.startsWith("http") } ?: "",
+        dashMpdUrl = dashMpdUrl?.takeIf { it.startsWith("http") } ?: "",
         videoStreams = videoStreams.map { it.toVideoStreamItem(isVideoOnly = false) },
         audioStreams = audioStreams.map { it.toAudioStreamItem() },
         videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(isVideoOnly = true) },
@@ -46,7 +46,7 @@ class PipePipeStreamService : StreamService {
         url = getContent() ?: "",
         format = getFormat()?.name ?: "",
         resolution = getResolution(),
-        bitrate = getBitrate(),
+        bitrate = getBitrate().takeIf { it > 0 },
         codec = getCodec() ?: "",
         isVideoOnly = isVideoOnly
     )
@@ -54,7 +54,7 @@ class PipePipeStreamService : StreamService {
     private fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
         url = getContent() ?: "",
         format = getFormat()?.name ?: "",
-        bitrate = averageBitrate,
+        bitrate = averageBitrate.takeIf { it > 0 },
         codec = getCodec() ?: "",
         quality = getQuality()
     )
