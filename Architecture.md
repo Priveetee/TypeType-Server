@@ -91,7 +91,13 @@ The REST API is the only point of contact between the two repositories. No code,
 
 All endpoints respond with JSON. Errors return `{ "error": "<message>" }`.
 
-Service identifiers accepted by `service` query parameter: `YouTube`, `NicoNico`, `BiliBili`.
+The `service` query parameter is an integer:
+
+| Value | Platform |
+|---|---|
+| `0` | YouTube |
+| `5` | BiliBili |
+| `6` | NicoNico |
 
 ### `GET /streams?url={fullVideoUrl}`
 
@@ -116,6 +122,7 @@ StreamResponse
   audioStreams            AudioStreamItem[]   (audio only)
   videoOnlyStreams        VideoStreamItem[]   (video only — no audio track)
   sponsorBlockSegments    SponsorBlockSegmentItem[]
+  relatedStreams          VideoItem[]         (platform recommendations — empty array if unavailable)
 
 VideoStreamItem
   url           string
@@ -139,11 +146,19 @@ SponsorBlockSegmentItem
   action        string        (e.g. "skip", "mute")
 ```
 
-### `GET /search?q={query}&service={service}`
+### `GET /search?q={query}&service={service}&nextpage={cursor}`
+
+`nextpage` is optional. Omit it on the first request. Pass the value from the previous response to fetch the next page. An invalid cursor returns HTTP 400 `{ "error": "..." }`.
+
+```
+SearchPageResponse
+  items       VideoItem[]
+  nextpage    string | null   (null when no further pages are available)
+```
 
 ### `GET /trending?service={service}`
 
-Both return `VideoItem[]`:
+Returns `VideoItem[]`.
 
 ```
 VideoItem
@@ -157,6 +172,47 @@ VideoItem
   duration            number        (seconds)
   viewCount           number
   uploadDate          string        (textual — empty string if unavailable)
+```
+
+### `GET /comments?url={fullVideoUrl}&nextpage={cursor}`
+
+`nextpage` is optional. Omit it on the first request. Pass the value from the previous response to fetch the next page. An invalid cursor returns HTTP 400 `{ "error": "..." }`.
+
+If the platform has no comment extractor, the response is `{ "comments": [], "nextpage": null }` — not an error.
+
+```
+CommentsPageResponse
+  comments    CommentItem[]
+  nextpage    string | null   (null when no further pages are available)
+
+CommentItem
+  id                    string
+  text                  string
+  author                string
+  authorUrl             string
+  authorAvatarUrl       string
+  likeCount             number        (-1 if unavailable)
+  publishedTime         string        (textual — empty string if unavailable)
+  isHeartedByUploader   boolean
+  isPinned              boolean
+```
+
+### `GET /channel?url={channelUrl}&nextpage={cursor}`
+
+`nextpage` is optional. Omit it on the first request. Pass the value from the previous response to fetch the next page. An invalid cursor returns HTTP 400 `{ "error": "..." }`.
+
+Metadata fields (`name`, `description`, `avatarUrl`, `bannerUrl`, `subscriberCount`, `isVerified`) are only populated on the first page. Subsequent pages return empty values for these fields — the frontend is expected to retain metadata from the first page.
+
+```
+ChannelResponse
+  name              string
+  description       string
+  avatarUrl         string
+  bannerUrl         string
+  subscriberCount   number        (-1 if unavailable)
+  isVerified        boolean
+  videos            VideoItem[]
+  nextpage          string | null   (null when no further pages are available)
 ```
 
 ## Reference Material
