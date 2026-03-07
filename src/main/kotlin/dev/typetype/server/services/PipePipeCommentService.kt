@@ -1,0 +1,57 @@
+package dev.typetype.server.services
+
+import dev.typetype.server.models.CommentItem
+import dev.typetype.server.models.CommentsPageResponse
+import dev.typetype.server.models.ExtractionResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.comments.CommentsInfo
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem
+
+class PipePipeCommentService : CommentService {
+
+    override suspend fun getComments(url: String, nextpage: String?): ExtractionResult<CommentsPageResponse> =
+        withContext(Dispatchers.IO) {
+            val page = if (nextpage != null) {
+                runCatching { nextpage.toPage() }
+                    .getOrElse { return@withContext ExtractionResult.BadRequest("Invalid nextpage cursor") }
+            } else null
+
+            runCatching {
+                if (page == null) {
+                    val info = CommentsInfo.getInfo(url)
+                    info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null)
+                } else {
+                    val service = NewPipe.getServiceByUrl(url)
+                    CommentsInfo.getMoreItems(service, url, page).toPageResponse()
+                }
+            }.fold(
+                onSuccess = { ExtractionResult.Success(it) },
+                onFailure = { ExtractionResult.Failure(it.message ?: "Comment extraction failed") }
+            )
+        }
+
+    private fun CommentsInfo.toPageResponse(): CommentsPageResponse = CommentsPageResponse(
+        comments = relatedItems.map { it.toCommentItem() },
+        nextpage = nextPage?.toCursor(),
+    )
+
+    private fun org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage<CommentsInfoItem>.toPageResponse(): CommentsPageResponse =
+        CommentsPageResponse(
+            comments = items.map { it.toCommentItem() },
+            nextpage = nextPage?.toCursor(),
+        )
+
+    private fun CommentsInfoItem.toCommentItem(): CommentItem = CommentItem(
+        id = commentId ?: "",
+        text = commentText ?: "",
+        author = uploaderName ?: "",
+        authorUrl = uploaderUrl ?: "",
+        authorAvatarUrl = uploaderAvatarUrl ?: "",
+        likeCount = likeCount.toLong(),
+        publishedTime = textualUploadDate ?: "",
+        isHeartedByUploader = isHeartedByUploader,
+        isPinned = isPinned,
+    )
+}
