@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 class OkHttpProxyService : ProxyService {
@@ -29,8 +30,9 @@ class OkHttpProxyService : ProxyService {
                     if (!response.isSuccessful) {
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val body = response.body?.bytes() ?: ByteArray(0)
+                        val rawBody = response.body?.bytes() ?: ByteArray(0)
                         val contentType = response.header("Content-Type") ?: "application/octet-stream"
+                        val body = rewriteIfHls(rawBody, contentType)
                         ExtractionResult.Success(ProxyResponse(contentType = contentType, body = body))
                     }
                 },
@@ -38,8 +40,23 @@ class OkHttpProxyService : ProxyService {
             )
         }
 
+    private fun rewriteIfHls(body: ByteArray, contentType: String): ByteArray {
+        val baseType = contentType.substringBefore(";").trim().lowercase()
+        if (baseType !in HLS_CONTENT_TYPES) return body
+        val text = body.toString(Charsets.UTF_8)
+        val rewritten = HLS_URL_PATTERN.replace(text) { match ->
+            "/proxy?url=${URLEncoder.encode(match.value, "UTF-8")}"
+        }
+        return rewritten.toByteArray(Charsets.UTF_8)
+    }
+
     companion object {
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+        private val HLS_CONTENT_TYPES = setOf(
+            "application/vnd.apple.mpegurl",
+            "application/x-mpegurl"
+        )
+        private val HLS_URL_PATTERN = Regex("https?://[^\\s\"']+")
     }
 }
