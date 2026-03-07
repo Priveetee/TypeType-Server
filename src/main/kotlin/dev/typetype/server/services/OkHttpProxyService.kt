@@ -29,6 +29,7 @@ class OkHttpProxyService : ProxyService {
                 val builder = Request.Builder()
                     .url(cleanUrl)
                     .header("User-Agent", BROWSER_USER_AGENT)
+                if (isBilibili(cleanUrl)) builder.header("Referer", BILIBILI_REFERER)
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 client.newCall(builder.build()).execute()
             }.fold(
@@ -72,6 +73,11 @@ class OkHttpProxyService : ProxyService {
             )
         }
 
+    private fun isBilibili(url: String): Boolean {
+        val host = runCatching { java.net.URI(url).host ?: "" }.getOrElse { "" }
+        return host.contains("bilibili") || host.contains("bilivideo")
+    }
+
     private fun isHls(contentType: String): Boolean =
         contentType.contains("mpegurl", ignoreCase = true)
 
@@ -82,6 +88,7 @@ class OkHttpProxyService : ProxyService {
 
     companion object {
         private val GOOGLEVIDEO_URL_PATTERN = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
+        private const val BILIBILI_REFERER = "https://www.bilibili.com"
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
