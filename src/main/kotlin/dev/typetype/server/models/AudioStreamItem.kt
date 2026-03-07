@@ -5,9 +5,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AudioStreamItem(
     val url: String,
+    val mimeType: String,
     val format: String,
     val bitrate: Int?,
-    val codec: String,
+    val codec: String?,
     val quality: String?,
     val itag: Int,
     val contentLength: Long,
@@ -15,4 +16,6 @@ data class AudioStreamItem(
     val initEnd: Long,
     val indexStart: Long,
     val indexEnd: Long,
+    val audioTrackId: String?,
+    val audioTrackName: String?,
 )

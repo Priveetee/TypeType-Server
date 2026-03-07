@@ -5,10 +5,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class VideoStreamItem(
     val url: String,
+    val mimeType: String,
     val format: String,
     val resolution: String,
     val bitrate: Int?,
-    val codec: String,
+    val codec: String?,
     val isVideoOnly: Boolean,
     val itag: Int,
     val width: Int,

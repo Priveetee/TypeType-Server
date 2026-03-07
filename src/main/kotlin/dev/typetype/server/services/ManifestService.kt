@@ -20,11 +20,11 @@ class ManifestService(private val streamService: StreamService) {
     }
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
-        streams.filter { !it.codec.startsWith("av01") && it.url.isNotBlank() && it.codec.isNotBlank() }
-            .sortedWith(compareBy({ codecPriority(it.codec) }, { -(it.bitrate ?: 0) }))
+        streams.filter { it.codec?.startsWith("av01") != true && it.url.isNotBlank() && !it.codec.isNullOrBlank() }
+            .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: 0) }))
 
     private fun compatibleAudioStreams(streams: List<AudioStreamItem>): List<AudioStreamItem> =
-        streams.filter { it.url.isNotBlank() && it.codec.isNotBlank() }
+        streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
             .sortedByDescending { it.bitrate ?: 0 }
 
     private fun codecPriority(codec: String): Int = when {
@@ -42,7 +42,7 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("     mediaPresentationDuration=\"PT${duration}S\"")
         sb.appendLine("     minBufferTime=\"PT4S\">")
         sb.appendLine("  <Period>")
-        videos.groupBy { videoMimeType(it.format) to codecFamily(it.codec) }
+        videos.groupBy { videoMimeType(it.format) to codecFamily(it.codec ?: "") }
             .forEach { (key, streams) -> appendVideoAdaptationSet(sb, key.first, streams) }
         audios.groupBy { audioMimeType(it.format) }
             .forEach { (mime, streams) -> appendAudioAdaptationSet(sb, mime, streams) }
@@ -58,7 +58,7 @@ class ManifestService(private val streamService: StreamService) {
             val width = if (s.width > 0) s.width else if (height > 0) height * 16 / 9 else 0
             val bandwidth = (s.bitrate ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
-            sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec}\">")
+            sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(s.url)}</BaseURL>")
             if (s.indexStart > 0L && s.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${s.indexStart}-${s.indexEnd}\">")
@@ -74,7 +74,7 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\">")
         streams.forEachIndexed { i, a ->
             val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
-            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${a.codec}\">")
+            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${a.codec ?: ""}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
