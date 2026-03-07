@@ -27,6 +27,11 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.16")
     implementation("com.github.TeamNewPipe:extractor:v4.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.lettuce:lettuce-core:6.3.2.RELEASE")
+    implementation("org.jetbrains.exposed:exposed-core:0.57.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.57.0")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("org.postgresql:postgresql:42.7.4")
 }
 
 kotlin {
