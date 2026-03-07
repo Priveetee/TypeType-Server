@@ -6,7 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
 class OkHttpProxyService : ProxyService {
@@ -35,25 +38,50 @@ class OkHttpProxyService : ProxyService {
                         response.close()
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val stream: InputStream = body?.byteStream() ?: InputStream.nullInputStream()
-                        ExtractionResult.Success(
-                            ProxyResponse(
-                                status = response.code,
-                                contentType = response.header("Content-Type") ?: "application/octet-stream",
-                                contentLength = response.header("Content-Length")?.toLongOrNull(),
-                                contentRange = response.header("Content-Range"),
-                                acceptRanges = response.header("Accept-Ranges"),
-                                stream = stream,
+                        val statusCode = response.code
+                        val contentType = response.header("Content-Type") ?: "application/octet-stream"
+                        val contentRange = response.header("Content-Range")
+                        val acceptRanges = response.header("Accept-Ranges")
+                        val contentLength = response.header("Content-Length")?.toLongOrNull()
+                        if (isHls(contentType)) {
+                            val rewritten = rewriteHlsUrls(body?.string() ?: "")
+                            response.close()
+                            ExtractionResult.Success(ProxyResponse(
+                                status = statusCode,
+                                contentType = contentType,
+                                contentLength = null,
+                                contentRange = null,
+                                acceptRanges = null,
+                                stream = ByteArrayInputStream(rewritten.toByteArray(StandardCharsets.UTF_8)),
+                                close = {},
+                            ))
+                        } else {
+                            ExtractionResult.Success(ProxyResponse(
+                                status = statusCode,
+                                contentType = contentType,
+                                contentLength = contentLength,
+                                contentRange = contentRange,
+                                acceptRanges = acceptRanges,
+                                stream = body?.byteStream() ?: InputStream.nullInputStream(),
                                 close = response::close,
-                            )
-                        )
+                            ))
+                        }
                     }
                 },
                 onFailure = { ExtractionResult.Failure(it.message ?: "Proxy fetch failed") }
             )
         }
 
+    private fun isHls(contentType: String): Boolean =
+        contentType.contains("mpegurl", ignoreCase = true)
+
+    private fun rewriteHlsUrls(manifest: String): String =
+        manifest.replace(GOOGLEVIDEO_URL_PATTERN) { match ->
+            "/proxy?url=" + URLEncoder.encode(match.value, StandardCharsets.UTF_8)
+        }
+
     companion object {
+        private val GOOGLEVIDEO_URL_PATTERN = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
