@@ -8,6 +8,7 @@ data class StreamResponse(
     val title: String,
     val uploaderName: String,
     val uploaderUrl: String,
+    val uploaderAvatarUrl: String,
     val thumbnailUrl: String,
     val description: String,
     val duration: Long,

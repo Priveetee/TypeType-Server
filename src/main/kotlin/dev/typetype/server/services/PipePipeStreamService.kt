@@ -31,6 +31,7 @@ class PipePipeStreamService : StreamService {
         title = name ?: "",
         uploaderName = uploaderName ?: "",
         uploaderUrl = uploaderUrl ?: "",
+        uploaderAvatarUrl = uploaderAvatarUrl ?: "",
         thumbnailUrl = thumbnailUrl ?: "",
         description = description?.content ?: "",
         duration = duration,
