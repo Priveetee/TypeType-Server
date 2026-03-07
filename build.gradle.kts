@@ -1,0 +1,38 @@
+plugins {
+    kotlin("jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
+    id("io.ktor.plugin") version "3.4.1"
+}
+
+group = "dev.typetype"
+version = "0.0.1"
+
+application {
+    mainClass.set("dev.typetype.server.ApplicationKt")
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = uri("https://jitpack.io") }
+}
+
+dependencies {
+    implementation("io.ktor:ktor-server-core-jvm")
+    implementation("io.ktor:ktor-server-netty-jvm")
+    implementation("io.ktor:ktor-server-content-negotiation-jvm")
+    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
+    implementation("io.ktor:ktor-server-cors-jvm")
+    implementation("io.ktor:ktor-server-status-pages-jvm")
+    implementation("ch.qos.logback:logback-classic:1.5.16")
+    implementation("com.github.TeamNewPipe:extractor:v4.8.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}
+
+kotlin {
+    jvmToolchain(21)
+}
+
+tasks.withType<AbstractCopyTask>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
