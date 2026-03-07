@@ -31,13 +31,14 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
             throw ReCaptchaException("reCaptcha required", request.url())
         }
 
-        val responseBody = httpResponse.body?.string() ?: ""
+        val responseBodyBytes = httpResponse.body?.bytes()
+        val responseBody = responseBodyBytes?.toString(Charsets.UTF_8) ?: ""
         return Response(
             httpResponse.code,
             httpResponse.message,
             httpResponse.headers.toMultimap(),
             responseBody,
-            null,
+            responseBodyBytes,
             httpResponse.request.url.toString()
         )
     }
@@ -49,13 +50,14 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
 
         call.enqueue(object : Callback {
             override fun onResponse(call: Call, response: okhttp3.Response) {
-                val responseBody = response.body?.string() ?: ""
+                val responseBodyBytes = response.body?.bytes()
+                val responseBody = responseBodyBytes?.toString(Charsets.UTF_8) ?: ""
                 val extractorResponse = Response(
                     response.code,
                     response.message,
                     response.headers.toMultimap(),
                     responseBody,
-                    null,
+                    responseBodyBytes,
                     response.request.url.toString()
                 )
                 cancellableCall.setFinished()
@@ -72,10 +74,13 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
     }
 
     private fun buildOkHttpRequest(request: ExtractorRequest): Request {
-        val body = request.dataToSend()?.toRequestBody()
+        val method = request.httpMethod()
+        val dataToSend = request.dataToSend()
+        val body = dataToSend?.toRequestBody()
+            ?: if (method == "POST" || method == "PUT" || method == "PATCH") ByteArray(0).toRequestBody() else null
         val builder = Request.Builder()
             .url(request.url())
-            .method(if (body != null) "POST" else "GET", body)
+            .method(method, body)
 
         request.headers().forEach { (name, values) ->
             values.forEach { value -> builder.addHeader(name, value) }
