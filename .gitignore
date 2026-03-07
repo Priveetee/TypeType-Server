@@ -49,3 +49,7 @@ Vision.md
 
 # Frontend integration guide — local only, shared manually
 Backend.md
+
+# Frontend communication files — local only, never committed
+attente.md
+reponse.md
