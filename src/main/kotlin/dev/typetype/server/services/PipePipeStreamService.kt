@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.Dispatchers
@@ -31,12 +32,14 @@ class PipePipeStreamService : StreamService {
         duration = duration,
         viewCount = viewCount,
         likeCount = likeCount,
+        dislikeCount = dislikeCount,
         uploadDate = textualUploadDate ?: "",
         hlsUrl = hlsUrl ?: "",
         dashMpdUrl = dashMpdUrl ?: "",
         videoStreams = videoStreams.map { it.toVideoStreamItem(isVideoOnly = false) },
         audioStreams = audioStreams.map { it.toAudioStreamItem() },
-        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(isVideoOnly = true) }
+        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(isVideoOnly = true) },
+        sponsorBlockSegments = getSponsorBlockSegments().map { it.toSegmentItem() }
     )
 
     private fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamItem = VideoStreamItem(
@@ -44,6 +47,7 @@ class PipePipeStreamService : StreamService {
         format = getFormat()?.name ?: "",
         resolution = getResolution(),
         bitrate = getBitrate(),
+        codec = getCodec() ?: "",
         isVideoOnly = isVideoOnly
     )
 
@@ -51,6 +55,15 @@ class PipePipeStreamService : StreamService {
         url = getContent() ?: "",
         format = getFormat()?.name ?: "",
         bitrate = averageBitrate,
+        codec = getCodec() ?: "",
         quality = getQuality()
     )
+
+    private fun org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment.toSegmentItem() =
+        SponsorBlockSegmentItem(
+            startTime = startTime,
+            endTime = endTime,
+            category = category.apiName,
+            action = action.apiName
+        )
 }

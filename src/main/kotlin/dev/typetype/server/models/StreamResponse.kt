@@ -13,10 +13,12 @@ data class StreamResponse(
     val duration: Long,
     val viewCount: Long,
     val likeCount: Long,
+    val dislikeCount: Long,
     val uploadDate: String,
     val hlsUrl: String,
     val dashMpdUrl: String,
     val videoStreams: List<VideoStreamItem>,
     val audioStreams: List<AudioStreamItem>,
     val videoOnlyStreams: List<VideoStreamItem>,
+    val sponsorBlockSegments: List<SponsorBlockSegmentItem>,
 )
