@@ -54,12 +54,17 @@ class ManifestService(private val streamService: StreamService) {
     private fun appendVideoAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<VideoStreamItem>) {
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\" startWithSAP=\"1\">")
         streams.forEachIndexed { i, s ->
-            val height = resolutionHeight(s.resolution)
-            val width = if (height > 0) height * 16 / 9 else 0
+            val height = if (s.height > 0) s.height else resolutionHeight(s.resolution)
+            val width = if (s.width > 0) s.width else if (height > 0) height * 16 / 9 else 0
             val bandwidth = (s.bitrate ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
             sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(s.url)}</BaseURL>")
+            if (s.indexStart > 0L && s.indexEnd > 0L) {
+                sb.appendLine("        <SegmentBase indexRange=\"${s.indexStart}-${s.indexEnd}\">")
+                sb.appendLine("          <Initialization range=\"${s.initStart}-${s.initEnd}\"/>")
+                sb.appendLine("        </SegmentBase>")
+            }
             sb.appendLine("      </Representation>")
         }
         sb.appendLine("    </AdaptationSet>")
@@ -71,6 +76,11 @@ class ManifestService(private val streamService: StreamService) {
             val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
             sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${a.codec}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
+            if (a.indexStart > 0L && a.indexEnd > 0L) {
+                sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
+                sb.appendLine("          <Initialization range=\"${a.initStart}-${a.initEnd}\"/>")
+                sb.appendLine("        </SegmentBase>")
+            }
             sb.appendLine("      </Representation>")
         }
         sb.appendLine("    </AdaptationSet>")
