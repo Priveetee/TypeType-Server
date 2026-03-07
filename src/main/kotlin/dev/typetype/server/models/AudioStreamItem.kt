@@ -9,4 +9,10 @@ data class AudioStreamItem(
     val bitrate: Int?,
     val codec: String,
     val quality: String?,
+    val itag: Int,
+    val contentLength: Long,
+    val initStart: Long,
+    val initEnd: Long,
+    val indexStart: Long,
+    val indexEnd: Long,
 )

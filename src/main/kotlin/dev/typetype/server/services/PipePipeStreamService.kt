@@ -54,7 +54,16 @@ class PipePipeStreamService : StreamService {
         resolution = getResolution(),
         bitrate = getBitrate().takeIf { it > 0 },
         codec = getCodec() ?: "",
-        isVideoOnly = isVideoOnly
+        isVideoOnly = isVideoOnly,
+        itag = getItag(),
+        width = getWidth(),
+        height = getHeight(),
+        fps = getFps(),
+        contentLength = getItagItem()?.getContentLength() ?: 0L,
+        initStart = getInitStart().toLong(),
+        initEnd = getInitEnd().toLong(),
+        indexStart = getIndexStart().toLong(),
+        indexEnd = getIndexEnd().toLong(),
     )
 
     private fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
@@ -62,7 +71,13 @@ class PipePipeStreamService : StreamService {
         format = getFormat()?.name ?: "",
         bitrate = averageBitrate.takeIf { it > 0 },
         codec = getCodec() ?: "",
-        quality = getQuality()
+        quality = getQuality(),
+        itag = getItag(),
+        contentLength = getItagItem()?.getContentLength() ?: 0L,
+        initStart = getInitStart().toLong(),
+        initEnd = getInitEnd().toLong(),
+        indexStart = getIndexStart().toLong(),
+        indexEnd = getIndexEnd().toLong(),
     )
 
     private fun org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment.toSegmentItem() =

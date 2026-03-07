@@ -10,4 +10,13 @@ data class VideoStreamItem(
     val bitrate: Int?,
     val codec: String,
     val isVideoOnly: Boolean,
+    val itag: Int,
+    val width: Int,
+    val height: Int,
+    val fps: Int,
+    val contentLength: Long,
+    val initStart: Long,
+    val initEnd: Long,
+    val indexStart: Long,
+    val indexEnd: Long,
 )
