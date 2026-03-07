@@ -14,6 +14,7 @@ import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.routes.searchRoutes
+import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.subscriptionsRoutes
@@ -35,6 +36,7 @@ import dev.typetype.server.services.PipePipeChannelService
 import dev.typetype.server.services.PipePipeCommentService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
+import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
@@ -76,6 +78,7 @@ fun Application.module() {
     val proxyService = OkHttpProxyService()
     val manifestService = ManifestService(streamService)
     val nativeManifestService = NativeManifestService(streamService)
+    val suggestionService = PipePipeSuggestionService()
 
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
@@ -94,6 +97,7 @@ fun Application.module() {
         streamRoutes(streamService)
         manifestRoutes(manifestService, nativeManifestService)
         searchRoutes(searchService)
+        suggestionRoutes(suggestionService)
         trendingRoutes(trendingService)
         commentRoutes(commentService)
         channelRoutes(channelService)
