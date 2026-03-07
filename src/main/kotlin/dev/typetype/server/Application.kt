@@ -3,9 +3,11 @@ package dev.typetype.server
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
+import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.trendingRoutes
+import dev.typetype.server.services.OkHttpProxyService
 import dev.typetype.server.services.PipePipeChannelService
 import dev.typetype.server.services.PipePipeCommentService
 import dev.typetype.server.services.PipePipeSearchService
@@ -44,6 +46,7 @@ fun Application.module() {
     val trendingService = PipePipeTrendingService()
     val commentService = PipePipeCommentService()
     val channelService = PipePipeChannelService()
+    val proxyService = OkHttpProxyService()
 
     routing {
         streamRoutes(streamService)
@@ -51,5 +54,6 @@ fun Application.module() {
         trendingRoutes(trendingService)
         commentRoutes(commentService)
         channelRoutes(channelService)
+        proxyRoutes(proxyService)
     }
 }
