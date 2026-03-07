@@ -1,0 +1,12 @@
+package dev.typetype.server.db.tables
+
+import org.jetbrains.exposed.sql.Table
+
+object WatchLaterTable : Table("watch_later") {
+    val url = text("url")
+    val title = text("title")
+    val thumbnail = text("thumbnail")
+    val duration = long("duration")
+    val addedAt = long("added_at")
+    override val primaryKey = PrimaryKey(url)
+}
