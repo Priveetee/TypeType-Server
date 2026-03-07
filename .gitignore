@@ -1,0 +1,48 @@
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Kotlin / JVM
+*.class
+*.kotlin_module
+*.jar
+*.war
+*.aar
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+hs_err_pid*
+
+# Local env
+local.properties
+.env
+.env.*
+!.env.example
+
+# AI agent instructions — local only, never committed
+AGENTS.md
+Vision.md
