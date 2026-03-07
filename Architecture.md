@@ -83,11 +83,6 @@ TypeType-Server/
 └── build.gradle.kts
 ```
 
-- Language: Kotlin
-- Toolchain: Gradle, Ktor, PipePipeExtractor
-- License: GPL v3
-- No TypeScript or JavaScript code enters this repository
-
 ## Boundary
 
 The REST API is the only point of contact between the two repositories. No code, no types, no logic crosses this boundary. Types consumed by the frontend are defined in its own `packages/types` workspace and derived from API contracts — not from Kotlin classes.
