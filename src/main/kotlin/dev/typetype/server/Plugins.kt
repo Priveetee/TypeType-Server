@@ -9,6 +9,24 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
+
+fun Application.configureSponsorBlock() {
+    val settings = SponsorBlockApiSettings().apply {
+        includeSponsorCategory = true
+        includeIntroCategory = true
+        includeOutroCategory = true
+        includeInteractionCategory = true
+        includeHighlightCategory = true
+        includeSelfPromoCategory = true
+        includeMusicCategory = true
+        includePreviewCategory = true
+        includeFillerCategory = true
+    }
+    ServiceList.YouTube.setSponsorBlockApiSettings(settings)
+    ServiceList.BiliBili.setSponsorBlockApiSettings(settings)
+}
 
 fun Application.configurePlugins() {
     install(ContentNegotiation) {
