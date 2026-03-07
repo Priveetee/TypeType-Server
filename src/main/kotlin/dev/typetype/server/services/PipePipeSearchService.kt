@@ -5,6 +5,7 @@ import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.models.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
@@ -26,20 +27,22 @@ class PipePipeSearchService : SearchService {
             } else null
 
             runCatching {
-                val service = NewPipe.getService(serviceId)
-                val factory = service.searchQHFactory
-                val defaultContentFilter = factory.availableContentFilter
-                    ?.filterGroups
-                    ?.firstOrNull()
-                    ?.filterItems
-                    ?.firstOrNull()
-                    ?.let { listOf(it) }
-                    ?: emptyList<FilterItem>()
-                val queryHandler = factory.fromQuery(query, defaultContentFilter, null)
-                if (page == null) {
-                    SearchInfo.getInfo(service, queryHandler).toPageResponse()
-                } else {
-                    SearchInfo.getMoreItems(service, queryHandler, page).toPageResponse()
+                withTimeout(30_000L) {
+                    val service = NewPipe.getService(serviceId)
+                    val factory = service.searchQHFactory
+                    val defaultContentFilter = factory.availableContentFilter
+                        ?.filterGroups
+                        ?.firstOrNull()
+                        ?.filterItems
+                        ?.firstOrNull()
+                        ?.let { listOf(it) }
+                        ?: emptyList<FilterItem>()
+                    val queryHandler = factory.fromQuery(query, defaultContentFilter, null)
+                    if (page == null) {
+                        SearchInfo.getInfo(service, queryHandler).toPageResponse()
+                    } else {
+                        SearchInfo.getMoreItems(service, queryHandler, page).toPageResponse()
+                    }
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },

@@ -8,6 +8,7 @@ import dev.typetype.server.models.VideoItem
 import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -17,11 +18,12 @@ class PipePipeStreamService : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         withContext(Dispatchers.IO) {
-            runCatching { StreamInfo.getInfo(url) }
-                .fold(
-                    onSuccess = { ExtractionResult.Success(it.toStreamResponse()) },
-                    onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }
-                )
+            runCatching {
+                withTimeout(30_000L) { StreamInfo.getInfo(url) }.toStreamResponse()
+            }.fold(
+                onSuccess = { ExtractionResult.Success(it) },
+                onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }
+            )
         }
 
     private fun StreamInfo.toStreamResponse(): StreamResponse = StreamResponse(
@@ -38,11 +40,11 @@ class PipePipeStreamService : StreamService {
         uploadDate = textualUploadDate ?: "",
         hlsUrl = hlsUrl?.takeIf { it.startsWith("http") } ?: "",
         dashMpdUrl = dashMpdUrl?.takeIf { it.startsWith("http") } ?: "",
-        videoStreams = videoStreams.map { it.toVideoStreamItem(isVideoOnly = false) },
-        audioStreams = audioStreams.map { it.toAudioStreamItem() },
-        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(isVideoOnly = true) },
-        sponsorBlockSegments = getSponsorBlockSegments().map { it.toSegmentItem() },
-        relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
+        videoStreams = videoStreams.mapNotNull { runCatching { it.toVideoStreamItem(false) }.getOrNull() },
+        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem() }.getOrNull() },
+        videoOnlyStreams = videoOnlyStreams.mapNotNull { runCatching { it.toVideoStreamItem(true) }.getOrNull() },
+        sponsorBlockSegments = runCatching { getSponsorBlockSegments().map { it.toSegmentItem() } }.getOrElse { emptyList() },
+        relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { runCatching { it.toVideoItem() }.getOrNull() },
     )
 
     private fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamItem = VideoStreamItem(

@@ -5,6 +5,7 @@ import dev.typetype.server.models.CommentsPageResponse
 import dev.typetype.server.models.ExtractionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.comments.CommentsInfo
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem
@@ -19,12 +20,14 @@ class PipePipeCommentService : CommentService {
             } else null
 
             runCatching {
-                if (page == null) {
-                    val info = CommentsInfo.getInfo(url)
-                    info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null)
-                } else {
-                    val service = NewPipe.getServiceByUrl(url)
-                    CommentsInfo.getMoreItems(service, url, page).toPageResponse()
+                withTimeout(30_000L) {
+                    if (page == null) {
+                        val info = CommentsInfo.getInfo(url)
+                        info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null)
+                    } else {
+                        val service = NewPipe.getServiceByUrl(url)
+                        CommentsInfo.getMoreItems(service, url, page).toPageResponse()
+                    }
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },

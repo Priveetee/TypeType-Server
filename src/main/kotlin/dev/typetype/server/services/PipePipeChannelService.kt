@@ -5,6 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.channel.ChannelInfo
@@ -20,11 +21,13 @@ class PipePipeChannelService : ChannelService {
             } else null
 
             runCatching {
-                if (page == null) {
-                    ChannelInfo.getInfo(url).toChannelResponse()
-                } else {
-                    val service = NewPipe.getServiceByUrl(url)
-                    ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+                withTimeout(30_000L) {
+                    if (page == null) {
+                        ChannelInfo.getInfo(url).toChannelResponse()
+                    } else {
+                        val service = NewPipe.getServiceByUrl(url)
+                        ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+                    }
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
