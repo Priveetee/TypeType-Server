@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.search.SearchInfo
+import org.schabi.newpipe.extractor.search.filter.FilterItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class PipePipeSearchService : SearchService {
@@ -14,7 +15,15 @@ class PipePipeSearchService : SearchService {
         withContext(Dispatchers.IO) {
             runCatching {
                 val service = NewPipe.getService(serviceId)
-                val queryHandler = service.searchQHFactory.fromQuery(query)
+                val factory = service.searchQHFactory
+                val defaultContentFilter = factory.availableContentFilter
+                    ?.filterGroups
+                    ?.firstOrNull()
+                    ?.filterItems
+                    ?.firstOrNull()
+                    ?.let { listOf(it) }
+                    ?: emptyList<FilterItem>()
+                val queryHandler = factory.fromQuery(query, defaultContentFilter, null)
                 val searchInfo = SearchInfo.getInfo(service, queryHandler)
                 searchInfo.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() }
             }.fold(
