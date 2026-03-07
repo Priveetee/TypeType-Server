@@ -58,6 +58,7 @@ fun Application.module() {
 
     NewPipe.init(OkHttpDownloader.instance())
     configureSponsorBlock()
+    launchExtractorLifecycle()
 
     val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/typetype"
     val dbUser = System.getenv("DATABASE_USER") ?: "typetype"
