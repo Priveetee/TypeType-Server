@@ -9,6 +9,8 @@ data class VideoItem(
     val url: String,
     val thumbnailUrl: String,
     val uploaderName: String,
+    val uploaderUrl: String,
+    val uploaderAvatarUrl: String,
     val duration: Long,
     val viewCount: Long,
     val uploadDate: String,

@@ -31,6 +31,8 @@ class PipePipeTrendingService : TrendingService {
         url = url ?: "",
         thumbnailUrl = thumbnailUrl ?: "",
         uploaderName = uploaderName ?: "",
+        uploaderUrl = uploaderUrl ?: "",
+        uploaderAvatarUrl = uploaderAvatarUrl ?: "",
         duration = duration,
         viewCount = viewCount,
         uploadDate = textualUploadDate ?: ""
