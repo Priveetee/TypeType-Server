@@ -6,57 +6,55 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URLEncoder
+import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
 class OkHttpProxyService : ProxyService {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
 
-    override suspend fun fetch(url: String): ExtractionResult<ProxyResponse> =
+    override suspend fun pipe(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val request = Request.Builder()
-                    .url(url)
+                val cleanUrl = url
+                    .replace(Regex("[&?]cpn=[^&]*"), "")
+                    .replace(Regex("[&?]pppid=[^&]*"), "")
+                val builder = Request.Builder()
+                    .url(cleanUrl)
                     .header("User-Agent", BROWSER_USER_AGENT)
-                    .build()
-                client.newCall(request).execute()
+                if (rangeHeader != null) builder.header("Range", rangeHeader)
+                client.newCall(builder.build()).execute()
             }.fold(
                 onSuccess = { response ->
-                    if (!response.isSuccessful) {
+                    val body = response.body
+                    if (!response.isSuccessful && response.code != 206) {
+                        response.close()
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val rawBody = response.body?.bytes() ?: ByteArray(0)
-                        val contentType = response.header("Content-Type") ?: "application/octet-stream"
-                        val body = rewriteIfHls(rawBody, contentType)
-                        ExtractionResult.Success(ProxyResponse(contentType = contentType, body = body))
+                        val stream: InputStream = body?.byteStream() ?: InputStream.nullInputStream()
+                        ExtractionResult.Success(
+                            ProxyResponse(
+                                status = response.code,
+                                contentType = response.header("Content-Type") ?: "application/octet-stream",
+                                contentLength = response.header("Content-Length")?.toLongOrNull(),
+                                contentRange = response.header("Content-Range"),
+                                acceptRanges = response.header("Accept-Ranges"),
+                                stream = stream,
+                                close = response::close,
+                            )
+                        )
                     }
                 },
                 onFailure = { ExtractionResult.Failure(it.message ?: "Proxy fetch failed") }
             )
         }
 
-    private fun rewriteIfHls(body: ByteArray, contentType: String): ByteArray {
-        val baseType = contentType.substringBefore(";").trim().lowercase()
-        if (baseType !in HLS_CONTENT_TYPES) return body
-        val text = body.toString(Charsets.UTF_8)
-        val rewritten = HLS_URL_PATTERN.replace(text) { match ->
-            "/proxy?url=${URLEncoder.encode(match.value, "UTF-8")}"
-        }
-        return rewritten.toByteArray(Charsets.UTF_8)
-    }
-
     companion object {
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
-        private val HLS_CONTENT_TYPES = setOf(
-            "application/vnd.apple.mpegurl",
-            "application/x-mpegurl"
-        )
-        private val HLS_URL_PATTERN = Regex("https?://[^\\s\"']+")
     }
 }
