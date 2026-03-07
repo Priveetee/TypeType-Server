@@ -24,6 +24,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("io.ktor:ktor-server-cors-jvm")
     implementation("io.ktor:ktor-server-status-pages-jvm")
+    implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.16")
     implementation("com.github.TeamNewPipe:extractor:v4.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
