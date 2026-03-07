@@ -21,4 +21,5 @@ data class StreamResponse(
     val audioStreams: List<AudioStreamItem>,
     val videoOnlyStreams: List<VideoStreamItem>,
     val sponsorBlockSegments: List<SponsorBlockSegmentItem>,
+    val relatedStreams: List<VideoItem>,
 )
