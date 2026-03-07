@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.ErrorResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -20,10 +21,10 @@ fun Application.configurePlugins() {
 
     install(StatusPages) {
         exception<IllegalArgumentException> { call, cause ->
-            call.respond(HttpStatusCode.BadRequest, cause.message ?: "Bad request")
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request"))
         }
         exception<Throwable> { call, cause ->
-            call.respond(HttpStatusCode.InternalServerError, cause.message ?: "Internal server error")
+            call.respond(HttpStatusCode.InternalServerError, ErrorResponse(cause.message ?: "Internal server error"))
         }
     }
 }
