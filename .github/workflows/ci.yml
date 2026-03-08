@@ -13,12 +13,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get PipePipeExtractor HEAD SHA
+        id: ppe
+        run: echo "sha=$(git ls-remote https://github.com/InfinityLoop1308/PipePipeExtractor.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: ppe-cache
+        with:
+          path: ~/.m2/repository/com/github/TeamNewPipe
+          key: ppe-${{ steps.ppe.outputs.sha }}
+
       - uses: actions/setup-java@v4
+        if: steps.ppe-cache.outputs.cache-hit != 'true'
         with:
           java-version: "17"
           distribution: temurin
 
       - name: Install PipePipeExtractor to Maven local
+        if: steps.ppe-cache.outputs.cache-hit != 'true'
         working-directory: /tmp
         env:
           GRADLE_USER_HOME: /tmp/gradle-ppe
