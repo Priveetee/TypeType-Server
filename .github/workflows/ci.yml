@@ -23,7 +23,7 @@ jobs:
       - name: Install PipePipeExtractor to Maven local
         working-directory: /tmp
         run: |
-          git clone --depth 1 --branch v4.8.1 https://github.com/InfinityLoop1308/PipePipeExtractor.git PipePipeExtractor
+          git clone --depth 1 https://github.com/InfinityLoop1308/PipePipeExtractor.git PipePipeExtractor
           cd PipePipeExtractor
           ./gradlew :extractor:publishToMavenLocal :timeago-parser:publishToMavenLocal
 
