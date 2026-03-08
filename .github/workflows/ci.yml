@@ -22,6 +22,8 @@ jobs:
 
       - name: Install PipePipeExtractor to Maven local
         working-directory: /tmp
+        env:
+          GRADLE_USER_HOME: /tmp/gradle-ppe
         run: |
           git clone --depth 1 https://github.com/InfinityLoop1308/PipePipeExtractor.git PipePipeExtractor
           cd PipePipeExtractor
