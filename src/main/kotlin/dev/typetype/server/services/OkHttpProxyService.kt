@@ -12,6 +12,17 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
+internal val GOOGLEVIDEO_URL_REGEX = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
+
+internal fun stripTrackingParams(url: String): String =
+    url.replace(Regex("[&?]cpn=[^&]*"), "")
+        .replace(Regex("[&?]pppid=[^&]*"), "")
+
+internal fun rewriteHlsManifest(manifest: String): String =
+    manifest.replace(GOOGLEVIDEO_URL_REGEX) { match ->
+        "/proxy?url=" + URLEncoder.encode(match.value, StandardCharsets.UTF_8)
+    }
+
 class OkHttpProxyService : ProxyService {
 
     private val client = OkHttpClient.Builder()
@@ -23,9 +34,7 @@ class OkHttpProxyService : ProxyService {
     override suspend fun pipe(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val cleanUrl = url
-                    .replace(Regex("[&?]cpn=[^&]*"), "")
-                    .replace(Regex("[&?]pppid=[^&]*"), "")
+                val cleanUrl = stripTrackingParams(url)
                 val builder = Request.Builder()
                     .url(cleanUrl)
                     .header("User-Agent", BROWSER_USER_AGENT)
@@ -45,7 +54,7 @@ class OkHttpProxyService : ProxyService {
                         val acceptRanges = response.header("Accept-Ranges")
                         val contentLength = response.header("Content-Length")?.toLongOrNull()
                         if (isHls(contentType)) {
-                            val rewritten = rewriteHlsUrls(body?.string() ?: "")
+                            val rewritten = rewriteHlsManifest(body?.string() ?: "")
                             response.close()
                             ExtractionResult.Success(ProxyResponse(
                                 status = statusCode,
@@ -81,15 +90,9 @@ class OkHttpProxyService : ProxyService {
     private fun isHls(contentType: String): Boolean =
         contentType.contains("mpegurl", ignoreCase = true)
 
-    private fun rewriteHlsUrls(manifest: String): String =
-        manifest.replace(GOOGLEVIDEO_URL_PATTERN) { match ->
-            "/proxy?url=" + URLEncoder.encode(match.value, StandardCharsets.UTF_8)
-        }
-
     companion object {
-        private val GOOGLEVIDEO_URL_PATTERN = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
-        private const val BROWSER_USER_AGENT =
+        const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
 }

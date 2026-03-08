@@ -33,6 +33,18 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:0.57.0")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.postgresql:postgresql:42.7.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("io.ktor:ktor-server-test-host-jvm")
+    testImplementation("io.ktor:ktor-server-content-negotiation-jvm")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
+}
+
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("network")
+    }
 }
 
 kotlin {
