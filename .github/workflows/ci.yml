@@ -9,7 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    outputs:
+      ppe-sha: ${{ steps.ppe.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,5 +50,55 @@ jobs:
       - name: Build
         run: ./gradlew build -x test
 
-      - name: Test
-        run: ./gradlew test
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - name: extraction
+            tests: >-
+              --tests dev.typetype.server.ExtractionTest
+              --tests dev.typetype.server.StreamRoutesTest
+              --tests dev.typetype.server.ProxyRoutesTest
+              --tests dev.typetype.server.ManifestRoutesTest
+              --tests dev.typetype.server.ManifestServiceTest
+              --tests dev.typetype.server.HlsRewritingTest
+              --tests dev.typetype.server.UrlStrippingTest
+          - name: routes-media
+            tests: >-
+              --tests dev.typetype.server.SearchRoutesTest
+              --tests dev.typetype.server.TrendingRoutesTest
+              --tests dev.typetype.server.CommentRoutesTest
+              --tests dev.typetype.server.ChannelRoutesTest
+              --tests dev.typetype.server.SuggestionRoutesTest
+              --tests dev.typetype.server.TokenRoutesTest
+          - name: routes-user
+            tests: >-
+              --tests dev.typetype.server.SearchHistoryRoutesTest
+              --tests dev.typetype.server.ProgressRoutesTest
+              --tests dev.typetype.server.HistoryRoutesTest
+              --tests dev.typetype.server.LikesRoutesTest
+              --tests dev.typetype.server.WatchLaterRoutesTest
+              --tests dev.typetype.server.SubscriptionsRoutesTest
+              --tests dev.typetype.server.SettingsRoutesTest
+              --tests dev.typetype.server.BlockedRoutesTest
+              --tests dev.typetype.server.PlaylistRoutesTest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/com/github/TeamNewPipe
+          key: ppe-${{ needs.build.outputs.ppe-sha }}
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test (${{ matrix.group.name }})
+        run: ./gradlew test ${{ matrix.group.tests }}
