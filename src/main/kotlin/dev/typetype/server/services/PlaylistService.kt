@@ -18,9 +18,17 @@ import java.util.UUID
 class PlaylistService {
 
     suspend fun getAll(): List<PlaylistItem> = DatabaseFactory.query {
-        PlaylistsTable.selectAll()
+        val playlists = PlaylistsTable.selectAll()
             .orderBy(PlaylistsTable.createdAt to SortOrder.DESC)
-            .map { PlaylistItem(id = it[PlaylistsTable.id], name = it[PlaylistsTable.name], description = it[PlaylistsTable.description], createdAt = it[PlaylistsTable.createdAt]) }
+            .toList()
+        val videosByPlaylist = PlaylistVideosTable.selectAll()
+            .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
+            .toList()
+            .groupBy { it[PlaylistVideosTable.playlistId] }
+        playlists.map { row ->
+            val videos = videosByPlaylist[row[PlaylistsTable.id]]?.map { it.toVideoItem() } ?: emptyList()
+            PlaylistItem(id = row[PlaylistsTable.id], name = row[PlaylistsTable.name], description = row[PlaylistsTable.description], videos = videos, createdAt = row[PlaylistsTable.createdAt])
+        }
     }
 
     suspend fun getById(id: String): PlaylistItem? = DatabaseFactory.query {

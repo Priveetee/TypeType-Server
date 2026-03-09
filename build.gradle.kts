@@ -39,6 +39,9 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("io.ktor:ktor-server-content-negotiation-jvm")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
+    testImplementation("org.testcontainers:testcontainers:1.21.4")
+    testImplementation("org.testcontainers:postgresql:1.21.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
 }
 
 tasks.test {

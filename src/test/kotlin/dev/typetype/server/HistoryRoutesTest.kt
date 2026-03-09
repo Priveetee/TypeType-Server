@@ -8,6 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -17,16 +18,25 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.mockk.coEvery
-import io.mockk.coJustRun
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class HistoryRoutesTest {
 
-    private val service: HistoryService = mockk()
+    private val service = HistoryService()
     private val token = "test-token"
+
+    companion object {
+        @BeforeAll
+        @JvmStatic
+        fun initDb() { TestDatabase.setup() }
+    }
+
+    @BeforeEach
+    fun clean() { TestDatabase.truncateAll() }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
@@ -38,53 +48,51 @@ class HistoryRoutesTest {
 
     private val historyBody = """{"url":"https://yt.com","title":"Test","thumbnail":"","channelName":"Ch","channelUrl":"","duration":100,"progress":0}"""
 
-    private fun testHistoryItem() = HistoryItem(
-        url = "https://yt.com", title = "Test", thumbnail = "",
-        channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L,
-    )
-
     @Test
     fun `GET history without token returns 401`() = withApp {
-        val response = client.get("/history")
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/history").status)
     }
 
     @Test
-    fun `GET history returns 200`() = withApp {
-        coEvery { service.getAll() } returns emptyList()
+    fun `GET history returns 200 with empty list`() = withApp {
         val response = client.get("/history") { headers.append("X-Instance-Token", token) }
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("[]", response.bodyAsText())
     }
 
     @Test
-    fun `POST history returns 201`() = withApp {
-        coEvery { service.add(any()) } returns testHistoryItem()
+    fun `POST history returns 201 and persists item`() = withApp {
         val response = client.post("/history") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(historyBody)
         }
         assertEquals(HttpStatusCode.Created, response.status)
+        assertTrue(response.bodyAsText().contains("\"url\":\"https://yt.com\""))
+    }
+
+    @Test
+    fun `GET history returns persisted items`() = withApp {
+        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        val body = client.get("/history") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("\"url\":\"https://yt.com\""))
     }
 
     @Test
     fun `DELETE history by id returns 204 when found`() = withApp {
-        coEvery { service.delete("abc") } returns true
-        val response = client.delete("/history/abc") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.NoContent, response.status)
+        val item = service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/history/${item.id}") { headers.append("X-Instance-Token", token) }.status)
     }
 
     @Test
     fun `DELETE history by id returns 404 when not found`() = withApp {
-        coEvery { service.delete("abc") } returns false
-        val response = client.delete("/history/abc") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(HttpStatusCode.NotFound, client.delete("/history/nonexistent") { headers.append("X-Instance-Token", token) }.status)
     }
 
     @Test
-    fun `DELETE history returns 204`() = withApp {
-        coJustRun { service.deleteAll() }
-        val response = client.delete("/history") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.NoContent, response.status)
+    fun `DELETE history returns 204 and clears all`() = withApp {
+        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/history") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals("[]", client.get("/history") { headers.append("X-Instance-Token", token) }.bodyAsText())
     }
 }

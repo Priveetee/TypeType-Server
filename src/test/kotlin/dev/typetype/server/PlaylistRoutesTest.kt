@@ -1,7 +1,6 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.PlaylistItem
-import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.routes.playlistRoutes
 import dev.typetype.server.services.PlaylistService
 import io.ktor.client.request.delete
@@ -10,6 +9,7 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -19,15 +19,25 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.mockk.coEvery
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class PlaylistRoutesTest {
 
-    private val service: PlaylistService = mockk()
+    private val service = PlaylistService()
     private val token = "test-token"
+
+    companion object {
+        @BeforeAll
+        @JvmStatic
+        fun initDb() { TestDatabase.setup() }
+    }
+
+    @BeforeEach
+    fun clean() { TestDatabase.truncateAll() }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
@@ -37,84 +47,73 @@ class PlaylistRoutesTest {
         block()
     }
 
-    private fun testPlaylist() = PlaylistItem(id = "1", name = "My Playlist")
-    private fun testVideo() = PlaylistVideoItem(url = "https://yt.com", title = "T", thumbnail = "", duration = 100L)
-    private val playlistBody = """{"name":"My Playlist"}"""
+    private val playlistBody = """{"name":"My Playlist","description":""}"""
     private val videoBody = """{"url":"https://yt.com","title":"T","thumbnail":"","duration":100}"""
 
     @Test
     fun `GET playlists without token returns 401`() = withApp {
-        val response = client.get("/playlists")
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/playlists").status)
     }
 
     @Test
-    fun `GET playlists returns 200`() = withApp {
-        coEvery { service.getAll() } returns emptyList()
+    fun `GET playlists returns 200 with empty list`() = withApp {
         val response = client.get("/playlists") { headers.append("X-Instance-Token", token) }
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("[]", response.bodyAsText())
     }
 
     @Test
-    fun `POST playlists returns 201`() = withApp {
-        coEvery { service.create(any()) } returns testPlaylist()
+    fun `POST playlists returns 201 and persists item`() = withApp {
         val response = client.post("/playlists") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(playlistBody)
         }
         assertEquals(HttpStatusCode.Created, response.status)
+        assertTrue(response.bodyAsText().contains("\"name\":\"My Playlist\""))
     }
 
     @Test
     fun `GET playlists by id returns 200 when found`() = withApp {
-        coEvery { service.getById("1") } returns testPlaylist()
-        val response = client.get("/playlists/1") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.OK, response.status)
+        val playlist = service.create(PlaylistItem(name = "My Playlist"))
+        assertEquals(HttpStatusCode.OK, client.get("/playlists/${playlist.id}") { headers.append("X-Instance-Token", token) }.status)
     }
 
     @Test
     fun `GET playlists by id returns 404 when not found`() = withApp {
-        coEvery { service.getById("1") } returns null
-        val response = client.get("/playlists/1") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/playlists/nonexistent") { headers.append("X-Instance-Token", token) }.status)
     }
 
     @Test
     fun `PUT playlists returns 204 when found`() = withApp {
-        coEvery { service.update("1", any()) } returns true
-        val response = client.put("/playlists/1") {
+        val playlist = service.create(PlaylistItem(name = "Old"))
+        assertEquals(HttpStatusCode.NoContent, client.put("/playlists/${playlist.id}") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(playlistBody)
-        }
-        assertEquals(HttpStatusCode.NoContent, response.status)
+        }.status)
     }
 
     @Test
     fun `DELETE playlists returns 204 when found`() = withApp {
-        coEvery { service.delete("1") } returns true
-        val response = client.delete("/playlists/1") { headers.append("X-Instance-Token", token) }
-        assertEquals(HttpStatusCode.NoContent, response.status)
+        val playlist = service.create(PlaylistItem(name = "My Playlist"))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}") { headers.append("X-Instance-Token", token) }.status)
     }
 
     @Test
     fun `POST playlists videos returns 201`() = withApp {
-        coEvery { service.addVideo("1", any<PlaylistVideoItem>()) } returns testVideo()
-        val response = client.post("/playlists/1/videos") {
+        val playlist = service.create(PlaylistItem(name = "My Playlist"))
+        assertEquals(HttpStatusCode.Created, client.post("/playlists/${playlist.id}/videos") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(videoBody)
-        }
-        assertEquals(HttpStatusCode.Created, response.status)
+        }.status)
     }
 
     @Test
     fun `DELETE playlists video returns 204 when found`() = withApp {
-        coEvery { service.removeVideo("1", any()) } returns true
-        val response = client.delete("/playlists/1/videos/https%3A%2F%2Fyt.com") {
-            headers.append("X-Instance-Token", token)
-        }
-        assertEquals(HttpStatusCode.NoContent, response.status)
+        val playlist = service.create(PlaylistItem(name = "My Playlist"))
+        service.addVideo(playlist.id, dev.typetype.server.models.PlaylistVideoItem(url = "https://yt.com", title = "T", thumbnail = "", duration = 100L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}/videos/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
     }
 }

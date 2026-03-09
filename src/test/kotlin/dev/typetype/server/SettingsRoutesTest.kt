@@ -1,6 +1,5 @@
 package dev.typetype.server
 
-import dev.typetype.server.models.SettingsItem
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.services.SettingsService
 import io.ktor.client.request.get
@@ -17,16 +16,25 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.mockk.coEvery
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class SettingsRoutesTest {
 
-    private val service: SettingsService = mockk()
+    private val service = SettingsService()
     private val token = "test-token"
+
+    companion object {
+        @BeforeAll
+        @JvmStatic
+        fun initDb() { TestDatabase.setup() }
+    }
+
+    @BeforeEach
+    fun clean() { TestDatabase.truncateAll() }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
@@ -37,69 +45,53 @@ class SettingsRoutesTest {
     }
 
     private val settingsBody = """{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false}"""
-    private fun testSettings() = SettingsItem(defaultService = 0, defaultQuality = "1080p", autoplay = true, volume = 1.0, muted = false)
 
     @Test
     fun `GET settings without token returns 401`() = withApp {
-        val response = client.get("/settings")
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/settings").status)
     }
 
     @Test
-    fun `GET settings returns 200`() = withApp {
-        coEvery { service.get() } returns testSettings()
+    fun `GET settings returns 200 with defaults when no row exists`() = withApp {
         val response = client.get("/settings") { headers.append("X-Instance-Token", token) }
         assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"volume\":1.0"))
+        assertTrue(body.contains("\"muted\":false"))
     }
 
     @Test
-    fun `PUT settings returns 200`() = withApp {
-        coEvery { service.upsert(any()) } returns testSettings()
+    fun `PUT settings returns 200 and persists values`() = withApp {
         val response = client.put("/settings") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(settingsBody)
         }
         assertEquals(HttpStatusCode.OK, response.status)
-    }
-
-    @Test
-    fun `PUT settings with invalid body returns 400`() = withApp {
-        val response = client.put("/settings") {
-            headers.append("X-Instance-Token", token)
-            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""not json""")
-        }
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
-
-    @Test
-    fun `GET settings response body contains volume and muted`() = withApp {
-        coEvery { service.get() } returns testSettings()
-        val response = client.get("/settings") { headers.append("X-Instance-Token", token) }
         val body = response.bodyAsText()
-        assertTrue(body.contains("\"volume\""))
-        assertTrue(body.contains("\"muted\""))
-    }
-
-    @Test
-    fun `GET settings returns default volume 1 and muted false`() = withApp {
-        coEvery { service.get() } returns SettingsItem()
-        val body = client.get("/settings") { headers.append("X-Instance-Token", token) }.bodyAsText()
         assertTrue(body.contains("\"volume\":1.0"))
         assertTrue(body.contains("\"muted\":false"))
     }
 
     @Test
-    fun `PUT settings with custom volume and muted returns those values`() = withApp {
-        val custom = SettingsItem(volume = 0.4, muted = true)
-        coEvery { service.upsert(any()) } returns custom
-        val body = client.put("/settings") {
+    fun `GET settings returns persisted values after PUT`() = withApp {
+        client.put("/settings") {
             headers.append("X-Instance-Token", token)
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":0.4,"muted":true}""")
-        }.bodyAsText()
-        assertTrue(body.contains("\"volume\":0.4"))
+            setBody("""{"defaultService":0,"defaultQuality":"720p","autoplay":false,"volume":0.5,"muted":true}""")
+        }
+        val body = client.get("/settings") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("\"volume\":0.5"))
         assertTrue(body.contains("\"muted\":true"))
+        assertTrue(body.contains("\"defaultQuality\":\"720p\""))
+    }
+
+    @Test
+    fun `PUT settings with invalid body returns 400`() = withApp {
+        assertEquals(HttpStatusCode.BadRequest, client.put("/settings") {
+            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""not json""")
+        }.status)
     }
 }

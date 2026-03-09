@@ -1,0 +1,44 @@
+package dev.typetype.server
+
+import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.BlockedChannelsTable
+import dev.typetype.server.db.tables.BlockedVideosTable
+import dev.typetype.server.db.tables.FavoritesTable
+import dev.typetype.server.db.tables.HistoryTable
+import dev.typetype.server.db.tables.PlaylistVideosTable
+import dev.typetype.server.db.tables.PlaylistsTable
+import dev.typetype.server.db.tables.ProgressTable
+import dev.typetype.server.db.tables.SearchHistoryTable
+import dev.typetype.server.db.tables.SettingsTable
+import dev.typetype.server.db.tables.SubscriptionsTable
+import dev.typetype.server.db.tables.TokenTable
+import dev.typetype.server.db.tables.WatchLaterTable
+import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.testcontainers.containers.PostgreSQLContainer
+
+object TestDatabase {
+
+    private val container: PostgreSQLContainer<*> by lazy {
+        PostgreSQLContainer("postgres:16-alpine").apply { start() }
+    }
+
+    fun setup() {
+        DatabaseFactory.init(container.jdbcUrl, container.username, container.password)
+    }
+
+    fun truncateAll() = transaction {
+        PlaylistVideosTable.deleteAll()
+        PlaylistsTable.deleteAll()
+        HistoryTable.deleteAll()
+        FavoritesTable.deleteAll()
+        SettingsTable.deleteAll()
+        SubscriptionsTable.deleteAll()
+        WatchLaterTable.deleteAll()
+        ProgressTable.deleteAll()
+        SearchHistoryTable.deleteAll()
+        TokenTable.deleteAll()
+        BlockedChannelsTable.deleteAll()
+        BlockedVideosTable.deleteAll()
+    }
+}
