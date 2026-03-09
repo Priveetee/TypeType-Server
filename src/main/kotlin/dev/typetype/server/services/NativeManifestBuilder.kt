@@ -25,9 +25,9 @@ internal object NativeManifestBuilder {
     }
 
     private fun buildVideoAdaptationSets(sb: StringBuilder, videos: List<VideoStream>, duration: Long) {
-        videos.groupBy { nativeCodecFamily(it.getCodec() ?: "") }
-            .forEach { (_, group) ->
-                sb.appendLine("    <AdaptationSet mimeType=\"video/mp4\" startWithSAP=\"1\">")
+        videos.groupBy { videoMimeType(it.getCodec() ?: "") }
+            .forEach { (mime, group) ->
+                sb.appendLine("    <AdaptationSet mimeType=\"$mime\" startWithSAP=\"1\">")
                 group.forEachIndexed { i, s -> appendVideoRepresentation(sb, s, i, duration) }
                 sb.appendLine("    </AdaptationSet>")
             }
@@ -35,9 +35,12 @@ internal object NativeManifestBuilder {
 
     private fun buildAudioAdaptationSets(sb: StringBuilder, audios: List<AudioStream>, duration: Long) {
         if (audios.isEmpty()) return
-        sb.appendLine("    <AdaptationSet mimeType=\"audio/mp4\">")
-        audios.forEachIndexed { i, s -> appendAudioRepresentation(sb, s, i, duration) }
-        sb.appendLine("    </AdaptationSet>")
+        audios.groupBy { audioMimeType(it.getCodec() ?: "") }
+            .forEach { (mime, group) ->
+                sb.appendLine("    <AdaptationSet mimeType=\"$mime\">")
+                group.forEachIndexed { i, s -> appendAudioRepresentation(sb, s, i, duration) }
+                sb.appendLine("    </AdaptationSet>")
+            }
     }
 
     private fun appendVideoRepresentation(sb: StringBuilder, s: VideoStream, i: Int, duration: Long) {

@@ -22,8 +22,12 @@ internal fun rewriteManifestUrls(manifest: String): String =
 
 internal fun encodeUrl(url: String): String = URLEncoder.encode(url, StandardCharsets.UTF_8)
 
-internal fun nativeCodecFamily(codec: String): String = when {
-    codec.startsWith("avc1") -> "avc"
-    codec.startsWith("vp9") || codec.startsWith("vp09") -> "vp9"
-    else -> "other"
+internal fun videoMimeType(codec: String): String = when {
+    codec.startsWith("vp9") || codec.startsWith("vp09") || codec.startsWith("av01") -> "video/webm"
+    else -> "video/mp4"
+}
+
+internal fun audioMimeType(codec: String): String = when {
+    codec.startsWith("opus") || codec.startsWith("vorbis") -> "audio/webm"
+    else -> "audio/mp4"
 }
