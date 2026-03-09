@@ -82,4 +82,23 @@ class NicoVideoProxyServiceTest {
         assert(mapLine.contains("/proxy/nicovideo?url=")) { "Expected proxied URI in EXT-X-MAP: $mapLine" }
         assert(mapLine.contains("asset.domand.nicovideo.jp")) { "Expected asset domain in proxied URI: $mapLine" }
     }
+
+    @Test
+    fun `rewriteNicoManifest appends domand_bid to rewritten URLs when provided`() {
+        val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
+        val manifest = "#EXTM3U\nseg-001.ts"
+        val result = rewriteNicoManifest(manifest, base, domandBid = "abc123")
+        val segLine = result.lines().first { it.contains("/proxy/nicovideo?url=") }
+        assert(segLine.contains("domand_bid=abc123")) { "Expected domand_bid in rewritten URL: $segLine" }
+    }
+
+    @Test
+    fun `rewriteNicoManifest appends domand_bid to EXT-X-KEY URI`() {
+        val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
+        val keyUrl = "https://delivery.domand.nicovideo.jp/hlsbid/abc/keys/video-h264-720p.key?session=xyz"
+        val manifest = "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"$keyUrl\"\nseg-001.ts"
+        val result = rewriteNicoManifest(manifest, base, domandBid = "abc123")
+        val keyLine = result.lines().first { it.startsWith("#EXT-X-KEY") }
+        assert(keyLine.contains("domand_bid=abc123")) { "Expected domand_bid in EXT-X-KEY URI: $keyLine" }
+    }
 }
