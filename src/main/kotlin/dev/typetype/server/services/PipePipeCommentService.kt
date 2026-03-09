@@ -10,6 +10,8 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.comments.CommentsInfo
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem
 
+internal fun String.normalizeHttpSchema(): String = replace("httpss://", "https://")
+
 class PipePipeCommentService : CommentService {
 
     override suspend fun getComments(url: String, nextpage: String?): ExtractionResult<CommentsPageResponse> =
@@ -53,7 +55,7 @@ class PipePipeCommentService : CommentService {
         text = commentText ?: "",
         author = uploaderName ?: "",
         authorUrl = uploaderUrl ?: "",
-        authorAvatarUrl = uploaderAvatarUrl ?: "",
+        authorAvatarUrl = (uploaderAvatarUrl ?: "").normalizeHttpSchema(),
         likeCount = likeCount.toLong(),
         textualLikeCount = textualLikeCount ?: "",
         publishedTime = textualUploadDate ?: "",

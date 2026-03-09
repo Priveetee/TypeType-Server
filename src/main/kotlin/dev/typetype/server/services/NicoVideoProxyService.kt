@@ -25,17 +25,16 @@ internal fun parseNicoCookie(fragment: String): String? {
 
 internal fun rewriteNicoManifest(manifest: String, baseUrl: String): String {
     val base = URI(baseUrl)
+    val uriAttr = Regex("""URI="([^"]+)"""")
+    fun toProxy(url: String) = "/proxy/nicovideo?url=" + URLEncoder.encode(
+        if (url.startsWith("http")) url else base.resolve(url).toString(), StandardCharsets.UTF_8
+    )
     return manifest.lines().joinToString("\n") { line ->
-        val trimmed = line.trim()
-        if (trimmed.isBlank() || trimmed.startsWith("#")) {
-            line
-        } else {
-            val absolute = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-                trimmed
-            } else {
-                base.resolve(trimmed).toString()
-            }
-            "/proxy/nicovideo?url=" + URLEncoder.encode(absolute, StandardCharsets.UTF_8)
+        val t = line.trim()
+        when {
+            t.isBlank() -> line
+            t.startsWith("#") -> uriAttr.replace(t) { """URI="${toProxy(it.groupValues[1])}"""" }
+            else -> toProxy(t)
         }
     }
 }
