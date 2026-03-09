@@ -6,9 +6,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 
-class PipePipeSuggestionService {
+class PipePipeSuggestionService : SuggestionService {
 
-    suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> =
+    override suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> =
         withContext(Dispatchers.IO) {
             runCatching {
                 withTimeout(10_000L) {

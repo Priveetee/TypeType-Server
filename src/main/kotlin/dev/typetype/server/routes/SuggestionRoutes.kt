@@ -2,13 +2,13 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.services.PipePipeSuggestionService
+import dev.typetype.server.services.SuggestionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
-fun Route.suggestionRoutes(suggestionService: PipePipeSuggestionService) {
+fun Route.suggestionRoutes(suggestionService: SuggestionService) {
     get("/suggestions") {
         val query = call.request.queryParameters["query"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'query' parameter"))

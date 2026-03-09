@@ -26,6 +26,7 @@ import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedSearchService
 import dev.typetype.server.services.CachedStreamService
+import dev.typetype.server.services.CachedSuggestionService
 import dev.typetype.server.services.CachedTrendingService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.FavoritesService
@@ -78,7 +79,7 @@ fun Application.module() {
     val proxyService = OkHttpProxyService()
     val manifestService = ManifestService(streamService)
     val nativeManifestService = NativeManifestService()
-    val suggestionService = PipePipeSuggestionService()
+    val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
 
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()

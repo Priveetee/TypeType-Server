@@ -5,6 +5,8 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -35,9 +37,14 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
             runCatching {
                 val service = NewPipe.getServiceByUrl(url)
                 val extractor: StreamExtractor = service.getStreamExtractor(url)
-                val streamInfo = withTimeout(30_000L) { StreamInfo.getInfo(extractor) }
-                streamInfo.setSponsorBlockSegments(resolveSegments(extractor))
-                streamInfo.toStreamResponse()
+                withTimeout(30_000L) { extractor.fetchPage() }
+                coroutineScope {
+                    val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
+                    val segmentsDeferred = async { resolveSegments(extractor) }
+                    val streamInfo = streamInfoDeferred.await()
+                    streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
+                    streamInfo.toStreamResponse()
+                }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
                 onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }
@@ -47,8 +54,7 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
     private suspend fun resolveSegments(
         extractor: StreamExtractor,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
-        val videoId = extractor.id
-        val cacheKey = "sponsorblock:$videoId"
+        val cacheKey = "sponsorblock:${extractor.id}"
         runCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
             return runCatching {
                 val items = json.decodeFromString<List<SponsorBlockSegmentItem>>(cached)
@@ -63,7 +69,7 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
         cacheKey: String,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
         val segments = runCatching {
-            SponsorBlockExtractorHelper.getSegments(extractor, sponsorBlockSettings)
+            withTimeout(15_000L) { SponsorBlockExtractorHelper.getSegments(extractor, sponsorBlockSettings) }
         }.getOrElse { emptyArray() }
         runCatching {
             val items = segments.map { it.toSegmentItem() }
@@ -73,6 +79,6 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
     }
 
     private companion object {
-        const val SPONSORBLOCK_TTL_SECONDS = 1800L
+        const val SPONSORBLOCK_TTL_SECONDS = 21600L
     }
 }
