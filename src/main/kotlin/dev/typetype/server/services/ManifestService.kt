@@ -74,7 +74,8 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\">")
         streams.forEachIndexed { i, a ->
             val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
-            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${a.codec ?: ""}\">")
+            val codec = normalizeAudioCodec(a.codec)
+            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"$codec\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
@@ -84,6 +85,11 @@ class ManifestService(private val streamService: StreamService) {
             sb.appendLine("      </Representation>")
         }
         sb.appendLine("    </AdaptationSet>")
+    }
+
+    private fun normalizeAudioCodec(codec: String?): String = when (codec) {
+        "mp4a" -> "mp4a.40.2"
+        else -> codec ?: ""
     }
 
     private fun videoMimeType(format: String): String =

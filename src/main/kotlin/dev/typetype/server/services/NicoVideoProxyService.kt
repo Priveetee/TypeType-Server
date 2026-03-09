@@ -1,0 +1,118 @@
+package dev.typetype.server.services
+
+import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.ProxyResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.ByteArrayInputStream
+import java.net.URI
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+
+internal fun parseNicoCookie(fragment: String): String? {
+    val decoded = URLDecoder.decode(fragment, StandardCharsets.UTF_8)
+    val cookieParam = decoded.split("&")
+        .firstOrNull { it.startsWith("cookie=") }
+        ?.removePrefix("cookie=") ?: return null
+    val eqIdx = cookieParam.indexOf('=')
+    if (eqIdx < 0 || cookieParam.substring(0, eqIdx) != "domand_bid") return null
+    return cookieParam.substring(eqIdx + 1)
+}
+
+internal fun rewriteNicoManifest(manifest: String, baseUrl: String): String {
+    val base = URI(baseUrl)
+    return manifest.lines().joinToString("\n") { line ->
+        val trimmed = line.trim()
+        if (trimmed.isBlank() || trimmed.startsWith("#")) {
+            line
+        } else {
+            val absolute = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+                trimmed
+            } else {
+                base.resolve(trimmed).toString()
+            }
+            "/proxy/nicovideo?url=" + URLEncoder.encode(absolute, StandardCharsets.UTF_8)
+        }
+    }
+}
+
+class NicoVideoProxyService {
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build()
+
+    suspend fun fetchManifest(rawUrl: String): ExtractionResult<ProxyResponse> =
+        withContext(Dispatchers.IO) {
+            val hashIdx = rawUrl.indexOf('#')
+            val manifestUrl = if (hashIdx >= 0) rawUrl.substring(0, hashIdx) else rawUrl
+            val fragment = if (hashIdx >= 0) rawUrl.substring(hashIdx + 1) else ""
+            val domandBid = if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
+
+            runCatching {
+                val builder = Request.Builder()
+                    .url(manifestUrl)
+                    .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
+                if (domandBid != null) builder.header("Cookie", "domand_bid=$domandBid")
+                client.newCall(builder.build()).execute()
+            }.fold(
+                onSuccess = { response ->
+                    val body = response.body
+                    if (!response.isSuccessful) {
+                        response.close()
+                        ExtractionResult.Failure("Upstream returned ${response.code}")
+                    } else {
+                        val text = body?.string() ?: ""
+                        response.close()
+                        val rewritten = rewriteNicoManifest(text, manifestUrl)
+                        ExtractionResult.Success(ProxyResponse(
+                            status = 200,
+                            contentType = "application/vnd.apple.mpegurl",
+                            contentLength = null,
+                            contentRange = null,
+                            acceptRanges = null,
+                            stream = ByteArrayInputStream(rewritten.toByteArray(StandardCharsets.UTF_8)),
+                            close = {},
+                        ))
+                    }
+                },
+                onFailure = { ExtractionResult.Failure(it.message ?: "NicoNico proxy fetch failed") }
+            )
+        }
+
+    suspend fun fetchSegment(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val builder = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
+                if (rangeHeader != null) builder.header("Range", rangeHeader)
+                client.newCall(builder.build()).execute()
+            }.fold(
+                onSuccess = { response ->
+                    val body = response.body
+                    if (!response.isSuccessful && response.code != 206) {
+                        response.close()
+                        ExtractionResult.Failure("Upstream returned ${response.code}")
+                    } else {
+                        ExtractionResult.Success(ProxyResponse(
+                            status = response.code,
+                            contentType = response.header("Content-Type") ?: "application/octet-stream",
+                            contentLength = response.header("Content-Length")?.toLongOrNull(),
+                            contentRange = response.header("Content-Range"),
+                            acceptRanges = response.header("Accept-Ranges"),
+                            stream = body?.byteStream() ?: java.io.InputStream.nullInputStream(),
+                            close = response::close,
+                        ))
+                    }
+                },
+                onFailure = { ExtractionResult.Failure(it.message ?: "NicoNico segment fetch failed") }
+            )
+        }
+}
