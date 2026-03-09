@@ -88,7 +88,7 @@ fun testStreamResponse(
     license = "",
     visibility = "",
     tags = emptyList(),
-    livestream = false,
+    streamType = "video_stream",
     isShortFormContent = false,
     requiresMembership = false,
     startPosition = 0L,

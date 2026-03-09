@@ -30,6 +30,14 @@ class StreamFieldsTest {
     }
 
     @Test
+    fun `GET streams serializes streamType`() = withApp {
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.Success(testStreamResponse().copy(streamType = "live_stream"))
+        val body = client.get("/streams?url=https://youtube.com/watch?v=test").bodyAsText()
+        assertTrue(body.contains("\"streamType\":\"live_stream\""))
+    }
+
+    @Test
     fun `GET streams serializes isShortFormContent requiresMembership startPosition`() = withApp {
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(
