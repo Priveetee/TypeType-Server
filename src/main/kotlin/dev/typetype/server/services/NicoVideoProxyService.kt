@@ -23,12 +23,13 @@ internal fun parseNicoCookie(fragment: String): String? {
     return cookieParam.substring(eqIdx + 1)
 }
 
-internal fun rewriteNicoManifest(manifest: String, baseUrl: String): String {
+internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: String? = null): String {
     val base = URI(baseUrl)
     val uriAttr = Regex("""URI="([^"]+)"""")
+    val bidSuffix = if (domandBid != null) "&domand_bid=${URLEncoder.encode(domandBid, StandardCharsets.UTF_8)}" else ""
     fun toProxy(url: String) = "/proxy/nicovideo?url=" + URLEncoder.encode(
         if (url.startsWith("http")) url else base.resolve(url).toString(), StandardCharsets.UTF_8
-    )
+    ) + bidSuffix
     return manifest.lines().joinToString("\n") { line ->
         val t = line.trim()
         when {
@@ -69,7 +70,7 @@ class NicoVideoProxyService {
                     } else {
                         val text = body?.string() ?: ""
                         response.close()
-                        val rewritten = rewriteNicoManifest(text, manifestUrl)
+                        val rewritten = rewriteNicoManifest(text, manifestUrl, domandBid)
                         ExtractionResult.Success(ProxyResponse(
                             status = 200,
                             contentType = "application/vnd.apple.mpegurl",
@@ -85,13 +86,14 @@ class NicoVideoProxyService {
             )
         }
 
-    suspend fun fetchSegment(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
+    suspend fun fetchSegment(url: String, rangeHeader: String?, domandBid: String? = null): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val builder = Request.Builder()
                     .url(url)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
+                if (domandBid != null) builder.header("Cookie", "domand_bid=$domandBid")
                 client.newCall(builder.build()).execute()
             }.fold(
                 onSuccess = { response ->

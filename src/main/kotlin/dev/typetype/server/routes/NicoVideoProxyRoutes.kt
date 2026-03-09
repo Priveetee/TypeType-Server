@@ -18,12 +18,13 @@ fun Route.nicoVideoProxyRoutes(nicoVideoProxyService: NicoVideoProxyService) {
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
         val rangeHeader = call.request.headers["Range"]
+        val domandBid = call.request.queryParameters["domand_bid"]
         val isManifest = url.contains(".m3u8", ignoreCase = true)
 
         val result = if (isManifest) {
             nicoVideoProxyService.fetchManifest(url)
         } else {
-            nicoVideoProxyService.fetchSegment(url, rangeHeader)
+            nicoVideoProxyService.fetchSegment(url, rangeHeader, domandBid)
         }
 
         when (result) {
