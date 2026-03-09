@@ -23,7 +23,7 @@ class ManifestRoutesTest {
 
     private val streamService: StreamService = mockk()
     private val manifestService = ManifestService(streamService)
-    private val nativeManifestService = NativeManifestService(streamService)
+    private val nativeManifestService = NativeManifestService()
 
     @Test
     fun `GET streams manifest without url returns 400`() = testApplication {
@@ -70,18 +70,6 @@ class ManifestRoutesTest {
             routing { manifestRoutes(manifestService, nativeManifestService) }
         }
         val response = client.get("/streams/native-manifest")
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
-
-    @Test
-    fun `GET streams native-manifest with blank dashMpdUrl returns 400`() = testApplication {
-        coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse(dashMpdUrl = ""))
-        application {
-            install(ContentNegotiation) { json() }
-            routing { manifestRoutes(manifestService, nativeManifestService) }
-        }
-        val response = client.get("/streams/native-manifest?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 }

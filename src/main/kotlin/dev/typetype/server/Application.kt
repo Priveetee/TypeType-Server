@@ -78,7 +78,7 @@ fun Application.module() {
     val channelService = CachedChannelService(PipePipeChannelService(), cache)
     val proxyService = OkHttpProxyService()
     val manifestService = ManifestService(streamService)
-    val nativeManifestService = NativeManifestService(streamService)
+    val nativeManifestService = NativeManifestService()
     val suggestionService = PipePipeSuggestionService()
 
     val historyService = HistoryService()
