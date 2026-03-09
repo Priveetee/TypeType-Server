@@ -15,6 +15,8 @@ class SettingsService {
                 defaultService = it[SettingsTable.defaultService],
                 defaultQuality = it[SettingsTable.defaultQuality],
                 autoplay = it[SettingsTable.autoplay],
+                volume = it[SettingsTable.volume],
+                muted = it[SettingsTable.muted],
             )
         } ?: SettingsItem()
     }
@@ -27,6 +29,8 @@ class SettingsService {
                     it[defaultService] = settings.defaultService
                     it[defaultQuality] = settings.defaultQuality
                     it[autoplay] = settings.autoplay
+                    it[volume] = settings.volume
+                    it[muted] = settings.muted
                 }
             } else {
                 SettingsTable.insert {
@@ -34,6 +38,8 @@ class SettingsService {
                     it[defaultService] = settings.defaultService
                     it[defaultQuality] = settings.defaultQuality
                     it[autoplay] = settings.autoplay
+                    it[volume] = settings.volume
+                    it[muted] = settings.muted
                 }
             }
         }

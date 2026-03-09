@@ -34,8 +34,8 @@ class SettingsRoutesTest {
         block()
     }
 
-    private val settingsBody = """{"defaultService":0,"defaultQuality":"1080p","autoplay":true}"""
-    private fun testSettings() = SettingsItem(defaultService = 0, defaultQuality = "1080p", autoplay = true)
+    private val settingsBody = """{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false}"""
+    private fun testSettings() = SettingsItem(defaultService = 0, defaultQuality = "1080p", autoplay = true, volume = 1.0, muted = false)
 
     @Test
     fun `GET settings without token returns 401`() = withApp {

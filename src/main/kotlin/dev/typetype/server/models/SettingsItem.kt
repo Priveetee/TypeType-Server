@@ -7,4 +7,6 @@ data class SettingsItem(
     val defaultService: Int = 0,
     val defaultQuality: String = "1080p",
     val autoplay: Boolean = true,
+    val volume: Double = 1.0,
+    val muted: Boolean = false,
 )
