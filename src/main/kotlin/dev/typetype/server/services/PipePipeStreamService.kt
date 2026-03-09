@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
 import org.schabi.newpipe.extractor.stream.StreamExtractor
@@ -54,6 +55,9 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
     private suspend fun resolveSegments(
         extractor: StreamExtractor,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
+        val hasSponsorBlock = extractor.getService().serviceInfo.mediaCapabilities
+            .contains(MediaCapability.SPONSORBLOCK)
+        if (!hasSponsorBlock) return emptyArray()
         val cacheKey = "sponsorblock:${extractor.id}"
         runCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
             return runCatching {
