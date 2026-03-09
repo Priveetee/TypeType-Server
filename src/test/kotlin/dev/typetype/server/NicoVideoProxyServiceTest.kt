@@ -72,4 +72,14 @@ class NicoVideoProxyServiceTest {
         assert(lines[1] == "#EXT-X-VERSION:3")
         assert(lines[2].startsWith("/proxy/nicovideo?url="))
     }
+
+    @Test
+    fun `rewriteNicoManifest rewrites URI attribute in EXT-X-MAP tag`() {
+        val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
+        val manifest = "#EXTM3U\n#EXT-X-MAP:URI=\"https://asset.domand.nicovideo.jp/init01.cmfv\"\nseg-001.ts"
+        val result = rewriteNicoManifest(manifest, base)
+        val mapLine = result.lines().first { it.startsWith("#EXT-X-MAP") }
+        assert(mapLine.contains("/proxy/nicovideo?url=")) { "Expected proxied URI in EXT-X-MAP: $mapLine" }
+        assert(mapLine.contains("asset.domand.nicovideo.jp")) { "Expected asset domain in proxied URI: $mapLine" }
+    }
 }
