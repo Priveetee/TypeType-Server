@@ -23,7 +23,7 @@ class PipePipeCommentService : CommentService {
                 withTimeout(30_000L) {
                     if (page == null) {
                         val info = CommentsInfo.getInfo(url)
-                        info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null)
+                        info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null, commentsDisabled = false)
                     } else {
                         val service = NewPipe.getServiceByUrl(url)
                         CommentsInfo.getMoreItems(service, url, page).toPageResponse()
@@ -38,12 +38,14 @@ class PipePipeCommentService : CommentService {
     private fun CommentsInfo.toPageResponse(): CommentsPageResponse = CommentsPageResponse(
         comments = relatedItems.map { it.toCommentItem() },
         nextpage = nextPage?.toCursor(),
+        commentsDisabled = isCommentsDisabled,
     )
 
     private fun org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage<CommentsInfoItem>.toPageResponse(): CommentsPageResponse =
         CommentsPageResponse(
             comments = items.map { it.toCommentItem() },
             nextpage = nextPage?.toCursor(),
+            commentsDisabled = false,
         )
 
     private fun CommentsInfoItem.toCommentItem(): CommentItem = CommentItem(
@@ -53,9 +55,11 @@ class PipePipeCommentService : CommentService {
         authorUrl = uploaderUrl ?: "",
         authorAvatarUrl = uploaderAvatarUrl ?: "",
         likeCount = likeCount.toLong(),
+        textualLikeCount = textualLikeCount ?: "",
         publishedTime = textualUploadDate ?: "",
         isHeartedByUploader = isHeartedByUploader,
         isPinned = isPinned,
+        uploaderVerified = isUploaderVerified,
         replyCount = replyCount,
         repliesPage = replies?.toCursor(),
     )

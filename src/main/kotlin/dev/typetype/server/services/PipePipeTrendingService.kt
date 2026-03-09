@@ -27,17 +27,4 @@ class PipePipeTrendingService : TrendingService {
                 onFailure = { ExtractionResult.Failure(it.message ?: "Trending failed") }
             )
         }
-
-    private fun StreamInfoItem.toVideoItem(): VideoItem = VideoItem(
-        id = url ?: "",
-        title = name ?: "",
-        url = url ?: "",
-        thumbnailUrl = thumbnailUrl ?: "",
-        uploaderName = uploaderName ?: "",
-        uploaderUrl = uploaderUrl ?: "",
-        uploaderAvatarUrl = uploaderAvatarUrl ?: "",
-        duration = duration,
-        viewCount = viewCount,
-        uploadDate = textualUploadDate ?: ""
-    )
 }

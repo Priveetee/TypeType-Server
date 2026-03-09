@@ -23,4 +23,8 @@ internal fun StreamInfoItem.toVideoItem(): VideoItem = VideoItem(
     duration = duration,
     viewCount = viewCount,
     uploadDate = textualUploadDate ?: "",
+    streamType = streamType?.name?.lowercase() ?: "video",
+    isShortFormContent = isShortFormContent,
+    uploaderVerified = isUploaderVerified,
+    shortDescription = shortDescription?.takeIf { it.isNotBlank() },
 )

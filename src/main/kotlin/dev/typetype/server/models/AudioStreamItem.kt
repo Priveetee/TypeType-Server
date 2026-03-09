@@ -18,4 +18,5 @@ data class AudioStreamItem(
     val indexEnd: Long,
     val audioTrackId: String?,
     val audioTrackName: String?,
+    val audioLocale: String?,
 )

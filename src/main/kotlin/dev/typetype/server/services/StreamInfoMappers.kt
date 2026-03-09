@@ -3,12 +3,14 @@ package dev.typetype.server.services
 import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.PreviewFrameItem
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.StreamSegmentItem
 import dev.typetype.server.models.SubtitleItem
 import dev.typetype.server.models.VideoStreamItem
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.Frameset
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.stream.StreamSegment
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -34,6 +36,10 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse = StreamResponse(
     visibility = privacy?.name?.lowercase() ?: "",
     tags = tags ?: emptyList(),
     livestream = streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM,
+    isShortFormContent = isShortFormContent,
+    requiresMembership = requiresMembership(),
+    startPosition = startPosition,
+    streamSegments = runCatching { streamSegments.map { it.toStreamSegmentItem() } }.getOrElse { emptyList() },
     hlsUrl = hlsUrl?.takeIf { it.startsWith("http") } ?: "",
     dashMpdUrl = dashMpdUrl?.takeIf { it.startsWith("http") } ?: "",
     videoStreams = videoStreams.map { it.toVideoStreamItem(false) },
@@ -80,6 +86,7 @@ internal fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
     indexEnd = getIndexEnd().toLong(),
     audioTrackId = getAudioTrackId(),
     audioTrackName = getAudioTrackName(),
+    audioLocale = getAudioLocale(),
 )
 
 internal fun SubtitlesStream.toSubtitleItem(): SubtitleItem = SubtitleItem(
@@ -98,4 +105,12 @@ internal fun Frameset.toPreviewFrameItem(): PreviewFrameItem = PreviewFrameItem(
     durationPerFrame = getDurationPerFrame(),
     framesPerPageX = getFramesPerPageX(),
     framesPerPageY = getFramesPerPageY(),
+)
+
+internal fun StreamSegment.toStreamSegmentItem(): StreamSegmentItem = StreamSegmentItem(
+    title = getTitle() ?: "",
+    startTimeSeconds = getStartTimeSeconds(),
+    channelName = getChannelName(),
+    url = getUrl(),
+    previewUrl = getPreviewUrl(),
 )

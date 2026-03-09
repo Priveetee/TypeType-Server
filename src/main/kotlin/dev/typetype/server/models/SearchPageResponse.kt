@@ -6,4 +6,6 @@ import kotlinx.serialization.Serializable
 data class SearchPageResponse(
     val items: List<VideoItem>,
     val nextpage: String?,
+    val searchSuggestion: String?,
+    val isCorrectedSearch: Boolean,
 )

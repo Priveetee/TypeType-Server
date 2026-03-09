@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class CommentsPageResponse(
     val comments: List<CommentItem>,
     val nextpage: String?,
+    val commentsDisabled: Boolean,
 )
