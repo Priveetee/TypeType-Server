@@ -5,6 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.services.CommentService
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
@@ -15,6 +16,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CommentRoutesTest {
@@ -57,5 +59,29 @@ class CommentRoutesTest {
             ExtractionResult.BadRequest("bad")
         val response = client.get("/comments?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET comments serializes replyCount in response body`() = withApp {
+        coEvery { commentService.getComments(any(), any()) } returns
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(replyCount = 5)), null))
+        val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
+        assertTrue(body.contains("\"replyCount\":5"))
+    }
+
+    @Test
+    fun `GET comments serializes repliesPage as null when absent`() = withApp {
+        coEvery { commentService.getComments(any(), any()) } returns
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = null)), null))
+        val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
+        assertTrue(body.contains("\"repliesPage\":null"))
+    }
+
+    @Test
+    fun `GET comments serializes repliesPage cursor when replies exist`() = withApp {
+        coEvery { commentService.getComments(any(), any()) } returns
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = "cursor-abc")), null))
+        val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
+        assertTrue(body.contains("\"repliesPage\":\"cursor-abc\""))
     }
 }

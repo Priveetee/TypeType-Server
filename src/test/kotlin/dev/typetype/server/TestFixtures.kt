@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.AudioStreamItem
+import dev.typetype.server.models.CommentItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 
@@ -96,4 +97,21 @@ fun testStreamResponse(
     previewFrames = emptyList(),
     sponsorBlockSegments = emptyList(),
     relatedStreams = emptyList(),
+)
+
+fun testCommentItem(
+    replyCount: Int = -1,
+    repliesPage: String? = null,
+): CommentItem = CommentItem(
+    id = "comment-id",
+    text = "Test comment",
+    author = "Author",
+    authorUrl = "https://youtube.com/channel/test",
+    authorAvatarUrl = "",
+    likeCount = 10L,
+    publishedTime = "2 days ago",
+    isHeartedByUploader = false,
+    isPinned = false,
+    replyCount = replyCount,
+    repliesPage = repliesPage,
 )
