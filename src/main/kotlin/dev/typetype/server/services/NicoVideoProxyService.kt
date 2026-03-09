@@ -48,18 +48,18 @@ class NicoVideoProxyService {
         .followRedirects(true)
         .build()
 
-    suspend fun fetchManifest(rawUrl: String): ExtractionResult<ProxyResponse> =
+    suspend fun fetchManifest(rawUrl: String, domandBid: String? = null): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
             val hashIdx = rawUrl.indexOf('#')
             val manifestUrl = if (hashIdx >= 0) rawUrl.substring(0, hashIdx) else rawUrl
             val fragment = if (hashIdx >= 0) rawUrl.substring(hashIdx + 1) else ""
-            val domandBid = if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
+            val resolvedBid = domandBid ?: if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
 
             runCatching {
                 val builder = Request.Builder()
                     .url(manifestUrl)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
-                if (domandBid != null) builder.header("Cookie", "domand_bid=$domandBid")
+                if (resolvedBid != null) builder.header("Cookie", "domand_bid=$resolvedBid")
                 client.newCall(builder.build()).execute()
             }.fold(
                 onSuccess = { response ->
@@ -70,7 +70,7 @@ class NicoVideoProxyService {
                     } else {
                         val text = body?.string() ?: ""
                         response.close()
-                        val rewritten = rewriteNicoManifest(text, manifestUrl, domandBid)
+                        val rewritten = rewriteNicoManifest(text, manifestUrl, resolvedBid)
                         ExtractionResult.Success(ProxyResponse(
                             status = 200,
                             contentType = "application/vnd.apple.mpegurl",

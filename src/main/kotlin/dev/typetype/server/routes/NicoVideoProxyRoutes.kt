@@ -22,7 +22,7 @@ fun Route.nicoVideoProxyRoutes(nicoVideoProxyService: NicoVideoProxyService) {
         val isManifest = url.contains(".m3u8", ignoreCase = true)
 
         val result = if (isManifest) {
-            nicoVideoProxyService.fetchManifest(url)
+            nicoVideoProxyService.fetchManifest(url, domandBid)
         } else {
             nicoVideoProxyService.fetchSegment(url, rangeHeader, domandBid)
         }
