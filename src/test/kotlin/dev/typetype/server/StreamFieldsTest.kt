@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamSegmentItem
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.StreamService
@@ -77,5 +78,22 @@ class StreamFieldsTest {
             ExtractionResult.Success(testStreamResponse(audioStreams = listOf(audio)))
         val body = client.get("/streams?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"audioLocale\":\"en\""))
+    }
+
+    @Test
+    fun `GET streams serializes sponsorBlockSegments`() = withApp {
+        val segment = SponsorBlockSegmentItem(
+            startTime = 55649.0,
+            endTime = 174610.0,
+            category = "sponsor",
+            action = "skip",
+        )
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.Success(testStreamResponse().copy(sponsorBlockSegments = listOf(segment)))
+        val body = client.get("/streams?url=https://youtube.com/watch?v=test").bodyAsText()
+        assertTrue(body.contains("\"sponsorBlockSegments\""))
+        assertTrue(body.contains("\"category\":\"sponsor\""))
+        assertTrue(body.contains("\"action\":\"skip\""))
+        assertTrue(body.contains("55649.0"))
     }
 }

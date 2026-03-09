@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.cache.CacheService
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.PipePipeStreamService
@@ -10,11 +11,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.schabi.newpipe.extractor.NewPipe
 
+private object NoOpCache : CacheService {
+    override suspend fun get(key: String): String? = null
+    override suspend fun set(key: String, value: String, ttlSeconds: Long) = Unit
+    override suspend fun delete(key: String) = Unit
+}
+
 @Tag("network")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExtractionTest {
 
-    private val service = PipePipeStreamService()
+    private val service = PipePipeStreamService(NoOpCache)
 
     @BeforeAll
     fun setup() {
