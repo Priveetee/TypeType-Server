@@ -23,7 +23,7 @@ data class StreamResponse(
     val license: String,
     val visibility: String,
     val tags: List<String>,
-    val livestream: Boolean,
+    val streamType: String,
     val isShortFormContent: Boolean,
     val requiresMembership: Boolean,
     val startPosition: Long,

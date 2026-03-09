@@ -11,7 +11,6 @@ import org.schabi.newpipe.extractor.stream.Frameset
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamSegment
-import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -35,7 +34,7 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse = StreamResponse(
     license = licence ?: "",
     visibility = privacy?.name?.lowercase() ?: "",
     tags = tags ?: emptyList(),
-    livestream = streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM,
+    streamType = streamType?.name?.lowercase() ?: "",
     isShortFormContent = isShortFormContent,
     requiresMembership = requiresMembership(),
     startPosition = startPosition,
