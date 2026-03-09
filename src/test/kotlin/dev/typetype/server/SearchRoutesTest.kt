@@ -50,7 +50,7 @@ class SearchRoutesTest {
     @Test
     fun `GET search returns 200 on Success`() = withApp {
         coEvery { searchService.search(any(), any(), any()) } returns
-            ExtractionResult.Success(SearchPageResponse(items = emptyList(), nextpage = null))
+            ExtractionResult.Success(SearchPageResponse(items = emptyList(), nextpage = null, searchSuggestion = null, isCorrectedSearch = false))
         val response = client.get("/search?q=test&service=0")
         assertEquals(HttpStatusCode.OK, response.status)
     }

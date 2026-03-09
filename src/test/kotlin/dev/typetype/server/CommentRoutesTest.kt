@@ -40,7 +40,7 @@ class CommentRoutesTest {
     @Test
     fun `GET comments returns 200 on Success`() = withApp {
         coEvery { commentService.getComments(any(), any()) } returns
-            ExtractionResult.Success(CommentsPageResponse(comments = emptyList(), nextpage = null))
+            ExtractionResult.Success(CommentsPageResponse(comments = emptyList(), nextpage = null, commentsDisabled = false))
         val response = client.get("/comments?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -64,7 +64,7 @@ class CommentRoutesTest {
     @Test
     fun `GET comments serializes replyCount in response body`() = withApp {
         coEvery { commentService.getComments(any(), any()) } returns
-            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(replyCount = 5)), null))
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(replyCount = 5)), null, commentsDisabled = false))
         val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"replyCount\":5"))
     }
@@ -72,7 +72,7 @@ class CommentRoutesTest {
     @Test
     fun `GET comments serializes repliesPage as null when absent`() = withApp {
         coEvery { commentService.getComments(any(), any()) } returns
-            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = null)), null))
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = null)), null, commentsDisabled = false))
         val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"repliesPage\":null"))
     }
@@ -80,7 +80,7 @@ class CommentRoutesTest {
     @Test
     fun `GET comments serializes repliesPage cursor when replies exist`() = withApp {
         coEvery { commentService.getComments(any(), any()) } returns
-            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = "cursor-abc")), null))
+            ExtractionResult.Success(CommentsPageResponse(listOf(testCommentItem(repliesPage = "cursor-abc")), null, commentsDisabled = false))
         val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"repliesPage\":\"cursor-abc\""))
     }
@@ -98,7 +98,7 @@ class CommentRoutesTest {
     @Test
     fun `GET comments replies returns 200 on Success`() = withApp {
         coEvery { commentService.getComments(any(), eq("cursor-xyz")) } returns
-            ExtractionResult.Success(CommentsPageResponse(emptyList(), null))
+            ExtractionResult.Success(CommentsPageResponse(emptyList(), null, commentsDisabled = false))
         val response = client.get("/comments/replies?url=https://youtube.com/watch?v=test&repliesPage=cursor-xyz")
         assertEquals(HttpStatusCode.OK, response.status)
     }
