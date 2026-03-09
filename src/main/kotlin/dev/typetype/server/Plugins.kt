@@ -12,25 +12,7 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.uri
 import io.ktor.server.response.respond
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.slf4j.LoggerFactory
-
-fun Application.configureSponsorBlock() {
-    val settings = SponsorBlockApiSettings().apply {
-        includeSponsorCategory = true
-        includeIntroCategory = true
-        includeOutroCategory = true
-        includeInteractionCategory = true
-        includeHighlightCategory = true
-        includeSelfPromoCategory = true
-        includeMusicCategory = true
-        includePreviewCategory = true
-        includeFillerCategory = true
-    }
-    ServiceList.YouTube.setSponsorBlockApiSettings(settings)
-    ServiceList.BiliBili.setSponsorBlockApiSettings(settings)
-}
 
 fun Application.configurePlugins() {
     val log = LoggerFactory.getLogger("RequestLogger")

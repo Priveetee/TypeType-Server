@@ -57,7 +57,6 @@ fun Application.module() {
     val log = LoggerFactory.getLogger("Application")
 
     NewPipe.init(OkHttpDownloader.instance())
-    configureSponsorBlock()
     launchExtractorLifecycle()
 
     val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/typetype"
@@ -71,7 +70,7 @@ fun Application.module() {
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
 
-    val streamService = CachedStreamService(PipePipeStreamService(), cache)
+    val streamService = CachedStreamService(PipePipeStreamService(cache), cache)
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
     val trendingService = CachedTrendingService(PipePipeTrendingService(), cache)
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
