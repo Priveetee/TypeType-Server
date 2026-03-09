@@ -44,8 +44,12 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("  <Period>")
         videos.groupBy { videoMimeType(it.format) to codecFamily(it.codec ?: "") }
             .forEach { (key, streams) -> appendVideoAdaptationSet(sb, key.first, streams) }
-        audios.groupBy { audioMimeType(it.format) }
-            .forEach { (mime, streams) -> appendAudioAdaptationSet(sb, mime, streams) }
+        if (audios.any { it.audioTrackId != null })
+            audios.groupBy { it.audioTrackId to audioMimeType(it.format) }
+                .forEach { (_, g) -> appendAudioAdaptationSet(sb, audioMimeType(g.first().format), g.first().audioLocale, g.first().audioTrackName, g) }
+        else
+            audios.groupBy { audioMimeType(it.format) }
+                .forEach { (mime, g) -> appendAudioAdaptationSet(sb, mime, null, null, g) }
         sb.appendLine("  </Period>")
         sb.append("</MPD>")
         return sb.toString()
@@ -70,8 +74,9 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    </AdaptationSet>")
     }
 
-    private fun appendAudioAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<AudioStreamItem>) {
-        sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\">")
+    private fun appendAudioAdaptationSet(sb: StringBuilder, mimeType: String, lang: String?, label: String?, streams: List<AudioStreamItem>) {
+        val attrs = "${if (lang != null) " lang=\"$lang\"" else ""}${if (label != null) " label=\"$label\"" else ""}"
+        sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\"$attrs>")
         streams.forEachIndexed { i, a ->
             val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
             val codec = normalizeAudioCodec(a.codec)
@@ -87,10 +92,7 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    </AdaptationSet>")
     }
 
-    private fun normalizeAudioCodec(codec: String?): String = when (codec) {
-        "mp4a" -> "mp4a.40.2"
-        else -> codec ?: ""
-    }
+    private fun normalizeAudioCodec(codec: String?): String = if (codec == "mp4a") "mp4a.40.2" else codec ?: ""
 
     private fun videoMimeType(format: String): String =
         if (format.lowercase().contains("webm")) "video/webm" else "video/mp4"
