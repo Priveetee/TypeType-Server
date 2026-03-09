@@ -84,4 +84,29 @@ class CommentRoutesTest {
         val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"repliesPage\":\"cursor-abc\""))
     }
+
+    @Test
+    fun `GET comments replies without url returns 400`() = withApp {
+        assertEquals(HttpStatusCode.BadRequest, client.get("/comments/replies").status)
+    }
+
+    @Test
+    fun `GET comments replies without repliesPage returns 400`() = withApp {
+        assertEquals(HttpStatusCode.BadRequest, client.get("/comments/replies?url=https://youtube.com/watch?v=test").status)
+    }
+
+    @Test
+    fun `GET comments replies returns 200 on Success`() = withApp {
+        coEvery { commentService.getComments(any(), eq("cursor-xyz")) } returns
+            ExtractionResult.Success(CommentsPageResponse(emptyList(), null))
+        val response = client.get("/comments/replies?url=https://youtube.com/watch?v=test&repliesPage=cursor-xyz")
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `GET comments replies returns 422 on Failure`() = withApp {
+        coEvery { commentService.getComments(any(), any()) } returns ExtractionResult.Failure("error")
+        val response = client.get("/comments/replies?url=https://youtube.com/watch?v=test&repliesPage=cursor-xyz")
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
 }
