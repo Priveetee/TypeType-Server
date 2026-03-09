@@ -13,4 +13,6 @@ data class CommentItem(
     val publishedTime: String,
     val isHeartedByUploader: Boolean,
     val isPinned: Boolean,
+    val replyCount: Int,
+    val repliesPage: String?,
 )

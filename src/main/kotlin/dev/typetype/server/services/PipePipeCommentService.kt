@@ -56,5 +56,7 @@ class PipePipeCommentService : CommentService {
         publishedTime = textualUploadDate ?: "",
         isHeartedByUploader = isHeartedByUploader,
         isPinned = isPinned,
+        replyCount = replyCount,
+        repliesPage = replies?.toCursor(),
     )
 }
