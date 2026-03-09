@@ -3,11 +3,11 @@ package dev.typetype.server.services
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.models.SearchHistoryItem
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.deleteAll
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class SearchHistoryService {

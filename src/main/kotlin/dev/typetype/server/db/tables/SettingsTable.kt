@@ -1,6 +1,6 @@
 package dev.typetype.server.db.tables
 
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object SettingsTable : Table("settings") {
     val id = integer("id").default(1)

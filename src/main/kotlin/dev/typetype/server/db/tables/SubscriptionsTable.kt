@@ -1,6 +1,6 @@
 package dev.typetype.server.db.tables
 
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object SubscriptionsTable : Table("subscriptions") {
     val channelUrl = text("channel_url")

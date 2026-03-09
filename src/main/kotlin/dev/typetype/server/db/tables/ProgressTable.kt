@@ -1,6 +1,6 @@
 package dev.typetype.server.db.tables
 
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object ProgressTable : Table("progress") {
     val videoUrl = text("video_url")

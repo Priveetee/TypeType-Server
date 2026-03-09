@@ -4,25 +4,38 @@ import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.models.BlockedItem
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class BlockedService {
 
     suspend fun getChannels(): List<BlockedItem> = DatabaseFactory.query {
         BlockedChannelsTable.selectAll()
             .orderBy(BlockedChannelsTable.blockedAt to SortOrder.DESC)
-            .map { BlockedItem(url = it[BlockedChannelsTable.channelUrl], blockedAt = it[BlockedChannelsTable.blockedAt]) }
+            .map {
+                BlockedItem(
+                    url = it[BlockedChannelsTable.channelUrl],
+                    name = it[BlockedChannelsTable.channelName],
+                    thumbnailUrl = it[BlockedChannelsTable.channelThumbnailUrl],
+                    blockedAt = it[BlockedChannelsTable.blockedAt],
+                )
+            }
     }
 
-    suspend fun addChannel(url: String): BlockedItem {
+    suspend fun addChannel(url: String, name: String? = null, thumbnailUrl: String? = null): BlockedItem {
         val now = System.currentTimeMillis()
-        DatabaseFactory.query { BlockedChannelsTable.insert { it[channelUrl] = url; it[blockedAt] = now } }
-        return BlockedItem(url = url, blockedAt = now)
+        DatabaseFactory.query {
+            BlockedChannelsTable.insert {
+                it[channelUrl] = url
+                it[channelName] = name
+                it[channelThumbnailUrl] = thumbnailUrl
+                it[blockedAt] = now
+            }
+        }
+        return BlockedItem(url = url, name = name, thumbnailUrl = thumbnailUrl, blockedAt = now)
     }
 
     suspend fun deleteChannel(url: String): Boolean = DatabaseFactory.query {

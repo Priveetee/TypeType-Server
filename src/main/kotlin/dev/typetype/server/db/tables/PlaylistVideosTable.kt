@@ -1,7 +1,7 @@
 package dev.typetype.server.db.tables
 
-import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.Table
 
 object PlaylistVideosTable : Table("playlist_videos") {
     val id = text("id")

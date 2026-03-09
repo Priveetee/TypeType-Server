@@ -3,21 +3,37 @@ package dev.typetype.server.services
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.models.HistoryItem
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.deleteAll
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.v1.core.LowerCase
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.like
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class HistoryService {
 
-    suspend fun getAll(): List<HistoryItem> = DatabaseFactory.query {
-        HistoryTable.selectAll()
-            .orderBy(HistoryTable.watchedAt to SortOrder.DESC)
+    suspend fun search(q: String?, from: Long?, to: Long?, limit: Int, offset: Int): Pair<List<HistoryItem>, Long> = DatabaseFactory.query {
+        val query = HistoryTable.selectAll()
+        if (!q.isNullOrBlank()) {
+            val pattern = "%${q.lowercase()}%"
+            query.andWhere { (LowerCase(HistoryTable.title) like pattern) or (LowerCase(HistoryTable.channelName) like pattern) }
+        }
+        if (from != null) query.andWhere { HistoryTable.watchedAt greaterEq from }
+        if (to != null) query.andWhere { HistoryTable.watchedAt less to }
+        val total = query.count()
+        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC)
+            .limit(limit)
+            .offset(offset.toLong())
             .map { it.toHistoryItem() }
+        items to total
     }
 
     suspend fun add(item: HistoryItem): HistoryItem {

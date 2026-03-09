@@ -13,7 +13,16 @@ import io.ktor.server.routing.post
 
 fun Route.historyRoutes(historyService: HistoryService, token: String) {
     get("/history") {
-        call.withAuth(token) { call.respond(historyService.getAll()) }
+        call.withAuth(token) {
+            val q = call.request.queryParameters["q"]
+            val from = call.request.queryParameters["from"]?.toLongOrNull()
+            val to = call.request.queryParameters["to"]?.toLongOrNull()
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 60
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+            val (items, total) = historyService.search(q, from, to, limit, offset)
+            call.response.headers.append("X-Total-Count", total.toString())
+            call.respond(items)
+        }
     }
     post("/history") {
         call.withAuth(token) {

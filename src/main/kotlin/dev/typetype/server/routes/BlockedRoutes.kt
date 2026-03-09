@@ -20,7 +20,7 @@ fun Route.blockedRoutes(blockedService: BlockedService, token: String) {
             val item = runCatching { call.receive<BlockedItem>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            call.respond(HttpStatusCode.Created, blockedService.addChannel(item.url))
+            call.respond(HttpStatusCode.Created, blockedService.addChannel(item.url, item.name, item.thumbnailUrl))
         }
     }
     delete("/blocked/channels/{channelUrl}") {
