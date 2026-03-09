@@ -7,6 +7,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -19,6 +20,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class SettingsRoutesTest {
@@ -69,5 +71,35 @@ class SettingsRoutesTest {
             setBody("""not json""")
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET settings response body contains volume and muted`() = withApp {
+        coEvery { service.get() } returns testSettings()
+        val response = client.get("/settings") { headers.append("X-Instance-Token", token) }
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"volume\""))
+        assertTrue(body.contains("\"muted\""))
+    }
+
+    @Test
+    fun `GET settings returns default volume 1 and muted false`() = withApp {
+        coEvery { service.get() } returns SettingsItem()
+        val body = client.get("/settings") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("\"volume\":1.0"))
+        assertTrue(body.contains("\"muted\":false"))
+    }
+
+    @Test
+    fun `PUT settings with custom volume and muted returns those values`() = withApp {
+        val custom = SettingsItem(volume = 0.4, muted = true)
+        coEvery { service.upsert(any()) } returns custom
+        val body = client.put("/settings") {
+            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":0.4,"muted":true}""")
+        }.bodyAsText()
+        assertTrue(body.contains("\"volume\":0.4"))
+        assertTrue(body.contains("\"muted\":true"))
     }
 }
