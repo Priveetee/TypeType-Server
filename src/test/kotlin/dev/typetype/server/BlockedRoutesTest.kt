@@ -45,7 +45,7 @@ class BlockedRoutesTest {
         block()
     }
 
-    private val urlBody = """{"url":"https://yt.com"}"""
+    private val urlBody = """{"url":"https://yt.com","name":"Test Channel","thumbnailUrl":"https://thumb.jpg"}"""
 
     @Test
     fun `GET blocked-channels without token returns 401`() = withApp {
@@ -68,6 +68,8 @@ class BlockedRoutesTest {
         }
         assertEquals(HttpStatusCode.Created, response.status)
         assertTrue(response.bodyAsText().contains("\"url\":\"https://yt.com\""))
+        assertTrue(response.bodyAsText().contains("\"name\":\"Test Channel\""))
+        assertTrue(response.bodyAsText().contains("\"thumbnailUrl\":\"https://thumb.jpg\""))
     }
 
     @Test

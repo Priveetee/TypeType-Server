@@ -95,4 +95,26 @@ class HistoryRoutesTest {
         assertEquals(HttpStatusCode.NoContent, client.delete("/history") { headers.append("X-Instance-Token", token) }.status)
         assertEquals("[]", client.get("/history") { headers.append("X-Instance-Token", token) }.bodyAsText())
     }
+
+    @Test
+    fun `GET history with q filters by title`() = withApp {
+        service.add(HistoryItem(url = "https://a.com", title = "micode video", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
+        service.add(HistoryItem(url = "https://b.com", title = "other", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
+        val body = client.get("/history?q=micode") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("micode video") && !body.contains("\"other\""))
+    }
+
+    @Test
+    fun `GET history with limit and offset paginates`() = withApp {
+        repeat(3) { i -> service.add(HistoryItem(url = "https://x.com/$i", title = "v$i", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L)) }
+        val body = client.get("/history?limit=1&offset=0") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.startsWith("[{") && body.endsWith("}]"))
+    }
+
+    @Test
+    fun `GET history returns X-Total-Count header`() = withApp {
+        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        val response = client.get("/history") { headers.append("X-Instance-Token", token) }
+        assertEquals("1", response.headers["X-Total-Count"])
+    }
 }
