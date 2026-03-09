@@ -45,6 +45,9 @@ fun testAudioStream(
     indexEnd: Long = 500,
     initStart: Long = 0,
     initEnd: Long = 99,
+    audioTrackId: String? = null,
+    audioTrackName: String? = null,
+    audioLocale: String? = null,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -58,9 +61,9 @@ fun testAudioStream(
     initEnd = initEnd,
     indexStart = indexStart,
     indexEnd = indexEnd,
-    audioTrackId = null,
-    audioTrackName = null,
-    audioLocale = null,
+    audioTrackId = audioTrackId,
+    audioTrackName = audioTrackName,
+    audioLocale = audioLocale,
 )
 
 fun testStreamResponse(
