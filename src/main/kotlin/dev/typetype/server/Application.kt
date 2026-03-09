@@ -4,6 +4,7 @@ import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.routes.blockedRoutes
+import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
@@ -33,6 +34,7 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.OkHttpProxyService
+import dev.typetype.server.services.PipePipeBulletCommentService
 import dev.typetype.server.services.PipePipeChannelService
 import dev.typetype.server.services.PipePipeCommentService
 import dev.typetype.server.services.PipePipeSearchService
@@ -75,12 +77,12 @@ fun Application.module() {
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
     val trendingService = CachedTrendingService(PipePipeTrendingService(), cache)
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
+    val bulletCommentService = PipePipeBulletCommentService()
     val channelService = CachedChannelService(PipePipeChannelService(), cache)
     val proxyService = OkHttpProxyService()
     val manifestService = ManifestService(streamService)
     val nativeManifestService = NativeManifestService()
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
-
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val playlistService = PlaylistService()
@@ -101,6 +103,7 @@ fun Application.module() {
         suggestionRoutes(suggestionService)
         trendingRoutes(trendingService)
         commentRoutes(commentService)
+        bulletCommentRoutes(bulletCommentService)
         channelRoutes(channelService)
         proxyRoutes(proxyService)
         tokenRoutes(tokenService)
