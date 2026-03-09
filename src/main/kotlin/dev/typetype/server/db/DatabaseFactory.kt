@@ -5,7 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.HistoryTable
-import dev.typetype.server.db.tables.LikesTable
+import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
@@ -41,7 +41,7 @@ object DatabaseFactory {
                 PlaylistVideosTable,
                 WatchLaterTable,
                 ProgressTable,
-                LikesTable,
+                FavoritesTable,
                 SettingsTable,
                 SearchHistoryTable,
                 BlockedChannelsTable,

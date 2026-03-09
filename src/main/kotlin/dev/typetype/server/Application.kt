@@ -8,7 +8,7 @@ import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.historyRoutes
-import dev.typetype.server.routes.likesRoutes
+import dev.typetype.server.routes.favoritesRoutes
 import dev.typetype.server.routes.playlistRoutes
 import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
@@ -28,7 +28,7 @@ import dev.typetype.server.services.CachedSearchService
 import dev.typetype.server.services.CachedStreamService
 import dev.typetype.server.services.CachedTrendingService
 import dev.typetype.server.services.HistoryService
-import dev.typetype.server.services.LikesService
+import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.OkHttpProxyService
@@ -86,7 +86,7 @@ fun Application.module() {
     val playlistService = PlaylistService()
     val watchLaterService = WatchLaterService()
     val progressService = ProgressService()
-    val likesService = LikesService()
+    val favoritesService = FavoritesService()
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService()
@@ -109,7 +109,7 @@ fun Application.module() {
         playlistRoutes(playlistService, token)
         watchLaterRoutes(watchLaterService, token)
         progressRoutes(progressService, token)
-        likesRoutes(likesService, token)
+        favoritesRoutes(favoritesService, token)
         settingsRoutes(settingsService, token)
         searchHistoryRoutes(searchHistoryService, token)
         blockedRoutes(blockedService, token)

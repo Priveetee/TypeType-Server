@@ -1,8 +1,8 @@
 package dev.typetype.server
 
-import dev.typetype.server.models.LikeItem
-import dev.typetype.server.routes.likesRoutes
-import dev.typetype.server.services.LikesService
+import dev.typetype.server.models.FavoriteItem
+import dev.typetype.server.routes.favoritesRoutes
+import dev.typetype.server.services.FavoritesService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -19,54 +19,54 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class LikesRoutesTest {
+class FavoritesRoutesTest {
 
-    private val service: LikesService = mockk()
+    private val service: FavoritesService = mockk()
     private val token = "test-token"
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { likesRoutes(service, token) }
+            routing { favoritesRoutes(service, token) }
         }
         block()
     }
 
     @Test
-    fun `GET likes without token returns 401`() = withApp {
-        val response = client.get("/likes")
+    fun `GET favorites without token returns 401`() = withApp {
+        val response = client.get("/favorites")
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
-    fun `GET likes returns 200`() = withApp {
+    fun `GET favorites returns 200`() = withApp {
         coEvery { service.getAll() } returns emptyList()
-        val response = client.get("/likes") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/favorites") { headers.append("X-Instance-Token", token) }
         assertEquals(HttpStatusCode.OK, response.status)
     }
 
     @Test
-    fun `POST likes returns 201`() = withApp {
-        coEvery { service.add(any()) } returns LikeItem(videoUrl = "https://yt.com/v=test")
-        val response = client.post("/likes/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
+    fun `POST favorites returns 201`() = withApp {
+        coEvery { service.add(any()) } returns FavoriteItem(videoUrl = "https://yt.com/v=test")
+        val response = client.post("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
             headers.append("X-Instance-Token", token)
         }
         assertEquals(HttpStatusCode.Created, response.status)
     }
 
     @Test
-    fun `DELETE likes returns 204 when found`() = withApp {
+    fun `DELETE favorites returns 204 when found`() = withApp {
         coEvery { service.delete(any()) } returns true
-        val response = client.delete("/likes/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
+        val response = client.delete("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
             headers.append("X-Instance-Token", token)
         }
         assertEquals(HttpStatusCode.NoContent, response.status)
     }
 
     @Test
-    fun `DELETE likes returns 404 when not found`() = withApp {
+    fun `DELETE favorites returns 404 when not found`() = withApp {
         coEvery { service.delete(any()) } returns false
-        val response = client.delete("/likes/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
+        val response = client.delete("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
             headers.append("X-Instance-Token", token)
         }
         assertEquals(HttpStatusCode.NotFound, response.status)

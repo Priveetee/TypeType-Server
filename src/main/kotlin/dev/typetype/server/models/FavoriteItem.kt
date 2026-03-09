@@ -3,7 +3,7 @@ package dev.typetype.server.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class LikeItem(
+data class FavoriteItem(
     val videoUrl: String,
-    val likedAt: Long = 0L,
+    val favoritedAt: Long = 0L,
 )
