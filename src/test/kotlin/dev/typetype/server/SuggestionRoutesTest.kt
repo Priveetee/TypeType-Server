@@ -2,7 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.suggestionRoutes
-import dev.typetype.server.services.PipePipeSuggestionService
+import dev.typetype.server.services.SuggestionService
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 
 class SuggestionRoutesTest {
 
-    private val suggestionService: PipePipeSuggestionService = mockk()
+    private val suggestionService: SuggestionService = mockk()
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
