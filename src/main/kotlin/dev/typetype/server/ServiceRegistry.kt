@@ -25,6 +25,7 @@ import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
+import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
 
@@ -42,6 +43,7 @@ internal class ServiceRegistry(cache: DragonflyService) {
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
+    val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
     val playlistService = PlaylistService()
     val watchLaterService = WatchLaterService()
     val progressService = ProgressService()

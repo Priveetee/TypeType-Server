@@ -18,6 +18,7 @@ import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.routes.streamRoutes
+import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.routes.subscriptionsRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.tokenRoutes
@@ -66,6 +67,7 @@ fun Application.module() {
         tokenRoutes(tokenService)
         historyRoutes(svc.historyService, token)
         subscriptionsRoutes(svc.subscriptionsService, token)
+        subscriptionFeedRoutes(svc.subscriptionFeedService, token)
         playlistRoutes(svc.playlistService, token)
         watchLaterRoutes(svc.watchLaterService, token)
         progressRoutes(svc.progressService, token)

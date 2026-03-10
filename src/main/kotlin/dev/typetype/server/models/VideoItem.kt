@@ -14,6 +14,7 @@ data class VideoItem(
     val duration: Long,
     val viewCount: Long,
     val uploadDate: String,
+    val uploaded: Long = -1L,
     val streamType: String,
     val isShortFormContent: Boolean,
     val uploaderVerified: Boolean,

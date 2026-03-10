@@ -39,6 +39,7 @@ internal fun StreamInfoItem.toVideoItem(): VideoItem = VideoItem(
     duration = duration,
     viewCount = viewCount,
     uploadDate = textualUploadDate ?: "",
+    uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L,
     streamType = streamType?.name?.lowercase() ?: "video",
     isShortFormContent = isShortFormContent,
     uploaderVerified = isUploaderVerified,
