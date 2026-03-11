@@ -4,6 +4,8 @@ import dev.typetype.server.cache.CacheService
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.PipePipeStreamService
+import dev.typetype.server.services.YouTubeSubtitleService
+import okhttp3.OkHttpClient
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
@@ -21,7 +23,7 @@ private object NoOpCache : CacheService {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExtractionTest {
 
-    private val service = PipePipeStreamService(NoOpCache)
+    private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient()))
 
     @BeforeAll
     fun setup() {
