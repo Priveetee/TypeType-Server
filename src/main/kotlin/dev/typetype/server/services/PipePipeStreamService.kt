@@ -17,7 +17,10 @@ import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
-class PipePipeStreamService(private val cache: CacheService) : StreamService {
+internal class PipePipeStreamService(
+    private val cache: CacheService,
+    private val subtitleService: YouTubeSubtitleService,
+) : StreamService {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -44,7 +47,12 @@ class PipePipeStreamService(private val cache: CacheService) : StreamService {
                     val segmentsDeferred = async { resolveSegments(extractor) }
                     val streamInfo = streamInfoDeferred.await()
                     streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
-                    streamInfo.toStreamResponse()
+                    val response = streamInfo.toStreamResponse()
+                    if (response.subtitles.isEmpty() && service.serviceId == 0) {
+                        response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
+                    } else {
+                        response
+                    }
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
