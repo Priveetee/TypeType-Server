@@ -8,9 +8,22 @@ import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-class PipePipeTrendingService : TrendingService {
+private const val BILIBILI_SERVICE_ID = 5
+private const val NICONICO_SERVICE_ID = 6
+
+class PipePipeTrendingService(
+    private val bilibiliTrendingService: BilibiliTrendingService,
+    private val nicoNicoTrendingService: NicoNicoTrendingService,
+) : TrendingService {
 
     override suspend fun getTrending(serviceId: Int): ExtractionResult<List<VideoItem>> =
+        when (serviceId) {
+            BILIBILI_SERVICE_ID -> bilibiliTrendingService.getTrending()
+            NICONICO_SERVICE_ID -> nicoNicoTrendingService.getTrending()
+            else -> fetchViaPipePipe(serviceId)
+        }
+
+    private suspend fun fetchViaPipePipe(serviceId: Int): ExtractionResult<List<VideoItem>> =
         withContext(Dispatchers.IO) {
             runCatching {
                 withTimeout(30_000L) {
