@@ -41,7 +41,7 @@ class PipePipeChannelService : ChannelService {
         bannerUrl = bannerUrl ?: "",
         subscriberCount = subscriberCount,
         isVerified = isVerified,
-        videos = relatedItems.map { it.toVideoItem() },
+        videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
     )
 

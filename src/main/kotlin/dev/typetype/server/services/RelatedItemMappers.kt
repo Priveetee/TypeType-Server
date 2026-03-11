@@ -7,6 +7,10 @@ import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockCategory
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
+private val JAPANESE_DATE_REGEX = Regex("""\d{4}年\d{2}月\d{2}日 \d{2}[：:]\d{2}[：:]\d{2}""")
+
+private fun String.extractJapaneseDate(): String = JAPANESE_DATE_REGEX.find(this)?.value ?: this
+
 internal fun SponsorBlockSegment.toSegmentItem(): SponsorBlockSegmentItem = SponsorBlockSegmentItem(
     startTime = startTime,
     endTime = endTime,
@@ -28,17 +32,17 @@ internal fun List<SponsorBlockSegmentItem>.toSponsorBlockSegments(): Array<Spons
         }.getOrNull()
     }.toTypedArray()
 
-internal fun StreamInfoItem.toVideoItem(): VideoItem = VideoItem(
+internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem = VideoItem(
     id = url ?: "",
     title = name ?: "",
     url = url ?: "",
     thumbnailUrl = thumbnailUrl ?: "",
     uploaderName = uploaderName ?: "",
     uploaderUrl = uploaderUrl ?: "",
-    uploaderAvatarUrl = uploaderAvatarUrl ?: "",
+    uploaderAvatarUrl = (uploaderAvatarUrl?.takeIf { it.isNotEmpty() } ?: fallbackAvatarUrl).replace("httpss://", "https://"),
     duration = duration,
     viewCount = viewCount,
-    uploadDate = textualUploadDate ?: "",
+    uploadDate = textualUploadDate?.extractJapaneseDate() ?: "",
     uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L,
     streamType = streamType?.name?.lowercase() ?: "video",
     isShortFormContent = isShortFormContent,
