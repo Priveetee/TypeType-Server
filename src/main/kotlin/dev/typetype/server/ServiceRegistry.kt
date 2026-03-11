@@ -22,6 +22,9 @@ import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.YouTubeSubtitleService
 import okhttp3.OkHttpClient
 import dev.typetype.server.services.PipePipeSuggestionService
+import dev.typetype.server.services.BilibiliRelatedService
+import dev.typetype.server.services.BilibiliTrendingService
+import dev.typetype.server.services.NicoNicoTrendingService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
@@ -33,9 +36,12 @@ import dev.typetype.server.services.WatchLaterService
 
 internal class ServiceRegistry(cache: DragonflyService) {
     private val httpClient = OkHttpClient()
-    val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient)), cache)
+    val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient), BilibiliRelatedService()), cache)
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
-    val trendingService = CachedTrendingService(PipePipeTrendingService(), cache)
+    val trendingService = CachedTrendingService(
+        PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient)),
+        cache,
+    )
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
     val bulletCommentService = PipePipeBulletCommentService()
     val channelService = CachedChannelService(PipePipeChannelService(), cache)

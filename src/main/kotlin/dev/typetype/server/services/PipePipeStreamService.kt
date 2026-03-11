@@ -12,29 +12,36 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
+import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
+import org.schabi.newpipe.extractor.exceptions.NeedLoginException
+import org.schabi.newpipe.extractor.exceptions.PaidContentException
+import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
+private val BILIBILI_SERVICE_ID = 5
+private val ALL_SPONSOR_BLOCK_SETTINGS = SponsorBlockApiSettings().also {
+    it.includeSponsorCategory = true
+    it.includeIntroCategory = true
+    it.includeOutroCategory = true
+    it.includeInteractionCategory = true
+    it.includeHighlightCategory = true
+    it.includeSelfPromoCategory = true
+    it.includeMusicCategory = true
+    it.includePreviewCategory = true
+    it.includeFillerCategory = true
+}
+
 internal class PipePipeStreamService(
     private val cache: CacheService,
     private val subtitleService: YouTubeSubtitleService,
+    private val bilibiliRelatedService: BilibiliRelatedService,
 ) : StreamService {
 
     private val json = Json { ignoreUnknownKeys = true }
-
-    private val sponsorBlockSettings = SponsorBlockApiSettings().apply {
-        includeSponsorCategory = true
-        includeIntroCategory = true
-        includeOutroCategory = true
-        includeInteractionCategory = true
-        includeHighlightCategory = true
-        includeSelfPromoCategory = true
-        includeMusicCategory = true
-        includePreviewCategory = true
-        includeFillerCategory = true
-    }
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         withContext(Dispatchers.IO) {
@@ -48,15 +55,26 @@ internal class PipePipeStreamService(
                     val streamInfo = streamInfoDeferred.await()
                     streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                     val response = streamInfo.toStreamResponse()
-                    if (response.subtitles.isEmpty() && service.serviceId == 0) {
+                    val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
                         response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
                     } else {
                         response
                     }
+                    if (service.serviceId == BILIBILI_SERVICE_ID) bilibiliRelatedService.patchRelatedStreams(withSubtitles, url)
+                    else withSubtitles
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
-                onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }
+                onFailure = { e ->
+                    when (e) {
+                        is GeographicRestrictionException,
+                        is PaidContentException,
+                        is NeedLoginException,
+                        is AgeRestrictedContentException,
+                        is PrivateContentException -> ExtractionResult.BadRequest(e.message ?: "Content not available")
+                        else -> ExtractionResult.Failure(e.message ?: "Extraction failed")
+                    }
+                }
             )
         }
 
@@ -81,7 +99,7 @@ internal class PipePipeStreamService(
         cacheKey: String,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
         val segments = runCatching {
-            withTimeout(15_000L) { SponsorBlockExtractorHelper.getSegments(extractor, sponsorBlockSettings) }
+            withTimeout(15_000L) { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
         }.getOrElse { emptyArray() }
         runCatching {
             val items = segments.map { it.toSegmentItem() }
