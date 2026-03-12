@@ -11,6 +11,8 @@ private val JAPANESE_DATE_REGEX = Regex("""\d{4}年\d{2}月\d{2}日 \d{2}[：:]\
 
 private fun String.extractJapaneseDate(): String = JAPANESE_DATE_REGEX.find(this)?.value ?: this
 
+internal fun String?.toAbsoluteUrl(): String = if (this?.startsWith("http") == true) this else ""
+
 internal fun SponsorBlockSegment.toSegmentItem(): SponsorBlockSegmentItem = SponsorBlockSegmentItem(
     startTime = startTime,
     endTime = endTime,
@@ -36,7 +38,7 @@ internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoIt
     id = url ?: "",
     title = name ?: "",
     url = url ?: "",
-    thumbnailUrl = thumbnailUrl ?: "",
+    thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
     uploaderName = uploaderName ?: "",
     uploaderUrl = uploaderUrl ?: "",
     uploaderAvatarUrl = (uploaderAvatarUrl?.takeIf { it.isNotEmpty() } ?: fallbackAvatarUrl).replace("httpss://", "https://"),
