@@ -45,8 +45,7 @@ fun Application.module() {
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
 
     val tokenService = TokenService()
-    val token = tokenService.getOrGenerate()
-    log.info("Instance token: $token")
+    log.info("Instance token: ${tokenService.getOrGenerate()}")
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val svc = ServiceRegistry(DragonflyService(cacheUrl))
@@ -65,15 +64,15 @@ fun Application.module() {
         proxyRoutes(svc.proxyService)
         nicoVideoProxyRoutes(svc.nicoVideoProxyService)
         tokenRoutes(tokenService)
-        historyRoutes(svc.historyService, token)
-        subscriptionsRoutes(svc.subscriptionsService, token)
-        subscriptionFeedRoutes(svc.subscriptionFeedService, token)
-        playlistRoutes(svc.playlistService, token)
-        watchLaterRoutes(svc.watchLaterService, token)
-        progressRoutes(svc.progressService, token)
-        favoritesRoutes(svc.favoritesService, token)
-        settingsRoutes(svc.settingsService, token)
-        searchHistoryRoutes(svc.searchHistoryService, token)
-        blockedRoutes(svc.blockedService, token)
+        historyRoutes(svc.historyService, tokenService)
+        subscriptionsRoutes(svc.subscriptionsService, tokenService)
+        subscriptionFeedRoutes(svc.subscriptionFeedService, tokenService)
+        playlistRoutes(svc.playlistService, tokenService)
+        watchLaterRoutes(svc.watchLaterService, tokenService)
+        progressRoutes(svc.progressService, tokenService)
+        favoritesRoutes(svc.favoritesService, tokenService)
+        settingsRoutes(svc.settingsService, tokenService)
+        searchHistoryRoutes(svc.searchHistoryService, tokenService)
+        blockedRoutes(svc.blockedService, tokenService)
     }
 }
