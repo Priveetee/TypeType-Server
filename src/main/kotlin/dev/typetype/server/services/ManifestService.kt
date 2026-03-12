@@ -21,7 +21,7 @@ class ManifestService(private val streamService: StreamService) {
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
         streams.filter { it.codec?.startsWith("av01") != true && it.url.isNotBlank() && !it.codec.isNullOrBlank() }
-            .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: 0) }))
+            .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: bwFromUrl(it.url) ?: 0) }))
 
     private fun compatibleAudioStreams(streams: List<AudioStreamItem>): List<AudioStreamItem> =
         streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
@@ -60,7 +60,7 @@ class ManifestService(private val streamService: StreamService) {
         streams.forEachIndexed { i, s ->
             val height = if (s.height > 0) s.height else resolutionHeight(s.resolution)
             val width = if (s.width > 0) s.width else if (height > 0) height * 16 / 9 else 0
-            val bandwidth = (s.bitrate ?: (height * 1000)).coerceAtLeast(1)
+            val bandwidth = (s.bitrate ?: bwFromUrl(s.url) ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
             sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(s.url)}</BaseURL>")
@@ -78,9 +78,7 @@ class ManifestService(private val streamService: StreamService) {
         val attrs = "${if (lang != null) " lang=\"$lang\"" else ""}${if (label != null) " label=\"$label\"" else ""}"
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\"$attrs>")
         streams.forEachIndexed { i, a ->
-            val bandwidth = ((a.bitrate ?: 128) * 1000).coerceAtLeast(1)
-            val codec = normalizeAudioCodec(a.codec)
-            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"$codec\">")
+            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"${((a.bitrate ?: 128) * 1000).coerceAtLeast(1)}\" codecs=\"${normalizeAudioCodec(a.codec)}\">")
             sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
@@ -107,7 +105,10 @@ class ManifestService(private val streamService: StreamService) {
     }
 
     private fun resolutionHeight(resolution: String): Int =
-        Regex("(\\d+)p").find(resolution)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        Regex("(\\d+)[pP]").find(resolution)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+    private fun bwFromUrl(url: String): Int? =
+        Regex("[?&]bw=(\\d+)").find(url)?.groupValues?.get(1)?.toIntOrNull()
 
     private fun encode(url: String): String =
         URLEncoder.encode(url, StandardCharsets.UTF_8)
