@@ -7,6 +7,8 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import kotlinx.serialization.json.Json
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.compression.Compression
+import io.ktor.server.plugins.compression.gzip
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -29,6 +31,10 @@ fun Application.configurePlugins() {
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
+    }
+
+    install(Compression) {
+        gzip()
     }
 
     install(CORS) {
