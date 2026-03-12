@@ -87,6 +87,29 @@ class SettingsRoutesTest {
     }
 
     @Test
+    fun `GET settings returns defaults for new fields when no row exists`() = withApp {
+        val body = client.get("/settings") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("\"subtitlesEnabled\":false"))
+        assertTrue(body.contains("\"defaultSubtitleLanguage\":\"\""))
+        assertTrue(body.contains("\"defaultAudioLanguage\":\"\""))
+        assertTrue(body.contains("\"subscriptionSyncInterval\":0"))
+    }
+
+    @Test
+    fun `PUT settings persists new fields and GET returns them`() = withApp {
+        client.put("/settings") {
+            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"subtitlesEnabled":true,"defaultSubtitleLanguage":"fr","defaultAudioLanguage":"fr","subscriptionSyncInterval":60}""")
+        }
+        val body = client.get("/settings") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        assertTrue(body.contains("\"subtitlesEnabled\":true"))
+        assertTrue(body.contains("\"defaultSubtitleLanguage\":\"fr\""))
+        assertTrue(body.contains("\"defaultAudioLanguage\":\"fr\""))
+        assertTrue(body.contains("\"subscriptionSyncInterval\":60"))
+    }
+
+    @Test
     fun `PUT settings with invalid body returns 400`() = withApp {
         assertEquals(HttpStatusCode.BadRequest, client.put("/settings") {
             headers.append("X-Instance-Token", token)

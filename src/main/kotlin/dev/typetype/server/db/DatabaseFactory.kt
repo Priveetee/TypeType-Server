@@ -49,6 +49,10 @@ object DatabaseFactory {
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subtitles_enabled BOOLEAN NOT NULL DEFAULT false")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_subtitle_language TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
         }
     }
 

@@ -9,4 +9,8 @@ data class SettingsItem(
     val autoplay: Boolean = true,
     val volume: Double = 1.0,
     val muted: Boolean = false,
+    val subtitlesEnabled: Boolean = false,
+    val defaultSubtitleLanguage: String = "",
+    val defaultAudioLanguage: String = "",
+    val subscriptionSyncInterval: Int = 0,
 )

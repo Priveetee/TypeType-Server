@@ -9,5 +9,9 @@ object SettingsTable : Table("settings") {
     val autoplay = bool("autoplay").default(true)
     val volume = double("volume").default(1.0)
     val muted = bool("muted").default(false)
+    val subtitlesEnabled = bool("subtitles_enabled").default(false)
+    val defaultSubtitleLanguage = text("default_subtitle_language").default("")
+    val defaultAudioLanguage = text("default_audio_language").default("")
+    val subscriptionSyncInterval = integer("subscription_sync_interval").default(0)
     override val primaryKey = PrimaryKey(id)
 }

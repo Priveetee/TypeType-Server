@@ -18,6 +18,10 @@ class SettingsService {
                 autoplay = it[SettingsTable.autoplay],
                 volume = it[SettingsTable.volume],
                 muted = it[SettingsTable.muted],
+                subtitlesEnabled = it[SettingsTable.subtitlesEnabled],
+                defaultSubtitleLanguage = it[SettingsTable.defaultSubtitleLanguage],
+                defaultAudioLanguage = it[SettingsTable.defaultAudioLanguage],
+                subscriptionSyncInterval = it[SettingsTable.subscriptionSyncInterval],
             )
         } ?: SettingsItem()
     }
@@ -32,6 +36,10 @@ class SettingsService {
                     it[autoplay] = settings.autoplay
                     it[volume] = settings.volume
                     it[muted] = settings.muted
+                    it[subtitlesEnabled] = settings.subtitlesEnabled
+                    it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
+                    it[defaultAudioLanguage] = settings.defaultAudioLanguage
+                    it[subscriptionSyncInterval] = settings.subscriptionSyncInterval
                 }
             } else {
                 SettingsTable.insert {
@@ -41,6 +49,10 @@ class SettingsService {
                     it[autoplay] = settings.autoplay
                     it[volume] = settings.volume
                     it[muted] = settings.muted
+                    it[subtitlesEnabled] = settings.subtitlesEnabled
+                    it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
+                    it[defaultAudioLanguage] = settings.defaultAudioLanguage
+                    it[subscriptionSyncInterval] = settings.subscriptionSyncInterval
                 }
             }
         }
