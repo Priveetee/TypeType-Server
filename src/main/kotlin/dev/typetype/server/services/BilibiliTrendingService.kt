@@ -1,10 +1,10 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -20,8 +20,6 @@ private const val SPACE_URL = "https://space.bilibili.com/"
 
 class BilibiliTrendingService {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     @Suppress("SimpleDateFormat")
     private fun formatDate(pubdate: Long): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date(pubdate * 1000L))
@@ -31,7 +29,7 @@ class BilibiliTrendingService {
             runCatching {
                 val headers = BilibiliService.getHeaders(RECOMMENDED_URL)
                 val body = NewPipe.getDownloader().get(RECOMMENDED_URL, headers).responseBody()
-                val root = json.parseToJsonElement(body).jsonObject
+                val root = CacheJson.parseToJsonElement(body).jsonObject
                 val items = root["data"]?.jsonObject?.get("item")?.jsonArray
                     ?: return@runCatching emptyList<VideoItem>()
                 items.map { el ->

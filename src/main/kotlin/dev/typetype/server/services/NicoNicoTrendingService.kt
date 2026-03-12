@@ -1,10 +1,10 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -29,8 +29,6 @@ private fun htmlUnescape(s: String): String =
 
 class NicoNicoTrendingService(private val httpClient: OkHttpClient) {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     suspend fun getTrending(): ExtractionResult<List<VideoItem>> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -42,7 +40,7 @@ class NicoNicoTrendingService(private val httpClient: OkHttpClient) {
                 val rawMeta = META_REGEX.find(body)?.groupValues?.get(1)
                     ?: return@runCatching emptyList<VideoItem>()
                 val unescaped = htmlUnescape(rawMeta)
-                val root = json.parseToJsonElement(unescaped).jsonObject
+                val root = CacheJson.parseToJsonElement(unescaped).jsonObject
                 val items = root["data"]?.jsonObject
                     ?.get("response")?.jsonObject
                     ?.get("\$getTeibanRanking")?.jsonObject

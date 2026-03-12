@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SubscriptionFeedResponse
@@ -10,7 +11,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
 import java.util.Base64
 
 class SubscriptionFeedService(
@@ -18,7 +18,6 @@ class SubscriptionFeedService(
     private val channelService: ChannelService,
     private val cache: CacheService,
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
     private val semaphore = Semaphore(MAX_CONCURRENT_FETCHES)
 
     suspend fun getFeed(token: String, page: Int, limit: Int): SubscriptionFeedResponse {
@@ -33,7 +32,7 @@ class SubscriptionFeedService(
     private suspend fun cachedAll(token: String): List<VideoItem> {
         val key = "feed:$token"
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
-            return runCatching { json.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
+            return runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
                 .getOrElse { fetchAndCache(key) }
         }
         return fetchAndCache(key)
@@ -58,7 +57,7 @@ class SubscriptionFeedService(
         val sorted = videos.sortedWith(
             compareByDescending { v: VideoItem -> if (v.uploaded == -1L) Long.MIN_VALUE else v.uploaded }
         )
-        runCatching { cache.set(key, json.encodeToString(ListSerializer(VideoItem.serializer()), sorted), FEED_TTL_SECONDS) }
+        runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), sorted), FEED_TTL_SECONDS) }
         return sorted
     }
 

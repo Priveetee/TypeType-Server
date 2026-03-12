@@ -1,9 +1,9 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -16,8 +16,6 @@ private const val SPACE_BASE_URL = "https://space.bilibili.com/"
 private val BVID_REGEX = Regex("""/(BV[0-9A-Za-z]+)""")
 
 internal class BilibiliRelatedService {
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun patchRelatedStreams(response: StreamResponse, videoUrl: String): StreamResponse {
         val uploaderUrls = fetchUploaderUrls(videoUrl)
@@ -40,7 +38,7 @@ internal class BilibiliRelatedService {
                 val url = RELATED_BASE_URL + bvid
                 val headers = BilibiliService.getHeaders(url)
                 val body = NewPipe.getDownloader().get(url, headers).responseBody()
-                val root = json.parseToJsonElement(body).jsonObject
+                val root = CacheJson.parseToJsonElement(body).jsonObject
                 val data = root["data"]?.jsonArray ?: return@runCatching emptyMap()
                 buildMap {
                     for (el in data) {

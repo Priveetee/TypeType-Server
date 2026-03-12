@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SponsorBlockSegmentItem
@@ -9,7 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
@@ -40,8 +40,6 @@ internal class PipePipeStreamService(
     private val subtitleService: YouTubeSubtitleService,
     private val bilibiliRelatedService: BilibiliRelatedService,
 ) : StreamService {
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         withContext(Dispatchers.IO) {
@@ -87,7 +85,7 @@ internal class PipePipeStreamService(
         val cacheKey = "sponsorblock:${extractor.id}"
         runCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
             return runCatching {
-                val items = json.decodeFromString<List<SponsorBlockSegmentItem>>(cached)
+                val items = CacheJson.decodeFromString<List<SponsorBlockSegmentItem>>(cached)
                 items.toSponsorBlockSegments()
             }.getOrElse { fetchAndCacheSegments(extractor, cacheKey) }
         }
@@ -103,7 +101,7 @@ internal class PipePipeStreamService(
         }.getOrElse { emptyArray() }
         runCatching {
             val items = segments.map { it.toSegmentItem() }
-            cache.set(cacheKey, json.encodeToString(items), SPONSORBLOCK_TTL_SECONDS)
+            cache.set(cacheKey, CacheJson.encodeToString(items), SPONSORBLOCK_TTL_SECONDS)
         }
         return segments
     }

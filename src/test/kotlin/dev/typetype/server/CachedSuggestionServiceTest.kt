@@ -32,7 +32,7 @@ class CachedSuggestionServiceTest {
         coEvery { cache.set(any(), any(), any()) } returns Unit
         val result = service.getSuggestions("rick", 0)
         assertEquals(ExtractionResult.Success(listOf("rick astley")), result)
-        coVerify(exactly = 1) { cache.set("suggestions:0:rick", any(), 60L) }
+        coVerify(exactly = 1) { cache.set("suggestions:0:rick", any(), 300L) }
     }
 
     @Test
