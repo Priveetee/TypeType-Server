@@ -10,7 +10,6 @@ import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.TimeUnit
 
 internal val GOOGLEVIDEO_URL_REGEX = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
 
@@ -23,13 +22,7 @@ internal fun rewriteHlsManifest(manifest: String): String =
         "/proxy?url=" + URLEncoder.encode(match.value, StandardCharsets.UTF_8)
     }
 
-class OkHttpProxyService : ProxyService {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .build()
+class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
     override suspend fun pipe(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {

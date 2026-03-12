@@ -21,6 +21,7 @@ import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.YouTubeSubtitleService
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
@@ -36,6 +37,11 @@ import dev.typetype.server.services.WatchLaterService
 
 internal class ServiceRegistry(cache: DragonflyService) {
     private val httpClient = OkHttpClient()
+    private val proxyHttpClient = httpClient.newBuilder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build()
     val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient), BilibiliRelatedService()), cache)
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
     val trendingService = CachedTrendingService(
@@ -45,7 +51,7 @@ internal class ServiceRegistry(cache: DragonflyService) {
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
     val bulletCommentService = PipePipeBulletCommentService()
     val channelService = CachedChannelService(PipePipeChannelService(), cache)
-    val proxyService = OkHttpProxyService()
+    val proxyService = OkHttpProxyService(proxyHttpClient)
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = ManifestService(streamService)
     val nativeManifestService = NativeManifestService()
