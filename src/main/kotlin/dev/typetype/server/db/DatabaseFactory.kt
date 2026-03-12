@@ -30,6 +30,7 @@ object DatabaseFactory {
             this.password = dbPassword
             driverClassName = "org.postgresql.Driver"
             maximumPoolSize = 10
+            minimumIdle = 2
         }
         Database.connect(HikariDataSource(config))
         transaction {
