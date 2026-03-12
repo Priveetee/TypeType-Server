@@ -19,5 +19,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  typetype-server:
+    image: ghcr.io/priveetee/typetype-server:latest
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/typetype
+      DATABASE_USER: typetype
+      DATABASE_PASSWORD: typetype
+      DRAGONFLY_URL: redis://dragonfly:6379
+    depends_on:
+      - postgres
+      - dragonfly
+    restart: unless-stopped
+
 volumes:
   postgres_data:
