@@ -9,6 +9,7 @@ object HistoryTable : Table("history") {
     val thumbnail = text("thumbnail")
     val channelName = text("channel_name")
     val channelUrl = text("channel_url")
+    val channelAvatar = text("channel_avatar").default("")
     val duration = long("duration")
     val progress = long("progress")
     val watchedAt = long("watched_at")

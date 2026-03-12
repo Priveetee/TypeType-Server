@@ -10,6 +10,7 @@ data class HistoryItem(
     val thumbnail: String,
     val channelName: String,
     val channelUrl: String,
+    val channelAvatar: String = "",
     val duration: Long,
     val progress: Long,
     val watchedAt: Long = 0L,

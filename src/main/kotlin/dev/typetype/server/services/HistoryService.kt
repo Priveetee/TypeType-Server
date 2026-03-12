@@ -47,6 +47,7 @@ class HistoryService {
                 it[thumbnail] = item.thumbnail
                 it[channelName] = item.channelName
                 it[channelUrl] = item.channelUrl
+                it[channelAvatar] = item.channelAvatar
                 it[duration] = item.duration
                 it[progress] = item.progress
                 it[watchedAt] = now
@@ -70,6 +71,7 @@ class HistoryService {
         thumbnail = this[HistoryTable.thumbnail],
         channelName = this[HistoryTable.channelName],
         channelUrl = this[HistoryTable.channelUrl],
+        channelAvatar = this[HistoryTable.channelAvatar],
         duration = this[HistoryTable.duration],
         progress = this[HistoryTable.progress],
         watchedAt = this[HistoryTable.watchedAt],
