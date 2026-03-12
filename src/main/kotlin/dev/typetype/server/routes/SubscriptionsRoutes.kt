@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -11,12 +12,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, token: String) {
+fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, tokenService: TokenService) {
     get("/subscriptions") {
-        call.withAuth(token) { call.respond(subscriptionsService.getAll()) }
+        call.withAuth(tokenService) { call.respond(subscriptionsService.getAll()) }
     }
     post("/subscriptions") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val item = runCatching { call.receive<SubscriptionItem>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
@@ -24,7 +25,7 @@ fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, token:
         }
     }
     delete("/subscriptions/{channelUrl}") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val channelUrl = call.parameters["channelUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
             val deleted = subscriptionsService.delete(channelUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))

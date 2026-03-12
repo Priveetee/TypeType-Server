@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SearchHistoryService
+import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -14,12 +15,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class SearchHistoryBody(val term: String)
 
-fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, token: String) {
+fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, tokenService: TokenService) {
     get("/search-history") {
-        call.withAuth(token) { call.respond(searchHistoryService.getAll()) }
+        call.withAuth(tokenService) { call.respond(searchHistoryService.getAll()) }
     }
     post("/search-history") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val body = runCatching { call.receive<SearchHistoryBody>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
@@ -27,7 +28,7 @@ fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, token:
         }
     }
     delete("/search-history") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             searchHistoryService.deleteAll()
             call.respond(HttpStatusCode.NoContent)
         }

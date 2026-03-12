@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -13,12 +14,12 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 
-fun Route.playlistRoutes(playlistService: PlaylistService, token: String) {
+fun Route.playlistRoutes(playlistService: PlaylistService, tokenService: TokenService) {
     get("/playlists") {
-        call.withAuth(token) { call.respond(playlistService.getAll()) }
+        call.withAuth(tokenService) { call.respond(playlistService.getAll()) }
     }
     post("/playlists") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val item = runCatching { call.receive<PlaylistItem>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
@@ -26,14 +27,14 @@ fun Route.playlistRoutes(playlistService: PlaylistService, token: String) {
         }
     }
     get("/playlists/{id}") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val playlist = playlistService.getById(id) ?: return@withAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
             call.respond(playlist)
         }
     }
     put("/playlists/{id}") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val item = runCatching { call.receive<PlaylistItem>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
@@ -43,14 +44,14 @@ fun Route.playlistRoutes(playlistService: PlaylistService, token: String) {
         }
     }
     delete("/playlists/{id}") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val deleted = playlistService.delete(id)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
     }
     post("/playlists/{id}/videos") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val video = runCatching { call.receive<PlaylistVideoItem>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
@@ -59,7 +60,7 @@ fun Route.playlistRoutes(playlistService: PlaylistService, token: String) {
         }
     }
     delete("/playlists/{id}/videos/{videoUrl}") {
-        call.withAuth(token) {
+        call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = playlistService.removeVideo(id, videoUrl)
