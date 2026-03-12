@@ -21,7 +21,6 @@ class SettingsService {
                 subtitlesEnabled = it[SettingsTable.subtitlesEnabled],
                 defaultSubtitleLanguage = it[SettingsTable.defaultSubtitleLanguage],
                 defaultAudioLanguage = it[SettingsTable.defaultAudioLanguage],
-                subscriptionSyncInterval = it[SettingsTable.subscriptionSyncInterval],
             )
         } ?: SettingsItem()
     }
@@ -39,7 +38,6 @@ class SettingsService {
                     it[subtitlesEnabled] = settings.subtitlesEnabled
                     it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
                     it[defaultAudioLanguage] = settings.defaultAudioLanguage
-                    it[subscriptionSyncInterval] = settings.subscriptionSyncInterval
                 }
             } else {
                 SettingsTable.insert {
@@ -52,7 +50,6 @@ class SettingsService {
                     it[subtitlesEnabled] = settings.subtitlesEnabled
                     it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
                     it[defaultAudioLanguage] = settings.defaultAudioLanguage
-                    it[subscriptionSyncInterval] = settings.subscriptionSyncInterval
                 }
             }
         }

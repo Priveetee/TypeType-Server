@@ -5,6 +5,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import kotlinx.serialization.json.Json
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -27,7 +28,7 @@ fun Application.configurePlugins() {
     }
 
     install(ContentNegotiation) {
-        json()
+        json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
     }
 
     install(CORS) {

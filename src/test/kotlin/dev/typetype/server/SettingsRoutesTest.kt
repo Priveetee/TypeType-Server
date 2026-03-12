@@ -13,6 +13,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import kotlinx.serialization.json.Json
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -38,7 +39,7 @@ class SettingsRoutesTest {
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
             routing { settingsRoutes(service, token) }
         }
         block()
@@ -92,7 +93,7 @@ class SettingsRoutesTest {
         assertTrue(body.contains("\"subtitlesEnabled\":false"))
         assertTrue(body.contains("\"defaultSubtitleLanguage\":\"\""))
         assertTrue(body.contains("\"defaultAudioLanguage\":\"\""))
-        assertTrue(body.contains("\"subscriptionSyncInterval\":0"))
+        assertTrue(!body.contains("subscriptionSyncInterval"))
     }
 
     @Test
@@ -106,7 +107,7 @@ class SettingsRoutesTest {
         assertTrue(body.contains("\"subtitlesEnabled\":true"))
         assertTrue(body.contains("\"defaultSubtitleLanguage\":\"fr\""))
         assertTrue(body.contains("\"defaultAudioLanguage\":\"fr\""))
-        assertTrue(body.contains("\"subscriptionSyncInterval\":60"))
+        assertTrue(!body.contains("subscriptionSyncInterval"))
     }
 
     @Test
