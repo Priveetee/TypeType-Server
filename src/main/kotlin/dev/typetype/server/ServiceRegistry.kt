@@ -39,7 +39,7 @@ internal class ServiceRegistry(cache: DragonflyService) {
     private val httpClient = OkHttpClient()
     private val proxyHttpClient = httpClient.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
     val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient), BilibiliRelatedService()), cache)

@@ -77,7 +77,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
     private fun isBilibili(url: String): Boolean {
         val host = runCatching { java.net.URI(url).host ?: "" }.getOrElse { "" }
-        return host.contains("bilibili") || host.contains("bilivideo")
+        return host.contains("bilibili") || host.contains("bilivideo") || host.endsWith("hdslb.com")
     }
 
     private fun isHls(contentType: String): Boolean =
