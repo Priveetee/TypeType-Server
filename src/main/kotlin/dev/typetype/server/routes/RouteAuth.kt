@@ -1,13 +1,14 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 
-suspend fun ApplicationCall.withAuth(token: String, block: suspend () -> Unit) {
+suspend fun ApplicationCall.withAuth(tokenService: TokenService, block: suspend () -> Unit) {
     val header = request.headers["X-Instance-Token"]
-    if (header == null || header != token) {
+    if (header == null || header != tokenService.getOrGenerate()) {
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid or missing X-Instance-Token"))
         return
     }

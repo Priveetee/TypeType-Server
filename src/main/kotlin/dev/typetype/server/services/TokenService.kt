@@ -8,7 +8,11 @@ import java.util.UUID
 
 class TokenService {
 
-    fun getOrGenerate(): String {
+    @Volatile private var cached: String? = null
+
+    fun getOrGenerate(): String = cached ?: resolve().also { cached = it }
+
+    private fun resolve(): String {
         val existing = transaction {
             TokenTable.selectAll().singleOrNull()?.get(TokenTable.value)
         }
