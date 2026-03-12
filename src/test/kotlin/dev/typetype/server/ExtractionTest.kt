@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.YouTubeSubtitleService
 import okhttp3.OkHttpClient
@@ -23,7 +24,7 @@ private object NoOpCache : CacheService {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExtractionTest {
 
-    private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient()))
+    private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient()), BilibiliRelatedService())
 
     @BeforeAll
     fun setup() {
