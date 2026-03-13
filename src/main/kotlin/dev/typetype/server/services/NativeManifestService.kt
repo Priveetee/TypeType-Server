@@ -40,6 +40,8 @@ class NativeManifestService {
             val codec = s.getCodec()
             !codec.isNullOrBlank() &&
                 !codec.startsWith("av01") &&
+                !codec.startsWith("vp9") &&
+                !codec.startsWith("vp09") &&
                 (s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP || s.deliveryMethod == DeliveryMethod.DASH) &&
                 s.getContent()?.isNotBlank() == true &&
                 s.getItagItem() != null
@@ -49,6 +51,8 @@ class NativeManifestService {
         streams.filter { s ->
             val codec = s.getCodec()
             !codec.isNullOrBlank() &&
+                !codec.startsWith("opus") &&
+                !codec.startsWith("vorbis") &&
                 s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
                 s.getContent()?.isNotBlank() == true &&
                 s.getItagItem() != null

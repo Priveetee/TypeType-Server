@@ -25,20 +25,22 @@ internal object NativeManifestBuilder {
     }
 
     private fun buildVideoAdaptationSets(sb: StringBuilder, videos: List<VideoStream>, duration: Long) {
+        var id = 0
         videos.groupBy { videoMimeType(it.getCodec() ?: "") }
             .forEach { (mime, group) ->
                 sb.appendLine("    <AdaptationSet mimeType=\"$mime\" startWithSAP=\"1\">")
-                group.forEachIndexed { i, s -> appendVideoRepresentation(sb, s, i, duration) }
+                group.forEach { s -> appendVideoRepresentation(sb, s, id++, duration) }
                 sb.appendLine("    </AdaptationSet>")
             }
     }
 
     private fun buildAudioAdaptationSets(sb: StringBuilder, audios: List<AudioStream>, duration: Long) {
         if (audios.isEmpty()) return
+        var id = 0
         audios.groupBy { audioMimeType(it.getCodec() ?: "") }
             .forEach { (mime, group) ->
                 sb.appendLine("    <AdaptationSet mimeType=\"$mime\">")
-                group.forEachIndexed { i, s -> appendAudioRepresentation(sb, s, i, duration) }
+                group.forEach { s -> appendAudioRepresentation(sb, s, id++, duration) }
                 sb.appendLine("    </AdaptationSet>")
             }
     }
