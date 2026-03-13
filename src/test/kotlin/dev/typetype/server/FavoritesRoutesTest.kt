@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.favoritesRoutes
 import dev.typetype.server.services.FavoritesService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -37,7 +38,7 @@ class FavoritesRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { favoritesRoutes(service, token) }
+            routing { favoritesRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

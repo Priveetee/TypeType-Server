@@ -9,6 +9,7 @@ import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -46,7 +47,7 @@ class SubscriptionFeedRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { subscriptionFeedRoutes(feedService, token) }
+            routing { subscriptionFeedRoutes(feedService, TokenService.fixed(token)) }
         }
         block()
     }

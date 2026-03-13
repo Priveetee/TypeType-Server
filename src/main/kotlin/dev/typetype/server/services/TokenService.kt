@@ -21,4 +21,8 @@ class TokenService {
         transaction { TokenTable.insert { it[value] = token } }
         return token
     }
+
+    companion object {
+        fun fixed(token: String): TokenService = TokenService().also { it.cached = token }
+    }
 }

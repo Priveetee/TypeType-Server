@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.blockedRoutes
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -40,7 +41,7 @@ class BlockedRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { blockedRoutes(service, token) }
+            routing { blockedRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

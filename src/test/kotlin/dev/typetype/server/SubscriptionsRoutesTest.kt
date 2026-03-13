@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.routes.subscriptionsRoutes
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -41,7 +42,7 @@ class SubscriptionsRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { subscriptionsRoutes(service, token) }
+            routing { subscriptionsRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

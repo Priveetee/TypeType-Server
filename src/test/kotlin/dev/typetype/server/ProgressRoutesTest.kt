@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.services.ProgressService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
@@ -39,7 +40,7 @@ class ProgressRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { progressRoutes(service, token) }
+            routing { progressRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

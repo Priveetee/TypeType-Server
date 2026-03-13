@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.routes.playlistRoutes
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -42,7 +43,7 @@ class PlaylistRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { playlistRoutes(service, token) }
+            routing { playlistRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.models.HistoryItem
 import dev.typetype.server.routes.historyRoutes
 import dev.typetype.server.services.HistoryService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -41,7 +42,7 @@ class HistoryRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { historyRoutes(service, token) }
+            routing { historyRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

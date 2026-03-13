@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.services.SettingsService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
@@ -40,7 +41,7 @@ class SettingsRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
-            routing { settingsRoutes(service, token) }
+            routing { settingsRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

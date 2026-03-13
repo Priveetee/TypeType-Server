@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.routes.watchLaterRoutes
+import dev.typetype.server.services.TokenService
 import dev.typetype.server.services.WatchLaterService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -41,7 +42,7 @@ class WatchLaterRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { watchLaterRoutes(service, token) }
+            routing { watchLaterRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }

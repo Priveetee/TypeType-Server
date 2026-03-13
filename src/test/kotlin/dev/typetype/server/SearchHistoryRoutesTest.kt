@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.services.SearchHistoryService
+import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -40,7 +41,7 @@ class SearchHistoryRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { searchHistoryRoutes(service, token) }
+            routing { searchHistoryRoutes(service, TokenService.fixed(token)) }
         }
         block()
     }
