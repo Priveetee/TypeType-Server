@@ -558,7 +558,10 @@ BlockedItem
 
 ## Reference Material
 
-- `InfinityLoop1308/PipePipeExtractor` — the extraction engine this server wraps
-- `InfinityLoop1308/PipePipeClient` — reference for how PipePipeExtractor is consumed in Java
-- `InfinityLoop1308/PipePipe` — multi-service support reference
-- `TeamPiped/Piped` — API patterns reference
+A huge thanks to all of these projects and their contributors. TypeType-Server is a wrapper, and none of it would exist without the hard work these teams put in first.
+
+- `InfinityLoop1308/PipePipeExtractor` — the extraction engine at the core of this server. We wrap it, they built it.
+- `InfinityLoop1308/PipePipeClient` — invaluable reference for understanding how to consume PipePipeExtractor correctly in Java
+- `InfinityLoop1308/PipePipe` — reference for multi-service support and how a real client handles the edge cases
+- `TeamPiped/Piped` — the API patterns and architecture that inspired a lot of the design decisions here
+- `deniscerri/ytdlnis` — groundbreaking work on YouTube PO token integration that directly shaped the design of TypeType-Token
