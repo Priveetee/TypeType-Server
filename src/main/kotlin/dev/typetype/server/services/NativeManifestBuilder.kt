@@ -51,9 +51,13 @@ internal object NativeManifestBuilder {
         val sizeAttr = if (width != null && height != null) " width=\"$width\" height=\"$height\"" else ""
         sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.getCodec() ?: ""}\">")
         if (s.deliveryMethod == DeliveryMethod.DASH) {
-            val manifest = YoutubeOtfDashManifestCreator.fromOtfStreamingUrl(s.getContent() ?: "", itagItem, duration)
-            val inner = extractRepresentationInner(rewriteManifestUrls(manifest))
-            sb.append(inner)
+            runCatching {
+                YoutubeOtfDashManifestCreator.fromOtfStreamingUrl(s.getContent() ?: "", itagItem, duration)
+            }.onSuccess { manifest ->
+                sb.append(extractRepresentationInner(rewriteManifestUrls(manifest)))
+            }.onFailure {
+                appendProgressiveVideoBody(sb, s)
+            }
         } else {
             appendProgressiveVideoBody(sb, s)
         }
