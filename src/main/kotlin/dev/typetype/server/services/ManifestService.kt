@@ -112,7 +112,6 @@ class ManifestService(private val streamService: StreamService) {
 
     private fun encode(url: String): String =
         URLEncoder.encode(url, StandardCharsets.UTF_8)
-
     private fun <T> ExtractionResult<T>.recast(): ExtractionResult<String> = when (this) {
         is ExtractionResult.Success -> ExtractionResult.Success(data.toString())
         is ExtractionResult.BadRequest -> ExtractionResult.BadRequest(message)
