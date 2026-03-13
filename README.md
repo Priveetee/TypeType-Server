@@ -59,6 +59,16 @@ All configuration is via environment variables. Defaults in `.env.example` work 
 | `DATABASE_PASSWORD` | `typetype` | PostgreSQL password |
 | `DRAGONFLY_URL` | `redis://localhost:6379` | Dragonfly/Redis URL |
 
+## Acknowledgments
+
+A huge thanks to the projects that made this possible. TypeType-Server is a wrapper, and none of it would exist without the work these teams put in first.
+
+- [InfinityLoop1308/PipePipeExtractor](https://github.com/InfinityLoop1308/PipePipeExtractor) — the extraction engine at the core of this server
+- [InfinityLoop1308/PipePipeClient](https://github.com/InfinityLoop1308/PipePipeClient) — reference for consuming PipePipeExtractor in Java
+- [InfinityLoop1308/PipePipe](https://github.com/InfinityLoop1308/PipePipe) — reference for multi-service support
+- [TeamPiped/Piped](https://github.com/TeamPiped/Piped) — API patterns and architecture reference
+- [deniscerri/ytdlnis](https://github.com/deniscerri/ytdlnis) — groundbreaking work on YouTube PO token integration that directly shaped the design of TypeType-Token
+
 ## License
 
 GPL v3 — required by PipePipeExtractor. The TypeType frontend is a separate program communicating over HTTP and is not subject to this license.
