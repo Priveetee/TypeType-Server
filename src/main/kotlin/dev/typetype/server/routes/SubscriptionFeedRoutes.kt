@@ -6,10 +6,12 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
+private const val MAX_FEED_PAGE = 10_000
+
 fun Route.subscriptionFeedRoutes(feedService: SubscriptionFeedService, tokenService: TokenService) {
     get("/subscriptions/feed") {
         call.withAuth(tokenService) {
-            val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+            val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceIn(0, MAX_FEED_PAGE) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
             call.respond(feedService.getFeed(tokenService.getOrGenerate(), page, limit))
         }

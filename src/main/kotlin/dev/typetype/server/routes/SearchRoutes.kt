@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.SearchService
+import dev.typetype.server.services.VALID_SERVICE_IDS
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -14,6 +15,8 @@ fun Route.searchRoutes(searchService: SearchService) {
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'q' parameter"))
         val serviceId = call.request.queryParameters["service"]?.toIntOrNull()
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing or invalid 'service' parameter"))
+        if (serviceId !in VALID_SERVICE_IDS)
+            return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid 'service' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]
 
         when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = nextpage)) {

@@ -12,13 +12,15 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
+private const val MAX_HISTORY_LIMIT = 1000
+
 fun Route.historyRoutes(historyService: HistoryService, tokenService: TokenService) {
     get("/history") {
         call.withAuth(tokenService) {
             val q = call.request.queryParameters["q"]
             val from = call.request.queryParameters["from"]?.toLongOrNull()
             val to = call.request.queryParameters["to"]?.toLongOrNull()
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 60
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_HISTORY_LIMIT) ?: 60
             val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
             val (items, total) = historyService.search(q, from, to, limit, offset)
             call.response.headers.append("X-Total-Count", total.toString())
