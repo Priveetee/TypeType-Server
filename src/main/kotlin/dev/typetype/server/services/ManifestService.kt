@@ -63,7 +63,7 @@ class ManifestService(private val streamService: StreamService) {
             val bandwidth = (s.bitrate ?: bwFromUrl(s.url) ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
             sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
-            sb.appendLine("        <BaseURL>/proxy?url=${encode(s.url)}</BaseURL>")
+            sb.appendLine("        <BaseURL>../proxy?url=${encode(s.url)}</BaseURL>")
             if (s.indexStart > 0L && s.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${s.indexStart}-${s.indexEnd}\">")
                 sb.appendLine("          <Initialization range=\"${s.initStart}-${s.initEnd}\"/>")
@@ -79,7 +79,7 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\"$attrs>")
         streams.forEachIndexed { i, a ->
             sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"${((a.bitrate ?: 128) * 1000).coerceAtLeast(1)}\" codecs=\"${normalizeAudioCodec(a.codec)}\">")
-            sb.appendLine("        <BaseURL>/proxy?url=${encode(a.url)}</BaseURL>")
+            sb.appendLine("        <BaseURL>../proxy?url=${encode(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
                 sb.appendLine("          <Initialization range=\"${a.initStart}-${a.initEnd}\"/>")

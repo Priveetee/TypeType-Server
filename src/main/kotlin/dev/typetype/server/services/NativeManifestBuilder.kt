@@ -67,7 +67,7 @@ internal object NativeManifestBuilder {
     }
 
     private fun appendProgressiveVideoBody(sb: StringBuilder, s: VideoStream) {
-        sb.appendLine("        <BaseURL>/proxy?url=${encodeUrl(s.getContent() ?: "")}</BaseURL>")
+        sb.appendLine("        <BaseURL>../proxy?url=${encodeUrl(s.getContent() ?: "")}</BaseURL>")
         val indexStart = s.getIndexStart()
         val indexEnd = s.getIndexEnd()
         if (indexStart > 0 && indexEnd > 0) {
@@ -92,7 +92,7 @@ internal object NativeManifestBuilder {
     }
 
     private fun appendProgressiveAudioBody(sb: StringBuilder, s: AudioStream) {
-        sb.appendLine("        <BaseURL>/proxy?url=${encodeUrl(s.getContent() ?: "")}</BaseURL>")
+        sb.appendLine("        <BaseURL>../proxy?url=${encodeUrl(s.getContent() ?: "")}</BaseURL>")
         val indexStart = s.getIndexStart()
         val indexEnd = s.getIndexEnd()
         if (indexStart > 0 && indexEnd > 0) {

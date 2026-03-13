@@ -13,7 +13,7 @@ internal fun rewriteManifestUrls(manifest: String): String =
             .replace("\$Number\$", "TMPL_NUMBER")
             .replace("\$Bandwidth\$", "TMPL_BANDWIDTH")
             .replace("\$Time\$", "TMPL_TIME")
-        val encoded = "/proxy?url=" + URLEncoder.encode(withPlaceholders, StandardCharsets.UTF_8)
+        val encoded = "../proxy?url=" + URLEncoder.encode(withPlaceholders, StandardCharsets.UTF_8)
         encoded
             .replace("TMPL_NUMBER", "\$Number\$")
             .replace("TMPL_BANDWIDTH", "\$Bandwidth\$")
