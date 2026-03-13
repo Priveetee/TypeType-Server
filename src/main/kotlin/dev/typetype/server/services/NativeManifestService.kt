@@ -4,12 +4,15 @@ import dev.typetype.server.models.ExtractionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.DeliveryMethod
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 
-class NativeManifestService {
+class NativeManifestService(private val httpClient: OkHttpClient) {
+
+    private val WEBM_ADAPTATION_SET = Regex(
+        """\s*<AdaptationSet[^>]*mimeType="(?:video|audio)/webm"[^>]*>[\s\S]*?</AdaptationSet>"""
+    )
 
     suspend fun nativeManifest(videoUrl: String): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
@@ -22,48 +25,20 @@ class NativeManifestService {
         }
 
     private fun buildManifest(info: StreamInfo): ExtractionResult<String> {
-        val videos = compatibleVideoStreams(info.videoOnlyStreams)
-        val audios = compatibleAudioStreams(info.audioStreams)
-        if (videos.isEmpty() && audios.isEmpty())
-            return ExtractionResult.Failure("No compatible streams found")
+        val dashMpdUrl = info.dashMpdUrl?.takeIf { it.isNotBlank() }
+            ?: return ExtractionResult.Failure("No DASH manifest URL available")
         return runCatching {
-            ExtractionResult.Success(
-                NativeManifestBuilder.build(videos, audios, info.duration)
-            )
-        }.getOrElse {
-            ExtractionResult.Failure(it.message ?: "Manifest build failed")
-        }
+            val raw = fetchManifest(dashMpdUrl)
+            val filtered = WEBM_ADAPTATION_SET.replace(raw, "")
+            ExtractionResult.Success(rewriteManifestUrls(filtered))
+        }.getOrElse { ExtractionResult.Failure(it.message ?: "Manifest processing failed") }
     }
 
-    private fun compatibleVideoStreams(streams: List<VideoStream>): List<VideoStream> =
-        streams.filter { s ->
-            val codec = s.getCodec()
-            !codec.isNullOrBlank() &&
-                !codec.startsWith("av01") &&
-                !codec.startsWith("vp9") &&
-                !codec.startsWith("vp09") &&
-                (s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP || s.deliveryMethod == DeliveryMethod.DASH) &&
-                s.getContent()?.isNotBlank() == true &&
-                s.getItagItem() != null
-        }.sortedWith(compareBy({ codecPriority(s = it) }, { -(it.getBitrate()) }))
-
-    private fun compatibleAudioStreams(streams: List<AudioStream>): List<AudioStream> =
-        streams.filter { s ->
-            val codec = s.getCodec()
-            !codec.isNullOrBlank() &&
-                !codec.startsWith("opus") &&
-                !codec.startsWith("vorbis") &&
-                s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
-                s.getContent()?.isNotBlank() == true &&
-                s.getItagItem() != null
-        }.sortedByDescending { it.averageBitrate }
-
-    private fun codecPriority(s: VideoStream): Int {
-        val codec = s.getCodec() ?: return 2
-        return when {
-            codec.startsWith("avc1") -> 0
-            codec.startsWith("vp9") || codec.startsWith("vp09") -> 1
-            else -> 2
-        }
+    private fun fetchManifest(url: String): String {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
+            .build()
+        return httpClient.newCall(request).execute().use { it.body?.string() ?: "" }
     }
 }

@@ -55,7 +55,7 @@ internal class ServiceRegistry(cache: DragonflyService) {
     val proxyService = OkHttpProxyService(proxyHttpClient)
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = ManifestService(streamService)
-    val nativeManifestService = NativeManifestService()
+    val nativeManifestService = NativeManifestService(httpClient)
     val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
     val historyService = HistoryService()
