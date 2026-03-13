@@ -1,6 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ErrorResponse
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -60,6 +62,10 @@ fun Application.configurePlugins() {
 
     install(CORS) {
         allowOrigins { it in allowedOrigins }
+        allowHeader("X-Instance-Token")
+        allowHeader(HttpHeaders.ContentType)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
     }
 
     install(RateLimit) {
