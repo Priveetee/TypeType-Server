@@ -22,7 +22,6 @@ import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
-private val BILIBILI_SERVICE_ID = 5
 private val ALL_SPONSOR_BLOCK_SETTINGS = SponsorBlockApiSettings().also {
     it.includeSponsorCategory = true
     it.includeIntroCategory = true

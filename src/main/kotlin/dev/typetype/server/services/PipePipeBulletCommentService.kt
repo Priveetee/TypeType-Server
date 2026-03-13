@@ -13,10 +13,6 @@ import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem
 
 class PipePipeBulletCommentService : BulletCommentService {
 
-    private companion object {
-        const val BILIBILI_SERVICE_ID = 5
-    }
-
     override suspend fun getBulletComments(
         url: String,
         nextpage: String?,

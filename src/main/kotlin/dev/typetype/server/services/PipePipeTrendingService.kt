@@ -8,9 +8,6 @@ import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-private const val BILIBILI_SERVICE_ID = 5
-private const val NICONICO_SERVICE_ID = 6
-
 class PipePipeTrendingService(
     private val bilibiliTrendingService: BilibiliTrendingService,
     private val nicoNicoTrendingService: NicoNicoTrendingService,
