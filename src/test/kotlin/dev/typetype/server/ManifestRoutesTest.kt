@@ -24,7 +24,7 @@ class ManifestRoutesTest {
 
     private val streamService: StreamService = mockk()
     private val manifestService = ManifestService(streamService)
-    private val nativeManifestService: NativeManifestService = mockk()
+    private val nativeManifestService = NativeManifestService()
     private val hlsManifestService: HlsManifestService = mockk()
 
     @Test
