@@ -52,7 +52,7 @@ fun Application.module() {
     routing {
         rateLimit(EXTRACTION_ZONE) {
             streamRoutes(svc.streamService)
-            manifestRoutes(svc.manifestService, svc.nativeManifestService)
+            manifestRoutes(svc.manifestService, svc.nativeManifestService, svc.hlsManifestService)
             searchRoutes(svc.searchService)
             suggestionRoutes(svc.suggestionService)
             trendingRoutes(svc.trendingService)

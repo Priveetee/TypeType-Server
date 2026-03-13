@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.manifestRoutes
+import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.StreamService
@@ -24,12 +25,13 @@ class ManifestRoutesTest {
     private val streamService: StreamService = mockk()
     private val manifestService = ManifestService(streamService)
     private val nativeManifestService = NativeManifestService()
+    private val hlsManifestService: HlsManifestService = mockk()
 
     @Test
     fun `GET streams manifest without url returns 400`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { manifestRoutes(manifestService, nativeManifestService) }
+            routing { manifestRoutes(manifestService, nativeManifestService, hlsManifestService) }
         }
         val response = client.get("/streams/manifest")
         assertEquals(HttpStatusCode.BadRequest, response.status)
@@ -41,7 +43,7 @@ class ManifestRoutesTest {
             ExtractionResult.Success(testStreamResponse())
         application {
             install(ContentNegotiation) { json() }
-            routing { manifestRoutes(manifestService, nativeManifestService) }
+            routing { manifestRoutes(manifestService, nativeManifestService, hlsManifestService) }
         }
         val response = client.get("/streams/manifest?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -57,7 +59,7 @@ class ManifestRoutesTest {
             )
         application {
             install(ContentNegotiation) { json() }
-            routing { manifestRoutes(manifestService, nativeManifestService) }
+            routing { manifestRoutes(manifestService, nativeManifestService, hlsManifestService) }
         }
         val response = client.get("/streams/manifest?url=https://youtube.com/watch?v=empty")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
@@ -67,7 +69,7 @@ class ManifestRoutesTest {
     fun `GET streams native-manifest without url returns 400`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { manifestRoutes(manifestService, nativeManifestService) }
+            routing { manifestRoutes(manifestService, nativeManifestService, hlsManifestService) }
         }
         val response = client.get("/streams/native-manifest")
         assertEquals(HttpStatusCode.BadRequest, response.status)

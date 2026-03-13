@@ -10,6 +10,7 @@ import dev.typetype.server.services.CachedSuggestionService
 import dev.typetype.server.services.CachedTrendingService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
+import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.NicoVideoProxyService
@@ -55,6 +56,7 @@ internal class ServiceRegistry(cache: DragonflyService) {
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = ManifestService(streamService)
     val nativeManifestService = NativeManifestService()
+    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
