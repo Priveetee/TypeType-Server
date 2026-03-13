@@ -45,7 +45,8 @@ fun Application.module() {
     val tokenService = TokenService()
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
-    val svc = ServiceRegistry(DragonflyService(cacheUrl))
+    val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
+    val svc = ServiceRegistry(DragonflyService(cacheUrl), subtitleServiceUrl)
 
     configurePlugins()
 

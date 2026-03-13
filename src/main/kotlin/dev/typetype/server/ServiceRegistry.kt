@@ -36,14 +36,14 @@ import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
 
-internal class ServiceRegistry(cache: DragonflyService) {
+internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: String) {
     private val httpClient = OkHttpClient()
     private val proxyHttpClient = httpClient.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
-    val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient), BilibiliRelatedService()), cache)
+    val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient, subtitleServiceUrl), BilibiliRelatedService()), cache)
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
     val trendingService = CachedTrendingService(
         PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient)),

@@ -24,7 +24,7 @@ private object NoOpCache : CacheService {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExtractionTest {
 
-    private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient()), BilibiliRelatedService())
+    private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient(), "http://localhost:8081"), BilibiliRelatedService())
 
     @BeforeAll
     fun setup() {
