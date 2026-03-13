@@ -27,15 +27,13 @@ import dev.typetype.server.routes.watchLaterRoutes
 import dev.typetype.server.services.TokenService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.routing
 import org.schabi.newpipe.extractor.NewPipe
-import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
-    val log = LoggerFactory.getLogger("Application")
-
     NewPipe.init(OkHttpDownloader.instance())
     launchExtractorLifecycle()
 
@@ -45,7 +43,6 @@ fun Application.module() {
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
 
     val tokenService = TokenService()
-    log.info("Instance token: ${tokenService.getOrGenerate()}")
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val svc = ServiceRegistry(DragonflyService(cacheUrl))
@@ -53,16 +50,20 @@ fun Application.module() {
     configurePlugins()
 
     routing {
-        streamRoutes(svc.streamService)
-        manifestRoutes(svc.manifestService, svc.nativeManifestService)
-        searchRoutes(svc.searchService)
-        suggestionRoutes(svc.suggestionService)
-        trendingRoutes(svc.trendingService)
-        commentRoutes(svc.commentService)
-        bulletCommentRoutes(svc.bulletCommentService)
-        channelRoutes(svc.channelService)
-        proxyRoutes(svc.proxyService)
-        nicoVideoProxyRoutes(svc.nicoVideoProxyService)
+        rateLimit(EXTRACTION_ZONE) {
+            streamRoutes(svc.streamService)
+            manifestRoutes(svc.manifestService, svc.nativeManifestService)
+            searchRoutes(svc.searchService)
+            suggestionRoutes(svc.suggestionService)
+            trendingRoutes(svc.trendingService)
+            commentRoutes(svc.commentService)
+            bulletCommentRoutes(svc.bulletCommentService)
+            channelRoutes(svc.channelService)
+        }
+        rateLimit(PROXY_ZONE) {
+            proxyRoutes(svc.proxyService)
+            nicoVideoProxyRoutes(svc.nicoVideoProxyService)
+        }
         tokenRoutes(tokenService)
         historyRoutes(svc.historyService, tokenService)
         subscriptionsRoutes(svc.subscriptionsService, tokenService)

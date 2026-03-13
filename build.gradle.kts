@@ -26,6 +26,7 @@ dependencies {
     implementation("io.ktor:ktor-server-compression-jvm")
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
+    implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.18")
     implementation("com.github.TeamNewPipe:extractor:v4.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
