@@ -54,7 +54,7 @@ class NicoVideoProxyService {
             val manifestUrl = if (hashIdx >= 0) rawUrl.substring(0, hashIdx) else rawUrl
             val fragment = if (hashIdx >= 0) rawUrl.substring(hashIdx + 1) else ""
             val resolvedBid = domandBid ?: if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
-
+            validateProxyUrl(manifestUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val builder = Request.Builder()
                     .url(manifestUrl)
@@ -88,6 +88,7 @@ class NicoVideoProxyService {
 
     suspend fun fetchSegment(url: String, rangeHeader: String?, domandBid: String? = null): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
+            validateProxyUrl(url)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val builder = Request.Builder()
                     .url(url)

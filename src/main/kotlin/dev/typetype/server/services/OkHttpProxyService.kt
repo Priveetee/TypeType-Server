@@ -26,6 +26,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
     override suspend fun pipe(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
+            validateProxyUrl(url)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val cleanUrl = stripTrackingParams(url)
                 val builder = Request.Builder()
