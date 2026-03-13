@@ -65,15 +65,17 @@ fun Application.module() {
             nicoVideoProxyRoutes(svc.nicoVideoProxyService)
         }
         tokenRoutes(tokenService)
-        historyRoutes(svc.historyService, tokenService)
-        subscriptionsRoutes(svc.subscriptionsService, tokenService)
-        subscriptionFeedRoutes(svc.subscriptionFeedService, tokenService)
-        playlistRoutes(svc.playlistService, tokenService)
-        watchLaterRoutes(svc.watchLaterService, tokenService)
-        progressRoutes(svc.progressService, tokenService)
-        favoritesRoutes(svc.favoritesService, tokenService)
-        settingsRoutes(svc.settingsService, tokenService)
-        searchHistoryRoutes(svc.searchHistoryService, tokenService)
-        blockedRoutes(svc.blockedService, tokenService)
+        rateLimit(USER_DATA_ZONE) {
+            historyRoutes(svc.historyService, tokenService)
+            subscriptionsRoutes(svc.subscriptionsService, tokenService)
+            subscriptionFeedRoutes(svc.subscriptionFeedService, tokenService)
+            playlistRoutes(svc.playlistService, tokenService)
+            watchLaterRoutes(svc.watchLaterService, tokenService)
+            progressRoutes(svc.progressService, tokenService)
+            favoritesRoutes(svc.favoritesService, tokenService)
+            settingsRoutes(svc.settingsService, tokenService)
+            searchHistoryRoutes(svc.searchHistoryService, tokenService)
+            blockedRoutes(svc.blockedService, tokenService)
+        }
     }
 }

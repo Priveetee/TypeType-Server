@@ -23,10 +23,12 @@ import kotlin.time.Duration.Companion.minutes
 
 private const val EXTRACTION_RATE_LIMIT = 60
 private const val PROXY_RATE_LIMIT = 300
+private const val USER_DATA_RATE_LIMIT = 120
 private val RATE_LIMIT_WINDOW = 1.minutes
 
 val EXTRACTION_ZONE = RateLimitName("extraction")
 val PROXY_ZONE = RateLimitName("proxy")
+val USER_DATA_ZONE = RateLimitName("user-data")
 
 fun Application.configurePlugins() {
     val log = LoggerFactory.getLogger("RequestLogger")
@@ -54,13 +56,10 @@ fun Application.configurePlugins() {
         ?.map { it.trim() }
         ?.filter { it.isNotBlank() }
         .orEmpty()
+        .ifEmpty { error("ALLOWED_ORIGINS environment variable must be set") }
 
     install(CORS) {
-        if (allowedOrigins.isEmpty()) {
-            anyHost()
-        } else {
-            allowOrigins { it in allowedOrigins }
-        }
+        allowOrigins { it in allowedOrigins }
     }
 
     install(RateLimit) {
@@ -69,6 +68,9 @@ fun Application.configurePlugins() {
         }
         register(PROXY_ZONE) {
             rateLimiter(limit = PROXY_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+        }
+        register(USER_DATA_ZONE) {
+            rateLimiter(limit = USER_DATA_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
         }
     }
 
