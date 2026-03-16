@@ -15,16 +15,16 @@ import kotlinx.serialization.Serializable
 internal data class ProgressBody(val position: Long)
 
 fun Route.progressRoutes(progressService: ProgressService, tokenService: TokenService) {
-    get("/progress/{videoUrl}") {
+    get("/progress/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val item = progressService.get(videoUrl) ?: return@withAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
             call.respond(item)
         }
     }
-    put("/progress/{videoUrl}") {
+    put("/progress/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val body = runCatching { call.receive<ProgressBody>() }.getOrElse {
                 return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }

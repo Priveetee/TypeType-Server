@@ -8,9 +8,11 @@ import okhttp3.Request
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-internal fun isManifestUrl(url: String): Boolean =
-    url.contains("manifest.googlevideo.com") ||
-        (url.startsWith("http") && url.contains(".m3u8"))
+internal fun isManifestUrl(url: String): Boolean {
+    if (!url.startsWith("http")) return false
+    if (url.contains("/file/seg.ts")) return false
+    return url.contains("manifest.googlevideo.com") || url.endsWith(".m3u8")
+}
 
 internal fun rewriteYouTubeHlsManifest(manifest: String): String {
     val uriAttr = Regex("""URI="([^"]+)"""")
@@ -29,7 +31,7 @@ internal fun rewriteYouTubeHlsManifest(manifest: String): String {
 
 private fun toHlsProxyUrl(url: String): String {
     val encoded = URLEncoder.encode(url, StandardCharsets.UTF_8)
-    return if (isManifestUrl(url)) "/streams/hls-manifest?url=$encoded" else "/proxy?url=$encoded"
+    return if (isManifestUrl(url)) "hls-manifest?url=$encoded" else "../proxy?url=$encoded"
 }
 
 class HlsManifestService(

@@ -14,15 +14,15 @@ fun Route.favoritesRoutes(favoritesService: FavoritesService, tokenService: Toke
     get("/favorites") {
         call.withAuth(tokenService) { call.respond(favoritesService.getAll()) }
     }
-    post("/favorites/{videoUrl}") {
+    post("/favorites/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             call.respond(HttpStatusCode.Created, favoritesService.add(videoUrl))
         }
     }
-    delete("/favorites/{videoUrl}") {
+    delete("/favorites/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = favoritesService.delete(videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }

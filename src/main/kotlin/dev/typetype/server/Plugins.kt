@@ -8,7 +8,9 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.http.ContentType
 import io.ktor.server.plugins.compression.Compression
+import io.ktor.server.plugins.compression.excludeContentType
 import io.ktor.server.plugins.compression.gzip
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -50,7 +52,9 @@ fun Application.configurePlugins() {
     }
 
     install(Compression) {
-        gzip()
+        gzip {
+            excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
+        }
     }
 
     val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
@@ -71,12 +75,15 @@ fun Application.configurePlugins() {
     install(RateLimit) {
         register(EXTRACTION_ZONE) {
             rateLimiter(limit = EXTRACTION_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
         register(PROXY_ZONE) {
             rateLimiter(limit = PROXY_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
         register(USER_DATA_ZONE) {
             rateLimiter(limit = USER_DATA_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
     }
 

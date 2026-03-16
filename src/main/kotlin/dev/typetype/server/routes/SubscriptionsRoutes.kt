@@ -24,9 +24,9 @@ fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, tokenS
             call.respond(HttpStatusCode.Created, subscriptionsService.add(item))
         }
     }
-    delete("/subscriptions/{channelUrl}") {
+    delete("/subscriptions/{channelUrl...}") {
         call.withAuth(tokenService) {
-            val channelUrl = call.parameters["channelUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
+            val channelUrl = call.parameters.getAll("channelUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
             val deleted = subscriptionsService.delete(channelUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }

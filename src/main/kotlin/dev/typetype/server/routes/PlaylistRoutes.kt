@@ -59,10 +59,10 @@ fun Route.playlistRoutes(playlistService: PlaylistService, tokenService: TokenSe
             call.respond(HttpStatusCode.Created, playlistService.addVideo(id, video))
         }
     }
-    delete("/playlists/{id}/videos/{videoUrl}") {
+    delete("/playlists/{id}/videos/{videoUrl...}") {
         call.withAuth(tokenService) {
             val id = call.parameters["id"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = playlistService.removeVideo(id, videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }

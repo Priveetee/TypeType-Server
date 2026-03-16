@@ -24,9 +24,9 @@ fun Route.blockedRoutes(blockedService: BlockedService, tokenService: TokenServi
             call.respond(HttpStatusCode.Created, blockedService.addChannel(item.url, item.name, item.thumbnailUrl))
         }
     }
-    delete("/blocked/channels/{channelUrl}") {
+    delete("/blocked/channels/{channelUrl...}") {
         call.withAuth(tokenService) {
-            val channelUrl = call.parameters["channelUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
+            val channelUrl = call.parameters.getAll("channelUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
             val deleted = blockedService.deleteChannel(channelUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
@@ -42,9 +42,9 @@ fun Route.blockedRoutes(blockedService: BlockedService, tokenService: TokenServi
             call.respond(HttpStatusCode.Created, blockedService.addVideo(item.url))
         }
     }
-    delete("/blocked/videos/{videoUrl}") {
+    delete("/blocked/videos/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = blockedService.deleteVideo(videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }

@@ -24,9 +24,9 @@ fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, tokenService: T
             call.respond(HttpStatusCode.Created, watchLaterService.add(item))
         }
     }
-    delete("/watch-later/{videoUrl}") {
+    delete("/watch-later/{videoUrl...}") {
         call.withAuth(tokenService) {
-            val videoUrl = call.parameters["videoUrl"] ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = watchLaterService.delete(videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
