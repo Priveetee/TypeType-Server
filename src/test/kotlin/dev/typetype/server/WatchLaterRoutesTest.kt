@@ -2,7 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.routes.watchLaterRoutes
-import dev.typetype.server.services.TokenService
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.WatchLaterService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 class WatchLaterRoutesTest {
 
     private val service = WatchLaterService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -42,7 +42,7 @@ class WatchLaterRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { watchLaterRoutes(service, TokenService.fixed(token)) }
+            routing { watchLaterRoutes(service, auth) }
         }
         block()
     }
@@ -56,7 +56,7 @@ class WatchLaterRoutesTest {
 
     @Test
     fun `GET watch-later returns 200 with empty list`() = withApp {
-        val response = client.get("/watch-later") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/watch-later") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -64,7 +64,7 @@ class WatchLaterRoutesTest {
     @Test
     fun `POST watch-later returns 201 and persists item`() = withApp {
         val response = client.post("/watch-later") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(itemBody)
         }
@@ -74,19 +74,19 @@ class WatchLaterRoutesTest {
 
     @Test
     fun `GET watch-later returns persisted items`() = withApp {
-        service.add(WatchLaterItem(url = "https://yt.com", title = "Test", thumbnail = "", duration = 100L))
-        val body = client.get("/watch-later") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        service.add(TEST_USER_ID, WatchLaterItem(url = "https://yt.com", title = "Test", thumbnail = "", duration = 100L))
+        val body = client.get("/watch-later") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"url\":\"https://yt.com\""))
     }
 
     @Test
     fun `DELETE watch-later returns 204 when found`() = withApp {
-        service.add(WatchLaterItem(url = "https://yt.com", title = "Test", thumbnail = "", duration = 100L))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/watch-later/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        service.add(TEST_USER_ID, WatchLaterItem(url = "https://yt.com", title = "Test", thumbnail = "", duration = 100L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/watch-later/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `DELETE watch-later returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.delete("/watch-later/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.delete("/watch-later/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 }

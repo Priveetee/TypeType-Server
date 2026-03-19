@@ -10,12 +10,16 @@ import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
+import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.TokenTable
+import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.testcontainers.containers.PostgreSQLContainer
+
+const val TEST_USER_ID = "test-user-id"
 
 object TestDatabase {
 
@@ -37,6 +41,8 @@ object TestDatabase {
         WatchLaterTable.deleteAll()
         ProgressTable.deleteAll()
         SearchHistoryTable.deleteAll()
+        SessionsTable.deleteAll()
+        UsersTable.deleteAll()
         TokenTable.deleteAll()
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()

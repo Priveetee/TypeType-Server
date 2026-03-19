@@ -2,8 +2,8 @@ package dev.typetype.server
 
 import dev.typetype.server.models.HistoryItem
 import dev.typetype.server.routes.historyRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.HistoryService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 class HistoryRoutesTest {
 
     private val service = HistoryService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -42,7 +42,7 @@ class HistoryRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { historyRoutes(service, TokenService.fixed(token)) }
+            routing { historyRoutes(service, auth) }
         }
         block()
     }
@@ -56,7 +56,7 @@ class HistoryRoutesTest {
 
     @Test
     fun `GET history returns 200 with empty list`() = withApp {
-        val response = client.get("/history") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -64,7 +64,7 @@ class HistoryRoutesTest {
     @Test
     fun `POST history returns 201 and persists item`() = withApp {
         val response = client.post("/history") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(historyBody)
         }
@@ -74,48 +74,48 @@ class HistoryRoutesTest {
 
     @Test
     fun `GET history returns persisted items`() = withApp {
-        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
-        val body = client.get("/history") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        service.add(TEST_USER_ID, HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        val body = client.get("/history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"url\":\"https://yt.com\""))
     }
 
     @Test
     fun `DELETE history by id returns 204 when found`() = withApp {
-        val item = service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/history/${item.id}") { headers.append("X-Instance-Token", token) }.status)
+        val item = service.add(TEST_USER_ID, HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/history/${item.id}") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `DELETE history by id returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.delete("/history/nonexistent") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.delete("/history/nonexistent") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `DELETE history returns 204 and clears all`() = withApp {
-        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/history") { headers.append("X-Instance-Token", token) }.status)
-        assertEquals("[]", client.get("/history") { headers.append("X-Instance-Token", token) }.bodyAsText())
+        service.add(TEST_USER_ID, HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
+        assertEquals("[]", client.get("/history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText())
     }
 
     @Test
     fun `GET history with q filters by title`() = withApp {
-        service.add(HistoryItem(url = "https://a.com", title = "micode video", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
-        service.add(HistoryItem(url = "https://b.com", title = "other", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
-        val body = client.get("/history?q=micode") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        service.add(TEST_USER_ID, HistoryItem(url = "https://a.com", title = "micode video", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
+        service.add(TEST_USER_ID, HistoryItem(url = "https://b.com", title = "other", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L))
+        val body = client.get("/history?q=micode") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("micode video") && !body.contains("\"other\""))
     }
 
     @Test
     fun `GET history with limit and offset paginates`() = withApp {
-        repeat(3) { i -> service.add(HistoryItem(url = "https://x.com/$i", title = "v$i", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L)) }
-        val body = client.get("/history?limit=1&offset=0") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        repeat(3) { i -> service.add(TEST_USER_ID, HistoryItem(url = "https://x.com/$i", title = "v$i", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 10L, progress = 0L)) }
+        val body = client.get("/history?limit=1&offset=0") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.startsWith("[{") && body.endsWith("}]"))
     }
 
     @Test
     fun `GET history returns X-Total-Count header`() = withApp {
-        service.add(HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
-        val response = client.get("/history") { headers.append("X-Instance-Token", token) }
+        service.add(TEST_USER_ID, HistoryItem(url = "https://yt.com", title = "Test", thumbnail = "", channelName = "Ch", channelUrl = "", duration = 100L, progress = 0L))
+        val response = client.get("/history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals("1", response.headers["X-Total-Count"])
     }
 }

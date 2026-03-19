@@ -1,8 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.searchHistoryRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SearchHistoryService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 class SearchHistoryRoutesTest {
 
     private val service = SearchHistoryService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -41,7 +41,7 @@ class SearchHistoryRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { searchHistoryRoutes(service, TokenService.fixed(token)) }
+            routing { searchHistoryRoutes(service, auth) }
         }
         block()
     }
@@ -53,7 +53,7 @@ class SearchHistoryRoutesTest {
 
     @Test
     fun `GET search-history returns 200 with empty list`() = withApp {
-        val response = client.get("/search-history") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -61,7 +61,7 @@ class SearchHistoryRoutesTest {
     @Test
     fun `POST search-history returns 201 and persists item`() = withApp {
         val response = client.post("/search-history") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{"term":"rick"}""")
         }
@@ -71,15 +71,15 @@ class SearchHistoryRoutesTest {
 
     @Test
     fun `GET search-history returns persisted items`() = withApp {
-        service.add("rick")
-        val body = client.get("/search-history") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        service.add(TEST_USER_ID, "rick")
+        val body = client.get("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"term\":\"rick\""))
     }
 
     @Test
     fun `POST search-history with invalid body returns 400`() = withApp {
         assertEquals(HttpStatusCode.BadRequest, client.post("/search-history") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{}""")
         }.status)
@@ -87,8 +87,8 @@ class SearchHistoryRoutesTest {
 
     @Test
     fun `DELETE search-history returns 204 and clears all`() = withApp {
-        service.add("rick")
-        assertEquals(HttpStatusCode.NoContent, client.delete("/search-history") { headers.append("X-Instance-Token", token) }.status)
-        assertEquals("[]", client.get("/search-history") { headers.append("X-Instance-Token", token) }.bodyAsText())
+        service.add(TEST_USER_ID, "rick")
+        assertEquals(HttpStatusCode.NoContent, client.delete("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
+        assertEquals("[]", client.get("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText())
     }
 }

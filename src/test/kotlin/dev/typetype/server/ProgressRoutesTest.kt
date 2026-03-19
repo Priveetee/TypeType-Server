@@ -1,8 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.progressRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ProgressService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 class ProgressRoutesTest {
 
     private val service = ProgressService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -40,7 +40,7 @@ class ProgressRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { progressRoutes(service, TokenService.fixed(token)) }
+            routing { progressRoutes(service, auth) }
         }
         block()
     }
@@ -52,13 +52,13 @@ class ProgressRoutesTest {
 
     @Test
     fun `GET progress returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.get("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `PUT progress returns 200 and persists position`() = withApp {
         val response = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{"position":10000}""")
         }
@@ -68,8 +68,8 @@ class ProgressRoutesTest {
 
     @Test
     fun `GET progress returns 200 after PUT`() = withApp {
-        service.upsert("https://yt.com/v?v=test", 10000L)
-        val response = client.get("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") { headers.append("X-Instance-Token", token) }
+        service.upsert(TEST_USER_ID, "https://yt.com/v?v=test", 10000L)
+        val response = client.get("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"position\":10000"))
     }
@@ -77,7 +77,7 @@ class ProgressRoutesTest {
     @Test
     fun `PUT progress with invalid body returns 400`() = withApp {
         val response = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{}""")
         }

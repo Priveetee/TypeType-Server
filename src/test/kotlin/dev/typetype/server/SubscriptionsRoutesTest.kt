@@ -2,8 +2,8 @@ package dev.typetype.server
 
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.routes.subscriptionsRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionsService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 class SubscriptionsRoutesTest {
 
     private val service = SubscriptionsService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -42,7 +42,7 @@ class SubscriptionsRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { subscriptionsRoutes(service, TokenService.fixed(token)) }
+            routing { subscriptionsRoutes(service, auth) }
         }
         block()
     }
@@ -56,7 +56,7 @@ class SubscriptionsRoutesTest {
 
     @Test
     fun `GET subscriptions returns 200 with empty list`() = withApp {
-        val response = client.get("/subscriptions") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/subscriptions") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -64,7 +64,7 @@ class SubscriptionsRoutesTest {
     @Test
     fun `POST subscriptions returns 201 and persists item`() = withApp {
         val response = client.post("/subscriptions") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(itemBody)
         }
@@ -74,19 +74,19 @@ class SubscriptionsRoutesTest {
 
     @Test
     fun `GET subscriptions returns persisted items`() = withApp {
-        service.add(SubscriptionItem(channelUrl = "https://yt.com/channel/1", name = "Test", avatarUrl = ""))
-        val body = client.get("/subscriptions") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        service.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://yt.com/channel/1", name = "Test", avatarUrl = ""))
+        val body = client.get("/subscriptions") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"channelUrl\":\"https://yt.com/channel/1\""))
     }
 
     @Test
     fun `DELETE subscriptions returns 204 when found`() = withApp {
-        service.add(SubscriptionItem(channelUrl = "https://yt.com/channel/1", name = "Test", avatarUrl = ""))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/subscriptions/https%3A%2F%2Fyt.com%2Fchannel%2F1") { headers.append("X-Instance-Token", token) }.status)
+        service.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://yt.com/channel/1", name = "Test", avatarUrl = ""))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/subscriptions/https%3A%2F%2Fyt.com%2Fchannel%2F1") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `DELETE subscriptions returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.delete("/subscriptions/https%3A%2F%2Fyt.com%2Fchannel%2F1") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.delete("/subscriptions/https%3A%2F%2Fyt.com%2Fchannel%2F1") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 }

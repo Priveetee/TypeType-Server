@@ -6,13 +6,14 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.routes.subscriptionFeedRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
@@ -34,7 +35,7 @@ class SubscriptionFeedRoutesTest {
     private val cacheService: CacheService = mockk()
     private val subscriptionsService = SubscriptionsService()
     private val feedService = SubscriptionFeedService(subscriptionsService, channelService, cacheService)
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
 
@@ -47,7 +48,7 @@ class SubscriptionFeedRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { subscriptionFeedRoutes(feedService, TokenService.fixed(token)) }
+            routing { subscriptionFeedRoutes(feedService, auth) }
         }
         block()
     }
@@ -72,18 +73,18 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed with no subscriptions returns empty`() = withApp {
-        val body = client.get("/subscriptions/feed") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        val body = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"videos\":[]"))
     }
 
     @Test
     fun `GET subscriptions feed returns videos sorted by uploaded desc`() = withApp {
-        subscriptionsService.add(sub(1))
-        subscriptionsService.add(sub(2))
+        subscriptionsService.add(TEST_USER_ID, sub(1))
+        subscriptionsService.add(TEST_USER_ID, sub(2))
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L), video(3000L))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(2000L))
         val body = client.get("/subscriptions/feed?page=0&limit=10") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
         assertTrue(body.indexOf("3000") < body.indexOf("2000"))
         assertTrue(body.indexOf("2000") < body.indexOf("1000"))
@@ -91,10 +92,10 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed pagination works`() = withApp {
-        subscriptionsService.add(sub(1))
+        subscriptionsService.add(TEST_USER_ID, sub(1))
         coEvery { channelService.getChannel(any(), null) } returns channel(video(5000L), video(4000L), video(3000L))
         val body = client.get("/subscriptions/feed?page=0&limit=2") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
         assertTrue(body.contains("5000") && body.contains("4000") && !body.contains("3000"))
         assertTrue(body.contains("\"nextpage\":\""))
@@ -102,20 +103,20 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed failed channel is silently ignored`() = withApp {
-        subscriptionsService.add(sub(1))
-        subscriptionsService.add(sub(2))
+        subscriptionsService.add(TEST_USER_ID, sub(1))
+        subscriptionsService.add(TEST_USER_ID, sub(2))
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns ExtractionResult.Failure("err")
-        val resp = client.get("/subscriptions/feed") { headers.append("X-Instance-Token", token) }
+        val resp = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, resp.status)
         assertTrue(resp.bodyAsText().contains("1000"))
     }
 
     @Test
     fun `GET subscriptions feed last page has null nextpage`() = withApp {
-        subscriptionsService.add(sub(1))
+        subscriptionsService.add(TEST_USER_ID, sub(1))
         coEvery { channelService.getChannel(any(), null) } returns channel(video(1000L))
-        val body = client.get("/subscriptions/feed") { headers.append("X-Instance-Token", token) }.bodyAsText()
+        val body = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"nextpage\":null"))
     }
 }

@@ -2,8 +2,8 @@ package dev.typetype.server
 
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.routes.playlistRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PlaylistService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test
 class PlaylistRoutesTest {
 
     private val service = PlaylistService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -43,7 +43,7 @@ class PlaylistRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { playlistRoutes(service, TokenService.fixed(token)) }
+            routing { playlistRoutes(service, auth) }
         }
         block()
     }
@@ -58,7 +58,7 @@ class PlaylistRoutesTest {
 
     @Test
     fun `GET playlists returns 200 with empty list`() = withApp {
-        val response = client.get("/playlists") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/playlists") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -66,7 +66,7 @@ class PlaylistRoutesTest {
     @Test
     fun `POST playlists returns 201 and persists item`() = withApp {
         val response = client.post("/playlists") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(playlistBody)
         }
@@ -76,20 +76,20 @@ class PlaylistRoutesTest {
 
     @Test
     fun `GET playlists by id returns 200 when found`() = withApp {
-        val playlist = service.create(PlaylistItem(name = "My Playlist"))
-        assertEquals(HttpStatusCode.OK, client.get("/playlists/${playlist.id}") { headers.append("X-Instance-Token", token) }.status)
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
+        assertEquals(HttpStatusCode.OK, client.get("/playlists/${playlist.id}") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `GET playlists by id returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.get("/playlists/nonexistent") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/playlists/nonexistent") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `PUT playlists returns 204 when found`() = withApp {
-        val playlist = service.create(PlaylistItem(name = "Old"))
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "Old"))
         assertEquals(HttpStatusCode.NoContent, client.put("/playlists/${playlist.id}") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(playlistBody)
         }.status)
@@ -97,15 +97,15 @@ class PlaylistRoutesTest {
 
     @Test
     fun `DELETE playlists returns 204 when found`() = withApp {
-        val playlist = service.create(PlaylistItem(name = "My Playlist"))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}") { headers.append("X-Instance-Token", token) }.status)
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `POST playlists videos returns 201`() = withApp {
-        val playlist = service.create(PlaylistItem(name = "My Playlist"))
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
         assertEquals(HttpStatusCode.Created, client.post("/playlists/${playlist.id}/videos") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(videoBody)
         }.status)
@@ -113,8 +113,8 @@ class PlaylistRoutesTest {
 
     @Test
     fun `DELETE playlists video returns 204 when found`() = withApp {
-        val playlist = service.create(PlaylistItem(name = "My Playlist"))
-        service.addVideo(playlist.id, dev.typetype.server.models.PlaylistVideoItem(url = "https://yt.com", title = "T", thumbnail = "", duration = 100L))
-        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}/videos/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
+        service.addVideo(TEST_USER_ID, playlist.id, dev.typetype.server.models.PlaylistVideoItem(url = "https://yt.com", title = "T", thumbnail = "", duration = 100L))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/playlists/${playlist.id}/videos/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 }
