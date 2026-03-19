@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.tables.UsersTable
+import dev.typetype.server.models.AdminUserItem
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -8,16 +9,16 @@ import org.jetbrains.exposed.v1.jdbc.update
 
 class UserAdminService {
 
-    fun listUsers(): List<Map<String, Any>> = transaction {
+    fun listUsers(): List<AdminUserItem> = transaction {
         UsersTable.selectAll().map {
-            mapOf(
-                "id" to it[UsersTable.id],
-                "email" to it[UsersTable.email],
-                "name" to it[UsersTable.name],
-                "role" to it[UsersTable.role],
-                "suspended" to it[UsersTable.suspended],
-                "verified" to it[UsersTable.verified],
-                "createdAt" to it[UsersTable.createdAt]
+            AdminUserItem(
+                id = it[UsersTable.id],
+                email = it[UsersTable.email],
+                name = it[UsersTable.name],
+                role = it[UsersTable.role],
+                suspended = it[UsersTable.suspended],
+                verified = it[UsersTable.verified],
+                createdAt = it[UsersTable.createdAt],
             )
         }
     }

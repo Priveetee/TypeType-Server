@@ -58,7 +58,9 @@ open class AuthService(private val jwtSecret: String) {
 
     private fun createToken(userId: String): String {
         val expiresAt = Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)
+        val tokenId = UUID.randomUUID().toString()
         val token = JWT.create()
+            .withJWTId(tokenId)
             .withSubject(userId)
             .withExpiresAt(expiresAt)
             .sign(Algorithm.HMAC256(jwtSecret))
@@ -88,6 +90,7 @@ open class AuthService(private val jwtSecret: String) {
         val guestId = "guest:${UUID.randomUUID()}"
         val expiresAt = Date(System.currentTimeMillis() + GUEST_TTL_MS)
         return JWT.create()
+            .withJWTId(UUID.randomUUID().toString())
             .withSubject(guestId)
             .withExpiresAt(expiresAt)
             .sign(Algorithm.HMAC256(jwtSecret))
