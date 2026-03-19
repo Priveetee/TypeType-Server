@@ -1,8 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.blockedRoutes
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
-import dev.typetype.server.services.TokenService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 class BlockedRoutesTest {
 
     private val service = BlockedService()
-    private val token = "test-token"
+    private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
         @BeforeAll
@@ -41,7 +41,7 @@ class BlockedRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { blockedRoutes(service, TokenService.fixed(token)) }
+            routing { blockedRoutes(service, auth) }
         }
         block()
     }
@@ -55,7 +55,7 @@ class BlockedRoutesTest {
 
     @Test
     fun `GET blocked-channels returns 200 with empty list`() = withApp {
-        val response = client.get("/blocked/channels") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/blocked/channels") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -63,7 +63,7 @@ class BlockedRoutesTest {
     @Test
     fun `POST blocked-channels returns 201 and persists item`() = withApp {
         val response = client.post("/blocked/channels") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(urlBody)
         }
@@ -75,13 +75,13 @@ class BlockedRoutesTest {
 
     @Test
     fun `DELETE blocked-channels returns 204 when found`() = withApp {
-        service.addChannel("https://yt.com")
-        assertEquals(HttpStatusCode.NoContent, client.delete("/blocked/channels/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        service.addChannel(TEST_USER_ID, "https://yt.com")
+        assertEquals(HttpStatusCode.NoContent, client.delete("/blocked/channels/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `GET blocked-videos returns 200 with empty list`() = withApp {
-        val response = client.get("/blocked/videos") { headers.append("X-Instance-Token", token) }
+        val response = client.get("/blocked/videos") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
     }
@@ -89,7 +89,7 @@ class BlockedRoutesTest {
     @Test
     fun `POST blocked-videos returns 201 and persists item`() = withApp {
         val response = client.post("/blocked/videos") {
-            headers.append("X-Instance-Token", token)
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(urlBody)
         }
@@ -99,12 +99,12 @@ class BlockedRoutesTest {
 
     @Test
     fun `DELETE blocked-videos returns 204 when found`() = withApp {
-        service.addVideo("https://yt.com")
-        assertEquals(HttpStatusCode.NoContent, client.delete("/blocked/videos/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        service.addVideo(TEST_USER_ID, "https://yt.com")
+        assertEquals(HttpStatusCode.NoContent, client.delete("/blocked/videos/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 
     @Test
     fun `DELETE blocked-videos returns 404 when not found`() = withApp {
-        assertEquals(HttpStatusCode.NotFound, client.delete("/blocked/videos/https%3A%2F%2Fyt.com") { headers.append("X-Instance-Token", token) }.status)
+        assertEquals(HttpStatusCode.NotFound, client.delete("/blocked/videos/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
 }
