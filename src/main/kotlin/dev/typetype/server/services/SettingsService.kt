@@ -8,12 +8,10 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 
-private const val SETTINGS_ROW_ID = 1
-
 class SettingsService {
 
-    suspend fun get(): SettingsItem = DatabaseFactory.query {
-        SettingsTable.selectAll().singleOrNull()?.let {
+    suspend fun get(userId: String): SettingsItem = DatabaseFactory.query {
+        SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()?.let {
             SettingsItem(
                 defaultService = it[SettingsTable.defaultService],
                 defaultQuality = it[SettingsTable.defaultQuality],
@@ -27,11 +25,11 @@ class SettingsService {
         } ?: SettingsItem()
     }
 
-    suspend fun upsert(settings: SettingsItem): SettingsItem {
+    suspend fun upsert(userId: String, settings: SettingsItem): SettingsItem {
         DatabaseFactory.query {
-            val exists = SettingsTable.selectAll().count() > 0
+            val exists = SettingsTable.selectAll().where { SettingsTable.userId eq userId }.count() > 0
             if (exists) {
-                SettingsTable.update({ SettingsTable.id eq SETTINGS_ROW_ID }) {
+                SettingsTable.update({ SettingsTable.userId eq userId }) {
                     it[defaultService] = settings.defaultService
                     it[defaultQuality] = settings.defaultQuality
                     it[autoplay] = settings.autoplay
@@ -43,7 +41,7 @@ class SettingsService {
                 }
             } else {
                 SettingsTable.insert {
-                    it[id] = SETTINGS_ROW_ID
+                    it[SettingsTable.userId] = userId
                     it[defaultService] = settings.defaultService
                     it[defaultQuality] = settings.defaultQuality
                     it[autoplay] = settings.autoplay

@@ -1,8 +1,8 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SearchHistoryService
-import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -15,21 +15,21 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class SearchHistoryBody(val term: String)
 
-fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, tokenService: TokenService) {
+fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, authService: AuthService) {
     get("/search-history") {
-        call.withAuth(tokenService) { call.respond(searchHistoryService.getAll()) }
+        call.withJwtAuth(authService) { userId -> call.respond(searchHistoryService.getAll(userId)) }
     }
     post("/search-history") {
-        call.withAuth(tokenService) {
+        call.withJwtAuth(authService) { userId ->
             val body = runCatching { call.receive<SearchHistoryBody>() }.getOrElse {
-                return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            call.respond(HttpStatusCode.Created, searchHistoryService.add(body.term))
+            call.respond(HttpStatusCode.Created, searchHistoryService.add(userId, body.term))
         }
     }
     delete("/search-history") {
-        call.withAuth(tokenService) {
-            searchHistoryService.deleteAll()
+        call.withJwtAuth(authService) { userId ->
+            searchHistoryService.deleteAll(userId)
             call.respond(HttpStatusCode.NoContent)
         }
     }

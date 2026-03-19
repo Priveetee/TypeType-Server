@@ -1,8 +1,8 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.FavoritesService
-import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -10,20 +10,20 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.favoritesRoutes(favoritesService: FavoritesService, tokenService: TokenService) {
+fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthService) {
     get("/favorites") {
-        call.withAuth(tokenService) { call.respond(favoritesService.getAll()) }
+        call.withJwtAuth(authService) { userId -> call.respond(favoritesService.getAll(userId)) }
     }
     post("/favorites/{videoUrl...}") {
-        call.withAuth(tokenService) {
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
-            call.respond(HttpStatusCode.Created, favoritesService.add(videoUrl))
+        call.withJwtAuth(authService) { userId ->
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            call.respond(HttpStatusCode.Created, favoritesService.add(userId, videoUrl))
         }
     }
     delete("/favorites/{videoUrl...}") {
-        call.withAuth(tokenService) {
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
-            val deleted = favoritesService.delete(videoUrl)
+        call.withJwtAuth(authService) { userId ->
+            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val deleted = favoritesService.delete(userId, videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
     }

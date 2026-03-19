@@ -5,25 +5,28 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.models.SearchHistoryItem
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class SearchHistoryService {
 
-    suspend fun getAll(): List<SearchHistoryItem> = DatabaseFactory.query {
+    suspend fun getAll(userId: String): List<SearchHistoryItem> = DatabaseFactory.query {
         SearchHistoryTable.selectAll()
+            .where { SearchHistoryTable.userId eq userId }
             .orderBy(SearchHistoryTable.searchedAt to SortOrder.DESC)
             .map { it.toItem() }
     }
 
-    suspend fun add(term: String): SearchHistoryItem {
+    suspend fun add(userId: String, term: String): SearchHistoryItem {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
             SearchHistoryTable.insert {
                 it[SearchHistoryTable.id] = id
+                it[SearchHistoryTable.userId] = userId
                 it[SearchHistoryTable.term] = term
                 it[searchedAt] = now
             }
@@ -31,8 +34,8 @@ class SearchHistoryService {
         return SearchHistoryItem(id = id, term = term, searchedAt = now)
     }
 
-    suspend fun deleteAll(): Unit = DatabaseFactory.query {
-        SearchHistoryTable.deleteAll()
+    suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query {
+        SearchHistoryTable.deleteWhere { SearchHistoryTable.userId eq userId }
     }
 
     private fun ResultRow.toItem() = SearchHistoryItem(

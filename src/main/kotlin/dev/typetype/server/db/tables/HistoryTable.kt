@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.core.Table
 
 object HistoryTable : Table("history") {
     val id = text("id")
+    val userId = text("user_id")
     val url = text("url")
     val title = text("title")
     val thumbnail = text("thumbnail")

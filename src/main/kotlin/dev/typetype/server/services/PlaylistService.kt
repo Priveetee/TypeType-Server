@@ -17,11 +17,13 @@ import java.util.UUID
 
 class PlaylistService {
 
-    suspend fun getAll(): List<PlaylistItem> = DatabaseFactory.query {
+    suspend fun getAll(userId: String): List<PlaylistItem> = DatabaseFactory.query {
         val playlists = PlaylistsTable.selectAll()
+            .where { PlaylistsTable.userId eq userId }
             .orderBy(PlaylistsTable.createdAt to SortOrder.DESC)
             .toList()
         val videosByPlaylist = PlaylistVideosTable.selectAll()
+            .where { PlaylistVideosTable.userId eq userId }
             .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
             .toList()
             .groupBy { it[PlaylistVideosTable.playlistId] }
@@ -31,21 +33,22 @@ class PlaylistService {
         }
     }
 
-    suspend fun getById(id: String): PlaylistItem? = DatabaseFactory.query {
-        val row = PlaylistsTable.selectAll().where { PlaylistsTable.id eq id }.singleOrNull() ?: return@query null
+    suspend fun getById(userId: String, id: String): PlaylistItem? = DatabaseFactory.query {
+        val row = PlaylistsTable.selectAll().where { (PlaylistsTable.id eq id) and (PlaylistsTable.userId eq userId) }.singleOrNull() ?: return@query null
         val videos = PlaylistVideosTable.selectAll()
-            .where { PlaylistVideosTable.playlistId eq id }
+            .where { (PlaylistVideosTable.playlistId eq id) and (PlaylistVideosTable.userId eq userId) }
             .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
             .map { it.toVideoItem() }
         PlaylistItem(id = row[PlaylistsTable.id], name = row[PlaylistsTable.name], description = row[PlaylistsTable.description], videos = videos, createdAt = row[PlaylistsTable.createdAt])
     }
 
-    suspend fun create(item: PlaylistItem): PlaylistItem {
+    suspend fun create(userId: String, item: PlaylistItem): PlaylistItem {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
             PlaylistsTable.insert {
                 it[PlaylistsTable.id] = id
+                it[PlaylistsTable.userId] = userId
                 it[name] = item.name
                 it[description] = item.description
                 it[createdAt] = now
@@ -54,24 +57,25 @@ class PlaylistService {
         return item.copy(id = id, createdAt = now, videos = emptyList())
     }
 
-    suspend fun update(id: String, item: PlaylistItem): Boolean = DatabaseFactory.query {
-        PlaylistsTable.update({ PlaylistsTable.id eq id }) {
+    suspend fun update(userId: String, id: String, item: PlaylistItem): Boolean = DatabaseFactory.query {
+        PlaylistsTable.update({ (PlaylistsTable.id eq id) and (PlaylistsTable.userId eq userId) }) {
             it[name] = item.name
             it[description] = item.description
         } > 0
     }
 
-    suspend fun delete(id: String): Boolean = DatabaseFactory.query {
-        PlaylistsTable.deleteWhere { PlaylistsTable.id eq id } > 0
+    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query {
+        PlaylistsTable.deleteWhere { (PlaylistsTable.id eq id) and (PlaylistsTable.userId eq userId) } > 0
     }
 
-    suspend fun addVideo(playlistId: String, video: PlaylistVideoItem): PlaylistVideoItem {
+    suspend fun addVideo(userId: String, playlistId: String, video: PlaylistVideoItem): PlaylistVideoItem {
         val videoId = UUID.randomUUID().toString()
-        val pos = DatabaseFactory.query { PlaylistVideosTable.selectAll().where { PlaylistVideosTable.playlistId eq playlistId }.count().toInt() }
+        val pos = DatabaseFactory.query { PlaylistVideosTable.selectAll().where { (PlaylistVideosTable.playlistId eq playlistId) and (PlaylistVideosTable.userId eq userId) }.count().toInt() }
         DatabaseFactory.query {
             PlaylistVideosTable.insert {
                 it[PlaylistVideosTable.id] = videoId
                 it[PlaylistVideosTable.playlistId] = playlistId
+                it[PlaylistVideosTable.userId] = userId
                 it[url] = video.url
                 it[title] = video.title
                 it[thumbnail] = video.thumbnail
@@ -82,8 +86,8 @@ class PlaylistService {
         return video.copy(id = videoId, position = pos)
     }
 
-    suspend fun removeVideo(playlistId: String, videoUrl: String): Boolean = DatabaseFactory.query {
-        PlaylistVideosTable.deleteWhere { (PlaylistVideosTable.playlistId eq playlistId) and (PlaylistVideosTable.url eq videoUrl) } > 0
+    suspend fun removeVideo(userId: String, playlistId: String, videoUrl: String): Boolean = DatabaseFactory.query {
+        PlaylistVideosTable.deleteWhere { (PlaylistVideosTable.playlistId eq playlistId) and (PlaylistVideosTable.url eq videoUrl) and (PlaylistVideosTable.userId eq userId) } > 0
     }
 
     private fun ResultRow.toVideoItem() = PlaylistVideoItem(

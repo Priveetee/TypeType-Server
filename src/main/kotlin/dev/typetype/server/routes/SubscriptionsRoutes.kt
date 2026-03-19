@@ -2,8 +2,8 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionsService
-import dev.typetype.server.services.TokenService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -12,22 +12,22 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, tokenService: TokenService) {
+fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, authService: AuthService) {
     get("/subscriptions") {
-        call.withAuth(tokenService) { call.respond(subscriptionsService.getAll()) }
+        call.withJwtAuth(authService) { userId -> call.respond(subscriptionsService.getAll(userId)) }
     }
     post("/subscriptions") {
-        call.withAuth(tokenService) {
+        call.withJwtAuth(authService) { userId ->
             val item = runCatching { call.receive<SubscriptionItem>() }.getOrElse {
-                return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            call.respond(HttpStatusCode.Created, subscriptionsService.add(item))
+            call.respond(HttpStatusCode.Created, subscriptionsService.add(userId, item))
         }
     }
     delete("/subscriptions/{channelUrl...}") {
-        call.withAuth(tokenService) {
-            val channelUrl = call.parameters.getAll("channelUrl")?.joinToString("/") ?: return@withAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
-            val deleted = subscriptionsService.delete(channelUrl)
+        call.withJwtAuth(authService) { userId ->
+            val channelUrl = call.parameters.getAll("channelUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
+            val deleted = subscriptionsService.delete(userId, channelUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
     }

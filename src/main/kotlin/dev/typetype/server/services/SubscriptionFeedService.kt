@@ -21,8 +21,8 @@ class SubscriptionFeedService(
 ) {
     private val semaphore = Semaphore(MAX_CONCURRENT_FETCHES)
 
-    suspend fun getFeed(token: String, page: Int, limit: Int): SubscriptionFeedResponse {
-        val all = cachedAll(token)
+    suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse {
+        val all = cachedAll(userId)
         val from = page * limit
         if (from >= all.size) return SubscriptionFeedResponse(videos = emptyList(), nextpage = null)
         val to = minOf(from + limit, all.size)
@@ -30,17 +30,17 @@ class SubscriptionFeedService(
         return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = nextpage)
     }
 
-    private suspend fun cachedAll(token: String): List<VideoItem> {
-        val key = cacheKey(token)
+    private suspend fun cachedAll(userId: String): List<VideoItem> {
+        val key = cacheKey(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
             return runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
-                .getOrElse { fetchAndCache(key) }
+                .getOrElse { fetchAndCache(userId, key) }
         }
-        return fetchAndCache(key)
+        return fetchAndCache(userId, key)
     }
 
-    private suspend fun fetchAndCache(key: String): List<VideoItem> {
-        val subs = subscriptionsService.getAll()
+    private suspend fun fetchAndCache(userId: String, key: String): List<VideoItem> {
+        val subs = subscriptionsService.getAll(userId)
         val videos = coroutineScope {
             subs.map { sub ->
                 async {
