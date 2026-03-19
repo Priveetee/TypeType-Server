@@ -21,15 +21,21 @@ import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.routes.subscriptionsRoutes
 import dev.typetype.server.routes.suggestionRoutes
-import dev.typetype.server.routes.tokenRoutes
+import dev.typetype.server.routes.adminRoutes
+import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
+import dev.typetype.server.routes.tokenRoutes
+import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.TokenService
+import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.routing
 import org.schabi.newpipe.extractor.NewPipe
+import java.util.UUID
 
 fun main(args: Array<String>) = EngineMain.main(args)
 
@@ -43,6 +49,10 @@ fun Application.module() {
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
 
     val tokenService = TokenService()
+    val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
+    val authService = AuthService(jwtSecret)
+    val userAdminService = UserAdminService()
+    val passwordResetService = PasswordResetService()
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
@@ -66,17 +76,19 @@ fun Application.module() {
             nicoVideoProxyRoutes(svc.nicoVideoProxyService)
         }
         tokenRoutes(tokenService)
+        authRoutes(authService, passwordResetService)
+        adminRoutes(authService, userAdminService, passwordResetService)
         rateLimit(USER_DATA_ZONE) {
-            historyRoutes(svc.historyService, tokenService)
-            subscriptionsRoutes(svc.subscriptionsService, tokenService)
-            subscriptionFeedRoutes(svc.subscriptionFeedService, tokenService)
-            playlistRoutes(svc.playlistService, tokenService)
-            watchLaterRoutes(svc.watchLaterService, tokenService)
-            progressRoutes(svc.progressService, tokenService)
-            favoritesRoutes(svc.favoritesService, tokenService)
-            settingsRoutes(svc.settingsService, tokenService)
-            searchHistoryRoutes(svc.searchHistoryService, tokenService)
-            blockedRoutes(svc.blockedService, tokenService)
+            historyRoutes(svc.historyService, authService)
+            subscriptionsRoutes(svc.subscriptionsService, authService)
+            subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
+            playlistRoutes(svc.playlistService, authService)
+            watchLaterRoutes(svc.watchLaterService, authService)
+            progressRoutes(svc.progressService, authService)
+            favoritesRoutes(svc.favoritesService, authService)
+            settingsRoutes(svc.settingsService, authService)
+            searchHistoryRoutes(svc.searchHistoryService, authService)
+            blockedRoutes(svc.blockedService, authService)
         }
     }
 }
