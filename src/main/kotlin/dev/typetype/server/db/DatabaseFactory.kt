@@ -11,9 +11,13 @@ import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
+import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.TokenTable
+import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
+import dev.typetype.server.db.tables.AdminSettingsTable
+import dev.typetype.server.db.tables.PasswordResetTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -36,6 +40,9 @@ object DatabaseFactory {
         transaction {
             SchemaUtils.create(
                 TokenTable,
+                UsersTable,
+                SessionsTable,
+                AdminSettingsTable,
                 HistoryTable,
                 SubscriptionsTable,
                 PlaylistsTable,
@@ -47,6 +54,7 @@ object DatabaseFactory {
                 SearchHistoryTable,
                 BlockedChannelsTable,
                 BlockedVideosTable,
+                PasswordResetTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
@@ -55,6 +63,19 @@ object DatabaseFactory {
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS channel_avatar TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE favorites ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE watch_later ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE progress ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE search_history ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE playlists ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
+            exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
+            exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
         }
     }
 
