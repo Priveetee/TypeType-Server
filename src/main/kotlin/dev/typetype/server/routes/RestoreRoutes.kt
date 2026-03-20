@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.PipePipeBackupLimits
+import dev.typetype.server.services.PipePipeBackupTimeMode
 import dev.typetype.server.services.PipePipeBackupUploadWriter
 import dev.typetype.server.services.PipePipeBackupValidators
 import io.ktor.http.HttpStatusCode
@@ -18,6 +19,9 @@ import java.nio.file.Files
 fun Route.restoreRoutes(restoreService: PipePipeBackupImporterService, authService: AuthService) {
     post("/restore/pipepipe") {
         call.withJwtAuth(authService) { userId ->
+            val timeModeRaw = call.request.queryParameters["timeMode"]
+            val timeMode = PipePipeBackupTimeMode.fromQuery(timeModeRaw)
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid timeMode"))
             val tmp = Files.createTempFile("pipepipe-backup-", ".zip")
             try {
                 val multipart = call.receiveMultipart(PipePipeBackupLimits.MAX_UPLOAD_BYTES)
@@ -42,7 +46,7 @@ fun Route.restoreRoutes(restoreService: PipePipeBackupImporterService, authServi
                 if (!hasFile) {
                     return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing file part"))
                 }
-                val result = restoreService.restore(userId, tmp)
+                val result = restoreService.restore(userId, tmp, timeMode)
                 call.respond(result)
             } catch (e: Exception) {
                 call.application.environment.log.warn("Restore backup failed", e)

@@ -10,4 +10,7 @@ data class RestorePipePipeResultItem(
     val playlistVideos: Int,
     val progress: Int,
     val searchHistory: Int,
+    val timeMode: String,
+    val historyMinWatchedAt: Long,
+    val historyMaxWatchedAt: Long,
 )

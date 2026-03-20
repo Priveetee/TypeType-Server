@@ -88,4 +88,23 @@ class RestoreRoutesSecurityTest {
         assertTrue(body.contains("Invalid backup archive"))
         assertFalse(body.contains("SQLITE"))
     }
+
+    @Test
+    fun `POST restore rejects invalid time mode`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { restoreRoutes(importer, auth) }
+        }
+        val response = client.post("/restore/pipepipe?timeMode=oops") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", byteArrayOf(1), Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.Zip.toString())
+                    append(HttpHeaders.ContentDisposition, "filename=a.zip")
+                })
+            }))
+        }
+        assertTrue(response.status == HttpStatusCode.BadRequest)
+        assertTrue(response.bodyAsText().contains("Invalid timeMode"))
+    }
 }

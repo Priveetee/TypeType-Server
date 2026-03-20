@@ -9,11 +9,17 @@ class PipePipeBackupImporterService(
     private val persister: PipePipeBackupPersisterService = PipePipeBackupPersisterService(),
 ) {
 
-    suspend fun restore(userId: String, backupZipPath: Path): RestorePipePipeResultItem {
+    suspend fun restore(userId: String, backupZipPath: Path, timeMode: PipePipeBackupTimeMode): RestorePipePipeResultItem {
         val sqlitePath = PipePipeBackupZipExtractor.extractDatabase(backupZipPath)
         return try {
-            val snapshot = sqliteReader.read(sqlitePath)
-            persister.persist(userId, snapshot)
+            val rawSnapshot = sqliteReader.read(sqlitePath)
+            val snapshot = PipePipeBackupSnapshotTimeMode.apply(rawSnapshot, timeMode)
+            val result = persister.persist(userId, snapshot)
+            result.counts.copy(
+                timeMode = timeMode.wireValue,
+                historyMinWatchedAt = result.historyMinWatchedAt,
+                historyMaxWatchedAt = result.historyMaxWatchedAt,
+            )
         } finally {
             Files.deleteIfExists(sqlitePath)
             Files.deleteIfExists(backupZipPath)

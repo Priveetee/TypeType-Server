@@ -15,7 +15,7 @@ import java.util.UUID
 
 class PipePipeBackupPersisterService {
 
-    suspend fun persist(userId: String, snapshot: PipePipeBackupSnapshotItem): RestorePipePipeResultItem = DatabaseFactory.query {
+    suspend fun persist(userId: String, snapshot: PipePipeBackupSnapshotItem): PipePipeBackupRestoreResult = DatabaseFactory.query {
         clearUserData(userId)
         val avatarsByChannel = snapshot.subscriptions
             .mapNotNull { item -> item.url.takeIf { it.isNotBlank() }?.let { url -> url to item.avatarUrl } }
@@ -25,7 +25,13 @@ class PipePipeBackupPersisterService {
         val (playlists, playlistVideos) = insertPlaylists(userId, snapshot.playlists)
         val progress = insertProgress(userId, snapshot.progress)
         val searchHistory = insertSearchHistory(userId, snapshot.searchHistory)
-        RestorePipePipeResultItem(history, subscriptions, playlists, playlistVideos, progress, searchHistory)
+        val minWatchedAt = snapshot.history.minOfOrNull { it.watchedAt } ?: 0L
+        val maxWatchedAt = snapshot.history.maxOfOrNull { it.watchedAt } ?: 0L
+        PipePipeBackupRestoreResult(
+            counts = RestorePipePipeResultItem(history, subscriptions, playlists, playlistVideos, progress, searchHistory, timeMode = "raw", historyMinWatchedAt = minWatchedAt, historyMaxWatchedAt = maxWatchedAt),
+            historyMinWatchedAt = minWatchedAt,
+            historyMaxWatchedAt = maxWatchedAt,
+        )
     }
 
     private fun clearUserData(userId: String) {

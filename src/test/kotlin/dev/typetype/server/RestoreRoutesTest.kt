@@ -23,6 +23,9 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -76,6 +79,35 @@ class RestoreRoutesTest {
         assertEquals(1, countRows("playlist_videos"))
         assertEquals(1, countRows("progress"))
         assertEquals(1, countRows("search_history"))
+        val payloadJson = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("raw", payloadJson["timeMode"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `POST restore with normalized mode returns mode and bounds`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { restoreRoutes(importer, auth) }
+        }
+        val zip = PipePipeBackupTestFixtures.createBackupZip()
+        val payload = Files.readAllBytes(zip)
+        val response = client.post("/restore/pipepipe?timeMode=normalized") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", payload, Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.Zip.toString())
+                    append(HttpHeaders.ContentDisposition, "filename=pipepipe.zip")
+                })
+            }))
+        }
+        Files.deleteIfExists(zip)
+        val payloadJson = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("normalized", payloadJson["timeMode"]?.jsonPrimitive?.content)
+        val min = payloadJson["historyMinWatchedAt"]?.jsonPrimitive?.content?.toLongOrNull()
+        val max = payloadJson["historyMaxWatchedAt"]?.jsonPrimitive?.content?.toLongOrNull()
+        assertEquals(true, min != null)
+        assertEquals(true, max != null)
     }
 
     private fun countRows(table: String): Long = transaction {
