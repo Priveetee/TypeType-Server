@@ -35,6 +35,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
     implementation("com.zaxxer:HikariCP:6.3.0")
     implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.xerial:sqlite-jdbc:3.46.1.3")
     implementation("com.password4j:password4j:1.7.1")
     implementation("com.auth0:java-jwt:4.4.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")

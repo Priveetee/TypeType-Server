@@ -16,6 +16,7 @@ import dev.typetype.server.routes.playlistRoutes
 import dev.typetype.server.routes.profileRoutes
 import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
+import dev.typetype.server.routes.restoreRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.settingsRoutes
@@ -33,6 +34,7 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.TokenService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
@@ -61,6 +63,7 @@ fun Application.module() {
     val profileService = ProfileService()
     val avatarService = AvatarService()
     val adminSettingsService = AdminSettingsService()
+    val restoreService = PipePipeBackupImporterService()
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
@@ -99,6 +102,7 @@ fun Application.module() {
             searchHistoryRoutes(svc.searchHistoryService, authService)
             blockedRoutes(svc.blockedService, authService)
             profileRoutes(profileService, avatarService, authService)
+            restoreRoutes(restoreService, authService)
         }
     }
 }
