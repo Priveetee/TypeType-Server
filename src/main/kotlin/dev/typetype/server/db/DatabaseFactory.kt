@@ -76,6 +76,9 @@ object DatabaseFactory {
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
             exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
+            exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT")
+            exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_type TEXT")
+            exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_code TEXT")
         }
     }
 

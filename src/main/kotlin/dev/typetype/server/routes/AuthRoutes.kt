@@ -1,8 +1,10 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.UserProfileItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PasswordResetService
+import dev.typetype.server.services.ProfileService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
@@ -27,7 +29,7 @@ data class AuthResponse(val token: String)
 @Serializable
 private data class ResetPasswordRequest(val resetToken: String, val newPassword: String)
 
-fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService) {
+fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService) {
     post("/auth/register") {
         val req = call.receive<RegisterRequest>()
         if (req.email.isBlank() || req.password.isBlank() || req.name.isBlank()) {
@@ -75,7 +77,16 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             return@get
         }
         val role = authService.getUserRole(userId)
-        call.respond(mapOf("id" to userId, "role" to role))
+        val profile = if (userId.startsWith("guest:")) null else profileService.getProfile(userId)
+        call.respond(
+            UserProfileItem(
+                id = userId,
+                role = role,
+                avatarUrl = profile?.avatarUrl,
+                avatarType = profile?.avatarType,
+                avatarCode = profile?.avatarCode,
+            )
+        )
     }
 
     post("/auth/guest") {

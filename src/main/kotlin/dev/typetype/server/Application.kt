@@ -4,6 +4,7 @@ import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.routes.blockedRoutes
+import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
@@ -12,6 +13,7 @@ import dev.typetype.server.routes.historyRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.playlistRoutes
+import dev.typetype.server.routes.profileRoutes
 import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
@@ -27,7 +29,9 @@ import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
 import dev.typetype.server.routes.tokenRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.PasswordResetService
+import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.TokenService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
@@ -53,6 +57,8 @@ fun Application.module() {
     val authService = AuthService(jwtSecret)
     val userAdminService = UserAdminService()
     val passwordResetService = PasswordResetService()
+    val profileService = ProfileService()
+    val avatarService = AvatarService()
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
@@ -76,8 +82,9 @@ fun Application.module() {
             nicoVideoProxyRoutes(svc.nicoVideoProxyService)
         }
         tokenRoutes(tokenService)
-        authRoutes(authService, passwordResetService)
+        authRoutes(authService, passwordResetService, profileService)
         adminRoutes(authService, userAdminService, passwordResetService)
+        avatarRoutes(avatarService)
         rateLimit(USER_DATA_ZONE) {
             historyRoutes(svc.historyService, authService)
             subscriptionsRoutes(svc.subscriptionsService, authService)
@@ -89,6 +96,7 @@ fun Application.module() {
             settingsRoutes(svc.settingsService, authService)
             searchHistoryRoutes(svc.searchHistoryService, authService)
             blockedRoutes(svc.blockedService, authService)
+            profileRoutes(profileService, avatarService, authService)
         }
     }
 }

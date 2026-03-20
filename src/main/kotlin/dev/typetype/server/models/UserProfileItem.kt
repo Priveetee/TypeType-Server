@@ -3,15 +3,10 @@ package dev.typetype.server.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AdminUserItem(
+data class UserProfileItem(
     val id: String,
-    val email: String,
-    val name: String,
-    val role: String,
+    val role: String?,
     val avatarUrl: String? = null,
     val avatarType: String? = null,
     val avatarCode: String? = null,
-    val suspended: Boolean,
-    val verified: Boolean,
-    val createdAt: Long,
 )
