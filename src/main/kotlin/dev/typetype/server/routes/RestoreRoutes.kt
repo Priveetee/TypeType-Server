@@ -3,6 +3,9 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PipePipeBackupImporterService
+import dev.typetype.server.services.PipePipeBackupLimits
+import dev.typetype.server.services.PipePipeBackupUploadWriter
+import dev.typetype.server.services.PipePipeBackupValidators
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.server.application.call
@@ -10,34 +13,43 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
-import io.ktor.utils.io.jvm.javaio.toInputStream
 import java.nio.file.Files
 
 fun Route.restoreRoutes(restoreService: PipePipeBackupImporterService, authService: AuthService) {
     post("/restore/pipepipe") {
         call.withJwtAuth(authService) { userId ->
             val tmp = Files.createTempFile("pipepipe-backup-", ".zip")
-            val multipart = call.receiveMultipart()
-            var hasFile = false
-            while (true) {
-                val part = multipart.readPart() ?: break
-                if (part is PartData.FileItem && part.name == "file") {
-                    part.provider().toInputStream().use { input ->
-                        Files.newOutputStream(tmp).use { output -> input.copyTo(output) }
+            try {
+                val multipart = call.receiveMultipart(PipePipeBackupLimits.MAX_UPLOAD_BYTES)
+                var hasFile = false
+                var fileCount = 0
+                while (true) {
+                    val part = multipart.readPart() ?: break
+                    if (part is PartData.FileItem && part.name == "file") {
+                        if (!PipePipeBackupValidators.isZipFilePart(part)) {
+                            part.dispose()
+                            return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid backup file type"))
+                        }
+                        PipePipeBackupUploadWriter.writeWithLimit(part.provider(), tmp, PipePipeBackupLimits.MAX_UPLOAD_BYTES)
+                        hasFile = true
+                        fileCount += 1
                     }
-                    hasFile = true
+                    part.dispose()
                 }
-                part.dispose()
-            }
-            if (!hasFile) {
+                if (fileCount > 1) {
+                    return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Only one backup file is allowed"))
+                }
+                if (!hasFile) {
+                    return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing file part"))
+                }
+                val result = restoreService.restore(userId, tmp)
+                call.respond(result)
+            } catch (e: Exception) {
+                call.application.environment.log.warn("Restore backup failed", e)
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid backup archive"))
+            } finally {
                 Files.deleteIfExists(tmp)
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing file part"))
             }
-            val result = runCatching { restoreService.restore(userId, tmp) }.getOrElse {
-                Files.deleteIfExists(tmp)
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse(it.message ?: "Invalid PipePipe backup"))
-            }
-            call.respond(result)
         }
     }
 }
