@@ -16,6 +16,8 @@ class UserAdminService {
                 email = it[UsersTable.email],
                 name = it[UsersTable.name],
                 role = it[UsersTable.role],
+                publicUsername = it[UsersTable.publicUsername],
+                bio = it[UsersTable.bio],
                 avatarUrl = it[UsersTable.avatarUrl],
                 avatarType = it[UsersTable.avatarType],
                 avatarCode = it[UsersTable.avatarCode],

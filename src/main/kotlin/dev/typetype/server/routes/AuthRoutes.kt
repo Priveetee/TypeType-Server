@@ -82,6 +82,8 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             UserProfileItem(
                 id = userId,
                 role = role,
+                publicUsername = profile?.publicUsername,
+                bio = profile?.bio,
                 avatarUrl = profile?.avatarUrl,
                 avatarType = profile?.avatarType,
                 avatarCode = profile?.avatarCode,
