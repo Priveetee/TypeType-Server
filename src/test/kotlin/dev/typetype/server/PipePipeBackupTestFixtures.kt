@@ -8,6 +8,10 @@ import java.util.zip.ZipOutputStream
 
 object PipePipeBackupTestFixtures {
     fun createBackupZip(): Path {
+        return createBackupZipWithDbEntry("newpipe.db")
+    }
+
+    fun createBackupZipWithDbEntry(entryName: String): Path {
         val db = Files.createTempFile("pipepipe-test-", ".db")
         DriverManager.getConnection("jdbc:sqlite:$db").use { sqlite ->
             sqlite.createStatement().use { st ->
@@ -29,7 +33,7 @@ object PipePipeBackupTestFixtures {
         }
         val zip = Files.createTempFile("pipepipe-backup-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->
-            out.putNextEntry(ZipEntry("newpipe.db"))
+            out.putNextEntry(ZipEntry(entryName))
             Files.newInputStream(db).use { input -> input.copyTo(out) }
             out.closeEntry()
         }

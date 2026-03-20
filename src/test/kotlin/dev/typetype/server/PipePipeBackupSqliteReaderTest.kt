@@ -22,4 +22,14 @@ class PipePipeBackupSqliteReaderTest {
         assertEquals(1, snapshot.searchHistory.size)
         assertEquals("https://youtube.com/watch?v=1", snapshot.history.first().url)
     }
+
+    @Test
+    fun `reader accepts pipepipe db filename`() {
+        val zip = PipePipeBackupTestFixtures.createBackupZipWithDbEntry("pipepipe.db")
+        val sqlite = PipePipeBackupZipExtractor.extractDatabase(zip)
+        val snapshot = PipePipeBackupSqliteReader().read(sqlite)
+        Files.deleteIfExists(sqlite)
+        Files.deleteIfExists(zip)
+        assertEquals(1, snapshot.history.size)
+    }
 }
