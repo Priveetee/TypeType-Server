@@ -10,6 +10,10 @@ class CachedChannelService(
     private val cache: CacheService,
 ) : ChannelService {
 
+    companion object {
+        private const val CHANNEL_CACHE_TTL_SECONDS = 1800L
+    }
+
     override suspend fun getChannel(url: String, nextpage: String?): ExtractionResult<ChannelResponse> {
         val key = "channel:$url:${nextpage ?: "null"}"
         runCatching { cache.get(key) }.getOrNull()?.let { cached ->
@@ -19,9 +23,8 @@ class CachedChannelService(
         }
         val result = delegate.getChannel(url, nextpage)
         if (result is ExtractionResult.Success) {
-            runCatching { cache.set(key, CacheJson.encodeToString(ChannelResponse.serializer(), result.data), 600L) }
+            runCatching { cache.set(key, CacheJson.encodeToString(ChannelResponse.serializer(), result.data), CHANNEL_CACHE_TTL_SECONDS) }
         }
         return result
     }
 }
-

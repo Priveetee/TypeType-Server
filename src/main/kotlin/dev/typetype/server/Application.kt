@@ -80,6 +80,8 @@ fun Application.module() {
             trendingRoutes(svc.trendingService)
             commentRoutes(svc.commentService)
             bulletCommentRoutes(svc.bulletCommentService)
+        }
+        rateLimit(CHANNEL_ZONE) {
             channelRoutes(svc.channelService)
         }
         rateLimit(PROXY_ZONE) {
