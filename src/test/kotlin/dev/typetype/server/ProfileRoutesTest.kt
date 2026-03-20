@@ -9,6 +9,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -76,7 +77,7 @@ class ProfileRoutesTest {
     }
 
     @Test
-    fun `PUT custom avatar rejects gif URLs`() = testApplication {
+    fun `PUT custom avatar is disabled in emoji-only mode`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
             routing { profileRoutes(profileService, avatarService, auth) }
@@ -87,7 +88,8 @@ class ProfileRoutesTest {
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{"imageUrl":"https://cdn.test/avatar.gif"}""")
         }
-        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals(HttpStatusCode.Gone, response.status)
+        assertEquals("{\"error\":\"AVATAR_MODE_EMOJI_ONLY\"}", response.bodyAsText())
     }
 
     @Test

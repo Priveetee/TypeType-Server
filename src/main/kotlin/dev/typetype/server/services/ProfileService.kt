@@ -61,22 +61,24 @@ class ProfileService {
         } > 0
     }
 
-    suspend fun updateProfile(userId: String, publicUsername: String?, bio: String?): Boolean {
-        if (publicUsername != null && !isValidPublicUsername(publicUsername)) return false
-        if (bio != null && bio.length > MAX_BIO_LENGTH) return false
+    suspend fun updateProfile(userId: String, publicUsername: String?, bio: String?): ProfileUpdateResult {
+        if (publicUsername != null && publicUsername.length !in MIN_USERNAME_LENGTH..MAX_USERNAME_LENGTH) return ProfileUpdateResult.UsernameInvalidLength
+        if (publicUsername != null && !USERNAME_REGEX.matches(publicUsername)) return ProfileUpdateResult.UsernameInvalidFormat
+        if (bio != null && bio.length > MAX_BIO_LENGTH) return ProfileUpdateResult.BioTooLong
         if (publicUsername != null) {
             val taken = DatabaseFactory.query {
                 UsersTable.selectAll().where { (UsersTable.publicUsername eq publicUsername) and (UsersTable.id neq userId) }.empty().not()
             }
-            if (taken) return false
+            if (taken) return ProfileUpdateResult.UsernameTaken
         }
-        return DatabaseFactory.query {
+        val updated = DatabaseFactory.query {
             UsersTable.update({ UsersTable.id eq userId }) {
                 it[UsersTable.publicUsername] = publicUsername
                 it[UsersTable.bio] = bio
                 it[updatedAt] = System.currentTimeMillis()
             } > 0
         }
+        return if (updated) ProfileUpdateResult.Updated else ProfileUpdateResult.UserNotFound
     }
 
     suspend fun getPublicProfile(publicUsername: String): PublicProfileItem? = DatabaseFactory.query {

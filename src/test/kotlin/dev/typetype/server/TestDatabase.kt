@@ -5,6 +5,8 @@ import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
+import dev.typetype.server.db.tables.AdminSettingsTable
+import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
@@ -42,7 +44,9 @@ object TestDatabase {
         ProgressTable.deleteAll()
         SearchHistoryTable.deleteAll()
         SessionsTable.deleteAll()
+        PasswordResetTable.deleteAll()
         UsersTable.deleteAll()
+        AdminSettingsTable.deleteAll()
         TokenTable.deleteAll()
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()

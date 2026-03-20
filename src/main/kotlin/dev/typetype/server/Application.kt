@@ -29,6 +29,7 @@ import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
 import dev.typetype.server.routes.tokenRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
@@ -59,6 +60,7 @@ fun Application.module() {
     val passwordResetService = PasswordResetService()
     val profileService = ProfileService()
     val avatarService = AvatarService()
+    val adminSettingsService = AdminSettingsService()
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
@@ -83,7 +85,7 @@ fun Application.module() {
         }
         tokenRoutes(tokenService)
         authRoutes(authService, passwordResetService, profileService)
-        adminRoutes(authService, userAdminService, passwordResetService)
+        adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         avatarRoutes(avatarService)
         rateLimit(USER_DATA_ZONE) {
             historyRoutes(svc.historyService, authService)

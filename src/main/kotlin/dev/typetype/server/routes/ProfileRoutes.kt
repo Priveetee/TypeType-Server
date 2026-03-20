@@ -1,12 +1,12 @@
 package dev.typetype.server.routes
 
-import dev.typetype.server.models.AvatarCustomRequest
 import dev.typetype.server.models.AvatarEmojiRequest
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ProfileUpdateRequest
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.services.ProfileUpdateResult
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
@@ -23,8 +23,14 @@ fun Route.profileRoutes(profileService: ProfileService, avatarService: AvatarSer
             val req = runCatching { call.receive<ProfileUpdateRequest>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            val ok = profileService.updateProfile(userId, req.publicUsername, req.bio)
-            if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid profile values or username already taken"))
+            when (profileService.updateProfile(userId, req.publicUsername, req.bio)) {
+                ProfileUpdateResult.Updated -> call.respond(HttpStatusCode.NoContent)
+                ProfileUpdateResult.UsernameInvalidLength -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("USERNAME_INVALID_LENGTH"))
+                ProfileUpdateResult.UsernameInvalidFormat -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("USERNAME_INVALID_FORMAT"))
+                ProfileUpdateResult.UsernameTaken -> call.respond(HttpStatusCode.Conflict, ErrorResponse("USERNAME_TAKEN"))
+                ProfileUpdateResult.BioTooLong -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("BIO_TOO_LONG"))
+                ProfileUpdateResult.UserNotFound -> call.respond(HttpStatusCode.NotFound, ErrorResponse("User not found"))
+            }
         }
     }
 
@@ -46,13 +52,8 @@ fun Route.profileRoutes(profileService: ProfileService, avatarService: AvatarSer
     }
 
     put("/profile/avatar/custom") {
-        call.withJwtAuth(authService) { userId ->
-            if (userId.startsWith("guest:")) return@withJwtAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Guest users cannot change avatar"))
-            val req = runCatching { call.receive<AvatarCustomRequest>() }.getOrElse {
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
-            }
-            val ok = profileService.setCustomAvatar(userId, req.imageUrl, avatarService)
-            if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid image URL or unsupported format"))
+        call.withJwtAuth(authService) { _ ->
+            call.respond(HttpStatusCode.Gone, ErrorResponse("AVATAR_MODE_EMOJI_ONLY"))
         }
     }
 

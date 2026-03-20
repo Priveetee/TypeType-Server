@@ -1,7 +1,9 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.AdminSettingsItem
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.http.HttpStatusCode
@@ -21,7 +23,12 @@ private data class RoleBody(val role: String)
 @Serializable
 private data class ResetTokenResponse(val resetToken: String)
 
-fun Route.adminRoutes(authService: AuthService, userAdminService: UserAdminService, passwordResetService: PasswordResetService) {
+fun Route.adminRoutes(
+    authService: AuthService,
+    userAdminService: UserAdminService,
+    passwordResetService: PasswordResetService,
+    adminSettingsService: AdminSettingsService,
+) {
     get("/admin/users") {
         call.withAdminAuth(authService) { _ ->
             call.respond(userAdminService.listUsers())
@@ -60,6 +67,21 @@ fun Route.adminRoutes(authService: AuthService, userAdminService: UserAdminServi
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val token = passwordResetService.generateToken(id)
             call.respond(HttpStatusCode.Created, ResetTokenResponse(resetToken = token))
+        }
+    }
+
+    get("/admin/settings") {
+        call.withAdminAuth(authService) { _ ->
+            call.respond(adminSettingsService.get())
+        }
+    }
+
+    put("/admin/settings") {
+        call.withAdminAuth(authService) { _ ->
+            val body = runCatching { call.receive<AdminSettingsItem>() }.getOrElse {
+                return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            }
+            call.respond(adminSettingsService.upsert(body))
         }
     }
 }
