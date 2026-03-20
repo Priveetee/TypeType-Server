@@ -17,7 +17,10 @@ class PipePipeBackupPersisterService {
 
     suspend fun persist(userId: String, snapshot: PipePipeBackupSnapshotItem): RestorePipePipeResultItem = DatabaseFactory.query {
         clearUserData(userId)
-        val history = insertHistory(userId, snapshot.history)
+        val avatarsByChannel = snapshot.subscriptions
+            .mapNotNull { item -> item.url.takeIf { it.isNotBlank() }?.let { url -> url to item.avatarUrl } }
+            .toMap()
+        val history = insertHistory(userId, snapshot.history, avatarsByChannel)
         val subscriptions = insertSubscriptions(userId, snapshot.subscriptions)
         val (playlists, playlistVideos) = insertPlaylists(userId, snapshot.playlists)
         val progress = insertProgress(userId, snapshot.progress)
@@ -34,11 +37,11 @@ class PipePipeBackupPersisterService {
         SearchHistoryTable.deleteWhere { SearchHistoryTable.userId eq userId }
     }
 
-    private fun insertHistory(userId: String, items: List<PipePipeBackupHistoryItem>): Int =
+    private fun insertHistory(userId: String, items: List<PipePipeBackupHistoryItem>, avatarsByChannel: Map<String, String>): Int =
         items.sumOf { item ->
             HistoryTable.insertIgnore {
                 it[id] = UUID.randomUUID().toString(); it[HistoryTable.userId] = userId; it[url] = item.url; it[title] = item.title; it[thumbnail] = item.thumbnail
-                it[channelName] = item.uploader; it[channelUrl] = item.uploaderUrl; it[channelAvatar] = ""; it[duration] = item.duration; it[progress] = 0L; it[watchedAt] = item.watchedAt
+                it[channelName] = item.uploader; it[channelUrl] = item.uploaderUrl; it[channelAvatar] = avatarsByChannel[item.uploaderUrl] ?: ""; it[duration] = item.duration; it[progress] = 0L; it[watchedAt] = item.watchedAt
             }.insertedCount
         }
 
