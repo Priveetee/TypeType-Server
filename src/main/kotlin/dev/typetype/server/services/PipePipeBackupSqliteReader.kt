@@ -6,8 +6,9 @@ import java.sql.DriverManager
 
 class PipePipeBackupSqliteReader {
 
-    fun read(sqlitePath: Path): PipePipeBackupSnapshotItem =
-        DriverManager.getConnection("jdbc:sqlite:$sqlitePath").use { sqlite ->
+    fun read(sqlitePath: Path): PipePipeBackupSnapshotItem {
+        Class.forName("org.sqlite.JDBC")
+        return DriverManager.getConnection("jdbc:sqlite:$sqlitePath").use { sqlite ->
             PipePipeBackupSnapshotItem(
                 subscriptions = readSubscriptions(sqlite),
                 history = readHistory(sqlite),
@@ -16,6 +17,7 @@ class PipePipeBackupSqliteReader {
                 searchHistory = readSearchHistory(sqlite),
             )
         }
+    }
 
     private fun readSubscriptions(sqlite: Connection): List<PipePipeBackupSubscriptionItem> {
         val sql = "SELECT service_id, url, name, avatar_url FROM subscriptions"
