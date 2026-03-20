@@ -82,6 +82,7 @@ object DatabaseFactory {
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS public_username TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")
+            DatabasePrimaryKeyMigrations.apply()
         }
     }
 
