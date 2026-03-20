@@ -29,7 +29,7 @@ class HistoryService {
         if (from != null) query.andWhere { HistoryTable.watchedAt greaterEq from }
         if (to != null) query.andWhere { HistoryTable.watchedAt less to }
         val total = query.count()
-        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC)
+        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC)
             .limit(limit)
             .offset(offset.toLong())
             .map { it.toHistoryItem() }

@@ -18,10 +18,30 @@ fun Route.historyRoutes(historyService: HistoryService, authService: AuthService
     get("/history") {
         call.withJwtAuth(authService) { userId ->
             val q = call.request.queryParameters["q"]
-            val from = call.request.queryParameters["from"]?.toLongOrNull()
-            val to = call.request.queryParameters["to"]?.toLongOrNull()
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_HISTORY_LIMIT) ?: 60
-            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+            val fromRaw = call.request.queryParameters["from"]
+            val toRaw = call.request.queryParameters["to"]
+            val limitRaw = call.request.queryParameters["limit"]
+            val offsetRaw = call.request.queryParameters["offset"]
+            val from = if (fromRaw == null) null else fromRaw.toLongOrNull()
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid from"))
+            val to = if (toRaw == null) null else toRaw.toLongOrNull()
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid to"))
+            if (from != null && to != null && from >= to) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("from must be lower than to"))
+            }
+            val limit = if (limitRaw == null) {
+                60
+            } else {
+                limitRaw.toIntOrNull()?.coerceIn(1, MAX_HISTORY_LIMIT)
+                    ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid limit"))
+            }
+            val offset = if (offsetRaw == null) {
+                0
+            } else {
+                offsetRaw.toIntOrNull()
+                    ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid offset"))
+            }
+            if (offset < 0) return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid offset"))
             val (items, total) = historyService.search(userId, q, from, to, limit, offset)
             call.response.headers.append("X-Total-Count", total.toString())
             call.respond(items)
