@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.AdminSettingsItem
+import dev.typetype.server.models.AdminUsersPageItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.PasswordResetService
@@ -31,7 +32,23 @@ fun Route.adminRoutes(
 ) {
     get("/admin/users") {
         call.withAdminAuth(authService) { _ ->
-            call.respond(userAdminService.listUsers())
+            val pageRaw = call.request.queryParameters["page"]
+            val limitRaw = call.request.queryParameters["limit"]
+            if (pageRaw == null && limitRaw == null) {
+                return@withAdminAuth call.respond(userAdminService.listUsers())
+            }
+            if (pageRaw != null && pageRaw.toIntOrNull() == null) {
+                return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid page"))
+            }
+            if (limitRaw != null && limitRaw.toIntOrNull() == null) {
+                return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid limit"))
+            }
+            val page = pageRaw?.toIntOrNull() ?: 1
+            val limit = limitRaw?.toIntOrNull() ?: 50
+            if (page < 1) return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid page"))
+            if (limit !in 1..200) return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid limit"))
+            val (items, total) = userAdminService.listUsers(page, limit)
+            call.respond(AdminUsersPageItem(items = items, page = page, limit = limit, total = total))
         }
     }
 

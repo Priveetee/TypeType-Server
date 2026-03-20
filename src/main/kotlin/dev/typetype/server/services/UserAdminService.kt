@@ -2,6 +2,8 @@ package dev.typetype.server.services
 
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.models.AdminUserItem
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -10,22 +12,20 @@ import org.jetbrains.exposed.v1.jdbc.update
 class UserAdminService {
 
     fun listUsers(): List<AdminUserItem> = transaction {
-        UsersTable.selectAll().map {
-            AdminUserItem(
-                id = it[UsersTable.id],
-                email = it[UsersTable.email],
-                name = it[UsersTable.name],
-                role = it[UsersTable.role],
-                publicUsername = it[UsersTable.publicUsername],
-                bio = it[UsersTable.bio],
-                avatarUrl = it[UsersTable.avatarUrl],
-                avatarType = it[UsersTable.avatarType],
-                avatarCode = it[UsersTable.avatarCode],
-                suspended = it[UsersTable.suspended],
-                verified = it[UsersTable.verified],
-                createdAt = it[UsersTable.createdAt],
-            )
-        }
+        UsersTable.selectAll()
+            .orderBy(UsersTable.createdAt to SortOrder.DESC)
+            .map(::toAdminUserItem)
+    }
+
+    fun listUsers(page: Int, limit: Int): Pair<List<AdminUserItem>, Long> = transaction {
+        val total = UsersTable.selectAll().count()
+        val offset = (page - 1).toLong() * limit.toLong()
+        val users = UsersTable.selectAll()
+            .orderBy(UsersTable.createdAt to SortOrder.DESC)
+            .limit(limit)
+            .offset(offset)
+            .map(::toAdminUserItem)
+        users to total
     }
 
     fun suspendUser(userId: String): Boolean = transaction {
@@ -58,4 +58,20 @@ class UserAdminService {
             it[UsersTable.updatedAt] = System.currentTimeMillis()
         } > 0
     }
+
+    private fun toAdminUserItem(row: ResultRow): AdminUserItem =
+        AdminUserItem(
+            id = row[UsersTable.id],
+            email = row[UsersTable.email],
+            name = row[UsersTable.name],
+            role = row[UsersTable.role],
+            publicUsername = row[UsersTable.publicUsername],
+            bio = row[UsersTable.bio],
+            avatarUrl = row[UsersTable.avatarUrl],
+            avatarType = row[UsersTable.avatarType],
+            avatarCode = row[UsersTable.avatarCode],
+            suspended = row[UsersTable.suspended],
+            verified = row[UsersTable.verified],
+            createdAt = row[UsersTable.createdAt],
+        )
 }
