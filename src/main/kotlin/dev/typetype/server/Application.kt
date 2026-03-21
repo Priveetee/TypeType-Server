@@ -10,6 +10,7 @@ import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.favoritesRoutes
 import dev.typetype.server.routes.historyRoutes
+import dev.typetype.server.routes.homeRecommendationRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.playlistRoutes
@@ -111,6 +112,7 @@ fun Application.module() {
             blockedRoutes(svc.blockedService, authService)
             profileRoutes(profileService, avatarService, authService)
             restoreRoutes(restoreService, authService)
+            homeRecommendationRoutes(svc.homeRecommendationService, authService)
         }
     }
 }

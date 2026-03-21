@@ -12,6 +12,7 @@ import dev.typetype.server.services.CachedSuggestionService
 import dev.typetype.server.services.CachedTrendingService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
+import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
@@ -70,4 +71,14 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService()
+    val homeRecommendationService = HomeRecommendationService(
+        subscriptionsService = subscriptionsService,
+        subscriptionFeedService = subscriptionFeedService,
+        historyService = historyService,
+        favoritesService = favoritesService,
+        watchLaterService = watchLaterService,
+        blockedService = blockedService,
+        trendingService = trendingService,
+        cache = cache,
+    )
 }
