@@ -22,13 +22,15 @@ class PipePipeCommentService : CommentService {
             } else null
 
             runCatching {
-                withTimeout(30_000L) {
-                    if (page == null) {
-                        val info = CommentsInfo.getInfo(url)
-                        info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null, commentsDisabled = false)
-                    } else {
-                        val service = NewPipe.getServiceByUrl(url)
-                        CommentsInfo.getMoreItems(service, url, page).toPageResponse()
+                withExtractionRetry {
+                    withTimeout(30_000L) {
+                        if (page == null) {
+                            val info = CommentsInfo.getInfo(url)
+                            info?.toPageResponse() ?: CommentsPageResponse(emptyList(), null, commentsDisabled = false)
+                        } else {
+                            val service = NewPipe.getServiceByUrl(url)
+                            CommentsInfo.getMoreItems(service, url, page).toPageResponse()
+                        }
                     }
                 }
             }.fold(

@@ -26,21 +26,23 @@ class PipePipeSearchService : SearchService {
             } else null
 
             runCatching {
-                withTimeout(30_000L) {
-                    val service = NewPipe.getService(serviceId)
-                    val factory = service.searchQHFactory
-                    val defaultContentFilter = factory.availableContentFilter
-                        ?.filterGroups
-                        ?.firstOrNull()
-                        ?.filterItems
-                        ?.firstOrNull()
-                        ?.let { listOf(it) }
-                        ?: emptyList<FilterItem>()
-                    val queryHandler = factory.fromQuery(query, defaultContentFilter, null)
-                    if (page == null) {
-                        SearchInfo.getInfo(service, queryHandler).toPageResponse()
-                    } else {
-                        SearchInfo.getMoreItems(service, queryHandler, page).toPageResponse()
+                withExtractionRetry {
+                    withTimeout(30_000L) {
+                        val service = NewPipe.getService(serviceId)
+                        val factory = service.searchQHFactory
+                        val defaultContentFilter = factory.availableContentFilter
+                            ?.filterGroups
+                            ?.firstOrNull()
+                            ?.filterItems
+                            ?.firstOrNull()
+                            ?.let { listOf(it) }
+                            ?: emptyList<FilterItem>()
+                        val queryHandler = factory.fromQuery(query, defaultContentFilter, null)
+                        if (page == null) {
+                            SearchInfo.getInfo(service, queryHandler).toPageResponse()
+                        } else {
+                            SearchInfo.getMoreItems(service, queryHandler, page).toPageResponse()
+                        }
                     }
                 }
             }.fold(

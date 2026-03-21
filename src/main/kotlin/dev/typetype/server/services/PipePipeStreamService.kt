@@ -43,22 +43,25 @@ internal class PipePipeStreamService(
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val service = NewPipe.getServiceByUrl(url)
-                val extractor: StreamExtractor = service.getStreamExtractor(url)
-                withTimeout(30_000L) { extractor.fetchPage() }
-                coroutineScope {
-                    val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
-                    val segmentsDeferred = async { resolveSegments(extractor) }
-                    val streamInfo = streamInfoDeferred.await()
-                    streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
-                    val response = streamInfo.toStreamResponse()
-                    val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
-                        response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
-                    } else {
-                        response
+                withExtractionRetry {
+                    val service = NewPipe.getServiceByUrl(url)
+                    val linkHandler = service.streamLHFactory.fromUrl(url)
+                    val extractor: StreamExtractor = service.getStreamExtractor(linkHandler)
+                    withTimeout(30_000L) { extractor.fetchPage() }
+                    coroutineScope {
+                        val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
+                        val segmentsDeferred = async { resolveSegments(extractor) }
+                        val streamInfo = streamInfoDeferred.await()
+                        streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
+                        val response = streamInfo.toStreamResponse()
+                        val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
+                            response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
+                        } else {
+                            response
+                        }
+                        if (service.serviceId == BILIBILI_SERVICE_ID) bilibiliRelatedService.patchRelatedStreams(withSubtitles, linkHandler.url)
+                        else withSubtitles
                     }
-                    if (service.serviceId == BILIBILI_SERVICE_ID) bilibiliRelatedService.patchRelatedStreams(withSubtitles, url)
-                    else withSubtitles
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },

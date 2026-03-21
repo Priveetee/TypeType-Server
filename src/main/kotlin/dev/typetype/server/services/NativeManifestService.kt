@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -14,7 +15,13 @@ class NativeManifestService {
     suspend fun nativeManifest(videoUrl: String): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
             runCatching {
-                withTimeout(30_000L) { StreamInfo.getInfo(videoUrl) }
+                withExtractionRetry {
+                    withTimeout(30_000L) {
+                        val service = NewPipe.getServiceByUrl(videoUrl)
+                        val linkHandler = service.streamLHFactory.fromUrl(videoUrl)
+                        StreamInfo.getInfo(service, linkHandler.url)
+                    }
+                }
             }.fold(
                 onSuccess = { buildManifest(it) },
                 onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }

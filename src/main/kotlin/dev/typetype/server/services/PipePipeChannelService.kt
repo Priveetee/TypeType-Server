@@ -20,12 +20,14 @@ class PipePipeChannelService : ChannelService {
             } else null
 
             runCatching {
-                withTimeout(30_000L) {
-                    if (page == null) {
-                        ChannelInfo.getInfo(url).toChannelResponse()
-                    } else {
-                        val service = NewPipe.getServiceByUrl(url)
-                        ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+                withExtractionRetry {
+                    withTimeout(30_000L) {
+                        if (page == null) {
+                            ChannelInfo.getInfo(url).toChannelResponse()
+                        } else {
+                            val service = NewPipe.getServiceByUrl(url)
+                            ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+                        }
                     }
                 }
             }.fold(

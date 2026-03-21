@@ -11,8 +11,10 @@ class PipePipeSuggestionService : SuggestionService {
     override suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                withTimeout(10_000L) {
-                    NewPipe.getService(serviceId).suggestionExtractor.suggestionList(query)
+                withExtractionRetry {
+                    withTimeout(10_000L) {
+                        NewPipe.getService(serviceId).suggestionExtractor.suggestionList(query)
+                    }
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
