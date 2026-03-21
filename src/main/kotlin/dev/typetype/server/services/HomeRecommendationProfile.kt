@@ -8,4 +8,5 @@ data class HomeRecommendationProfile(
     val favoriteUrls: Set<String>,
     val watchLaterUrls: Set<String>,
     val keywordAffinity: Set<String>,
+    val themeTokens: Set<String>,
 )

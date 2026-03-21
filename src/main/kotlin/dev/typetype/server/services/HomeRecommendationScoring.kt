@@ -10,7 +10,13 @@ object HomeRecommendationScoring {
 
     fun scoreDiscovery(video: VideoItem, profile: HomeRecommendationProfile): Double {
         val base = 0.95
-        return base + commonSignals(video, profile)
+        val themeScore = HomeRecommendationThemeExtractor.computeThemeScore(
+            videoTitle = video.title,
+            channelName = video.uploaderName,
+            themeTokens = profile.themeTokens,
+        )
+        val themeBoost = themeScore * 0.8
+        return base + commonSignals(video, profile) + themeBoost
     }
 
     private fun commonSignals(video: VideoItem, profile: HomeRecommendationProfile): Double {
@@ -19,7 +25,7 @@ object HomeRecommendationScoring {
         val subscriptionBoost = if (video.uploaderUrl in profile.subscriptionChannels) 0.2 else 0.0
         val favoriteBoost = if (video.url in profile.favoriteUrls) 0.15 else 0.0
         val watchLaterBoost = if (video.url in profile.watchLaterUrls) 0.08 else 0.0
-        val livePenalty = if (HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) -0.2 else 0.0
+        val livePenalty = if (HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) -0.5 else 0.0
         return recency + keywordBoost + subscriptionBoost + favoriteBoost + watchLaterBoost + livePenalty
     }
 

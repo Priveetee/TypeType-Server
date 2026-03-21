@@ -14,13 +14,15 @@ class HomeRecommendationPoolBuilder {
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreSubscription(video, p) },
             allowLive = false,
+            minThemeScore = 0.0,
         )
         val subscriptionUrls = subscriptions.map { it.url }.toSet()
         val discovery = scoreAndFilter(
-            candidates = discoveryCandidates,
+            candidates = subscriptionCandidates,
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p) },
             allowLive = false,
+            minThemeScore = 0.0,
         ).filterNot { video -> video.url in subscriptionUrls }
         return HomeRecommendationPool(
             subscriptions = subscriptions,
@@ -33,6 +35,7 @@ class HomeRecommendationPoolBuilder {
         profile: HomeRecommendationProfile,
         scorer: (VideoItem, HomeRecommendationProfile) -> Double,
         allowLive: Boolean,
+        minThemeScore: Double,
     ): List<VideoItem> {
         val byUrl = linkedMapOf<String, HomeRecommendationScoredVideo>()
         candidates.forEach { video ->
@@ -40,6 +43,14 @@ class HomeRecommendationPoolBuilder {
             if (video.url in profile.seenUrls || video.url in profile.blockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
             if (!allowLive && HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) return@forEach
+            if (minThemeScore > 0.0 && profile.themeTokens.isNotEmpty()) {
+                val themeScore = HomeRecommendationThemeExtractor.computeThemeScore(
+                    videoTitle = video.title,
+                    channelName = video.uploaderName,
+                    themeTokens = profile.themeTokens,
+                )
+                if (themeScore < minThemeScore) return@forEach
+            }
             val scored = HomeRecommendationScoredVideo(video = video, score = scorer(video, profile))
             val current = byUrl[video.url]
             if (current == null || scored.score > current.score) {
