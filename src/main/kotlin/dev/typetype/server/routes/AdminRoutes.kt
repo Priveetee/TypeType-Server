@@ -56,16 +56,24 @@ fun Route.adminRoutes(
     }
 
     post("/admin/users/{id}/suspend") {
-        call.withAdminAuth(authService) { _ ->
+        call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            if (id == adminId) {
+                adminRouteLog.warn("Admin self-suspend blocked for userId={}", adminId)
+                return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot suspend your own account"))
+            }
             val ok = userAdminService.suspendUser(id)
             if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("User not found"))
         }
     }
 
     delete("/admin/users/{id}/suspend") {
-        call.withAdminAuth(authService) { _ ->
+        call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            if (id == adminId) {
+                adminRouteLog.warn("Admin self-unsuspend blocked for userId={}", adminId)
+                return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot suspend your own account"))
+            }
             val ok = userAdminService.unsuspendUser(id)
             if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("User not found"))
         }

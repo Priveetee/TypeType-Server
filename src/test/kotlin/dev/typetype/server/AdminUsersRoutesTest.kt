@@ -8,6 +8,8 @@ import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.request.delete
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -130,5 +132,34 @@ class AdminUsersRoutesTest {
         }
         assertEquals(HttpStatusCode.Forbidden, response.status)
         assertTrue(response.bodyAsText().contains("Cannot modify your own role"))
+    }
+
+    @Test
+    fun `POST admin suspend rejects self suspend with 403`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(auth, userAdminService, passwordResetService, adminSettingsService) }
+        }
+        val response = client.post("/admin/users/$TEST_USER_ID/suspend") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertTrue(response.bodyAsText().contains("Cannot suspend your own account"))
+    }
+
+    @Test
+    fun `admin can suspend and unsuspend another user`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(auth, userAdminService, passwordResetService, adminSettingsService) }
+        }
+        val suspendResponse = client.post("/admin/users/user-0/suspend") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        val unsuspendResponse = client.delete("/admin/users/user-0/suspend") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NoContent, suspendResponse.status)
+        assertEquals(HttpStatusCode.NoContent, unsuspendResponse.status)
     }
 }
