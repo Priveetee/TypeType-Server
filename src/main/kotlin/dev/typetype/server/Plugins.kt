@@ -29,6 +29,7 @@ private const val EXTRACTION_RATE_LIMIT = 60
 private const val STREAMS_RATE_LIMIT = 360
 private const val CHANNEL_RATE_LIMIT = 180
 private const val PROXY_RATE_LIMIT = 300
+private const val PROXY_STORYBOARD_RATE_LIMIT = 600
 private const val USER_DATA_RATE_LIMIT = 120
 private val RATE_LIMIT_WINDOW = 1.minutes
 
@@ -36,6 +37,7 @@ val EXTRACTION_ZONE = RateLimitName("extraction")
 val STREAMS_ZONE = RateLimitName("streams")
 val CHANNEL_ZONE = RateLimitName("channel")
 val PROXY_ZONE = RateLimitName("proxy")
+val PROXY_STORYBOARD_ZONE = RateLimitName("proxy-storyboard")
 val USER_DATA_ZONE = RateLimitName("user-data")
 
 fun Application.configurePlugins() {
@@ -91,6 +93,10 @@ fun Application.configurePlugins() {
         }
         register(PROXY_ZONE) {
             rateLimiter(limit = PROXY_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
+        }
+        register(PROXY_STORYBOARD_ZONE) {
+            rateLimiter(limit = PROXY_STORYBOARD_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
             requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
         register(USER_DATA_ZONE) {

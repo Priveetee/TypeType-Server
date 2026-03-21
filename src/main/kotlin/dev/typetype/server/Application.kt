@@ -17,6 +17,7 @@ import dev.typetype.server.routes.profileRoutes
 import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.restoreRoutes
+import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.settingsRoutes
@@ -89,6 +90,9 @@ fun Application.module() {
         rateLimit(PROXY_ZONE) {
             proxyRoutes(svc.proxyService)
             nicoVideoProxyRoutes(svc.nicoVideoProxyService)
+        }
+        rateLimit(PROXY_STORYBOARD_ZONE) {
+            storyboardProxyRoutes(svc.proxyService)
         }
         tokenRoutes(tokenService)
         authRoutes(authService, passwordResetService, profileService)
