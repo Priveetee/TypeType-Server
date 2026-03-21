@@ -22,9 +22,20 @@ fun Route.homeRecommendationRoutes(recommendationService: HomeRecommendationServ
             }
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_RECOMMENDATION_LIMIT)
                 ?: 20
-            val cursor = HomeRecommendationCursorCodec.decode(call.request.queryParameters["cursor"])
-                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid 'cursor' parameter"))
-            call.respond(recommendationService.getHome(userId = userId, serviceId = serviceId, limit = limit, index = cursor.index))
+            val rawCursor = call.request.queryParameters["cursor"]
+            val cursor = HomeRecommendationCursorCodec.decode(rawCursor)
+                ?: return@withJwtAuth call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("Invalid 'cursor' parameter"),
+                )
+            call.respond(
+                recommendationService.getHome(
+                    userId = userId,
+                    serviceId = serviceId,
+                    limit = limit,
+                    cursor = cursor,
+                ),
+            )
         }
     }
 }

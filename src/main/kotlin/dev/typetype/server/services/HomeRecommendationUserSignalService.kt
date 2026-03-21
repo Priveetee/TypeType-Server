@@ -1,0 +1,60 @@
+package dev.typetype.server.services
+
+class HomeRecommendationUserSignalService(
+    private val subscriptionsService: SubscriptionsService,
+    private val historyService: HistoryService,
+    private val favoritesService: FavoritesService,
+    private val watchLaterService: WatchLaterService,
+    private val blockedService: BlockedService,
+) {
+    suspend fun loadProfile(userId: String): HomeRecommendationProfile {
+        val subscriptions = subscriptionsService.getAll(userId)
+        val historyItems = historyService.search(
+            userId = userId,
+            q = null,
+            from = null,
+            to = null,
+            limit = 240,
+            offset = 0,
+        ).first
+        val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
+        val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
+        val seenUrls = historyItems.map { it.url }.toSet()
+        val favoriteUrls = favoritesService.getAll(userId).map { it.videoUrl }.toSet()
+        val watchLaterUrls = watchLaterService.getAll(userId).map { it.url }.toSet()
+        val channelAffinity = historyItems
+            .mapNotNull { item ->
+                val channel = item.channelUrl.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val ratio = if (item.duration > 0) {
+                    item.progress.toDouble() / item.duration.toDouble()
+                } else {
+                    0.0
+                }
+                channel to ratio.coerceIn(0.0, 1.0)
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.take(8).average() }
+        val keywordAffinity = historyItems
+            .asSequence()
+            .map { it.title.lowercase() }
+            .flatMap { title -> title.split(Regex("[^a-z0-9]+")) }
+            .filter { token -> token.length >= 4 }
+            .groupingBy { it }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(30)
+            .map { it.key }
+            .toSet()
+        return HomeRecommendationProfile(
+            seenUrls = seenUrls,
+            blockedVideos = blockedVideos,
+            blockedChannels = blockedChannels,
+            subscriptionChannels = subscriptions.map { it.channelUrl }.toSet(),
+            favoriteUrls = favoriteUrls,
+            watchLaterUrls = watchLaterUrls,
+            channelAffinity = channelAffinity,
+            keywordAffinity = keywordAffinity,
+        )
+    }
+}

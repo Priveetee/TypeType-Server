@@ -1,0 +1,78 @@
+package dev.typetype.server
+
+import dev.typetype.server.models.HomeRecommendationPool
+import dev.typetype.server.models.VideoItem
+import dev.typetype.server.services.HomeRecommendationCursor
+import dev.typetype.server.services.HomeRecommendationMixer
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class HomeRecommendationMixerTest {
+
+    private fun video(id: String, channel: String): VideoItem = VideoItem(
+        id = id,
+        title = id,
+        url = "https://yt.com/v/$id",
+        thumbnailUrl = "",
+        uploaderName = channel,
+        uploaderUrl = "https://yt.com/c/$channel",
+        uploaderAvatarUrl = "",
+        duration = 1,
+        viewCount = 0,
+        uploadDate = "",
+        uploaded = 0,
+        streamType = "video_stream",
+        isShortFormContent = false,
+        uploaderVerified = false,
+        shortDescription = null,
+    )
+
+    @Test
+    fun `mix enforces no consecutive same channel and max two per channel`() {
+        val pool = HomeRecommendationPool(
+            subscriptions = listOf(
+                video("s1", "a"),
+                video("s2", "a"),
+                video("s3", "a"),
+                video("s4", "b"),
+                video("s5", "c"),
+            ),
+            discovery = listOf(
+                video("d1", "a"),
+                video("d2", "b"),
+                video("d3", "d"),
+                video("d4", "e"),
+            ),
+        )
+        val page = HomeRecommendationMixer.mix(
+            pool = pool,
+            cursor = HomeRecommendationCursor(subscriptionIndex = 0, discoveryIndex = 0),
+            limit = 8,
+        )
+        val items = page.items
+        val channels = items.map { it.uploaderUrl }
+        for (i in 1 until channels.size) {
+            assertTrue(channels[i] != channels[i - 1])
+        }
+        channels.groupingBy { it }.eachCount().values.forEach { count ->
+            assertTrue(count <= 2)
+        }
+    }
+
+    @Test
+    fun `mix emits next cursor when more items remain`() {
+        val pool = HomeRecommendationPool(
+            subscriptions = listOf(video("s1", "a"), video("s2", "b"), video("s3", "c")),
+            discovery = listOf(video("d1", "d"), video("d2", "e"), video("d3", "f")),
+        )
+        val page = HomeRecommendationMixer.mix(
+            pool = pool,
+            cursor = HomeRecommendationCursor(subscriptionIndex = 0, discoveryIndex = 0),
+            limit = 3,
+        )
+        assertEquals(3, page.items.size)
+        assertNotNull(page.nextCursor)
+    }
+}

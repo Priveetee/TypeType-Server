@@ -9,16 +9,28 @@ import org.junit.jupiter.api.Test
 class HomeRecommendationCursorCodecTest {
 
     @Test
-    fun `decode null cursor defaults to zero`() {
+    fun `decode null cursor defaults to zero indexes`() {
         val cursor = HomeRecommendationCursorCodec.decode(null)
-        assertEquals(0, cursor?.index)
+        assertEquals(0, cursor?.subscriptionIndex)
+        assertEquals(0, cursor?.discoveryIndex)
     }
 
     @Test
-    fun `encode decode roundtrip preserves index`() {
-        val encoded = HomeRecommendationCursorCodec.encode(HomeRecommendationCursor(index = 40))
+    fun `encode decode roundtrip preserves indexes`() {
+        val encoded = HomeRecommendationCursorCodec.encode(
+            HomeRecommendationCursor(subscriptionIndex = 40, discoveryIndex = 12)
+        )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
-        assertEquals(40, decoded?.index)
+        assertEquals(40, decoded?.subscriptionIndex)
+        assertEquals(12, decoded?.discoveryIndex)
+    }
+
+    @Test
+    fun `decode legacy index cursor maps to both indexes`() {
+        val legacy = "eyJpbmRleCI6NX0"
+        val decoded = HomeRecommendationCursorCodec.decode(legacy)
+        assertEquals(5, decoded?.subscriptionIndex)
+        assertEquals(5, decoded?.discoveryIndex)
     }
 
     @Test
