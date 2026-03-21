@@ -10,6 +10,7 @@ object DatabasePrimaryKeyMigrations {
         recreatePrimaryKey(table = "watch_later", keyName = "watch_later_pkey", columns = "user_id, url")
         recreatePrimaryKey(table = "blocked_channels", keyName = "blocked_channels_pkey", columns = "user_id, channel_url")
         recreatePrimaryKey(table = "blocked_videos", keyName = "blocked_videos_pkey", columns = "user_id, video_url")
+        recreatePrimaryKey(table = "settings", keyName = "settings_pkey", columns = "user_id")
     }
 
     private fun recreatePrimaryKey(table: String, keyName: String, columns: String) {
