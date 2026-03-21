@@ -15,12 +15,12 @@ object HomeRecommendationScoring {
 
     private fun commonSignals(video: VideoItem, profile: HomeRecommendationProfile): Double {
         val recency = recencyBoost(video.uploaded)
-        val channelBoost = profile.channelAffinity[video.uploaderUrl] ?: 0.0
         val keywordBoost = keywordBoost(video, profile.keywordAffinity)
         val subscriptionBoost = if (video.uploaderUrl in profile.subscriptionChannels) 0.2 else 0.0
         val favoriteBoost = if (video.url in profile.favoriteUrls) 0.15 else 0.0
         val watchLaterBoost = if (video.url in profile.watchLaterUrls) 0.08 else 0.0
-        return recency + channelBoost + keywordBoost + subscriptionBoost + favoriteBoost + watchLaterBoost
+        val livePenalty = if (HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) -0.2 else 0.0
+        return recency + keywordBoost + subscriptionBoost + favoriteBoost + watchLaterBoost + livePenalty
     }
 
     private fun keywordBoost(video: VideoItem, keywords: Set<String>): Double {
@@ -35,4 +35,5 @@ object HomeRecommendationScoring {
         val ageHours = (System.currentTimeMillis() - uploaded).coerceAtLeast(0L) / 3_600_000.0
         return 1.0 / (1.0 + ageHours / 60.0)
     }
+
 }

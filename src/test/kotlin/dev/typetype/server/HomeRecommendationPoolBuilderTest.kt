@@ -36,7 +36,6 @@ class HomeRecommendationPoolBuilderTest {
             subscriptionChannels = setOf("https://yt.com/c/sub"),
             favoriteUrls = emptySet(),
             watchLaterUrls = emptySet(),
-            channelAffinity = mapOf("https://yt.com/c/sub" to 0.8),
             keywordAffinity = setOf("music"),
         )
         val subscriptions = listOf(
@@ -65,7 +64,6 @@ class HomeRecommendationPoolBuilderTest {
             subscriptionChannels = emptySet(),
             favoriteUrls = emptySet(),
             watchLaterUrls = emptySet(),
-            channelAffinity = emptyMap(),
             keywordAffinity = setOf("music"),
         )
         val subscriptions = listOf(
@@ -74,5 +72,26 @@ class HomeRecommendationPoolBuilderTest {
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, emptyList())
         assertTrue(pool.subscriptions.first().url.endsWith("/match"))
+    }
+
+    @Test
+    fun `pool builder drops live-like discovery candidates`() {
+        val profile = HomeRecommendationProfile(
+            seenUrls = emptySet(),
+            blockedVideos = emptySet(),
+            blockedChannels = emptySet(),
+            subscriptionChannels = emptySet(),
+            favoriteUrls = emptySet(),
+            watchLaterUrls = emptySet(),
+            keywordAffinity = emptySet(),
+        )
+        val discovery = listOf(
+            video("live1", "a", title = "Breaking is live now"),
+            video("normal1", "b", title = "Weekly tech roundup"),
+            video("live2", "c", title = "DIRECT: match day"),
+        )
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery)
+        assertEquals(1, pool.discovery.size)
+        assertTrue(pool.discovery.first().url.endsWith("/normal1"))
     }
 }

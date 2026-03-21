@@ -22,18 +22,6 @@ class HomeRecommendationUserSignalService(
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favoritesService.getAll(userId).map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLaterService.getAll(userId).map { it.url }.toSet()
-        val channelAffinity = historyItems
-            .mapNotNull { item ->
-                val channel = item.channelUrl.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val ratio = if (item.duration > 0) {
-                    item.progress.toDouble() / item.duration.toDouble()
-                } else {
-                    0.0
-                }
-                channel to ratio.coerceIn(0.0, 1.0)
-            }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.take(8).average() }
         val keywordAffinity = historyItems
             .asSequence()
             .map { it.title.lowercase() }
@@ -53,7 +41,6 @@ class HomeRecommendationUserSignalService(
             subscriptionChannels = subscriptions.map { it.channelUrl }.toSet(),
             favoriteUrls = favoriteUrls,
             watchLaterUrls = watchLaterUrls,
-            channelAffinity = channelAffinity,
             keywordAffinity = keywordAffinity,
         )
     }

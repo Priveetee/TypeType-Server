@@ -7,6 +7,5 @@ data class HomeRecommendationProfile(
     val subscriptionChannels: Set<String>,
     val favoriteUrls: Set<String>,
     val watchLaterUrls: Set<String>,
-    val channelAffinity: Map<String, Double>,
     val keywordAffinity: Set<String>,
 )
