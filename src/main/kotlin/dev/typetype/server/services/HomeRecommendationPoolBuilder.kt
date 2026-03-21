@@ -13,7 +13,7 @@ class HomeRecommendationPoolBuilder {
             candidates = subscriptionCandidates,
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreSubscription(video, p) },
-            allowLive = true,
+            allowLive = false,
         )
         val subscriptionUrls = subscriptions.map { it.url }.toSet()
         val discovery = scoreAndFilter(

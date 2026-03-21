@@ -41,7 +41,7 @@ class HomeRecommendationPoolBuilderTest {
         val subscriptions = listOf(
             video("seen", "sub"),
             video("blocked", "sub"),
-            video("ok", "sub", title = "music live"),
+            video("ok", "sub", title = "music review"),
             video("chblocked", "blocked"),
         )
         val discovery = listOf(
