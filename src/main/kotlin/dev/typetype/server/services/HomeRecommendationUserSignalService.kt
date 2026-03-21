@@ -6,6 +6,7 @@ class HomeRecommendationUserSignalService(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
+    private val feedbackSignalService: RecommendationFeedbackSignalService,
 ) {
     suspend fun loadProfile(userId: String): HomeRecommendationProfile {
         val subscriptions = subscriptionsService.getAll(userId)
@@ -21,6 +22,7 @@ class HomeRecommendationUserSignalService(
         ).first
         val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
         val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
+        val feedbackSignals = feedbackSignalService.load(userId)
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLater.map { it.url }.toSet()
@@ -38,18 +40,21 @@ class HomeRecommendationUserSignalService(
             .toSet()
         val themeTokens = HomeRecommendationThemeExtractor.extractThemeTokens(
             subscriptions = subscriptions,
-            favorites = favorites,
             watchLater = watchLater,
         )
+        val themeQueries = HomeRecommendationThemeExtractor.buildThemeQueries(themeTokens)
         return HomeRecommendationProfile(
             seenUrls = seenUrls,
             blockedVideos = blockedVideos,
             blockedChannels = blockedChannels,
+            feedbackBlockedVideos = feedbackSignals.blockedVideos,
+            feedbackBlockedChannels = feedbackSignals.blockedUploaders,
             subscriptionChannels = subscriptions.map { it.channelUrl }.toSet(),
             favoriteUrls = favoriteUrls,
             watchLaterUrls = watchLaterUrls,
             keywordAffinity = keywordAffinity,
             themeTokens = themeTokens,
+            themeQueries = themeQueries,
         )
     }
 }

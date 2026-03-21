@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.WatchLaterItem
 
@@ -13,7 +12,6 @@ object HomeRecommendationThemeExtractor {
 
     fun extractThemeTokens(
         subscriptions: List<SubscriptionItem>,
-        favorites: List<FavoriteItem>,
         watchLater: List<WatchLaterItem>,
     ): Set<String> {
         val tokens = mutableListOf<String>()
@@ -44,6 +42,21 @@ object HomeRecommendationThemeExtractor {
         val titleScore = if (videoTokens.isNotEmpty()) titleMatches.toDouble() / videoTokens.size else 0.0
         val channelScore = if (channelTokens.isNotEmpty()) channelMatches.toDouble() / channelTokens.size else 0.0
         return (titleScore * 0.7 + channelScore * 0.3).coerceIn(0.0, 1.0)
+    }
+
+    fun buildThemeQueries(themeTokens: Set<String>): List<String> {
+        if (themeTokens.isEmpty()) return emptyList()
+        val ranked = themeTokens
+            .sortedByDescending { token -> token.length }
+            .take(30)
+        val queries = mutableSetOf<String>()
+        for (window in 0 until ranked.size step 3) {
+            val chunk = ranked.drop(window).take(3)
+            if (chunk.isEmpty()) continue
+            queries += chunk.joinToString(" ")
+            queries += chunk.first()
+        }
+        return queries.take(12)
     }
 
     private fun tokenize(text: String): List<String> =

@@ -33,11 +33,14 @@ class HomeRecommendationPoolBuilderTest {
             seenUrls = setOf("https://yt.com/v/seen"),
             blockedVideos = setOf("https://yt.com/v/blocked"),
             blockedChannels = setOf("https://yt.com/c/blocked"),
+            feedbackBlockedVideos = emptySet(),
+            feedbackBlockedChannels = emptySet(),
             subscriptionChannels = setOf("https://yt.com/c/sub"),
             favoriteUrls = emptySet(),
             watchLaterUrls = emptySet(),
             keywordAffinity = setOf("music"),
             themeTokens = emptySet(),
+            themeQueries = emptyList(),
         )
         val subscriptions = listOf(
             video("seen", "sub"),
@@ -62,11 +65,14 @@ class HomeRecommendationPoolBuilderTest {
             seenUrls = emptySet(),
             blockedVideos = emptySet(),
             blockedChannels = emptySet(),
+            feedbackBlockedVideos = emptySet(),
+            feedbackBlockedChannels = emptySet(),
             subscriptionChannels = emptySet(),
             favoriteUrls = emptySet(),
             watchLaterUrls = emptySet(),
             keywordAffinity = setOf("music"),
             themeTokens = emptySet(),
+            themeQueries = emptyList(),
         )
         val subscriptions = listOf(
             video("plain", "a", title = "daily vlog"),
@@ -82,11 +88,14 @@ class HomeRecommendationPoolBuilderTest {
             seenUrls = emptySet(),
             blockedVideos = emptySet(),
             blockedChannels = emptySet(),
+            feedbackBlockedVideos = emptySet(),
+            feedbackBlockedChannels = emptySet(),
             subscriptionChannels = emptySet(),
             favoriteUrls = emptySet(),
             watchLaterUrls = emptySet(),
             keywordAffinity = emptySet(),
             themeTokens = emptySet(),
+            themeQueries = emptyList(),
         )
         val discovery = listOf(
             video("live1", "a", title = "Breaking is live now"),

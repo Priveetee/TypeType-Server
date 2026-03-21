@@ -15,7 +15,9 @@ class HomeRecommendationService(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
+    private val feedbackService: RecommendationFeedbackService,
     private val trendingService: TrendingService,
+    private val searchService: SearchService,
     private val cache: CacheService,
 ) {
     suspend fun getHome(
@@ -46,7 +48,9 @@ class HomeRecommendationService(
             favoritesService = favoritesService,
             watchLaterService = watchLaterService,
             blockedService = blockedService,
+            feedbackService = feedbackService,
             trendingService = trendingService,
+            searchService = searchService,
         ).build(userId = userId, serviceId = serviceId)
         runCatching { cache.set(key, CacheJson.encodeToString(built), CACHE_TTL_SECONDS) }
         return built

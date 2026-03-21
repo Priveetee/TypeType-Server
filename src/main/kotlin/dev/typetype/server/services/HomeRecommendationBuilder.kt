@@ -9,7 +9,9 @@ class HomeRecommendationBuilder(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
+    private val feedbackService: RecommendationFeedbackService,
     private val trendingService: TrendingService,
+    private val searchService: SearchService,
 ) {
     suspend fun build(userId: String, serviceId: Int): HomeRecommendationPool {
         val profile = HomeRecommendationUserSignalService(
@@ -18,17 +20,18 @@ class HomeRecommendationBuilder(
             favoritesService = favoritesService,
             watchLaterService = watchLaterService,
             blockedService = blockedService,
+            feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
         ).loadProfile(userId)
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             trendingService = trendingService,
+            searchService = searchService,
         )
-        val subscriptions = candidates.fetchSubscriptionCandidates(userId)
-        val discovery = candidates.fetchDiscoveryCandidates(serviceId)
+        val pool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile)
         return HomeRecommendationPoolBuilder().build(
             profile = profile,
-            subscriptionCandidates = subscriptions,
-            discoveryCandidates = discovery,
+            subscriptionCandidates = pool.subscriptions,
+            discoveryCandidates = pool.discovery,
         )
     }
 }

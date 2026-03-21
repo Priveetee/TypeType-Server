@@ -20,6 +20,7 @@ import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.restoreRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
+import dev.typetype.server.routes.recommendationFeedbackRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.routes.streamRoutes
@@ -110,6 +111,7 @@ fun Application.module() {
             settingsRoutes(svc.settingsService, authService)
             searchHistoryRoutes(svc.searchHistoryService, authService)
             blockedRoutes(svc.blockedService, authService)
+            recommendationFeedbackRoutes(svc.recommendationFeedbackService, authService)
             profileRoutes(profileService, avatarService, authService)
             restoreRoutes(restoreService, authService)
             homeRecommendationRoutes(svc.homeRecommendationService, authService)

@@ -18,11 +18,11 @@ class HomeRecommendationPoolBuilder {
         )
         val subscriptionUrls = subscriptions.map { it.url }.toSet()
         val discovery = scoreAndFilter(
-            candidates = subscriptionCandidates,
+            candidates = discoveryCandidates,
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p) },
             allowLive = false,
-            minThemeScore = 0.0,
+            minThemeScore = 0.28,
         ).filterNot { video -> video.url in subscriptionUrls }
         return HomeRecommendationPool(
             subscriptions = subscriptions,
@@ -41,7 +41,9 @@ class HomeRecommendationPoolBuilder {
         candidates.forEach { video ->
             if (video.url.isBlank()) return@forEach
             if (video.url in profile.seenUrls || video.url in profile.blockedVideos) return@forEach
+            if (video.url in profile.feedbackBlockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
+            if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.feedbackBlockedChannels) return@forEach
             if (!allowLive && HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) return@forEach
             if (minThemeScore > 0.0 && profile.themeTokens.isNotEmpty()) {
                 val themeScore = HomeRecommendationThemeExtractor.computeThemeScore(

@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.routes.homeRecommendationRoutes
@@ -12,10 +13,12 @@ import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
+import dev.typetype.server.services.SearchService
+import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import dev.typetype.server.services.WatchLaterService
-import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.RecommendationFeedbackService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -36,35 +39,36 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class HomeRecommendationRoutesTest {
-
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
+    private val searchService: SearchService = mockk()
+    private val feedbackService: RecommendationFeedbackService = mockk()
     private val subscriptionsService = SubscriptionsService()
-    private val historyService = HistoryService()
-    private val favoritesService = FavoritesService()
-    private val watchLaterService = WatchLaterService()
-    private val blockedService = BlockedService()
-    private val feedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
     private val recommendationService = HomeRecommendationService(
         subscriptionsService = subscriptionsService,
-        subscriptionFeedService = feedService,
-        historyService = historyService,
-        favoritesService = favoritesService,
-        watchLaterService = watchLaterService,
-        blockedService = blockedService,
+        subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache),
+        historyService = HistoryService(),
+        favoritesService = FavoritesService(),
+        watchLaterService = WatchLaterService(),
+        blockedService = BlockedService(),
+        feedbackService = feedbackService,
         trendingService = trendingService,
+        searchService = searchService,
         cache = cache,
     )
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
 
-    @BeforeEach
-    fun clean() {
+    @BeforeEach fun clean() {
         TestDatabase.truncateAll()
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
+        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(
+            SearchPageResponse(emptyList(), null, null, false),
+        )
+        coEvery { feedbackService.getAll(any()) } returns emptyList()
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -75,13 +79,33 @@ class HomeRecommendationRoutesTest {
         block()
     }
 
-    private fun video(id: String, uploaded: Long, url: String = "https://yt.com/v/$id", channel: String = "https://yt.com/c/a"): VideoItem = VideoItem(
+    @Test fun `GET recommendations home without token returns 401`() = withApp {
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/recommendations/home").status)
+    }
+
+    @Test fun `GET recommendations home returns items and cursor`() = withApp {
+        val now = System.currentTimeMillis()
+        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
+        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns ExtractionResult.Success(
+            ChannelResponse("A", "", "", "", 0L, false, listOf(video("v1", now), video("v2", now - 1)), null),
+        )
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t1", now - 2)))
+        val response = client.get("/recommendations/home?limit=2") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"items\""))
+        assertTrue(body.contains("\"nextCursor\":\""))
+    }
+
+    private fun video(id: String, uploaded: Long): VideoItem = VideoItem(
         id = id,
         title = id,
-        url = url,
+        url = "https://yt.com/v/$id",
         thumbnailUrl = "",
         uploaderName = "Channel",
-        uploaderUrl = channel,
+        uploaderUrl = "https://yt.com/c/$id",
         uploaderAvatarUrl = "",
         duration = 60,
         viewCount = 0,
@@ -92,27 +116,4 @@ class HomeRecommendationRoutesTest {
         uploaderVerified = false,
         shortDescription = null,
     )
-
-    @Test
-    fun `GET recommendations home without token returns 401`() = withApp {
-        val response = client.get("/recommendations/home")
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
-    }
-
-    @Test
-    fun `GET recommendations home returns items and cursor`() = withApp {
-        val now = System.currentTimeMillis()
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://yt.com/c/a", name = "A", avatarUrl = ""))
-        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns ExtractionResult.Success(
-            ChannelResponse("A", "", "", "", 0L, false, listOf(video("v1", now - 10_000), video("v2", now - 20_000), video("v3", now - 30_000)), null)
-        )
-        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t1", now - 40_000, url = "https://yt.com/v/t1", channel = "https://yt.com/c/t")))
-        val response = client.get("/recommendations/home?limit=2") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("\"items\""))
-        assertTrue(body.contains("\"nextCursor\":\""))
-    }
 }

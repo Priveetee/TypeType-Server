@@ -13,6 +13,9 @@ import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.TrendingService
 import dev.typetype.server.services.WatchLaterService
+import dev.typetype.server.services.SearchService
+import dev.typetype.server.models.SearchPageResponse
+import dev.typetype.server.services.RecommendationFeedbackService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
@@ -35,13 +38,26 @@ class HomeRecommendationRoutesValidationTest {
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
+    private val searchService: SearchService = mockk()
+    private val feedbackService: RecommendationFeedbackService = mockk()
     private val subscriptions = SubscriptionsService()
     private val history = HistoryService()
     private val favorites = FavoritesService()
     private val watchLater = WatchLaterService()
     private val blocked = BlockedService()
     private val feed = SubscriptionFeedService(subscriptions, channelService, cache)
-    private val service = HomeRecommendationService(subscriptions, feed, history, favorites, watchLater, blocked, trendingService, cache)
+    private val service = HomeRecommendationService(
+        subscriptions,
+        feed,
+        history,
+        favorites,
+        watchLater,
+        blocked,
+        feedbackService,
+        trendingService,
+        searchService,
+        cache,
+    )
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
@@ -52,6 +68,10 @@ class HomeRecommendationRoutesValidationTest {
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
+        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(
+            SearchPageResponse(emptyList(), null, null, false),
+        )
+        coEvery { feedbackService.getAll(any()) } returns emptyList()
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

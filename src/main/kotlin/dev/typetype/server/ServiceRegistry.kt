@@ -37,6 +37,7 @@ import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.WatchLaterService
 
 internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: String) {
@@ -71,6 +72,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService()
+    val recommendationFeedbackService = RecommendationFeedbackService()
     val homeRecommendationService = HomeRecommendationService(
         subscriptionsService = subscriptionsService,
         subscriptionFeedService = subscriptionFeedService,
@@ -78,7 +80,9 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
         favoritesService = favoritesService,
         watchLaterService = watchLaterService,
         blockedService = blockedService,
+        feedbackService = recommendationFeedbackService,
         trendingService = trendingService,
+        searchService = searchService,
         cache = cache,
     )
 }

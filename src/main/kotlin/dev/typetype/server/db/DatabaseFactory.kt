@@ -18,6 +18,7 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.PasswordResetTable
+import dev.typetype.server.db.tables.RecommendationFeedbackTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -55,6 +56,7 @@ object DatabaseFactory {
                 BlockedChannelsTable,
                 BlockedVideosTable,
                 PasswordResetTable,
+                RecommendationFeedbackTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
