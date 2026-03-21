@@ -25,7 +25,6 @@ class CachedStreamService(
     }
 
     private companion object {
-        const val STREAM_TTL_SECONDS = 14400L
+        const val STREAM_TTL_SECONDS = 21600L
     }
 }
-

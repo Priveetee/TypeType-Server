@@ -72,9 +72,11 @@ fun Application.module() {
     configurePlugins()
 
     routing {
-        rateLimit(EXTRACTION_ZONE) {
+        rateLimit(STREAMS_ZONE) {
             streamRoutes(svc.streamService)
             manifestRoutes(svc.manifestService, svc.nativeManifestService, svc.hlsManifestService)
+        }
+        rateLimit(EXTRACTION_ZONE) {
             searchRoutes(svc.searchService)
             suggestionRoutes(svc.suggestionService)
             trendingRoutes(svc.trendingService)

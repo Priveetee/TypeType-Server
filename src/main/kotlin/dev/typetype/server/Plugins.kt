@@ -26,12 +26,14 @@ import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
 
 private const val EXTRACTION_RATE_LIMIT = 60
+private const val STREAMS_RATE_LIMIT = 360
 private const val CHANNEL_RATE_LIMIT = 180
 private const val PROXY_RATE_LIMIT = 300
 private const val USER_DATA_RATE_LIMIT = 120
 private val RATE_LIMIT_WINDOW = 1.minutes
 
 val EXTRACTION_ZONE = RateLimitName("extraction")
+val STREAMS_ZONE = RateLimitName("streams")
 val CHANNEL_ZONE = RateLimitName("channel")
 val PROXY_ZONE = RateLimitName("proxy")
 val USER_DATA_ZONE = RateLimitName("user-data")
@@ -77,6 +79,10 @@ fun Application.configurePlugins() {
     install(RateLimit) {
         register(EXTRACTION_ZONE) {
             rateLimiter(limit = EXTRACTION_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
+        }
+        register(STREAMS_ZONE) {
+            rateLimiter(limit = STREAMS_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
             requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
         register(CHANNEL_ZONE) {
