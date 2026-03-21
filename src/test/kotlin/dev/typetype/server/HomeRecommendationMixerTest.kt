@@ -75,4 +75,40 @@ class HomeRecommendationMixerTest {
         assertEquals(3, page.items.size)
         assertNotNull(page.nextCursor)
     }
+
+    @Test
+    fun `mix enforces at least half discovery when stock exists`() {
+        val subs = (1..12).map { index -> video("s$index", "s$index") }
+        val discover = (1..12).map { index -> video("d$index", "d$index") }
+        val pool = HomeRecommendationPool(subscriptions = subs, discovery = discover)
+        val page = HomeRecommendationMixer.mix(
+            pool = pool,
+            cursor = HomeRecommendationCursor(),
+            limit = 10,
+        )
+        assertTrue(page.discoveryCount >= 5)
+        assertTrue(page.subscriptionCount <= 5)
+    }
+
+    @Test
+    fun `mix prevents more than two subscription picks in a row`() {
+        val subs = (1..12).map { index -> video("s$index", "s$index") }
+        val discover = (1..12).map { index -> video("d$index", "d$index") }
+        val pool = HomeRecommendationPool(subscriptions = subs, discovery = discover)
+        val page = HomeRecommendationMixer.mix(
+            pool = pool,
+            cursor = HomeRecommendationCursor(),
+            limit = 10,
+        )
+        val subUrls = pool.subscriptions.map { it.url }.toSet()
+        var run = 0
+        page.items.forEach { item ->
+            if (item.url in subUrls) {
+                run += 1
+                assertTrue(run <= 2)
+            } else {
+                run = 0
+            }
+        }
+    }
 }

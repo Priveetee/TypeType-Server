@@ -18,11 +18,18 @@ class HomeRecommendationCursorCodecTest {
     @Test
     fun `encode decode roundtrip preserves indexes`() {
         val encoded = HomeRecommendationCursorCodec.encode(
-            HomeRecommendationCursor(subscriptionIndex = 40, discoveryIndex = 12)
+            HomeRecommendationCursor(
+                subscriptionIndex = 40,
+                discoveryIndex = 12,
+                subscriptionRun = 2,
+                preferDiscovery = false,
+            )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
         assertEquals(40, decoded?.subscriptionIndex)
         assertEquals(12, decoded?.discoveryIndex)
+        assertEquals(2, decoded?.subscriptionRun)
+        assertEquals(false, decoded?.preferDiscovery)
     }
 
     @Test

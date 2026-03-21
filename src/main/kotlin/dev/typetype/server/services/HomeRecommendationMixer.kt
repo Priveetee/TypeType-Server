@@ -4,54 +4,65 @@ import dev.typetype.server.models.HomeRecommendationPool
 import dev.typetype.server.models.VideoItem
 
 object HomeRecommendationMixer {
-    private const val MAX_PER_CHANNEL_PER_PAGE = 2
-    private const val SUBSCRIPTION_RATIO = 0.6
-
     fun mix(pool: HomeRecommendationPool, cursor: HomeRecommendationCursor, limit: Int): HomeRecommendationPage {
+        val planner = HomeRecommendationQuotaPlanner(
+            limit = limit,
+            subscriptionSize = pool.subscriptions.size,
+            discoverySize = pool.discovery.size,
+        )
+        val machine = HomeRecommendationStateMachine(planner)
         val selected = mutableListOf<VideoItem>()
         val channelCount = mutableMapOf<String, Int>()
         var lastChannel = ""
         var subIndex = cursor.subscriptionIndex
         var discoveryIndex = cursor.discoveryIndex
-        val subscriptionTarget = (limit * SUBSCRIPTION_RATIO).toInt().coerceIn(1, limit)
-        var subscriptionPicked = 0
+        var subscriptionRun = cursor.subscriptionRun.coerceIn(0, HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
+        var preferDiscovery = cursor.preferDiscovery
+        var subscriptionCount = 0
+        var discoveryCount = 0
         while (selected.size < limit) {
-            val takeSubscription = subscriptionPicked < subscriptionTarget
-            val fromSubscription = if (takeSubscription) {
-                val pick = pickNext(pool.subscriptions, subIndex, channelCount, lastChannel)
-                subIndex = pick.nextIndex
-                pick.video
-            } else {
-                null
+            val decision = machine.decide(
+                subscriptionCount = subscriptionCount,
+                discoveryCount = discoveryCount,
+                selected = selected.size,
+                subscriptionRun = subscriptionRun,
+                preferDiscovery = preferDiscovery,
+            )
+            val picker = HomeRecommendationPicker(
+                pool = pool,
+                channelCount = channelCount,
+                lastChannel = lastChannel,
+            )
+            val selection = HomeRecommendationSelector.pick(
+                picker = picker,
+                wantDiscovery = decision.wantDiscovery,
+                subIndex = subIndex,
+                discoveryIndex = discoveryIndex,
+            )
+            if (selection == null) {
+                break
             }
-            val fromDiscovery = if (fromSubscription == null) {
-                val pick = pickNext(pool.discovery, discoveryIndex, channelCount, lastChannel)
-                discoveryIndex = pick.nextIndex
-                pick.video
-            } else {
-                null
-            }
-            val chosen = fromSubscription ?: fromDiscovery ?: run {
-                val fallbackSub = pickNext(pool.subscriptions, subIndex, channelCount, lastChannel)
-                subIndex = fallbackSub.nextIndex
-                val fallbackDisc = if (fallbackSub.video == null) {
-                    val next = pickNext(pool.discovery, discoveryIndex, channelCount, lastChannel)
-                    discoveryIndex = next.nextIndex
-                    next.video
-                } else {
-                    null
+            val video = selection.video
+            val state = selection.state
+            subIndex = state.subscriptionIndex
+            discoveryIndex = state.discoveryIndex
+            if (video in pool.subscriptions) {
+                subscriptionCount += 1
+                subscriptionRun = (subscriptionRun + 1)
+                    .coerceAtMost(HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
+                if (subscriptionRun >= HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN) {
+                    preferDiscovery = true
                 }
-                fallbackSub.video ?: fallbackDisc
+            } else {
+                discoveryCount += 1
+                subscriptionRun = 0
+                preferDiscovery = false
             }
-            if (chosen == null) break
-            selected += chosen
-            val key = channelKey(chosen)
+            selected += video
+            val key = channelKey(video)
             if (key.isNotBlank()) {
                 channelCount[key] = (channelCount[key] ?: 0) + 1
                 lastChannel = key
-            }
-            if (chosen in pool.subscriptions) {
-                subscriptionPicked += 1
             }
         }
         val hasMore = subIndex < pool.subscriptions.size || discoveryIndex < pool.discovery.size
@@ -60,32 +71,19 @@ object HomeRecommendationMixer {
                 HomeRecommendationCursor(
                     subscriptionIndex = subIndex,
                     discoveryIndex = discoveryIndex,
-                )
+                    subscriptionRun = subscriptionRun,
+                    preferDiscovery = preferDiscovery,
+                ),
             )
         } else {
             null
         }
-        return HomeRecommendationPage(items = selected, nextCursor = nextCursor)
-    }
-
-    private fun pickNext(
-        source: List<VideoItem>,
-        start: Int,
-        channelCount: Map<String, Int>,
-        lastChannel: String,
-    ): PickResult {
-        var index = start
-        while (index < source.size) {
-            val candidate = source[index]
-            index += 1
-            val channel = channelKey(candidate)
-            if (channel.isBlank()) return PickResult(video = candidate, nextIndex = index)
-            val count = channelCount[channel] ?: 0
-            if (count >= MAX_PER_CHANNEL_PER_PAGE) continue
-            if (channel == lastChannel) continue
-            return PickResult(video = candidate, nextIndex = index)
-        }
-        return PickResult(video = null, nextIndex = index)
+        return HomeRecommendationPage(
+            items = selected,
+            nextCursor = nextCursor,
+            subscriptionCount = subscriptionCount,
+            discoveryCount = discoveryCount,
+        )
     }
 
     private fun channelKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }

@@ -1,6 +1,8 @@
 package dev.typetype.server.services
 
 data class HomeRecommendationCursor(
-    val subscriptionIndex: Int,
-    val discoveryIndex: Int,
+    val subscriptionIndex: Int = 0,
+    val discoveryIndex: Int = 0,
+    val subscriptionRun: Int = 0,
+    val preferDiscovery: Boolean = true,
 )
