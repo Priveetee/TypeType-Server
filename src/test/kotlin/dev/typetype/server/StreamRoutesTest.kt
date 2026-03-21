@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.StreamService
 import io.ktor.client.request.get
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
@@ -39,6 +40,7 @@ class StreamRoutesTest {
         }
         val response = client.get("/streams?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
     }
 
     @Test
