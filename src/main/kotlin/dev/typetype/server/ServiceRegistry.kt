@@ -4,6 +4,8 @@ import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
+import dev.typetype.server.services.CachedManifestService
+import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.CachedSearchService
 import dev.typetype.server.services.CachedStreamService
 import dev.typetype.server.services.CachedSuggestionService
@@ -54,8 +56,8 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val channelService = CachedChannelService(PipePipeChannelService(), cache)
     val proxyService = OkHttpProxyService(proxyHttpClient)
     val nicoVideoProxyService = NicoVideoProxyService()
-    val manifestService = ManifestService(streamService)
-    val nativeManifestService = NativeManifestService()
+    val manifestService = CachedManifestService(ManifestService(streamService), cache)
+    val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
     val historyService = HistoryService()

@@ -10,8 +10,13 @@ class CachedStreamService(
     private val cache: CacheService,
 ) : StreamService {
 
+    companion object {
+        private const val STREAM_TTL_SECONDS = 21600L
+        fun cacheKey(url: String): String = "stream:$url"
+    }
+
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
-        val key = "stream:$url"
+        val key = cacheKey(url)
         runCatching { cache.get(key) }.getOrNull()?.let { cached ->
             return runCatching { ExtractionResult.Success(CacheJson.decodeFromString<StreamResponse>(cached)) }.getOrElse {
                 delegate.getStreamInfo(url)
@@ -24,7 +29,4 @@ class CachedStreamService(
         return result
     }
 
-    private companion object {
-        const val STREAM_TTL_SECONDS = 21600L
-    }
 }

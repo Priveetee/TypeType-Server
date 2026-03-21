@@ -2,9 +2,9 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.CachedManifestService
+import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.HlsManifestService
-import dev.typetype.server.services.ManifestService
-import dev.typetype.server.services.NativeManifestService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -12,7 +12,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
-fun Route.manifestRoutes(manifestService: ManifestService, nativeManifestService: NativeManifestService, hlsManifestService: HlsManifestService) {
+fun Route.manifestRoutes(manifestService: CachedManifestService, nativeManifestService: CachedNativeManifestService, hlsManifestService: HlsManifestService) {
     get("/streams/manifest") {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))

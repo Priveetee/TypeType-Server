@@ -2,10 +2,13 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.manifestRoutes
+import dev.typetype.server.services.CachedManifestService
+import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.cache.CacheService
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -23,8 +26,9 @@ import org.junit.jupiter.api.Test
 class ManifestRoutesTest {
 
     private val streamService: StreamService = mockk()
-    private val manifestService = ManifestService(streamService)
-    private val nativeManifestService = NativeManifestService()
+    private val cache = InMemoryCacheService()
+    private val manifestService = CachedManifestService(ManifestService(streamService), cache)
+    private val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     private val hlsManifestService: HlsManifestService = mockk()
 
     @Test
@@ -74,4 +78,11 @@ class ManifestRoutesTest {
         val response = client.get("/streams/native-manifest")
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
+}
+
+private class InMemoryCacheService : CacheService {
+    private val map = mutableMapOf<String, String>()
+    override suspend fun get(key: String): String? = map[key]
+    override suspend fun set(key: String, value: String, ttlSeconds: Long) { map[key] = value }
+    override suspend fun delete(key: String) { map.remove(key) }
 }
