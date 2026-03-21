@@ -17,12 +17,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 
 @Serializable
 private data class RoleBody(val role: String)
 
 @Serializable
 private data class ResetTokenResponse(val resetToken: String)
+
+private val adminRouteLog = LoggerFactory.getLogger("AdminRoutes")
 
 fun Route.adminRoutes(
     authService: AuthService,
@@ -69,8 +72,12 @@ fun Route.adminRoutes(
     }
 
     put("/admin/users/{id}/role") {
-        call.withAdminAuth(authService) { _ ->
+        call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            if (id == adminId) {
+                adminRouteLog.warn("Admin role self-change blocked for userId={}", adminId)
+                return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot modify your own role"))
+            }
             val body = runCatching { call.receive<RoleBody>() }.getOrElse {
                 return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }

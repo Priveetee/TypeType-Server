@@ -8,9 +8,13 @@ import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -111,5 +115,20 @@ class AdminUsersRoutesTest {
         }
         val response = client.get("/admin/users?page=1&limit=500") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `PUT admin role rejects self role change with 403`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(auth, userAdminService, passwordResetService, adminSettingsService) }
+        }
+        val response = client.put("/admin/users/$TEST_USER_ID/role") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"role":"moderator"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertTrue(response.bodyAsText().contains("Cannot modify your own role"))
     }
 }
