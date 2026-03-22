@@ -28,22 +28,25 @@ class YoutubeTakeoutImporterService(
         var plSkipped = 0
         var itemImported = 0
         var itemSkipped = 0
-        val createdByName = mutableMapOf<String, PlaylistItem>()
+        val createdBySource = mutableMapOf<String, PlaylistItem>()
         parsed.playlists.forEach { item ->
-            val key = item.name.lowercase()
-            val existing = existingPlaylists[key]
-            if (existing != null) {
+            val nameKey = item.name.lowercase()
+            val idKey = item.id.lowercase()
+            val existing = existingPlaylists[nameKey]
+            val playlist = if (existing != null) {
                 plSkipped += 1
-                createdByName[key] = existing
+                existing
             } else {
                 val created = playlistService.create(userId, PlaylistItem(name = item.name, description = item.description))
                 plImported += 1
-                createdByName[key] = created
+                created
             }
+            createdBySource[nameKey] = playlist
+            if (idKey.isNotBlank()) createdBySource[idKey] = playlist
         }
         parsed.playlistItems.forEach { (playlistKey, videos) ->
             val normalizedKey = playlistKey.lowercase()
-            val playlist = createdByName[normalizedKey] ?: createdByName.values.firstOrNull { it.id == playlistKey } ?: return@forEach
+            val playlist = createdBySource[normalizedKey] ?: return@forEach
             val existingUrls = existingPlaylistVideos[playlist.name.lowercase()].orEmpty().toMutableSet()
             videos.forEach { video ->
                 if (video.url in existingUrls) itemSkipped += 1 else {
