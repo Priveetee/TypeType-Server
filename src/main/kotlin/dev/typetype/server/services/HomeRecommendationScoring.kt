@@ -16,7 +16,9 @@ object HomeRecommendationScoring {
             themeTokens = profile.themeTokens,
         )
         val themeBoost = themeScore * 0.8
-        return base + commonSignals(video, profile) + themeBoost
+        val channelBoost = (profile.channelInterest[video.uploaderUrl] ?: 0.0).coerceIn(-5.0, 8.0) * 0.08
+        val topicBoost = topicBoost(video, profile.topicInterest)
+        return base + commonSignals(video, profile) + themeBoost + channelBoost + topicBoost
     }
 
     private fun commonSignals(video: VideoItem, profile: HomeRecommendationProfile): Double {
@@ -40,6 +42,14 @@ object HomeRecommendationScoring {
         if (uploaded <= 0) return 0.0
         val ageHours = (System.currentTimeMillis() - uploaded).coerceAtLeast(0L) / 3_600_000.0
         return 1.0 / (1.0 + ageHours / 60.0)
+    }
+
+    private fun topicBoost(video: VideoItem, topicInterest: Map<String, Double>): Double {
+        if (topicInterest.isEmpty()) return 0.0
+        val tokens = RecommendationTopicTokenizer.tokenize("${video.title} ${video.uploaderName}")
+        if (tokens.isEmpty()) return 0.0
+        val raw = tokens.sumOf { token -> topicInterest[token] ?: 0.0 }
+        return raw.coerceIn(-4.0, 10.0) * 0.06
     }
 
 }

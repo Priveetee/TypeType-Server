@@ -7,6 +7,7 @@ class HomeRecommendationUserSignalService(
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
     private val feedbackSignalService: RecommendationFeedbackSignalService,
+    private val interestProfileService: RecommendationInterestProfileService,
 ) {
     suspend fun loadProfile(userId: String): HomeRecommendationProfile {
         val subscriptions = subscriptionsService.getAll(userId)
@@ -23,6 +24,7 @@ class HomeRecommendationUserSignalService(
         val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
         val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
         val feedbackSignals = feedbackSignalService.load(userId)
+        val interestProfile = interestProfileService.load(userId)
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLater.map { it.url }.toSet()
@@ -55,6 +57,8 @@ class HomeRecommendationUserSignalService(
             keywordAffinity = keywordAffinity,
             themeTokens = themeTokens,
             themeQueries = themeQueries,
+            channelInterest = interestProfile.channelScores,
+            topicInterest = interestProfile.topicScores,
         )
     }
 }

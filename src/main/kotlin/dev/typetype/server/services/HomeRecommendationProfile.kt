@@ -12,4 +12,6 @@ data class HomeRecommendationProfile(
     val keywordAffinity: Set<String>,
     val themeTokens: Set<String>,
     val themeQueries: List<String>,
+    val channelInterest: Map<String, Double> = emptyMap(),
+    val topicInterest: Map<String, Double> = emptyMap(),
 )

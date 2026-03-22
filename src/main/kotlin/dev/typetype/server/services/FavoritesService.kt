@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
-class FavoritesService {
+class FavoritesService(private val eventService: RecommendationEventService? = null) {
 
     suspend fun getAll(userId: String): List<FavoriteItem> = DatabaseFactory.query {
         FavoritesTable.selectAll()
@@ -29,6 +29,14 @@ class FavoritesService {
                 it[favoritedAt] = now
             }
         }
+        eventService?.add(
+            userId = userId,
+            eventType = "favorite",
+            videoUrl = videoUrl,
+            uploaderUrl = null,
+            title = null,
+            watchRatio = null,
+        )
         return FavoriteItem(videoUrl = videoUrl, favoritedAt = now)
     }
 

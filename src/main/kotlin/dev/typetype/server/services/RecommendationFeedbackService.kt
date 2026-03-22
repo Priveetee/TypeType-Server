@@ -10,7 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
-class RecommendationFeedbackService {
+class RecommendationFeedbackService(private val eventService: RecommendationEventService) {
     suspend fun getAll(userId: String): List<RecommendationFeedbackItem> = DatabaseFactory.query {
         RecommendationFeedbackTable.selectAll()
             .where { RecommendationFeedbackTable.userId eq userId }
@@ -32,6 +32,15 @@ class RecommendationFeedbackService {
                 it[RecommendationFeedbackTable.createdAt] = now
             }
         }
+        val eventType = if (feedbackType == "not_interested") "not_interested" else "less_from_channel"
+        eventService.add(
+            userId = userId,
+            eventType = eventType,
+            videoUrl = videoUrl,
+            uploaderUrl = uploaderUrl,
+            title = null,
+            watchRatio = null,
+        )
         return RecommendationFeedbackItem(id, feedbackType, videoUrl, uploaderUrl, now)
     }
 

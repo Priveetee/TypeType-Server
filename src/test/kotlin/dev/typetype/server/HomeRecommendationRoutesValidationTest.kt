@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.routes.homeRecommendationRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
@@ -9,13 +10,14 @@ import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
-import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.RecommendationEventService
+import dev.typetype.server.services.RecommendationFeedbackService
+import dev.typetype.server.services.RecommendationInterestService
+import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import dev.typetype.server.services.WatchLaterService
-import dev.typetype.server.services.SearchService
-import dev.typetype.server.models.SearchPageResponse
-import dev.typetype.server.services.RecommendationFeedbackService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
@@ -34,26 +36,19 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class HomeRecommendationRoutesValidationTest {
-
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
-    private val feedbackService: RecommendationFeedbackService = mockk()
-    private val subscriptions = SubscriptionsService()
-    private val history = HistoryService()
-    private val favorites = FavoritesService()
-    private val watchLater = WatchLaterService()
-    private val blocked = BlockedService()
-    private val feed = SubscriptionFeedService(subscriptions, channelService, cache)
+    private val feedback = RecommendationFeedbackService(RecommendationEventService(RecommendationInterestService()))
     private val service = HomeRecommendationService(
-        subscriptions,
-        feed,
-        history,
-        favorites,
-        watchLater,
-        blocked,
-        feedbackService,
+        SubscriptionsService(),
+        SubscriptionFeedService(SubscriptionsService(), channelService, cache),
+        HistoryService(),
+        FavoritesService(),
+        WatchLaterService(),
+        BlockedService(),
+        feedback,
         trendingService,
         searchService,
         cache,
@@ -68,10 +63,7 @@ class HomeRecommendationRoutesValidationTest {
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
-        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(
-            SearchPageResponse(emptyList(), null, null, false),
-        )
-        coEvery { feedbackService.getAll(any()) } returns emptyList()
+        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -84,17 +76,13 @@ class HomeRecommendationRoutesValidationTest {
 
     @Test
     fun `invalid cursor returns 400`() = withApp {
-        val response = client.get("/recommendations/home?cursor=bad!!") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }
+        val response = client.get("/recommendations/home?cursor=bad!!") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test
     fun `invalid service returns 400`() = withApp {
-        val response = client.get("/recommendations/home?service=999") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }
+        val response = client.get("/recommendations/home?service=999") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 }

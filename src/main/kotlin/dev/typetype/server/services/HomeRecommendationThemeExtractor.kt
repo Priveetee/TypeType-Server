@@ -4,6 +4,9 @@ import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.WatchLaterItem
 
 object HomeRecommendationThemeExtractor {
+    private val genericTerms = setOf(
+        "topic", "technopolis", "podcast", "podcasts", "official", "gaming", "vlog", "music", "mix", "live",
+    )
     private val stopWords = setOf(
         "the", "and", "for", "with", "official", "channel", "tv", "video", "videos", "vlog", "vlogs", "new", "best",
         "top", "how", "what", "when", "where", "why", "this", "that", "these", "those", "from", "about", "more",
@@ -47,8 +50,10 @@ object HomeRecommendationThemeExtractor {
     fun buildThemeQueries(themeTokens: Set<String>): List<String> {
         if (themeTokens.isEmpty()) return emptyList()
         val ranked = themeTokens
+            .filterNot { token -> token in genericTerms }
             .sortedByDescending { token -> token.length }
             .take(30)
+        if (ranked.isEmpty()) return emptyList()
         val queries = mutableSetOf<String>()
         for (window in 0 until ranked.size step 3) {
             val chunk = ranked.drop(window).take(3)

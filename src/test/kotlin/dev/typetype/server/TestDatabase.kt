@@ -16,6 +16,9 @@ import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.TokenTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
+import dev.typetype.server.db.tables.RecommendationEventsTable
+import dev.typetype.server.db.tables.UserChannelInterestTable
+import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.jdbc.deleteAll
@@ -52,5 +55,8 @@ object TestDatabase {
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()
         RecommendationFeedbackTable.deleteAll()
+        RecommendationEventsTable.deleteAll()
+        UserChannelInterestTable.deleteAll()
+        UserTopicInterestTable.deleteAll()
     }
 }

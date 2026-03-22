@@ -7,7 +7,7 @@ data class RecommendationFeedbackSignals(
 
 class RecommendationFeedbackSignalService(private val feedbackService: RecommendationFeedbackService) {
     suspend fun load(userId: String): RecommendationFeedbackSignals {
-        val items = feedbackService.getAll(userId)
+        val items = runCatching { feedbackService.getAll(userId) }.getOrElse { emptyList() }
         val blockedVideos = items
             .asSequence()
             .filter { it.feedbackType == "not_interested" }

@@ -1,9 +1,8 @@
 package dev.typetype.server
 
-import dev.typetype.server.routes.recommendationFeedbackRoutes
+import dev.typetype.server.routes.recommendationEventsRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.RecommendationEventService
-import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -25,9 +24,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class RecommendationFeedbackRoutesTest {
+class RecommendationEventsRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
-    private val service = RecommendationFeedbackService(RecommendationEventService(RecommendationInterestService()))
+    private val service = RecommendationEventService(RecommendationInterestService())
 
     companion object {
         @BeforeAll
@@ -41,34 +40,34 @@ class RecommendationFeedbackRoutesTest {
     }
 
     @Test
-    fun `POST and GET recommendation feedback works`() = testApplication {
+    fun `POST and GET recommendation events works`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { recommendationFeedbackRoutes(service, auth) }
+            routing { recommendationEventsRoutes(service, auth) }
         }
-        val post = client.post("/recommendations/feedback") {
+        val post = client.post("/recommendations/events") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
             contentType(ContentType.Application.Json)
-            setBody("""{"feedbackType":"not_interested","videoUrl":"https://yt.com/v/abc"}""")
+            setBody("""{"eventType":"click","videoUrl":"https://yt.com/v/a","title":"linux release"}""")
         }
         assertEquals(HttpStatusCode.Created, post.status)
-        val get = client.get("/recommendations/feedback") {
+        val get = client.get("/recommendations/events") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.OK, get.status)
-        assertTrue(get.bodyAsText().contains("not_interested"))
+        assertTrue(get.bodyAsText().contains("click"))
     }
 
     @Test
-    fun `POST invalid feedbackType returns 400`() = testApplication {
+    fun `POST invalid eventType returns 400`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { recommendationFeedbackRoutes(service, auth) }
+            routing { recommendationEventsRoutes(service, auth) }
         }
-        val response = client.post("/recommendations/feedback") {
+        val response = client.post("/recommendations/events") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
             contentType(ContentType.Application.Json)
-            setBody("""{"feedbackType":"foo"}""")
+            setBody("""{"eventType":"bad"}""")
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }

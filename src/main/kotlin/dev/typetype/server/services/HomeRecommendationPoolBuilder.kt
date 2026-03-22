@@ -17,12 +17,13 @@ class HomeRecommendationPoolBuilder {
             minThemeScore = 0.0,
         )
         val subscriptionUrls = subscriptions.map { it.url }.toSet()
+        val discoveryMinThemeScore = if (profile.themeTokens.size < 8) 0.24 else 0.34
         val discovery = scoreAndFilter(
             candidates = discoveryCandidates,
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p) },
             allowLive = false,
-            minThemeScore = 0.28,
+            minThemeScore = discoveryMinThemeScore,
         ).filterNot { video -> video.url in subscriptionUrls }
         return HomeRecommendationPool(
             subscriptions = subscriptions,

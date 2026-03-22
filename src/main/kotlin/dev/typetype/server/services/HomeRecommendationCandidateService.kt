@@ -10,12 +10,19 @@ class HomeRecommendationCandidateService(
 ) {
     suspend fun fetchCandidates(userId: String, serviceId: Int, profile: HomeRecommendationProfile): HomeRecommendationCandidatePool {
         val subscriptions = fetchSubscriptionCandidates(userId)
-        val discovery = (fetchTrendingCandidates(serviceId) + fetchSearchCandidates(serviceId, profile.themeQueries))
+        val searchCandidates = if (profile.themeQueries.isEmpty()) emptyList() else fetchSearchCandidates(serviceId, profile.themeQueries)
+        val minThemeScore = if (profile.themeTokens.size < 8) 0.24 else 0.34
+        val discovery = (fetchTrendingCandidates(serviceId) + searchCandidates)
             .asSequence()
             .filter { video -> video.uploaderUrl !in profile.subscriptionChannels }
             .filter { video -> video.url !in profile.feedbackBlockedVideos }
             .filter { video -> video.uploaderUrl !in profile.feedbackBlockedChannels }
             .filter { video -> HomeRecommendationLanguageGate.isLikelyPreferred(video, profile) }
+            .filter { video -> HomeRecommendationLiveTitleDetector.isLiveLike(video.title).not() }
+            .filter { video -> (profile.channelInterest[video.uploaderUrl] ?: 0.0) > -1.5 }
+            .filter { video ->
+                HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens) >= minThemeScore
+            }
             .distinctBy { video -> video.url }
             .toList()
         return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)

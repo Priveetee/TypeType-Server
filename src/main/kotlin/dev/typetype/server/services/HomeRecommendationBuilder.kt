@@ -21,6 +21,7 @@ class HomeRecommendationBuilder(
             watchLaterService = watchLaterService,
             blockedService = blockedService,
             feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
+            interestProfileService = RecommendationInterestProfileService(),
         ).loadProfile(userId)
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,

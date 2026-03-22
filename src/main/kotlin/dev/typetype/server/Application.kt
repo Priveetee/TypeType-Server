@@ -21,6 +21,7 @@ import dev.typetype.server.routes.restoreRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.searchHistoryRoutes
 import dev.typetype.server.routes.recommendationFeedbackRoutes
+import dev.typetype.server.routes.recommendationEventsRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.routes.streamRoutes
@@ -32,6 +33,7 @@ import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
 import dev.typetype.server.routes.tokenRoutes
+import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
@@ -100,21 +102,6 @@ fun Application.module() {
         authRoutes(authService, passwordResetService, profileService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         avatarRoutes(avatarService)
-        rateLimit(USER_DATA_ZONE) {
-            historyRoutes(svc.historyService, authService)
-            subscriptionsRoutes(svc.subscriptionsService, authService)
-            subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
-            playlistRoutes(svc.playlistService, authService)
-            watchLaterRoutes(svc.watchLaterService, authService)
-            progressRoutes(svc.progressService, authService)
-            favoritesRoutes(svc.favoritesService, authService)
-            settingsRoutes(svc.settingsService, authService)
-            searchHistoryRoutes(svc.searchHistoryService, authService)
-            blockedRoutes(svc.blockedService, authService)
-            recommendationFeedbackRoutes(svc.recommendationFeedbackService, authService)
-            profileRoutes(profileService, avatarService, authService)
-            restoreRoutes(restoreService, authService)
-            homeRecommendationRoutes(svc.homeRecommendationService, authService)
-        }
+        rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, restoreService) }
     }
 }

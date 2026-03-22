@@ -41,6 +41,8 @@ class HomeRecommendationPoolBuilderTest {
             keywordAffinity = setOf("music"),
             themeTokens = emptySet(),
             themeQueries = emptyList(),
+            channelInterest = emptyMap(),
+            topicInterest = emptyMap(),
         )
         val subscriptions = listOf(
             video("seen", "sub"),
@@ -73,6 +75,8 @@ class HomeRecommendationPoolBuilderTest {
             keywordAffinity = setOf("music"),
             themeTokens = emptySet(),
             themeQueries = emptyList(),
+            channelInterest = emptyMap(),
+            topicInterest = emptyMap(),
         )
         val subscriptions = listOf(
             video("plain", "a", title = "daily vlog"),
@@ -96,6 +100,8 @@ class HomeRecommendationPoolBuilderTest {
             keywordAffinity = emptySet(),
             themeTokens = emptySet(),
             themeQueries = emptyList(),
+            channelInterest = emptyMap(),
+            topicInterest = emptyMap(),
         )
         val discovery = listOf(
             video("live1", "a", title = "Breaking is live now"),
