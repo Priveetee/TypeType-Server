@@ -39,20 +39,14 @@ import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YouTubeSubtitleService
+import dev.typetype.server.services.YoutubeTakeoutFactory
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: String) {
     private val httpClient = OkHttpClient()
-    private val proxyHttpClient = httpClient.newBuilder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .build()
-    val streamService = CachedStreamService(
-        PipePipeStreamService(cache, YouTubeSubtitleService(httpClient, subtitleServiceUrl), BilibiliRelatedService()),
-        cache,
-    )
+    private val proxyHttpClient = httpClient.newBuilder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).followRedirects(true).build()
+    val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient, subtitleServiceUrl), BilibiliRelatedService()), cache)
     val searchService = CachedSearchService(PipePipeSearchService(), cache)
     val trendingService = CachedTrendingService(PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient)), cache)
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
@@ -77,16 +71,6 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService(recommendationEventService)
     val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
-    val homeRecommendationService = HomeRecommendationService(
-        subscriptionsService,
-        subscriptionFeedService,
-        historyService,
-        favoritesService,
-        watchLaterService,
-        blockedService,
-        recommendationFeedbackService,
-        trendingService,
-        searchService,
-        cache,
-    )
+    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService)
+    val homeRecommendationService = HomeRecommendationService(subscriptionsService, subscriptionFeedService, historyService, favoritesService, watchLaterService, blockedService, recommendationFeedbackService, trendingService, searchService, cache)
 }

@@ -1,0 +1,100 @@
+package dev.typetype.server
+
+import dev.typetype.server.routes.youtubeTakeoutImportRoutes
+import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.YoutubeTakeoutImportJobService
+import dev.typetype.server.services.YoutubeTakeoutImporterService
+import dev.typetype.server.services.YoutubeTakeoutParserService
+import dev.typetype.server.services.YoutubeTakeoutPreviewService
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+
+class YoutubeTakeoutImportRoutesTest {
+    private val auth = AuthService.fixed(TEST_USER_ID)
+    private val importService = YoutubeTakeoutImportJobService(
+        parser = YoutubeTakeoutParserService(),
+        previewService = YoutubeTakeoutPreviewService(SubscriptionsService(), PlaylistService()),
+        importerService = YoutubeTakeoutImporterService(SubscriptionsService(), PlaylistService()),
+    )
+
+    companion object {
+        @BeforeAll
+        @JvmStatic
+        fun initDb() = TestDatabase.setup()
+    }
+
+    @BeforeEach
+    fun clean() {
+        TestDatabase.truncateAll()
+    }
+
+    @Test
+    fun `upload preview commit and report`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { youtubeTakeoutImportRoutes(importService, auth) }
+        }
+        val zip = createTakeoutZip()
+        val upload = client.post("/imports/youtube-takeout") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            setBody(MultiPartFormDataContent(formData {
+                append("archive", Files.readAllBytes(zip), Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.Zip.toString())
+                    append(HttpHeaders.ContentDisposition, "filename=takeout.zip")
+                })
+            }))
+        }
+        assertEquals(HttpStatusCode.Created, upload.status)
+        val jobId = Json.parseToJsonElement(upload.bodyAsText()).jsonObject["jobId"]!!.jsonPrimitive.content
+        val preview = client.get("/imports/youtube-takeout/$jobId/preview") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.OK, preview.status)
+        val commit = client.post("/imports/youtube-takeout/$jobId/commit") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.Accepted, commit.status)
+        val report = client.get("/imports/youtube-takeout/$jobId/report") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.OK, report.status)
+        Files.deleteIfExists(zip)
+    }
+
+    private fun createTakeoutZip(): Path {
+        val zip = Files.createTempFile("yt-takeout-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("subscriptions.csv"))
+            out.write("channel id,channel title\nUC1,Linus Tech Tips\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("playlists.csv"))
+            out.write("playlist id,title,description\nPL1,Tech Picks,desc\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("playlist_items.csv"))
+            out.write("playlist id,video id,video title\nPL1,abc123,Video\n".toByteArray())
+            out.closeEntry()
+        }
+        return zip
+    }
+}

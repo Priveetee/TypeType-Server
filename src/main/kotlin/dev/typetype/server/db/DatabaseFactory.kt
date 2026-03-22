@@ -22,6 +22,7 @@ import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
+import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -63,6 +64,7 @@ object DatabaseFactory {
                 RecommendationEventsTable,
                 UserChannelInterestTable,
                 UserTopicInterestTable,
+                YoutubeTakeoutImportJobsTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
