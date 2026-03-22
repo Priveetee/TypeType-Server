@@ -13,7 +13,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 import java.util.Date
 
-open class AuthService(private val jwtSecret: String) {
+open class AuthService(private val jwtSecret: String, private val hasUsersProbe: (() -> Boolean)? = null) {
 
     fun register(email: String, password: String, name: String): String {
         val hashed = Password.hash(password).withArgon2().result
@@ -103,10 +103,16 @@ open class AuthService(private val jwtSecret: String) {
         }?.get(UsersTable.role)
     }
 
+    fun hasUsers(): Boolean = hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+
     companion object {
         private const val GUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000L
 
         fun fixed(userId: String): AuthService = object : AuthService("test") {
+            override fun verify(token: String): String? = if (token == "test-jwt") userId else null
+        }
+
+        fun fixed(userId: String, hasUsers: Boolean): AuthService = object : AuthService("test", { hasUsers }) {
             override fun verify(token: String): String? = if (token == "test-jwt") userId else null
         }
     }

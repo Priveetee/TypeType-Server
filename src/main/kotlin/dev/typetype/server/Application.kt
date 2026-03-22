@@ -99,7 +99,7 @@ fun Application.module() {
             storyboardProxyRoutes(svc.proxyService)
         }
         tokenRoutes(tokenService)
-        authRoutes(authService, passwordResetService, profileService)
+        authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         avatarRoutes(avatarService)
         rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, restoreService) }

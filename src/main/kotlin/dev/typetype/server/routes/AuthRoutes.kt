@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.UserProfileItem
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
@@ -29,11 +30,16 @@ data class AuthResponse(val token: String)
 @Serializable
 private data class ResetPasswordRequest(val resetToken: String, val newPassword: String)
 
-fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService) {
+fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService) {
     post("/auth/register") {
         val req = call.receive<RegisterRequest>()
         if (req.email.isBlank() || req.password.isBlank() || req.name.isBlank()) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing fields"))
+            return@post
+        }
+        val registrationAllowed = adminSettingsService.get().allowRegistration || !authService.hasUsers()
+        if (!registrationAllowed) {
+            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Registration is disabled"))
             return@post
         }
         try {
