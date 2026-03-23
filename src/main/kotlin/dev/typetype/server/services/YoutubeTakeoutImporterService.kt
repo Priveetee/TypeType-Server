@@ -12,6 +12,7 @@ import dev.typetype.server.models.YoutubeTakeoutParsedData
 class YoutubeTakeoutImporterService(
     private val subscriptionsService: SubscriptionsService,
     private val playlistService: PlaylistService,
+    private val signalImportService: YoutubeTakeoutSignalImportService,
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
 ) {
     suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem {
@@ -74,11 +75,17 @@ class YoutubeTakeoutImporterService(
                 }
             }
         }
+        val favoriteStats = if (plan.importFavorites) signalImportService.importFavorites(userId, parsed.favorites) else YoutubeTakeoutImportStats(0, 0, 0)
+        val watchLaterStats = if (plan.importWatchLater) signalImportService.importWatchLater(userId, parsed.watchLater) else YoutubeTakeoutImportStats(0, 0, 0)
+        val historyStats = if (plan.importHistory) signalImportService.importHistory(userId, parsed.history) else YoutubeTakeoutImportStats(0, 0, 0)
         return YoutubeTakeoutImportReportItem(
             subscriptions = YoutubeTakeoutImportStats(imported = subImported, skipped = subSkipped, failed = 0),
             playlists = YoutubeTakeoutImportStats(imported = plImported, skipped = plSkipped, failed = 0),
             playlistItems = YoutubeTakeoutImportStats(imported = itemImported, skipped = itemSkipped, failed = 0),
-            skippedItems = YoutubeTakeoutCategoryCounts(subSkipped, plSkipped, itemSkipped),
+            favorites = favoriteStats,
+            watchLater = watchLaterStats,
+            history = historyStats,
+            skippedItems = YoutubeTakeoutCategoryCounts(subSkipped, plSkipped, itemSkipped, favoriteStats.skipped, watchLaterStats.skipped, historyStats.skipped),
             warnings = parsed.warnings,
             errors = parsed.errors,
             finishedAt = System.currentTimeMillis(),

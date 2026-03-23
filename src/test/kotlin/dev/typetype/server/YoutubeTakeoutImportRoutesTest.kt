@@ -2,12 +2,17 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.youtubeTakeoutImportRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FavoritesService
+import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutImportJobService
 import dev.typetype.server.services.YoutubeTakeoutImporterService
 import dev.typetype.server.services.YoutubeTakeoutParserService
+import dev.typetype.server.services.YoutubeTakeoutPreviewLookupService
 import dev.typetype.server.services.YoutubeTakeoutPreviewService
+import dev.typetype.server.services.YoutubeTakeoutSignalImportService
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
@@ -39,10 +44,17 @@ import java.util.zip.ZipOutputStream
 
 class YoutubeTakeoutImportRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
+    private val subscriptions = SubscriptionsService()
+    private val playlists = PlaylistService()
+    private val history = HistoryService()
+    private val favorites = FavoritesService()
+    private val watchLater = WatchLaterService()
+    private val previewLookup = YoutubeTakeoutPreviewLookupService(history, favorites, watchLater)
+    private val signalImport = YoutubeTakeoutSignalImportService(favorites, watchLater, history)
     private val importService = YoutubeTakeoutImportJobService(
         parser = YoutubeTakeoutParserService(),
-        previewService = YoutubeTakeoutPreviewService(SubscriptionsService(), PlaylistService()),
-        importerService = YoutubeTakeoutImporterService(SubscriptionsService(), PlaylistService()),
+        previewService = YoutubeTakeoutPreviewService(subscriptions, playlists, previewLookup),
+        importerService = YoutubeTakeoutImporterService(subscriptions, playlists, signalImport),
     )
 
     companion object {

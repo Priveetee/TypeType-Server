@@ -19,7 +19,6 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class HistoryService(private val eventService: RecommendationEventService? = null) {
-
     suspend fun search(userId: String, q: String?, from: Long?, to: Long?, limit: Int, offset: Int): Pair<List<HistoryItem>, Long> = DatabaseFactory.query {
         val query = HistoryTable.selectAll().where { HistoryTable.userId eq userId }
         if (!q.isNullOrBlank()) {
@@ -29,16 +28,22 @@ class HistoryService(private val eventService: RecommendationEventService? = nul
         if (from != null) query.andWhere { HistoryTable.watchedAt greaterEq from }
         if (to != null) query.andWhere { HistoryTable.watchedAt less to }
         val total = query.count()
-        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC)
-            .limit(limit)
-            .offset(offset.toLong())
-            .map { it.toHistoryItem() }
+        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC).limit(limit).offset(offset.toLong()).map { it.toHistoryItem() }
         items to total
     }
 
-    suspend fun add(userId: String, item: HistoryItem): HistoryItem {
+    suspend fun add(userId: String, item: HistoryItem): HistoryItem = insert(userId, item, System.currentTimeMillis())
+
+    suspend fun addImported(userId: String, item: HistoryItem): HistoryItem = insert(userId, item, item.watchedAt.takeIf { it > 0 } ?: System.currentTimeMillis())
+
+    suspend fun dedupKeys(userId: String): Set<Pair<String, Long>> = DatabaseFactory.query { HistoryTable.selectAll().where { HistoryTable.userId eq userId }.map { it[HistoryTable.url] to it[HistoryTable.watchedAt] }.toSet() }
+
+    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query { HistoryTable.deleteWhere { HistoryTable.id eq id and (HistoryTable.userId eq userId) } > 0 }
+
+    suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query { HistoryTable.deleteWhere { HistoryTable.userId eq userId } }
+
+    private suspend fun insert(userId: String, item: HistoryItem, watchedAt: Long): HistoryItem {
         val id = UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
         DatabaseFactory.query {
             HistoryTable.insert {
                 it[HistoryTable.id] = id
@@ -51,39 +56,13 @@ class HistoryService(private val eventService: RecommendationEventService? = nul
                 it[channelAvatar] = item.channelAvatar
                 it[duration] = item.duration
                 it[progress] = item.progress
-                it[watchedAt] = now
+                it[HistoryTable.watchedAt] = watchedAt
             }
         }
         val ratio = if (item.duration > 0) item.progress.toDouble() / item.duration.toDouble() else 0.0
-        eventService?.add(
-            userId = userId,
-            eventType = "watch",
-            videoUrl = item.url,
-            uploaderUrl = item.channelUrl,
-            title = item.title,
-            watchRatio = ratio.coerceIn(0.0, 1.0),
-        )
-        return item.copy(id = id, watchedAt = now)
+        eventService?.add(userId = userId, eventType = "watch", videoUrl = item.url, uploaderUrl = item.channelUrl, title = item.title, watchRatio = ratio.coerceIn(0.0, 1.0))
+        return item.copy(id = id, watchedAt = watchedAt)
     }
 
-    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query {
-        HistoryTable.deleteWhere { HistoryTable.id eq id and (HistoryTable.userId eq userId) } > 0
-    }
-
-    suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query {
-        HistoryTable.deleteWhere { HistoryTable.userId eq userId }
-    }
-
-    private fun ResultRow.toHistoryItem() = HistoryItem(
-        id = this[HistoryTable.id],
-        url = this[HistoryTable.url],
-        title = this[HistoryTable.title],
-        thumbnail = this[HistoryTable.thumbnail],
-        channelName = this[HistoryTable.channelName],
-        channelUrl = this[HistoryTable.channelUrl],
-        channelAvatar = this[HistoryTable.channelAvatar],
-        duration = this[HistoryTable.duration],
-        progress = this[HistoryTable.progress],
-        watchedAt = this[HistoryTable.watchedAt],
-    )
+    private fun ResultRow.toHistoryItem() = HistoryItem(id = this[HistoryTable.id], url = this[HistoryTable.url], title = this[HistoryTable.title], thumbnail = this[HistoryTable.thumbnail], channelName = this[HistoryTable.channelName], channelUrl = this[HistoryTable.channelUrl], channelAvatar = this[HistoryTable.channelAvatar], duration = this[HistoryTable.duration], progress = this[HistoryTable.progress], watchedAt = this[HistoryTable.watchedAt])
 }

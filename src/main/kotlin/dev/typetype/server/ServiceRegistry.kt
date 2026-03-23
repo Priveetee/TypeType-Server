@@ -71,6 +71,6 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService(recommendationEventService)
     val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
-    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService)
+    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val homeRecommendationService = HomeRecommendationService(subscriptionsService, subscriptionFeedService, historyService, favoritesService, watchLaterService, blockedService, recommendationFeedbackService, trendingService, searchService, cache)
 }
