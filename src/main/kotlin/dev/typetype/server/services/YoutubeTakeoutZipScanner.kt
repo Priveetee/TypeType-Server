@@ -79,9 +79,14 @@ object YoutubeTakeoutZipScanner {
         val fileName = path.substringAfterLast('/').substringBeforeLast('.')
         val normalized = normalize(fileName)
         return when {
+            normalized == "watch later" -> "Watch later"
+            normalized == "a regarder plus tard" -> "Watch later"
+            normalized == "liked videos" -> "Liked videos"
             normalized.startsWith("videos de ") -> fileName.substring(10)
             normalized.startsWith("video de ") -> fileName.substring(9)
             normalized.startsWith("videos from ") -> fileName.substring(12)
+            normalized.startsWith("videos que j aime") -> "Liked videos"
+            normalized.startsWith("videos liked") -> "Liked videos"
             else -> null
         }
     }

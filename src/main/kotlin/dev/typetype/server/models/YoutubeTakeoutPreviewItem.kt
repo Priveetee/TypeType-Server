@@ -16,4 +16,7 @@ data class YoutubeTakeoutCategoryCounts(
     val subscriptions: Int,
     val playlists: Int,
     val playlistItems: Int,
+    val favorites: Int = 0,
+    val watchLater: Int = 0,
+    val history: Int = 0,
 )
