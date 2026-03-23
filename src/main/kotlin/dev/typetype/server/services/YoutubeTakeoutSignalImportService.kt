@@ -39,17 +39,17 @@ class YoutubeTakeoutSignalImportService(
     }
 
     suspend fun importHistory(userId: String, items: List<HistoryItem>): YoutubeTakeoutImportStats {
-        var imported = 0
         var skipped = 0
         val existing = historyService.dedupKeys(userId).toMutableSet()
+        val toInsert = mutableListOf<HistoryItem>()
         items.forEach { item ->
             val key = item.url to item.watchedAt
             if (key in existing) skipped += 1 else {
-                historyService.addImported(userId, item)
-                imported += 1
+                toInsert += item
                 existing += key
             }
         }
+        val imported = historyService.addImportedBatch(userId, toInsert)
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)
     }
 }

@@ -8,6 +8,8 @@ import dev.typetype.server.models.YoutubeTakeoutCommitPlan
 import dev.typetype.server.models.YoutubeTakeoutImportReportItem
 import dev.typetype.server.models.YoutubeTakeoutImportStats
 import dev.typetype.server.models.YoutubeTakeoutParsedData
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 class YoutubeTakeoutImporterService(
     private val subscriptionsService: SubscriptionsService,
@@ -15,11 +17,15 @@ class YoutubeTakeoutImporterService(
     private val signalImportService: YoutubeTakeoutSignalImportService,
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
 ) {
-    suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem {
-        val existingSubs = subscriptionsService.getAll(userId).map { it.channelUrl }.toSet()
-        val existingPlaylists = playlistService.getAll(userId).associateBy { it.name.lowercase() }
-        val sourceMappings = playlistKeyService.getMappings(userId).toMutableMap()
-        val existingPlaylistVideos = playlistService.getAll(userId)
+    suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem = coroutineScope {
+        val existingSubsDeferred = async { subscriptionsService.getAll(userId).map { it.channelUrl }.toSet() }
+        val existingPlaylistsDeferred = async { playlistService.getAll(userId) }
+        val sourceMappingsDeferred = async { playlistKeyService.getMappings(userId).toMutableMap() }
+        val existingSubs = existingSubsDeferred.await()
+        val existingPlaylistRows = existingPlaylistsDeferred.await()
+        val existingPlaylists = existingPlaylistRows.associateBy { it.name.lowercase() }
+        val sourceMappings = sourceMappingsDeferred.await()
+        val existingPlaylistVideos = existingPlaylistRows
             .associateBy({ it.name.lowercase() }, { it.videos.map { v -> v.url }.toSet() })
         var subImported = 0
         var subSkipped = 0
@@ -75,10 +81,14 @@ class YoutubeTakeoutImporterService(
                 }
             }
         }
-        val favoriteStats = if (plan.importFavorites) signalImportService.importFavorites(userId, parsed.favorites) else YoutubeTakeoutImportStats(0, 0, 0)
-        val watchLaterStats = if (plan.importWatchLater) signalImportService.importWatchLater(userId, parsed.watchLater) else YoutubeTakeoutImportStats(0, 0, 0)
-        val historyStats = if (plan.importHistory) signalImportService.importHistory(userId, parsed.history) else YoutubeTakeoutImportStats(0, 0, 0)
-        return YoutubeTakeoutImportReportItem(
+        val favoriteDeferred = if (plan.importFavorites) async { signalImportService.importFavorites(userId, parsed.favorites) } else null
+        val watchLaterDeferred = if (plan.importWatchLater) async { signalImportService.importWatchLater(userId, parsed.watchLater) } else null
+        val historyDeferred = if (plan.importHistory) async { signalImportService.importHistory(userId, parsed.history) } else null
+        val emptyStats = YoutubeTakeoutImportStats(0, 0, 0)
+        val favoriteStats = favoriteDeferred?.await() ?: emptyStats
+        val watchLaterStats = watchLaterDeferred?.await() ?: emptyStats
+        val historyStats = historyDeferred?.await() ?: emptyStats
+        YoutubeTakeoutImportReportItem(
             subscriptions = YoutubeTakeoutImportStats(imported = subImported, skipped = subSkipped, failed = 0),
             playlists = YoutubeTakeoutImportStats(imported = plImported, skipped = plSkipped, failed = 0),
             playlistItems = YoutubeTakeoutImportStats(imported = itemImported, skipped = itemSkipped, failed = 0),
