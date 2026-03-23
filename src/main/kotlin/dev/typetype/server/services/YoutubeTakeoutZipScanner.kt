@@ -35,7 +35,7 @@ object YoutubeTakeoutZipScanner {
                             if (playlistsHeader.isEmpty()) playlistsHeader = header
                             playlistsRows += rows
                         }
-                        isPlaylistItemsHeader(normalized) -> {
+                        isPlaylistItemsEntry(name, normalized) -> {
                             val sourceKey = extractPlaylistSourceKey(entry.name)
                             if (sourceKey == null) {
                                 if (playlistItemsHeader.isEmpty()) playlistItemsHeader = header
@@ -69,8 +69,11 @@ object YoutubeTakeoutZipScanner {
         header.any { it == "playlist id" || it == "id de la playlist" } &&
             header.any { it.contains("playlist") && (it.contains("title") || it.contains("titre")) }
 
-    private fun isPlaylistItemsHeader(header: List<String>): Boolean =
-        header.any { it == "video id" || it == "id video" }
+    private fun isPlaylistItemsEntry(path: String, header: List<String>): Boolean {
+        if ("/playlists/" !in path) return false
+        if (path.endsWith("/playlists.csv")) return false
+        return header.any { it == "video id" || it == "id video" }
+    }
 
     private fun extractPlaylistSourceKey(path: String): String? {
         val fileName = path.substringAfterLast('/').substringBeforeLast('.')

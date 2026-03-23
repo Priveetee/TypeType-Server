@@ -75,6 +75,15 @@ class YoutubeTakeoutImportJobService(
             statusStore.updateStatus(jobId, "completed", "completed", 100)
             privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
         }
+        return waitForCompletion(userId, jobId)
+    }
+
+    private suspend fun waitForCompletion(userId: String, jobId: String): YoutubeTakeoutImportJobStatus {
+        repeat(50) {
+            val status = statusStore.getStatus(userId, jobId) ?: error("Missing job")
+            if (status.phase == "completed") return status
+            Thread.sleep(100)
+        }
         return statusStore.getStatus(userId, jobId) ?: error("Missing job")
     }
 
