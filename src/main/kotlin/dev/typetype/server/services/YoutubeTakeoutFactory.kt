@@ -5,7 +5,7 @@ object YoutubeTakeoutFactory {
         return YoutubeTakeoutImportJobService(
             parser = YoutubeTakeoutParserService(),
             previewService = YoutubeTakeoutPreviewService(subscriptionsService, playlistService),
-            importerService = YoutubeTakeoutImporterService(subscriptionsService, playlistService),
+            importerService = YoutubeTakeoutImporterService(subscriptionsService, playlistService, YoutubeTakeoutPlaylistKeyService()),
             store = YoutubeTakeoutImportJobStore(),
             statusStore = YoutubeTakeoutImportJobStatusStore(),
             archiveStore = YoutubeTakeoutImportJobArchiveStore(),

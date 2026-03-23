@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.YoutubeTakeoutCommitRequest
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.YoutubeTakeoutImportJobService
 import dev.typetype.server.services.YoutubeTakeoutLimits
@@ -8,6 +9,7 @@ import dev.typetype.server.services.YoutubeTakeoutUploadWriter
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.server.application.call
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -63,7 +65,8 @@ fun Route.youtubeTakeoutImportRoutes(importService: YoutubeTakeoutImportJobServi
     post("/imports/youtube-takeout/{jobId}/commit") {
         call.withJwtAuth(authService) { userId ->
             val jobId = call.parameters["jobId"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing jobId"))
-            runCatching { importService.commit(userId, jobId) }
+            val request = runCatching { call.receive<YoutubeTakeoutCommitRequest>() }.getOrNull()
+            runCatching { importService.commit(userId, jobId, request) }
                 .onSuccess { call.respond(HttpStatusCode.Accepted, it) }
                 .onFailure { call.respond(HttpStatusCode.BadRequest, ErrorResponse(it.message ?: "Commit failed")) }
         }

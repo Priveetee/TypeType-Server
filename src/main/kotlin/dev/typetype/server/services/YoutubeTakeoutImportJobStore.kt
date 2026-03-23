@@ -22,6 +22,7 @@ class YoutubeTakeoutImportJobStore {
                 it[importStarted] = false
                 it[importCompleted] = false
                 it[YoutubeTakeoutImportJobsTable.archivePath] = archivePath.toString()
+                it[previewJson] = null
                 it[error] = null
                 it[reportJson] = null
                 it[createdAt] = now

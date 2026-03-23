@@ -24,6 +24,7 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -77,7 +78,12 @@ class YoutubeTakeoutImportRoutesTest {
         assertEquals(HttpStatusCode.OK, preview.status)
         val commit = client.post("/imports/youtube-takeout/$jobId/commit") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.Accepted, commit.status)
-        val report = client.get("/imports/youtube-takeout/$jobId/report") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        var report = client.get("/imports/youtube-takeout/$jobId/report") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        repeat(25) {
+            if (report.status == HttpStatusCode.OK) return@repeat
+            delay(80)
+            report = client.get("/imports/youtube-takeout/$jobId/report") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        }
         assertEquals(HttpStatusCode.OK, report.status)
         Files.deleteIfExists(zip)
     }

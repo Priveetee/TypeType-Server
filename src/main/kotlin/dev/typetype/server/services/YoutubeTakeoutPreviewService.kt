@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.models.YoutubeTakeoutCategoryCounts
 import dev.typetype.server.models.YoutubeTakeoutParsedData
 import dev.typetype.server.models.YoutubeTakeoutPreviewItem
+import dev.typetype.server.models.YoutubeTakeoutPreviewSamples
 
 class YoutubeTakeoutPreviewService(
     private val subscriptionsService: SubscriptionsService,
@@ -22,6 +23,11 @@ class YoutubeTakeoutPreviewService(
             playlists = parsed.playlists.count { it.name.lowercase() in existingPlaylists },
             playlistItems = parsed.playlistItems.values.flatten().count { it.url in existingPlaylistVideos },
         )
-        return YoutubeTakeoutPreviewItem(counts = counts, dedup = dedup, warnings = parsed.warnings, errors = parsed.errors)
+        val samples = YoutubeTakeoutPreviewSamples(
+            subscriptions = parsed.subscriptions.take(5),
+            playlists = parsed.playlists.take(5),
+            playlistItems = parsed.playlistItems.values.flatten().take(5),
+        )
+        return YoutubeTakeoutPreviewItem(counts = counts, dedup = dedup, samples = samples, warnings = parsed.warnings, errors = parsed.errors)
     }
 }
