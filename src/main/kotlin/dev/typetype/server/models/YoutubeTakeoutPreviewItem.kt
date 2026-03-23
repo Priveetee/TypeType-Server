@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class YoutubeTakeoutPreviewItem(
     val counts: YoutubeTakeoutCategoryCounts,
     val dedup: YoutubeTakeoutCategoryCounts,
+    val samples: YoutubeTakeoutPreviewSamples,
     val warnings: List<String>,
     val errors: List<String>,
 )
