@@ -12,6 +12,7 @@ object YoutubeTakeoutImportJobsTable : Table("youtube_takeout_import_jobs") {
     val importStarted = bool("import_started")
     val importCompleted = bool("import_completed")
     val archivePath = text("archive_path").nullable()
+    val previewJson = text("preview_json").nullable()
     val error = text("error").nullable()
     val reportJson = text("report_json").nullable()
     val createdAt = long("created_at")
