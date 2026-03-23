@@ -37,12 +37,15 @@ class YoutubeTakeoutParserService {
         val history = parseHistory(zipPath, warnings)
         val watchLater = playlistItems.filterKeys { isWatchLaterPlaylistKey(it) }.values.flatten()
         val favorites = playlistItems.filterKeys { isLikedPlaylistKey(it) }.values.flatten().map { it.url }
+        val activitySignals = YoutubeTakeoutActivitySignalService.parse(zipPath)
+        val mergedSubscriptions = dedupSubscriptions(subscriptions + activitySignals.first)
+        val mergedFavorites = (favorites + activitySignals.second).distinct()
         if (subscriptions.isEmpty()) warnings += "No subscription rows detected"
         return YoutubeTakeoutParsedData(
-            subscriptions = dedupSubscriptions(subscriptions),
+            subscriptions = mergedSubscriptions,
             playlists = dedupPlaylists(playlists),
             playlistItems = dedupPlaylistItems(playlistItems),
-            favorites = favorites.distinct(),
+            favorites = mergedFavorites,
             watchLater = watchLater.distinctBy { it.url },
             history = dedupHistory(history),
             warnings = warnings,
