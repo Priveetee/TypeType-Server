@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import java.io.InputStreamReader
 import java.io.BufferedReader
 import java.nio.file.Path
+import java.text.Normalizer
 import java.util.zip.ZipFile
 
 object YoutubeTakeoutZipScanner {
@@ -24,18 +25,25 @@ object YoutubeTakeoutZipScanner {
                     val reader = BufferedReader(InputStreamReader(input))
                     val (header, rows) = YoutubeTakeoutCsvReader.parse(reader)
                     if (header.isEmpty()) return@use
+                    val normalized = header.map { normalize(it) }
                     when {
-                        header.any { it.contains("channel", ignoreCase = true) } && header.any { it.contains("title", ignoreCase = true) } -> {
+                        isSubscriptionsHeader(normalized) -> {
                             if (subscriptionsHeader.isEmpty()) subscriptionsHeader = header
                             subscriptionsRows += rows
                         }
-                        header.any { it.contains("playlist", ignoreCase = true) } && header.any { it.contains("description", ignoreCase = true) } -> {
+                        isPlaylistsHeader(normalized) -> {
                             if (playlistsHeader.isEmpty()) playlistsHeader = header
                             playlistsRows += rows
                         }
-                        header.any { it.contains("playlist", ignoreCase = true) } && header.any { it.contains("video", ignoreCase = true) } -> {
-                            if (playlistItemsHeader.isEmpty()) playlistItemsHeader = header
-                            playlistItemsRows += rows
+                        isPlaylistItemsHeader(normalized) -> {
+                            val sourceKey = extractPlaylistSourceKey(entry.name)
+                            if (sourceKey == null) {
+                                if (playlistItemsHeader.isEmpty()) playlistItemsHeader = header
+                                playlistItemsRows += rows
+                            } else {
+                                if (playlistItemsHeader.isEmpty()) playlistItemsHeader = listOf("playlist source key") + header
+                                playlistItemsRows += rows.map { row -> listOf(sourceKey) + row }
+                            }
                         }
                         else -> warnings += "Unsupported CSV schema: ${entry.name}"
                     }
@@ -52,4 +60,32 @@ object YoutubeTakeoutZipScanner {
             warnings,
         )
     }
+
+    private fun isSubscriptionsHeader(header: List<String>): Boolean =
+        header.any { it == "channel id" || it == "id des chaines" } &&
+            header.any { it == "channel url" || it == "url des chaines" }
+
+    private fun isPlaylistsHeader(header: List<String>): Boolean =
+        header.any { it == "playlist id" || it == "id de la playlist" } &&
+            header.any { it.contains("playlist") && (it.contains("title") || it.contains("titre")) }
+
+    private fun isPlaylistItemsHeader(header: List<String>): Boolean =
+        header.any { it == "video id" || it == "id video" }
+
+    private fun extractPlaylistSourceKey(path: String): String? {
+        val fileName = path.substringAfterLast('/').substringBeforeLast('.')
+        val normalized = normalize(fileName)
+        return when {
+            normalized.startsWith("videos de ") -> fileName.substring(10)
+            normalized.startsWith("video de ") -> fileName.substring(9)
+            normalized.startsWith("videos from ") -> fileName.substring(12)
+            else -> null
+        }
+    }
+
+    private fun normalize(value: String): String = Normalizer
+        .normalize(value.lowercase(), Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
 }

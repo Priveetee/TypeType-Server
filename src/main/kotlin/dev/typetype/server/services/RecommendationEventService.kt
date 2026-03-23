@@ -5,12 +5,20 @@ import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.models.RecommendationEventItem
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class RecommendationEventService(private val interestService: RecommendationInterestService) {
+    suspend fun hasClick(userId: String): Boolean = DatabaseFactory.query {
+        RecommendationEventsTable.selectAll()
+            .where { (RecommendationEventsTable.userId eq userId) and (RecommendationEventsTable.eventType eq "click") }
+            .limit(1)
+            .count() > 0
+    }
+
     suspend fun getAll(userId: String): List<RecommendationEventItem> = DatabaseFactory.query {
         RecommendationEventsTable.selectAll()
             .where { RecommendationEventsTable.userId eq userId }
