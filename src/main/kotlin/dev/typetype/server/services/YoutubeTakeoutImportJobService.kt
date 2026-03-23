@@ -18,8 +18,6 @@ class YoutubeTakeoutImportJobService(
     private val reportStore: YoutubeTakeoutImportJobReportStore = YoutubeTakeoutImportJobReportStore(),
     private val previewStore: YoutubeTakeoutImportJobPreviewStore = YoutubeTakeoutImportJobPreviewStore(),
     private val flagsStore: YoutubeTakeoutImportJobFlagsStore = YoutubeTakeoutImportJobFlagsStore(),
-    private val runtimeCache: YoutubeTakeoutJobRuntimeCache = YoutubeTakeoutJobRuntimeCache(),
-    private val jobEngine: YoutubeTakeoutImportJobEngine = YoutubeTakeoutImportJobEngine(),
     private val privacyService: YoutubeTakeoutPrivacyService = YoutubeTakeoutPrivacyService(),
     private val cache: YoutubeTakeoutImportCache = YoutubeTakeoutImportCache(),
 ) {
@@ -37,25 +35,16 @@ class YoutubeTakeoutImportJobService(
             cache.setPreview(jobId, preview)
             return preview
         }
-        statusStore.updateStatus(jobId, "pending", "queued_preview", 0)
-        jobEngine.startPreview(jobId) {
-            statusStore.updateStatus(jobId, "running", "parsing", 10)
-            val archive = archiveStore.getArchivePath(userId, jobId)
-            val parsed = parser.parse(Path.of(archive))
-            cache.setParsed(jobId, parsed)
-            val preview = previewService.build(userId, parsed)
-            cache.setPreview(jobId, preview)
-            previewStore.persistPreview(jobId, Json.encodeToString(preview))
-            flagsStore.setParseCompleted(jobId)
-            statusStore.updateStatus(jobId, "completed", "preview_ready", 100)
-        }
-        return YoutubeTakeoutPreviewItem(
-            counts = dev.typetype.server.models.YoutubeTakeoutCategoryCounts(0, 0, 0),
-            dedup = dev.typetype.server.models.YoutubeTakeoutCategoryCounts(0, 0, 0),
-            samples = dev.typetype.server.models.YoutubeTakeoutPreviewSamples(),
-            warnings = listOf("Preview started"),
-            errors = emptyList(),
-        )
+        statusStore.updateStatus(jobId, "running", "parsing", 10)
+        val archive = archiveStore.getArchivePath(userId, jobId)
+        val parsed = parser.parse(Path.of(archive))
+        cache.setParsed(jobId, parsed)
+        val preview = previewService.build(userId, parsed)
+        cache.setPreview(jobId, preview)
+        previewStore.persistPreview(jobId, Json.encodeToString(preview))
+        flagsStore.setParseCompleted(jobId)
+        statusStore.updateStatus(jobId, "completed", "preview_ready", 100)
+        return preview
     }
 
     suspend fun commit(userId: String, jobId: String, request: YoutubeTakeoutCommitRequest?): YoutubeTakeoutImportJobStatus {
@@ -63,27 +52,19 @@ class YoutubeTakeoutImportJobService(
         if (flags.importCompleted) return statusStore.getStatus(userId, jobId) ?: error("Missing job")
         if (!flags.parseCompleted) preview(userId, jobId)
         val plan = YoutubeTakeoutCommitPlanner.fromRequest(request)
-        runtimeCache.setPlan(jobId, plan)
         flagsStore.setImportStarted(jobId)
-        statusStore.updateStatus(jobId, "pending", "queued_commit", 70)
-        jobEngine.startCommit(jobId, plan) { commitPlan ->
-            statusStore.updateStatus(jobId, "running", "importing", 75)
-            val parsed = cache.getParsed(jobId) ?: error("Missing parsed cache")
-            val report = importerService.commit(userId, parsed, commitPlan)
-            reportStore.persistReport(jobId, Json.encodeToString(report))
-            flagsStore.setImportCompleted(jobId)
-            statusStore.updateStatus(jobId, "completed", "completed", 100)
-            privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
+        statusStore.updateStatus(jobId, "running", "importing", 75)
+        val parsed = cache.getParsed(jobId) ?: parser.parse(Path.of(archiveStore.getArchivePath(userId, jobId))).also {
+            cache.setParsed(jobId, it)
+            val preview = previewService.build(userId, it)
+            previewStore.persistPreview(jobId, Json.encodeToString(preview))
+            cache.setPreview(jobId, preview)
         }
-        return waitForCompletion(userId, jobId)
-    }
-
-    private suspend fun waitForCompletion(userId: String, jobId: String): YoutubeTakeoutImportJobStatus {
-        repeat(50) {
-            val status = statusStore.getStatus(userId, jobId) ?: error("Missing job")
-            if (status.phase == "completed") return status
-            Thread.sleep(100)
-        }
+        val report = importerService.commit(userId, parsed, plan)
+        reportStore.persistReport(jobId, Json.encodeToString(report))
+        flagsStore.setImportCompleted(jobId)
+        statusStore.updateStatus(jobId, "completed", "completed", 100)
+        privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
         return statusStore.getStatus(userId, jobId) ?: error("Missing job")
     }
 
