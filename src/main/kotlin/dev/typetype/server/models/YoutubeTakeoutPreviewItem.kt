@@ -9,6 +9,8 @@ data class YoutubeTakeoutPreviewItem(
     val samples: YoutubeTakeoutPreviewSamples,
     val warnings: List<String>,
     val errors: List<String>,
+    val issues: List<YoutubeTakeoutIssueItem> = emptyList(),
+    val issueSummary: YoutubeTakeoutIssueSummary = YoutubeTakeoutIssueSummary(0, 0, 0),
 )
 
 @Serializable

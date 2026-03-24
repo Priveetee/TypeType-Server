@@ -13,6 +13,8 @@ data class YoutubeTakeoutImportReportItem(
     val skippedItems: YoutubeTakeoutCategoryCounts = YoutubeTakeoutCategoryCounts(0, 0, 0),
     val warnings: List<String>,
     val errors: List<String>,
+    val issues: List<YoutubeTakeoutIssueItem> = emptyList(),
+    val issueSummary: YoutubeTakeoutIssueSummary = YoutubeTakeoutIssueSummary(0, 0, 0),
     val finishedAt: Long,
 )
 

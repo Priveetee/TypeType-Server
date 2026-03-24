@@ -11,6 +11,7 @@ class YoutubeTakeoutPreviewService(
     private val lookupService: YoutubeTakeoutPreviewLookupService,
 ) {
     suspend fun build(userId: String, parsed: YoutubeTakeoutParsedData): YoutubeTakeoutPreviewItem {
+        val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "preview")
         val existingSubs = subscriptionsService.getAll(userId).map { it.channelUrl }.toSet()
         val existingPlaylists = playlistService.getAll(userId).map { it.name.lowercase() }.toSet()
         val existingPlaylistVideos = playlistService.getAll(userId).flatMap { it.videos }.map { it.url }.toSet()
@@ -41,6 +42,14 @@ class YoutubeTakeoutPreviewService(
             watchLater = parsed.watchLater.take(5),
             history = parsed.history.take(5),
         )
-        return YoutubeTakeoutPreviewItem(counts = counts, dedup = dedup, samples = samples, warnings = parsed.warnings, errors = parsed.errors)
+        return YoutubeTakeoutPreviewItem(
+            counts = counts,
+            dedup = dedup,
+            samples = samples,
+            warnings = parsed.warnings,
+            errors = parsed.errors,
+            issues = issues,
+            issueSummary = issueSummary,
+        )
     }
 }

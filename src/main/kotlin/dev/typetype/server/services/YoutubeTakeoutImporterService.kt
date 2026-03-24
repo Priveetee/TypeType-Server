@@ -18,6 +18,7 @@ class YoutubeTakeoutImporterService(
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
 ) {
     suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem = coroutineScope {
+        val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "commit")
         val existingSubsDeferred = async { subscriptionsService.getAll(userId).map { it.channelUrl }.toSet() }
         val existingPlaylistsDeferred = async { playlistService.getAll(userId) }
         val sourceMappingsDeferred = async { playlistKeyService.getMappings(userId).toMutableMap() }
@@ -98,6 +99,8 @@ class YoutubeTakeoutImporterService(
             skippedItems = YoutubeTakeoutCategoryCounts(subSkipped, plSkipped, itemSkipped, favoriteStats.skipped, watchLaterStats.skipped, historyStats.skipped),
             warnings = parsed.warnings,
             errors = parsed.errors,
+            issues = issues,
+            issueSummary = issueSummary,
             finishedAt = System.currentTimeMillis(),
         )
     }
