@@ -32,7 +32,6 @@ import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
-import dev.typetype.server.routes.tokenRoutes
 import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
@@ -40,7 +39,6 @@ import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.PipePipeBackupImporterService
-import dev.typetype.server.services.TokenService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
@@ -60,7 +58,6 @@ fun Application.module() {
     val dbPassword = System.getenv("DATABASE_PASSWORD") ?: "typetype"
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
 
-    val tokenService = TokenService()
     val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
     val authService = AuthService(jwtSecret)
     val userAdminService = UserAdminService()
@@ -98,7 +95,6 @@ fun Application.module() {
         rateLimit(PROXY_STORYBOARD_ZONE) {
             storyboardProxyRoutes(svc.proxyService)
         }
-        tokenRoutes(tokenService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         avatarRoutes(avatarService)

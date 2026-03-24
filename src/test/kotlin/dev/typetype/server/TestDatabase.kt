@@ -14,7 +14,6 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
-import dev.typetype.server.db.tables.TokenTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
@@ -53,7 +52,6 @@ object TestDatabase {
         PasswordResetTable.deleteAll()
         UsersTable.deleteAll()
         AdminSettingsTable.deleteAll()
-        TokenTable.deleteAll()
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()
         RecommendationFeedbackTable.deleteAll()

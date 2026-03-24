@@ -13,7 +13,6 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
-import dev.typetype.server.db.tables.TokenTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
@@ -45,7 +44,6 @@ object DatabaseFactory {
         Database.connect(HikariDataSource(config))
         transaction {
             SchemaUtils.create(
-                TokenTable,
                 UsersTable,
                 SessionsTable,
                 AdminSettingsTable,

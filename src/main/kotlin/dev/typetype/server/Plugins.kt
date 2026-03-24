@@ -72,7 +72,6 @@ fun Application.configurePlugins() {
 
     install(CORS) {
         allowOrigins { it in allowedOrigins }
-        allowHeader("X-Instance-Token")
         allowHeader(HttpHeaders.ContentType)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
