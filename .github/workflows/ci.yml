@@ -75,7 +75,6 @@ jobs:
               --tests dev.typetype.server.SuggestionRoutesTest
           - name: routes-user
             tests: >-
-              --tests dev.typetype.server.TokenRoutesTest
               --tests dev.typetype.server.SearchHistoryRoutesTest
               --tests dev.typetype.server.ProgressRoutesTest
               --tests dev.typetype.server.HistoryRoutesTest
@@ -86,6 +85,7 @@ jobs:
               --tests dev.typetype.server.BlockedRoutesTest
               --tests dev.typetype.server.PlaylistRoutesTest
               --tests dev.typetype.server.PlaylistServiceTest
+              --tests dev.typetype.server.YoutubeTakeoutIssueServiceTest
     steps:
       - uses: actions/checkout@v4
 
