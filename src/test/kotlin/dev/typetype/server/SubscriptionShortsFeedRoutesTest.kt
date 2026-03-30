@@ -75,9 +75,7 @@ class SubscriptionShortsFeedRoutesTest {
             video(2000L, "https://yt.com/shorts/b", short = true),
             video(1500L, "https://yt.com/shorts/b", short = true),
         )
-        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
-            video(1000L, "https://yt.com/watch?v=1", short = false),
-        )
+        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L, "https://yt.com/watch?v=1", short = false))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(1000L, "https://yt.com/watch?v=2", short = false))
 
         val body = client.get("/subscriptions/shorts?page=0&limit=10") {
@@ -99,7 +97,7 @@ class SubscriptionShortsFeedRoutesTest {
             video(2000L, "https://yt.com/shorts/b", short = true),
             video(1000L, "https://yt.com/shorts/c", short = true),
         )
-        coEvery { channelService.getChannel(any(), null) } returns channel(
+        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
             video(3000L, "https://yt.com/shorts/a", short = true),
             video(2000L, "https://yt.com/shorts/b", short = true),
             video(1000L, "https://yt.com/shorts/c", short = true),

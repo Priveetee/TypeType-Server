@@ -49,7 +49,7 @@ class SubscriptionShortsFeedService(
             }.map { it.await() }.flatten()
         }
         val dedup = videos.distinctBy { it.url }
-            .let { ShortsVideoClassifier.select(it) }
+            .filter { it.isShortFormContent || it.url.contains("/shorts/", ignoreCase = true) }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), 300L) }
         return dedup
@@ -57,7 +57,7 @@ class SubscriptionShortsFeedService(
 
     private suspend fun fetchForSubscription(channelUrl: String): List<VideoItem> {
         val shorts = fetch(shortsTabUrl(channelUrl))
-        if (shorts.isNotEmpty()) return shorts.map { it.copy(isShortFormContent = true) }
+        if (shorts.isNotEmpty()) return shorts
         return fetch(channelUrl)
     }
 

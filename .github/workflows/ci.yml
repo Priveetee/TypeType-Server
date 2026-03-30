@@ -97,7 +97,6 @@ jobs:
               --tests dev.typetype.server.PlaylistServiceTest
               --tests dev.typetype.server.SubscriptionFeedRoutesTest
               --tests dev.typetype.server.SubscriptionShortsFeedRoutesTest
-              --tests dev.typetype.server.SubscriptionShortsFeedFallbackTest
               --tests dev.typetype.server.AuthServiceCoreTest
               --tests dev.typetype.server.PasswordResetServiceCoreTest
               --tests dev.typetype.server.YoutubeTakeoutIssueServiceTest
