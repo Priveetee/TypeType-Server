@@ -28,8 +28,8 @@ import kotlin.time.Duration.Companion.minutes
 private const val EXTRACTION_RATE_LIMIT = 60
 private const val STREAMS_RATE_LIMIT = 360
 private const val CHANNEL_RATE_LIMIT = 180
-private const val PROXY_RATE_LIMIT = 300
-private const val PROXY_STORYBOARD_RATE_LIMIT = 600
+private const val PROXY_RATE_LIMIT = 6000
+private const val PROXY_STORYBOARD_RATE_LIMIT = 1200
 private const val USER_DATA_RATE_LIMIT = 120
 private val RATE_LIMIT_WINDOW = 1.minutes
 
