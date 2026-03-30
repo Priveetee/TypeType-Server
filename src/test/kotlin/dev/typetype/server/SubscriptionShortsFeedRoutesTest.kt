@@ -69,11 +69,11 @@ class SubscriptionShortsFeedRoutesTest {
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/2", "C2", ""))
         coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
-            video(3000L, "https://yt.com/shorts/a", short = true),
+            video(3000L, "https://yt.com/watch?v=sa", short = false),
         )
         coEvery { channelService.getChannel("https://yt.com/c/2/shorts", null) } returns channel(
-            video(2000L, "https://yt.com/shorts/b", short = true),
-            video(1500L, "https://yt.com/shorts/b", short = true),
+            video(2000L, "https://yt.com/watch?v=sb", short = false),
+            video(1500L, "https://yt.com/watch?v=sb", short = false),
         )
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L, "https://yt.com/watch?v=1", short = false))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(1000L, "https://yt.com/watch?v=2", short = false))
@@ -82,8 +82,8 @@ class SubscriptionShortsFeedRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
 
-        assertTrue(body.contains("shorts/a"))
-        assertTrue(body.contains("shorts/b"))
+        assertTrue(body.contains("watch?v=sa"))
+        assertTrue(body.contains("watch?v=sb"))
         assertTrue(!body.contains("watch?v=1"))
         assertTrue(body.indexOf("3000") < body.indexOf("2000"))
     }
@@ -93,14 +93,14 @@ class SubscriptionShortsFeedRoutesTest {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/subscriptions/shorts").status)
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
         coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
-            video(3000L, "https://yt.com/shorts/a", short = true),
-            video(2000L, "https://yt.com/shorts/b", short = true),
-            video(1000L, "https://yt.com/shorts/c", short = true),
+            video(3000L, "https://yt.com/watch?v=sa", short = false),
+            video(2000L, "https://yt.com/watch?v=sb", short = false),
+            video(1000L, "https://yt.com/watch?v=sc", short = false),
         )
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
-            video(3000L, "https://yt.com/shorts/a", short = true),
-            video(2000L, "https://yt.com/shorts/b", short = true),
-            video(1000L, "https://yt.com/shorts/c", short = true),
+            video(3000L, "https://yt.com/watch?v=sa", short = false),
+            video(2000L, "https://yt.com/watch?v=sb", short = false),
+            video(1000L, "https://yt.com/watch?v=sc", short = false),
         )
 
         val page1 = client.get("/subscriptions/shorts?page=0&limit=2") {
@@ -110,8 +110,8 @@ class SubscriptionShortsFeedRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
 
-        assertTrue(page1.contains("shorts/a") && page1.contains("shorts/b") && !page1.contains("shorts/c"))
+        assertTrue(page1.contains("watch?v=sa") && page1.contains("watch?v=sb") && !page1.contains("watch?v=sc"))
         assertTrue(page1.contains("\"nextpage\":\"1\""))
-        assertTrue(page2.contains("shorts/c"))
+        assertTrue(page2.contains("watch?v=sc"))
     }
 }
