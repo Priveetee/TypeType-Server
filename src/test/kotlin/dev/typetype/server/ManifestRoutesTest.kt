@@ -7,7 +7,9 @@ import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
+import dev.typetype.server.services.StreamExtractionErrorMapper
 import dev.typetype.server.services.StreamService
+import okhttp3.OkHttpClient
 import dev.typetype.server.cache.CacheService
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -77,6 +79,20 @@ class ManifestRoutesTest {
         }
         val response = client.get("/streams/native-manifest")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET streams hls-manifest returns 400 for member-only stream`() = testApplication {
+        val hlsService = HlsManifestService(streamService, OkHttpClient())
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { manifestRoutes(manifestService, nativeManifestService, hlsService) }
+        }
+        val response = client.get("/streams/hls-manifest?url=https://youtube.com/watch?v=member")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("only available for members"))
     }
 }
 

@@ -69,6 +69,13 @@ jobs:
               --tests dev.typetype.server.ManifestServiceTest
               --tests dev.typetype.server.HlsRewritingTest
               --tests dev.typetype.server.UrlStrippingTest
+              --tests dev.typetype.server.UrlValidatorTest
+              --tests dev.typetype.server.NativeManifestUtilsTest
+              --tests dev.typetype.server.ExtractionResilienceTest
+              --tests dev.typetype.server.StreamInfoMappersCoreTest
+              --tests dev.typetype.server.NativeManifestBuilderCoreTest
+              --tests dev.typetype.server.OkHttpDownloaderCoreTest
+              --tests dev.typetype.server.StreamExtractionErrorMapperTest
           - name: routes-media
             tests: >-
               --tests dev.typetype.server.SearchRoutesTest
@@ -88,7 +95,10 @@ jobs:
               --tests dev.typetype.server.BlockedRoutesTest
               --tests dev.typetype.server.PlaylistRoutesTest
               --tests dev.typetype.server.PlaylistServiceTest
+              --tests dev.typetype.server.AuthServiceCoreTest
+              --tests dev.typetype.server.PasswordResetServiceCoreTest
               --tests dev.typetype.server.YoutubeTakeoutIssueServiceTest
+              --tests dev.typetype.server.ManifestRoutesTest
     steps:
       - uses: actions/checkout@v4
 

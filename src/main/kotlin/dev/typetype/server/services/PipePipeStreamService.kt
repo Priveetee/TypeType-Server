@@ -12,11 +12,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
-import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
-import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
-import org.schabi.newpipe.extractor.exceptions.NeedLoginException
-import org.schabi.newpipe.extractor.exceptions.PaidContentException
-import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
 import org.schabi.newpipe.extractor.stream.StreamExtractor
@@ -65,16 +60,7 @@ internal class PipePipeStreamService(
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
-                onFailure = { e ->
-                    when (e) {
-                        is GeographicRestrictionException,
-                        is PaidContentException,
-                        is NeedLoginException,
-                        is AgeRestrictedContentException,
-                        is PrivateContentException -> ExtractionResult.BadRequest(e.message ?: "Content not available")
-                        else -> ExtractionResult.Failure(e.message ?: "Extraction failed")
-                    }
-                }
+                onFailure = { StreamExtractionErrorMapper.map(it) }
             )
         }
 

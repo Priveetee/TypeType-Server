@@ -24,7 +24,7 @@ class NativeManifestService {
                 }
             }.fold(
                 onSuccess = { buildManifest(it) },
-                onFailure = { ExtractionResult.Failure(it.message ?: "Extraction failed") }
+                onFailure = { StreamExtractionErrorMapper.map(it) }
             )
         }
 

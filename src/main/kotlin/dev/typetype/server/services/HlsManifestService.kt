@@ -40,15 +40,24 @@ class HlsManifestService(
 ) {
 
     suspend fun hlsManifest(url: String): ExtractionResult<String> {
-        val manifestUrl = if (isManifestUrl(url)) url else resolveHlsUrl(url) ?: return ExtractionResult.Failure("No HLS stream available for this video")
+        val manifestUrl = if (isManifestUrl(url)) {
+            url
+        } else {
+            when (val resolved = resolveHlsUrl(url)) {
+                is ExtractionResult.Success -> resolved.data
+                is ExtractionResult.BadRequest -> return resolved
+                is ExtractionResult.Failure -> return resolved
+            }
+        }
         return fetchAndRewrite(manifestUrl)
     }
 
-    private suspend fun resolveHlsUrl(videoUrl: String): String? {
+    private suspend fun resolveHlsUrl(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
-        if (result !is ExtractionResult.Success) return null
+        if (result is ExtractionResult.BadRequest) return result
+        if (result !is ExtractionResult.Success) return ExtractionResult.Failure("No HLS stream available for this video")
         val hls = result.data.hlsUrl
-        return if (hls.isNotBlank()) hls else null
+        return if (hls.isNotBlank()) ExtractionResult.Success(hls) else ExtractionResult.Failure("No HLS stream available for this video")
     }
 
     private suspend fun fetchAndRewrite(manifestUrl: String): ExtractionResult<String> =
