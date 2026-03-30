@@ -13,19 +13,19 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get PipePipeExtractor HEAD SHA
         id: ppe
         run: echo "sha=$(git ls-remote https://github.com/InfinityLoop1308/PipePipeExtractor.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: ppe-cache
         with:
           path: ~/.m2/repository/com/github/TeamNewPipe
           key: ppe-${{ steps.ppe.outputs.sha }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: steps.ppe-cache.outputs.cache-hit != 'true'
         with:
           java-version: "17"
@@ -42,26 +42,26 @@ jobs:
           ./gradlew :extractor:publishToMavenLocal :timeago-parser:publishToMavenLocal
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: temurin
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Run tests and coverage report
         run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
 
       - name: Upload coverage HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-html-report
           path: build/reports/jacoco/test/html
 
       - name: Upload coverage XML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-xml-report
           path: build/reports/jacoco/test/jacocoTestReport.xml

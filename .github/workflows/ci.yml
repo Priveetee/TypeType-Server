@@ -15,19 +15,19 @@ jobs:
     outputs:
       ppe-sha: ${{ steps.ppe.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get PipePipeExtractor HEAD SHA
         id: ppe
         run: echo "sha=$(git ls-remote https://github.com/InfinityLoop1308/PipePipeExtractor.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: ppe-cache
         with:
           path: ~/.m2/repository/com/github/TeamNewPipe
           key: ppe-${{ steps.ppe.outputs.sha }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: steps.ppe-cache.outputs.cache-hit != 'true'
         with:
           java-version: "17"
@@ -43,12 +43,12 @@ jobs:
           cd PipePipeExtractor
           ./gradlew :extractor:publishToMavenLocal :timeago-parser:publishToMavenLocal
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: temurin
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Build
         run: ./gradlew build -x test
@@ -103,19 +103,19 @@ jobs:
               --tests dev.typetype.server.YoutubeTakeoutIssueServiceTest
               --tests dev.typetype.server.ManifestRoutesTest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.m2/repository/com/github/TeamNewPipe
           key: ppe-${{ needs.build.outputs.ppe-sha }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: temurin
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Test (${{ matrix.group.name }})
         run: ./gradlew test ${{ matrix.group.tests }}
