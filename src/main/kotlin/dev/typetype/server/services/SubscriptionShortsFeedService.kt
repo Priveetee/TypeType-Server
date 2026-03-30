@@ -43,25 +43,38 @@ class SubscriptionShortsFeedService(
             subs.map { sub ->
                 async {
                     semaphore.withPermit {
-                        runCatching {
-                            withTimeout(15_000L) {
-                                channelService.getChannel(sub.channelUrl, null)
-                            }
-                        }.getOrNull()?.let { result ->
-                            when (result) {
-                                is dev.typetype.server.models.ExtractionResult.Success -> result.data.videos
-                                else -> emptyList()
-                            }
-                        }.orEmpty()
+                        fetchForSubscription(sub.channelUrl)
                     }
                 }
             }.map { it.await() }.flatten()
         }
         val dedup = videos.distinctBy { it.url }
-            .filter { it.isShortFormContent }
+            .let { ShortsVideoClassifier.select(it) }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), 300L) }
         return dedup
+    }
+
+    private suspend fun fetchForSubscription(channelUrl: String): List<VideoItem> {
+        val shorts = fetch(shortsTabUrl(channelUrl))
+        if (shorts.isNotEmpty()) return shorts.map { it.copy(isShortFormContent = true) }
+        return fetch(channelUrl)
+    }
+
+    private suspend fun fetch(url: String): List<VideoItem> = runCatching {
+        withTimeout(15_000L) {
+            channelService.getChannel(url, null)
+        }
+    }.getOrNull()?.let { result ->
+        when (result) {
+            is dev.typetype.server.models.ExtractionResult.Success -> result.data.videos
+            else -> emptyList()
+        }
+    }.orEmpty()
+
+    private fun shortsTabUrl(channelUrl: String): String {
+        if (channelUrl.endsWith("/shorts")) return channelUrl
+        return if (channelUrl.endsWith('/')) "${channelUrl}shorts" else "$channelUrl/shorts"
     }
 
     private fun cacheKey(userId: String): String {

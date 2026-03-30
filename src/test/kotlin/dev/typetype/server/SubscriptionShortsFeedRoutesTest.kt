@@ -68,14 +68,17 @@ class SubscriptionShortsFeedRoutesTest {
     fun `GET subscriptions shorts returns only short videos deduped and sorted`() = withApp {
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/2", "C2", ""))
-        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
-            video(1000L, "https://yt.com/watch?v=1", short = false),
+        coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
             video(3000L, "https://yt.com/shorts/a", short = true),
         )
-        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(
+        coEvery { channelService.getChannel("https://yt.com/c/2/shorts", null) } returns channel(
             video(2000L, "https://yt.com/shorts/b", short = true),
             video(1500L, "https://yt.com/shorts/b", short = true),
         )
+        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
+            video(1000L, "https://yt.com/watch?v=1", short = false),
+        )
+        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(1000L, "https://yt.com/watch?v=2", short = false))
 
         val body = client.get("/subscriptions/shorts?page=0&limit=10") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -91,6 +94,11 @@ class SubscriptionShortsFeedRoutesTest {
     fun `GET subscriptions shorts pagination and auth work`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/subscriptions/shorts").status)
         subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
+        coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
+            video(3000L, "https://yt.com/shorts/a", short = true),
+            video(2000L, "https://yt.com/shorts/b", short = true),
+            video(1000L, "https://yt.com/shorts/c", short = true),
+        )
         coEvery { channelService.getChannel(any(), null) } returns channel(
             video(3000L, "https://yt.com/shorts/a", short = true),
             video(2000L, "https://yt.com/shorts/b", short = true),
