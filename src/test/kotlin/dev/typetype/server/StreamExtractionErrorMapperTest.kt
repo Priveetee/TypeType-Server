@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
+import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 class StreamExtractionErrorMapperTest {
     @Test
@@ -24,6 +25,19 @@ class StreamExtractionErrorMapperTest {
         val paid = StreamExtractionErrorMapper.map<Any>(PaidContentException(""))
         assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), login)
         assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), paid)
+    }
+
+    @Test
+    fun `maps youtube timeout message to member-only fallback for youtube watch urls`() {
+        val timeout = IllegalStateException("Error occurs when fetching the page. Try increase the loading timeout in Settings.")
+        val mapped = StreamExtractionErrorMapper.map<Any>(timeout, sourceUrl = "https://www.youtube.com/watch?v=test")
+        assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), mapped)
+    }
+
+    @Test
+    fun `maps youtube music premium exception to member-only style message`() {
+        val mapped = StreamExtractionErrorMapper.map<Any>(YoutubeMusicPremiumContentException())
+        assertTrue(mapped is ExtractionResult.BadRequest)
     }
 
     @Test

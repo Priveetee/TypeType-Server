@@ -60,7 +60,7 @@ internal class PipePipeStreamService(
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
-                onFailure = { StreamExtractionErrorMapper.map(it) }
+                onFailure = { StreamExtractionErrorMapper.map(it, sourceUrl = url) }
             )
         }
 

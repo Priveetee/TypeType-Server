@@ -24,7 +24,7 @@ class NativeManifestService {
                 }
             }.fold(
                 onSuccess = { buildManifest(it) },
-                onFailure = { StreamExtractionErrorMapper.map(it) }
+                onFailure = { StreamExtractionErrorMapper.map(it, sourceUrl = videoUrl) }
             )
         }
 

@@ -36,6 +36,7 @@ import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YouTubeSubtitleService
@@ -63,6 +64,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val historyService = HistoryService(recommendationEventService)
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
+    val subscriptionShortsFeedService = SubscriptionShortsFeedService(subscriptionsService, channelService, cache)
     val playlistService = PlaylistService()
     val watchLaterService = WatchLaterService(recommendationEventService)
     val progressService = ProgressService()
