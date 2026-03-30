@@ -76,6 +76,7 @@ jobs:
               --tests dev.typetype.server.NativeManifestBuilderCoreTest
               --tests dev.typetype.server.OkHttpDownloaderCoreTest
               --tests dev.typetype.server.StreamExtractionErrorMapperTest
+              --tests dev.typetype.server.ShortCanonicalUrlTest
           - name: routes-media
             tests: >-
               --tests dev.typetype.server.SearchRoutesTest

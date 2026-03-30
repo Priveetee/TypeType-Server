@@ -50,6 +50,7 @@ class SubscriptionShortsFeedService(
         }
         val dedup = videos.distinctBy { it.url }
             .filter { it.isShortFormContent }
+            .map { it.toShortCanonicalUrl() }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), 300L) }
         return dedup

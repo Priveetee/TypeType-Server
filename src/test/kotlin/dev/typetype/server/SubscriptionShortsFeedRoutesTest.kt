@@ -82,8 +82,8 @@ class SubscriptionShortsFeedRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
 
-        assertTrue(body.contains("watch?v=sa"))
-        assertTrue(body.contains("watch?v=sb"))
+        assertTrue(body.contains("/shorts/sa"))
+        assertTrue(body.contains("/shorts/sb"))
         assertTrue(!body.contains("watch?v=1"))
         assertTrue(body.indexOf("3000") < body.indexOf("2000"))
     }
@@ -110,8 +110,8 @@ class SubscriptionShortsFeedRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
 
-        assertTrue(page1.contains("watch?v=sa") && page1.contains("watch?v=sb") && !page1.contains("watch?v=sc"))
+        assertTrue(page1.contains("/shorts/sa") && page1.contains("/shorts/sb") && !page1.contains("/shorts/sc"))
         assertTrue(page1.contains("\"nextpage\":\"1\""))
-        assertTrue(page2.contains("watch?v=sc"))
+        assertTrue(page2.contains("/shorts/sc"))
     }
 }

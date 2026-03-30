@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class PipePipeChannelService : ChannelService {
@@ -40,8 +41,10 @@ class PipePipeChannelService : ChannelService {
     private fun extractFirstPage(url: String): ChannelResponse {
         if (isShortsTab(url)) {
             val service = NewPipe.getServiceByUrl(url)
-            val linkHandler = service.channelTabLHFactory.fromUrl(url)
-            return ChannelTabInfo.getInfo(service, linkHandler).toChannelTabResponse()
+            val channelId = shortsChannelId(url, service)
+            val extractor = service.getChannelTabExtractorFromId(channelId, ChannelTabs.SHORTS)
+            extractor.fetchPage()
+            return ChannelTabInfo.getInfo(extractor).toChannelTabResponse()
         }
         return ChannelInfo.getInfo(url).toChannelResponse()
     }
@@ -49,13 +52,19 @@ class PipePipeChannelService : ChannelService {
     private fun extractMorePage(url: String, page: org.schabi.newpipe.extractor.Page): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
         if (isShortsTab(url)) {
-            val linkHandler = service.channelTabLHFactory.fromUrl(url)
-            return ChannelTabInfo.getMoreItems(service, linkHandler, page).toChannelTabResponse()
+            val channelId = shortsChannelId(url, service)
+            val extractor = service.getChannelTabExtractorFromId(channelId, ChannelTabs.SHORTS)
+            return extractor.getPage(page).toChannelTabResponse()
         }
         return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
     }
 
     private fun isShortsTab(url: String): Boolean = url.contains("/shorts", ignoreCase = true)
+
+    private fun shortsChannelId(url: String, service: org.schabi.newpipe.extractor.StreamingService): String {
+        val baseUrl = url.substringBefore("/shorts").trimEnd('/')
+        return service.channelLHFactory.fromUrl(baseUrl).id
+    }
 
     private fun ChannelInfo.toChannelResponse(): ChannelResponse = ChannelResponse(
         name = name ?: "",

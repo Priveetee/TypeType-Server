@@ -51,3 +51,18 @@ internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoIt
     uploaderVerified = isUploaderVerified,
     shortDescription = shortDescription?.takeIf { it.isNotBlank() },
 )
+
+internal fun VideoItem.toShortCanonicalUrl(): VideoItem {
+    val id = extractYouTubeVideoId(url) ?: return this
+    if (url.contains("/shorts/", ignoreCase = true)) return this
+    return copy(url = "https://www.youtube.com/shorts/$id")
+}
+
+private fun extractYouTubeVideoId(url: String): String? {
+    val marker = "v="
+    val start = url.indexOf(marker)
+    if (start == -1) return null
+    val valueStart = start + marker.length
+    val value = url.substring(valueStart)
+    return value.substringBefore('&').substringBefore('#').takeIf { it.isNotBlank() }
+}
