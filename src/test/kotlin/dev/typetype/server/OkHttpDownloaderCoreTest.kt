@@ -67,10 +67,18 @@ class OkHttpDownloaderCoreTest {
             assertTrue(latch.await(3, TimeUnit.SECONDS))
             assertEquals(200, status)
             assertNull(error)
-            assertTrue(call.isFinished())
+            assertTrue(waitUntilFinished(call))
         } finally {
             server.stop(0)
         }
+    }
+
+    private fun waitUntilFinished(call: org.schabi.newpipe.extractor.downloader.CancellableCall): Boolean {
+        repeat(50) {
+            if (call.isFinished()) return true
+            Thread.sleep(20)
+        }
+        return false
     }
 
     private fun urlOf(server: HttpServer, path: String): String =
