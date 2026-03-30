@@ -48,7 +48,7 @@ class SubscriptionShortsFeedService(
                 }
             }.map { it.await() }.flatten()
         }
-        val dedup = videos.distinctBy { it.url }
+        val dedup = videos.distinctBy { it.toShortDedupKey() }
             .filter { it.isShortFormContent }
             .map { it.toShortCanonicalUrl() }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }

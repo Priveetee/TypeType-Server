@@ -58,7 +58,27 @@ internal fun VideoItem.toShortCanonicalUrl(): VideoItem {
     return copy(url = "https://www.youtube.com/shorts/$id")
 }
 
+internal fun VideoItem.toShortDedupKey(): String {
+    val urlId = extractYouTubeVideoId(url)
+    if (urlId != null) return urlId
+    val idId = extractYouTubeVideoId(id)
+    if (idId != null) return idId
+    return if (url.isNotBlank()) url else id
+}
+
 private fun extractYouTubeVideoId(url: String): String? {
+    val shortsMarker = "/shorts/"
+    val shortsStart = url.indexOf(shortsMarker)
+    if (shortsStart != -1) {
+        val value = url.substring(shortsStart + shortsMarker.length)
+        return value.substringBefore('?').substringBefore('&').substringBefore('#').takeIf { it.isNotBlank() }
+    }
+    val shortHostMarker = "youtu.be/"
+    val shortHostStart = url.indexOf(shortHostMarker)
+    if (shortHostStart != -1) {
+        val value = url.substring(shortHostStart + shortHostMarker.length)
+        return value.substringBefore('?').substringBefore('&').substringBefore('#').takeIf { it.isNotBlank() }
+    }
     val marker = "v="
     val start = url.indexOf(marker)
     if (start == -1) return null

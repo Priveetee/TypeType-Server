@@ -77,6 +77,7 @@ jobs:
               --tests dev.typetype.server.OkHttpDownloaderCoreTest
               --tests dev.typetype.server.StreamExtractionErrorMapperTest
               --tests dev.typetype.server.ShortCanonicalUrlTest
+              --tests dev.typetype.server.ShortDedupKeyTest
           - name: routes-media
             tests: >-
               --tests dev.typetype.server.SearchRoutesTest
