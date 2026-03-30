@@ -52,9 +52,31 @@ class SubscriptionShortsFeedService(
             .filter { it.isShortFormContent }
             .map { it.toShortCanonicalUrl() }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
+            .let { diversifyByUploader(it) }
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), 300L) }
         return dedup
     }
+
+    private fun diversifyByUploader(videos: List<VideoItem>): List<VideoItem> {
+        val grouped = videos.groupBy { uploaderKey(it) }
+        val queues = grouped.values
+            .map { group -> ArrayDeque(group.sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }) }
+            .sortedByDescending { queue -> queue.firstOrNull()?.let { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded } ?: Long.MIN_VALUE }
+            .toMutableList()
+        val result = ArrayList<VideoItem>(videos.size)
+        while (queues.isNotEmpty()) {
+            val nextRound = mutableListOf<ArrayDeque<VideoItem>>()
+            queues.forEach { queue ->
+                queue.removeFirstOrNull()?.let { result += it }
+                if (queue.isNotEmpty()) nextRound += queue
+            }
+            queues.clear()
+            queues.addAll(nextRound)
+        }
+        return result
+    }
+
+    private fun uploaderKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }
 
     private suspend fun fetchForSubscription(channelUrl: String): List<VideoItem> {
         val shorts = fetch(shortsTabUrl(channelUrl))
