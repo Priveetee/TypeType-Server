@@ -80,8 +80,7 @@ fun Route.adminBugReportRoutes(
                 )
             }
             when (val result = gitHubIssueService.createIssue(report)) {
-                is GitHubIssueCreateResult.NotConfigured -> call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse(result.message))
-                is GitHubIssueCreateResult.Failure -> call.respond(HttpStatusCode.BadGateway, ErrorResponse(result.message))
+                is GitHubIssueCreateResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
                 is GitHubIssueCreateResult.Success -> {
                     val updatedAt = bugReportService.markGithubIssue(id, result.url)
                     if (updatedAt == null) {
