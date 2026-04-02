@@ -29,6 +29,7 @@ import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.routes.subscriptionsRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.adminRoutes
+import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.watchLaterRoutes
@@ -36,6 +37,7 @@ import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.PipePipeBackupImporterService
@@ -64,6 +66,7 @@ fun Application.module() {
     val passwordResetService = PasswordResetService()
     val profileService = ProfileService()
     val avatarService = AvatarService()
+    val gitHubIssueService = GitHubIssueService()
     val adminSettingsService = AdminSettingsService()
     val restoreService = PipePipeBackupImporterService()
 
@@ -97,7 +100,8 @@ fun Application.module() {
         }
         authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService)
-        rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, restoreService) }
+        rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, svc.bugReportService, restoreService) }
     }
 }
