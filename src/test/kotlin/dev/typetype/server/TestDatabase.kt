@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
+import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.AdminSettingsTable
@@ -60,5 +61,6 @@ object TestDatabase {
         UserTopicInterestTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()
         YoutubeTakeoutPlaylistKeysTable.deleteAll()
+        BugReportsTable.deleteAll()
     }
 }

@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
+import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
@@ -65,6 +66,7 @@ object DatabaseFactory {
                 UserTopicInterestTable,
                 YoutubeTakeoutImportJobsTable,
                 YoutubeTakeoutPlaylistKeysTable,
+                BugReportsTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
