@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.ServiceRegistry
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.ProfileService
 import io.ktor.server.routing.Route
@@ -12,6 +13,7 @@ internal fun Route.userDataRoutes(
     authService: AuthService,
     profileService: ProfileService,
     avatarService: AvatarService,
+    bugReportService: BugReportService,
     restoreService: PipePipeBackupImporterService,
 ) {
     historyRoutes(svc.historyService, authService)
@@ -29,6 +31,7 @@ internal fun Route.userDataRoutes(
     recommendationFeedbackRoutes(svc.recommendationFeedbackService, authService)
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, authService)
+    bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
     homeRecommendationRoutes(svc.homeRecommendationService, authService)
 }
