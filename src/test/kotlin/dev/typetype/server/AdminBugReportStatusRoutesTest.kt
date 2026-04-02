@@ -5,7 +5,6 @@ import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BugReportGitHubIssueService
 import dev.typetype.server.services.BugReportService
-import dev.typetype.server.services.GitHubIssueCreateResult
 import io.ktor.client.request.header
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -65,7 +64,7 @@ class AdminBugReportStatusRoutesTest {
         val created = service.create(TEST_USER_ID, request())
         application {
             install(ContentNegotiation) { json() }
-            routing { adminBugReportRoutes(adminAuth, service, noConfigIssueService()) }
+            routing { adminBugReportRoutes(adminAuth, service, fakeIssueService()) }
         }
         val response = client.put("/admin/bug-reports/${created.id}/status") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -80,7 +79,7 @@ class AdminBugReportStatusRoutesTest {
         val created = service.create(TEST_USER_ID, request())
         application {
             install(ContentNegotiation) { json() }
-            routing { adminBugReportRoutes(adminAuth, service, noConfigIssueService()) }
+            routing { adminBugReportRoutes(adminAuth, service, fakeIssueService()) }
         }
         val response = client.put("/admin/bug-reports/${created.id}/status") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -101,6 +100,6 @@ class AdminBugReportStatusRoutesTest {
         ),
     )
 
-    private fun noConfigIssueService(): BugReportGitHubIssueService =
-        BugReportGitHubIssueService { GitHubIssueCreateResult.NotConfigured("GitHub integration is not configured") }
+    private fun fakeIssueService(): BugReportGitHubIssueService =
+        BugReportGitHubIssueService { error("Not used in this test") }
 }

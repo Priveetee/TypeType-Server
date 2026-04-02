@@ -59,16 +59,16 @@ class AdminBugReportGithubIssueRoutesTest {
     }
 
     @Test
-    fun `POST admin github issue returns 503 when not configured`() = testApplication {
+    fun `POST admin github issue returns 201 with prefilled URL`() = testApplication {
         val created = service.create(TEST_USER_ID, request())
         application {
             install(ContentNegotiation) { json() }
-            routing { adminBugReportRoutes(adminAuth, service, noConfigIssueService()) }
+            routing { adminBugReportRoutes(adminAuth, service, successIssueService()) }
         }
         val response = client.post("/admin/bug-reports/${created.id}/github-issue") {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
         }
-        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals(HttpStatusCode.Created, response.status)
     }
 
     @Test
@@ -95,9 +95,6 @@ class AdminBugReportGithubIssueRoutesTest {
             browserLanguage = "fr-FR",
         ),
     )
-
-    private fun noConfigIssueService(): BugReportGitHubIssueService =
-        BugReportGitHubIssueService { GitHubIssueCreateResult.NotConfigured("GitHub integration is not configured") }
 
     private fun successIssueService(): BugReportGitHubIssueService =
         BugReportGitHubIssueService { _: AdminBugReportDetailResponse ->
