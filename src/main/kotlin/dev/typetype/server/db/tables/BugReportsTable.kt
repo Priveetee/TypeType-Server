@@ -9,7 +9,7 @@ object BugReportsTable : Table("bug_reports") {
     val description = text("description")
     val context = text("context")
     val status = varchar("status", 20)
-    val githubIssueUrl = varchar("github_issue_url", 500).nullable()
+    val githubIssueUrl = text("github_issue_url").nullable()
     val createdAt = long("created_at")
     val updatedAt = long("updated_at")
 
