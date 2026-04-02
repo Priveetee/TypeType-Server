@@ -4,6 +4,7 @@ import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
@@ -72,6 +73,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService(recommendationEventService)
+    val bugReportService = BugReportService()
     val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val homeRecommendationService = HomeRecommendationService(subscriptionsService, subscriptionFeedService, historyService, favoritesService, watchLaterService, blockedService, recommendationFeedbackService, trendingService, searchService, cache)
