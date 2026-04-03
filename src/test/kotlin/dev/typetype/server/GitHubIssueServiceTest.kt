@@ -1,0 +1,59 @@
+package dev.typetype.server
+
+import dev.typetype.server.models.AdminBugReportDetailResponse
+import dev.typetype.server.models.BugApiErrorItem
+import dev.typetype.server.models.BugReportContextItem
+import dev.typetype.server.services.GitHubIssueCreateResult
+import dev.typetype.server.services.GitHubIssueService
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class GitHubIssueServiceTest {
+    @Test
+    fun `default repo targets backend repository`() = runBlocking {
+        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val result = service.createIssue(sampleReport())
+        assertTrue(result is GitHubIssueCreateResult.Success)
+        val url = (result as GitHubIssueCreateResult.Success).url
+        assertTrue(url.startsWith("https://github.com/Priveetee/TypeType-Server/issues/new?"))
+    }
+
+    @Test
+    fun `issue body includes api error diagnostics`() = runBlocking {
+        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val result = service.createIssue(sampleReport())
+        val url = (result as GitHubIssueCreateResult.Success).url
+        assertTrue(url.contains("API+errors"))
+        assertTrue(url.contains("requestId%3Dreq-123"))
+        assertTrue(url.contains("code%3DBAD_REQUEST"))
+    }
+
+    private fun sampleReport(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
+        id = "report-id",
+        category = "player",
+        description = "Video freezes after 10s",
+        status = "new",
+        userId = "user-id",
+        userEmail = "user@test.local",
+        context = BugReportContextItem(
+            route = "/watch",
+            timestamp = 1775200000000,
+            userAgent = "Mozilla/5.0",
+            browserLanguage = "fr-FR",
+            apiErrors = listOf(
+                BugApiErrorItem(
+                    requestId = "req-123",
+                    endpoint = "/streams",
+                    status = 400,
+                    code = "BAD_REQUEST",
+                    message = "Invalid url",
+                    timestamp = 1775200000001,
+                ),
+            ),
+        ),
+        githubIssueUrl = null,
+        createdAt = 1775200000000,
+        updatedAt = 1775200000000,
+    )
+}

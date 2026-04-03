@@ -67,6 +67,22 @@ class BugReportRoutesTest {
     }
 
     @Test
+    fun `POST bug report accepts api errors in context`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { bugReportRoutes(service, auth) }
+        }
+        val response = client.post("/bug-reports") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"category":"ui","description":"Issue report","context":{"route":"/watch","timestamp":1774200000000,"userAgent":"Mozilla","browserLanguage":"fr-FR","apiErrors":[{"requestId":"req-123","endpoint":"/streams","status":400,"code":"BAD_REQUEST","message":"Invalid url","timestamp":1774200000001}]}}""",
+            )
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+    }
+
+    @Test
     fun `POST bug report with invalid category returns 400`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
