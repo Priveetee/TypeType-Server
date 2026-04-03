@@ -56,6 +56,7 @@ class SearchHistoryRoutesTest {
         val response = client.get("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("[]", response.bodyAsText())
+        assertEquals("0", response.headers["X-Total-Count"])
     }
 
     @Test
