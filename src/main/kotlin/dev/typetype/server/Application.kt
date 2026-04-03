@@ -77,7 +77,7 @@ fun Application.module() {
     val svc = ServiceRegistry(cache, subtitleServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
 
-    configurePlugins()
+    configurePlugins(authService)
 
     routing {
         rateLimit(STREAMS_ZONE) {

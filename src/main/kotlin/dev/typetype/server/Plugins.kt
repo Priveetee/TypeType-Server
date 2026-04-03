@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.services.AuthService
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -40,9 +41,8 @@ val PROXY_ZONE = RateLimitName("proxy")
 val PROXY_STORYBOARD_ZONE = RateLimitName("proxy-storyboard")
 val USER_DATA_ZONE = RateLimitName("user-data")
 
-fun Application.configurePlugins() {
+fun Application.configurePlugins(authService: AuthService) {
     val log = LoggerFactory.getLogger("RequestLogger")
-
     install(CallLogging) {
         format { call ->
             val method = call.request.httpMethod.value
@@ -52,31 +52,26 @@ fun Application.configurePlugins() {
             "$method $displayPath -> $status"
         }
     }
-
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
     }
-
     install(Compression) {
         gzip {
             excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
         }
     }
-
     val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
         ?.split(",")
         ?.map { it.trim() }
         ?.filter { it.isNotBlank() }
         .orEmpty()
         .ifEmpty { error("ALLOWED_ORIGINS environment variable must be set") }
-
     install(CORS) {
         allowOrigins { it in allowedOrigins }
         allowHeader(HttpHeaders.ContentType)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
     }
-
     install(RateLimit) {
         register(EXTRACTION_ZONE) {
             rateLimiter(limit = EXTRACTION_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
@@ -100,10 +95,9 @@ fun Application.configurePlugins() {
         }
         register(USER_DATA_ZONE) {
             rateLimiter(limit = USER_DATA_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
-            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
+            requestKey { call -> userDataRateLimitKey(call, authService) }
         }
     }
-
     install(StatusPages) {
         status(HttpStatusCode.TooManyRequests) { call, status ->
             if (!call.response.headers.contains(HttpHeaders.RetryAfter)) call.response.headers.append(HttpHeaders.RetryAfter, "60")
