@@ -13,11 +13,14 @@ import java.util.UUID
 
 class SearchHistoryService {
 
-    suspend fun getAll(userId: String): List<SearchHistoryItem> = DatabaseFactory.query {
-        SearchHistoryTable.selectAll()
+    suspend fun getPage(userId: String, page: Int, limit: Int): Pair<List<SearchHistoryItem>, Long> = DatabaseFactory.query {
+        val query = SearchHistoryTable.selectAll()
             .where { SearchHistoryTable.userId eq userId }
             .orderBy(SearchHistoryTable.searchedAt to SortOrder.DESC)
-            .map { it.toItem() }
+        val total = query.count()
+        val offset = (page - 1).toLong() * limit.toLong()
+        val items = query.limit(limit).offset(offset).map { it.toItem() }
+        items to total
     }
 
     suspend fun add(userId: String, term: String): SearchHistoryItem {

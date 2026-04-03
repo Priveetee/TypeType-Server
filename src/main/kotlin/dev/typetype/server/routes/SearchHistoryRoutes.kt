@@ -17,7 +17,15 @@ internal data class SearchHistoryBody(val term: String)
 
 fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, authService: AuthService) {
     get("/search-history") {
-        call.withJwtAuth(authService) { userId -> call.respond(searchHistoryService.getAll(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            if (page < 1) return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid page"))
+            if (limit !in 1..100) return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid limit"))
+            val (items, total) = searchHistoryService.getPage(userId = userId, page = page, limit = limit)
+            call.response.headers.append("X-Total-Count", total.toString())
+            call.respond(items)
+        }
     }
     post("/search-history") {
         call.withJwtAuth(authService) { userId ->
