@@ -11,6 +11,7 @@ import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
+import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
@@ -62,5 +63,6 @@ object TestDatabase {
         YoutubeTakeoutImportJobsTable.deleteAll()
         YoutubeTakeoutPlaylistKeysTable.deleteAll()
         BugReportsTable.deleteAll()
+        NotificationStatesTable.deleteAll()
     }
 }
