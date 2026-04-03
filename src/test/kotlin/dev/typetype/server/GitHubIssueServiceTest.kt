@@ -42,6 +42,17 @@ class GitHubIssueServiceTest {
         assertTrue(!url.contains("private.example"), url)
     }
 
+    @Test
+    fun `issue body redacts hostile requestId and userAgent host tokens`() = runBlocking {
+        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val result = service.createIssue(sampleReportWithHostTokens())
+        val url = URLDecoder.decode((result as GitHubIssueCreateResult.Success).url, StandardCharsets.UTF_8)
+        assertTrue(!url.contains("private.host.internal"), url)
+        assertTrue(!url.contains("req.private.local"), url)
+        assertTrue(url.contains("requestId=redacted-host"), url)
+        assertTrue(url.contains("User agent: Mozilla (redacted-host/client)"), url)
+    }
+
     private fun sampleReport(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
         id = "report-id",
         category = "player",
@@ -97,5 +108,33 @@ class GitHubIssueServiceTest {
         githubIssueUrl = null,
         createdAt = 1775200001000,
         updatedAt = 1775200001000,
+    )
+
+    private fun sampleReportWithHostTokens(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
+        id = "report-id-3",
+        category = "functionality",
+        description = "Host token redaction case",
+        status = "new",
+        userId = "user-id-3",
+        userEmail = "user3@test.local",
+        context = BugReportContextItem(
+            route = "/shorts",
+            timestamp = 1775200002000,
+            userAgent = "Mozilla (private.host.internal/client)",
+            browserLanguage = "fr-FR",
+            apiErrors = listOf(
+                BugApiErrorItem(
+                    requestId = "req.private.local",
+                    endpoint = "/admin/bug-reports",
+                    status = 409,
+                    code = "CONFLICT",
+                    message = "already exists",
+                    timestamp = 1775200002001,
+                ),
+            ),
+        ),
+        githubIssueUrl = null,
+        createdAt = 1775200002000,
+        updatedAt = 1775200002000,
     )
 }

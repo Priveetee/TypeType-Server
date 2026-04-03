@@ -43,7 +43,7 @@ class GitHubIssueService(
         if (recentApiError != null) {
             appendLine("- Latest API endpoint: ${redactDomains(recentApiError.endpoint)}")
             appendLine("- Latest API status: ${recentApiError.status}")
-            appendLine("- Latest API requestId: ${recentApiError.requestId ?: "n/a"}")
+            appendLine("- Latest API requestId: ${redactDomains(recentApiError.requestId ?: "n/a")}")
             appendLine("- Latest API code: ${recentApiError.code ?: "n/a"}")
         }
         appendLine()
@@ -53,7 +53,7 @@ class GitHubIssueService(
             appendLine()
             appendLine("## API errors")
             report.context.apiErrors.take(10).forEach { error ->
-                appendLine("- endpoint=${redactDomains(error.endpoint)} status=${error.status} requestId=${error.requestId ?: "n/a"} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
+                appendLine("- endpoint=${redactDomains(error.endpoint)} status=${error.status} requestId=${redactDomains(error.requestId ?: "n/a")} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
                 if (!error.message.isNullOrBlank()) appendLine("  message=${redactDomains(error.message)}")
             }
         }
@@ -75,12 +75,16 @@ class GitHubIssueService(
         val trimmed = value.trim()
         if (trimmed.isEmpty()) return "n/a"
         val asUri = runCatching { URI(trimmed) }.getOrNull()
-        if (asUri != null && !asUri.host.isNullOrBlank()) return uriWithoutHost(asUri)
-        return urlRegex.replace(trimmed) { match ->
+        if (asUri != null && !asUri.host.isNullOrBlank()) return sanitizeHostTokens(uriWithoutHost(asUri))
+        val withoutUrls = urlRegex.replace(trimmed) { match ->
             val uri = runCatching { URI(match.value) }.getOrNull()
             if (uri == null || uri.host.isNullOrBlank()) match.value else uriWithoutHost(uri)
         }
+        return sanitizeHostTokens(withoutUrls)
     }
+
+    private fun sanitizeHostTokens(value: String): String =
+        hostTokenRegex.replace(value) { REDACTED_HOST }
 
     private fun uriWithoutHost(uri: URI): String {
         val path = uri.rawPath?.takeIf { it.isNotBlank() } ?: "/"
@@ -90,8 +94,10 @@ class GitHubIssueService(
     }
 
     private companion object {
+        const val REDACTED_HOST: String = "redacted-host"
         const val DEFAULT_REPO: String = "Priveetee/TypeType-Server"
         val REPO_PATTERN = Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
         val urlRegex = Regex("https?://[^\\s)]+")
+        val hostTokenRegex = Regex("(?<![@/])\\b(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,63}\\b")
     }
 }
