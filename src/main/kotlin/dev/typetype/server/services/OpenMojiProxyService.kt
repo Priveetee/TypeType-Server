@@ -5,12 +5,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 
 class OpenMojiProxyService(private val cache: CacheService) {
 
-    private val cooldownUntilEpochMs = AtomicLong(0L)
+    private val localCache = ConcurrentHashMap<String, LocalSvg>()
+    private val failedUntilByCode = ConcurrentHashMap<String, Long>()
+    private val notFoundUntilByCode = ConcurrentHashMap<String, Long>()
     private val client = OkHttpClient.Builder()
         .connectTimeout(2, TimeUnit.SECONDS)
         .readTimeout(4, TimeUnit.SECONDS)
@@ -20,18 +22,29 @@ class OpenMojiProxyService(private val cache: CacheService) {
 
     suspend fun getSvg(code: String): ByteArray? {
         val key = cacheKey(code)
-        runCatching { cache.get(key) }.getOrNull()?.let { return it.toByteArray(Charsets.UTF_8) }
         val now = System.currentTimeMillis()
-        if (now < cooldownUntilEpochMs.get()) return null
+        localCache[code]?.takeIf { it.expiresAtMs > now }?.let { return it.bytes }
+        if (now < (notFoundUntilByCode[code] ?: 0L)) return null
+        if (now < (failedUntilByCode[code] ?: 0L)) return null
+        runCatching { cache.get(key) }.getOrNull()?.toByteArray(Charsets.UTF_8)?.let { bytes ->
+            localCache[code] = LocalSvg(bytes = bytes, expiresAtMs = now + LOCAL_CACHE_TTL_MS)
+            return bytes
+        }
         return when (val fetched = fetch(code)) {
             is FetchResult.Success -> {
-                cooldownUntilEpochMs.set(0L)
+                failedUntilByCode.remove(code)
+                notFoundUntilByCode.remove(code)
+                localCache[code] = LocalSvg(bytes = fetched.bytes, expiresAtMs = now + LOCAL_CACHE_TTL_MS)
                 runCatching { cache.set(key, fetched.bytes.toString(Charsets.UTF_8), SVG_CACHE_TTL_SECONDS) }
                 fetched.bytes
             }
-            FetchResult.NotFound -> null
+            FetchResult.NotFound -> {
+                failedUntilByCode.remove(code)
+                notFoundUntilByCode[code] = now + NOT_FOUND_CACHE_MS
+                null
+            }
             FetchResult.Failed -> {
-                cooldownUntilEpochMs.set(now + FAILURE_COOLDOWN_MS)
+                failedUntilByCode[code] = now + FAILURE_COOLDOWN_MS
                 null
             }
         }
@@ -57,6 +70,8 @@ class OpenMojiProxyService(private val cache: CacheService) {
         private const val OPENMOJI_CDN_BASE = "https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@master/color/svg"
         private const val SVG_CACHE_TTL_SECONDS = 604800L
         private const val FAILURE_COOLDOWN_MS = 15000L
+        private const val NOT_FOUND_CACHE_MS = 300000L
+        private const val LOCAL_CACHE_TTL_MS = 600000L
     }
 
     private sealed interface FetchResult {
@@ -64,4 +79,9 @@ class OpenMojiProxyService(private val cache: CacheService) {
         data object NotFound : FetchResult
         data object Failed : FetchResult
     }
+
+    private data class LocalSvg(
+        val bytes: ByteArray,
+        val expiresAtMs: Long,
+    )
 }
