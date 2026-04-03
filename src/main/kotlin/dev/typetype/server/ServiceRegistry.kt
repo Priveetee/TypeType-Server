@@ -21,6 +21,7 @@ import dev.typetype.server.services.ManifestService
 import dev.typetype.server.services.NativeManifestService
 import dev.typetype.server.services.NicoNicoTrendingService
 import dev.typetype.server.services.NicoVideoProxyService
+import dev.typetype.server.services.NotificationsService
 import dev.typetype.server.services.OkHttpProxyService
 import dev.typetype.server.services.PipePipeBulletCommentService
 import dev.typetype.server.services.PipePipeChannelService
@@ -66,6 +67,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
     val subscriptionShortsFeedService = SubscriptionShortsFeedService(subscriptionsService, channelService, cache)
+    val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
     val watchLaterService = WatchLaterService(recommendationEventService)
     val progressService = ProgressService()

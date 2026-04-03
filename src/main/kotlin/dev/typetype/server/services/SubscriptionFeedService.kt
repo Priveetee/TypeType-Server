@@ -30,6 +30,8 @@ class SubscriptionFeedService(
         return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = nextpage)
     }
 
+    suspend fun getAll(userId: String): List<VideoItem> = cachedAll(userId)
+
     private suspend fun cachedAll(userId: String): List<VideoItem> {
         val key = cacheKey(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->

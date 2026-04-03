@@ -18,6 +18,7 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.PasswordResetTable
+import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
@@ -67,6 +68,7 @@ object DatabaseFactory {
                 YoutubeTakeoutImportJobsTable,
                 YoutubeTakeoutPlaylistKeysTable,
                 BugReportsTable,
+                NotificationStatesTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
