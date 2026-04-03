@@ -12,4 +12,5 @@ data class SettingsItem(
     val subtitlesEnabled: Boolean = false,
     val defaultSubtitleLanguage: String = "",
     val defaultAudioLanguage: String = "",
+    val preferOriginalLanguage: Boolean = false,
 )

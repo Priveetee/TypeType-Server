@@ -12,5 +12,6 @@ object SettingsTable : Table("settings") {
     val subtitlesEnabled = bool("subtitles_enabled").default(false)
     val defaultSubtitleLanguage = text("default_subtitle_language").default("")
     val defaultAudioLanguage = text("default_audio_language").default("")
+    val preferOriginalLanguage = bool("prefer_original_language").default(false)
     override val primaryKey = PrimaryKey(userId)
 }
