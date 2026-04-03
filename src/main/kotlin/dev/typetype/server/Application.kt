@@ -41,6 +41,7 @@ import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.PipePipeBackupImporterService
+import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
@@ -72,7 +73,9 @@ fun Application.module() {
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
-    val svc = ServiceRegistry(DragonflyService(cacheUrl), subtitleServiceUrl)
+    val cache = DragonflyService(cacheUrl)
+    val svc = ServiceRegistry(cache, subtitleServiceUrl)
+    val openMojiProxyService = OpenMojiProxyService(cache)
 
     configurePlugins()
 
@@ -101,7 +104,7 @@ fun Application.module() {
         authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
-        avatarRoutes(avatarService)
+        avatarRoutes(avatarService, openMojiProxyService)
         rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, svc.bugReportService, restoreService) }
     }
 }
