@@ -25,6 +25,10 @@ internal object BugReportValidation {
         if (context.browserLanguage.isBlank()) return "Context browserLanguage is required"
         if (context.timestamp <= 0) return "Context timestamp is invalid"
         if (context.crashLogs.size > 200) return "Too many crash logs"
+        if (context.apiErrors.size > 100) return "Too many api errors"
+        if (context.apiErrors.any { it.endpoint.isBlank() || it.timestamp <= 0 || it.status <= 0 }) {
+            return "Invalid api error entry"
+        }
         return null
     }
 }

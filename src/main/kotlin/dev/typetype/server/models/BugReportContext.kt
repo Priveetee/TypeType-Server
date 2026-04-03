@@ -11,6 +11,16 @@ data class BugCrashLogItem(
 )
 
 @Serializable
+data class BugApiErrorItem(
+    val requestId: String? = null,
+    val endpoint: String,
+    val status: Int,
+    val code: String? = null,
+    val message: String? = null,
+    val timestamp: Long,
+)
+
+@Serializable
 data class BugReportContextItem(
     val videoUrl: String? = null,
     val route: String,
@@ -19,4 +29,5 @@ data class BugReportContextItem(
     val browserLanguage: String,
     val playerState: JsonElement? = null,
     val crashLogs: List<BugCrashLogItem> = emptyList(),
+    val apiErrors: List<BugApiErrorItem> = emptyList(),
 )

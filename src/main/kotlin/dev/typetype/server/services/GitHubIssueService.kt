@@ -37,9 +37,25 @@ class GitHubIssueService(
         appendLine("- User agent: ${report.context.userAgent}")
         appendLine("- Timestamp: ${report.context.timestamp}")
         appendLine("- Crash logs: ${report.context.crashLogs.size}")
+        appendLine("- API errors: ${report.context.apiErrors.size}")
+        val recentApiError = report.context.apiErrors.firstOrNull()
+        if (recentApiError != null) {
+            appendLine("- Latest API endpoint: ${recentApiError.endpoint}")
+            appendLine("- Latest API status: ${recentApiError.status}")
+            appendLine("- Latest API requestId: ${recentApiError.requestId ?: "n/a"}")
+            appendLine("- Latest API code: ${recentApiError.code ?: "n/a"}")
+        }
         appendLine()
         appendLine("## Player state")
         appendLine(report.context.playerState?.toString() ?: "{}")
+        if (report.context.apiErrors.isNotEmpty()) {
+            appendLine()
+            appendLine("## API errors")
+            report.context.apiErrors.take(10).forEach { error ->
+                appendLine("- endpoint=${error.endpoint} status=${error.status} requestId=${error.requestId ?: "n/a"} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
+                if (!error.message.isNullOrBlank()) appendLine("  message=${error.message}")
+            }
+        }
     }
 
     private fun buildIssueUrl(title: String, body: String): String {
@@ -55,7 +71,7 @@ class GitHubIssueService(
     private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
     private companion object {
-        const val DEFAULT_REPO: String = "Priveetee/TypeType"
+        const val DEFAULT_REPO: String = "Priveetee/TypeType-Server"
         val REPO_PATTERN = Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
     }
 }
