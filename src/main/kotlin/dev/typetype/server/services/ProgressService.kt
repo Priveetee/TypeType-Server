@@ -27,13 +27,11 @@ class ProgressService {
     suspend fun upsert(userId: String, videoUrl: String, position: Long): ProgressItem {
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
-            val exists = ProgressTable.selectAll().where { (ProgressTable.videoUrl eq videoUrl) and (ProgressTable.userId eq userId) }.count() > 0
-            if (exists) {
-                ProgressTable.update({ (ProgressTable.videoUrl eq videoUrl) and (ProgressTable.userId eq userId) }) {
-                    it[ProgressTable.position] = position
-                    it[updatedAt] = now
-                }
-            } else {
+            val updated = ProgressTable.update({ (ProgressTable.videoUrl eq videoUrl) and (ProgressTable.userId eq userId) }) {
+                it[ProgressTable.position] = position
+                it[updatedAt] = now
+            }
+            if (updated == 0) {
                 ProgressTable.insert {
                     it[ProgressTable.userId] = userId
                     it[ProgressTable.videoUrl] = videoUrl

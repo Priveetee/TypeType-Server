@@ -28,20 +28,18 @@ class SettingsService {
 
     suspend fun upsert(userId: String, settings: SettingsItem): SettingsItem {
         DatabaseFactory.query {
-            val exists = SettingsTable.selectAll().where { SettingsTable.userId eq userId }.count() > 0
-            if (exists) {
-                SettingsTable.update({ SettingsTable.userId eq userId }) {
-                    it[defaultService] = settings.defaultService
-                    it[defaultQuality] = settings.defaultQuality
-                    it[autoplay] = settings.autoplay
-                    it[volume] = settings.volume
-                    it[muted] = settings.muted
-                    it[subtitlesEnabled] = settings.subtitlesEnabled
-                    it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
-                    it[defaultAudioLanguage] = settings.defaultAudioLanguage
-                    it[preferOriginalLanguage] = settings.preferOriginalLanguage
-                }
-            } else {
+            val updated = SettingsTable.update({ SettingsTable.userId eq userId }) {
+                it[defaultService] = settings.defaultService
+                it[defaultQuality] = settings.defaultQuality
+                it[autoplay] = settings.autoplay
+                it[volume] = settings.volume
+                it[muted] = settings.muted
+                it[subtitlesEnabled] = settings.subtitlesEnabled
+                it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
+                it[defaultAudioLanguage] = settings.defaultAudioLanguage
+                it[preferOriginalLanguage] = settings.preferOriginalLanguage
+            }
+            if (updated == 0) {
                 SettingsTable.insert {
                     it[SettingsTable.userId] = userId
                     it[defaultService] = settings.defaultService
