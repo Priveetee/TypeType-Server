@@ -100,6 +100,7 @@ object DatabaseFactory {
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")
             DatabasePrimaryKeyMigrations.apply()
+            DatabaseIndexMigrations.apply()
         }
     }
 
