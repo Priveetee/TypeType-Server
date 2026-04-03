@@ -2,16 +2,16 @@
 
 ## Overview
 
-TypeType-Server is the extraction and data backend for TypeType.
+TypeType-Server is the backend for extraction and user data.
 
-Responsibilities:
+It does two things:
 
-- expose extraction APIs for YouTube, NicoNico, and BiliBili via PipePipeExtractor
-- persist user data in PostgreSQL
+- exposes extraction APIs for YouTube, NicoNico, and BiliBili via PipePipeExtractor
+- persists user data in PostgreSQL
 
-TypeType-Server is consumed only over HTTP by the TypeType frontend.
+The frontend consumes it only over HTTP.
 
-## Service Boundary
+## System Boundary
 
 ```
 PipePipeExtractor (Java, GPL v3)
@@ -19,129 +19,99 @@ PipePipeExtractor (Java, GPL v3)
         v
 TypeType-Server (Kotlin/Ktor, GPL v3)
         |
-        | REST/JSON
         v
 TypeType frontend (TypeScript/React, MIT)
 ```
 
-No code is shared across repos. The REST API is the boundary.
+No source code is shared across repos. The REST API is the only boundary.
 
 ## Runtime Components
 
 | Component | Role |
 |---|---|
 | Ktor (Netty) | HTTP server |
-| PipePipeExtractor | media extraction |
-| PostgreSQL | user data persistence |
-| Dragonfly (Redis-compatible) | extraction cache |
-| TypeType-Token | YouTube PO token and subtitles helper |
+| PipePipeExtractor | extraction engine |
+| PostgreSQL | user data storage |
+| Dragonfly | extraction cache |
+| TypeType-Token | PO token and subtitles helper |
 
-## Authentication and Authorization
+## Authentication Model
 
 Authentication is JWT-based.
 
-- public auth routes:
-  - `POST /auth/register`
-  - `POST /auth/login`
-  - `POST /auth/refresh`
-  - `GET /auth/me`
-  - `POST /auth/guest`
-  - `POST /auth/reset-password`
-- protected user routes require `Authorization: Bearer <jwt>`
-- admin-only routes use admin role checks
-- admin/moderator routes use admin or moderator role checks
+Public auth routes:
 
-Guest users can read protected resources but are blocked on selected write routes (for example bug report creation).
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `GET /auth/me`
+- `POST /auth/guest`
+- `POST /auth/reset-password`
 
-## Routing Layout
+Protected routes require `Authorization: Bearer <jwt>`.
 
-Main route registration lives in `src/main/kotlin/dev/typetype/server/Application.kt`.
+Role checks:
 
-- extraction routes:
-  - `/streams`
-  - `/streams/manifest`
-  - `/streams/native-manifest`
-  - `/search`
-  - `/suggestions`
-  - `/trending`
-  - `/comments`
-  - `/bullet-comments`
-  - `/channel`
-- proxy routes:
-  - `/proxy`
-  - `/proxy/storyboard`
-  - `/proxy/nicovideo`
-- user data routes:
-  - `/history`
-  - `/subscriptions`
-  - `/subscriptions/feed`
-  - `/subscriptions/shorts`
-  - `/playlists`
-  - `/watch-later`
-  - `/progress`
-  - `/favorites`
-  - `/settings`
-  - `/search-history`
-  - `/blocked/channels`
-  - `/blocked/videos`
-  - `/recommendation-events`
-  - `/recommendation-feedback`
-  - `/restore`
-  - `/recommendations/home`
-  - `/bug-reports`
-- admin routes:
-  - `/admin/users`
-  - `/admin/settings`
-  - `/admin/bug-reports`
+- admin-only: `withAdminAuth`
+- admin/moderator: `withAdminModeratorAuth`
+
+## Route Surface
+
+Main registration is in `src/main/kotlin/dev/typetype/server/Application.kt`.
+
+Public extraction and proxy routes:
+
+- `/streams`, `/streams/manifest`, `/streams/native-manifest`
+- `/search`, `/suggestions`, `/trending`
+- `/comments`, `/bullet-comments`, `/channel`
+- `/proxy`, `/proxy/storyboard`, `/proxy/nicovideo`
+
+Protected user routes:
+
+- `/history`, `/subscriptions`, `/subscriptions/feed`, `/subscriptions/shorts`
+- `/playlists`, `/watch-later`, `/progress`, `/favorites`, `/settings`
+- `/search-history`, `/blocked/channels`, `/blocked/videos`
+- `/recommendation-events`, `/recommendation-feedback`, `/recommendations/home`
+- `/restore`, `/bug-reports`
+
+Admin routes: `/admin/users`, `/admin/settings`, `/admin/bug-reports`
 
 ## Data Domains
 
-Persisted user domains include:
+Persisted user data domains:
 
 - history
 - subscriptions
-- playlists and playlist videos
+- playlists and playlist items
 - favorites
 - watch later
-- playback progress
+- progress
 - settings
 - search history
-- blocked channels and videos
-- recommendation feedback/events
+- blocked channels and blocked videos
+- recommendation events and feedback
 - bug reports
 
-Schema definitions are under `src/main/kotlin/dev/typetype/server/db/tables`.
+Schema files live in `src/main/kotlin/dev/typetype/server/db/tables`.
 
 ## Rate Limiting
 
-Rate limits are configured by zone in `configurePlugins()`.
+Request limits are applied by zone in plugin configuration:
 
-- extraction zone for heavy extraction endpoints
-- channel zone for channel extraction
-- proxy zone for media proxy
-- proxy storyboard zone for storyboard proxy
-- user data zone for authenticated data routes
+- extraction zone
+- channel zone
+- proxy zone
+- proxy storyboard zone
+- user data zone
 
-## Error Model
+## Error Shape
 
-Errors return JSON using:
+Errors return JSON with a single key: `{"error":"..."}`.
 
-```json
-{"error":"..."}
-```
-
-Common statuses:
-
-- `400` invalid input
-- `401` missing or invalid token
-- `403` role/permission violation
-- `404` resource not found
-- `409` conflict
-- `422` extraction/validation constraints
+Common statuses: `400`, `401`, `403`, `404`, `409`, `422`.
 
 ## License
 
-This repository is GPL v3 due to PipePipeExtractor linkage.
+This repository is GPL v3 because it links to PipePipeExtractor.
 
-- keep backend and frontend code separated by HTTP boundary
-- ensure added dependencies remain GPL-compatible
+Keep backend and frontend code separated by the HTTP boundary.
