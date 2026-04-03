@@ -79,6 +79,7 @@ class NotificationsRoutesTest {
     @Test
     fun `GET notifications requires auth`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/notifications").status)
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/notifications/unread-count").status)
     }
 
     @Test
@@ -108,6 +109,26 @@ class NotificationsRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, mark.status)
         val after = client.get("/notifications") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        assertTrue(after.contains("\"unreadCount\":0"))
+    }
+
+    @Test
+    fun `GET notifications unread-count returns unread count`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
+        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(video(4000L, "A"))
+
+        val before = client.get("/notifications/unread-count") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        assertTrue(before.contains("\"unreadCount\":1"))
+
+        client.post("/notifications/read-all") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+
+        val after = client.get("/notifications/unread-count") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
         assertTrue(after.contains("\"unreadCount\":0"))
