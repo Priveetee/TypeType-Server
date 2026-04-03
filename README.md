@@ -6,7 +6,7 @@ A Kotlin/Ktor server with two responsibilities:
 - Wrap [PipePipeExtractor](https://github.com/InfinityLoop1308/PipePipeExtractor) to expose YouTube, NicoNico, and BiliBili extraction as a REST/JSON API
 - Persist user data (history, favorites, subscriptions, playlists, watch-later, progress, settings, search history, blocked content) in PostgreSQL
 
-See [Architecture.md](./Architecture.md) for the full API contract and data model reference.
+See [Architecture.md](./Architecture.md) for current architecture and API surface overview.
 
 ## Stack
 
