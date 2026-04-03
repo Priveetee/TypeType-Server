@@ -17,12 +17,16 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import java.nio.file.Files
 
-fun Route.youtubeTakeoutImportRoutes(importService: YoutubeTakeoutImportJobService, authService: AuthService) {
+fun Route.youtubeTakeoutImportRoutes(
+    importService: YoutubeTakeoutImportJobService,
+    authService: AuthService,
+    maxUploadBytes: Long = YoutubeTakeoutLimits.MAX_UPLOAD_BYTES,
+) {
     post("/imports/youtube-takeout") {
         call.withJwtAuth(authService) { userId ->
             val tmp = Files.createTempFile("youtube-takeout-", ".zip")
             try {
-                val multipart = call.receiveMultipart(YoutubeTakeoutLimits.MAX_UPLOAD_BYTES)
+                val multipart = call.receiveMultipart(maxUploadBytes)
                 var hasFile = false
                 while (true) {
                     val part = multipart.readPart() ?: break
@@ -31,7 +35,7 @@ fun Route.youtubeTakeoutImportRoutes(importService: YoutubeTakeoutImportJobServi
                             part.dispose()
                             return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid archive file type"))
                         }
-                        YoutubeTakeoutUploadWriter.writeWithLimit(part.provider(), tmp, YoutubeTakeoutLimits.MAX_UPLOAD_BYTES)
+                        YoutubeTakeoutUploadWriter.writeWithLimit(part.provider(), tmp, maxUploadBytes)
                         hasFile = true
                     }
                     part.dispose()
@@ -40,7 +44,17 @@ fun Route.youtubeTakeoutImportRoutes(importService: YoutubeTakeoutImportJobServi
                 call.respond(HttpStatusCode.Created, importService.create(userId, tmp))
             } catch (e: Exception) {
                 Files.deleteIfExists(tmp)
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Invalid takeout archive"))
+                when (e) {
+                    is IllegalArgumentException,
+                    is IllegalStateException,
+                    -> {
+                        val message = e.message ?: "Invalid takeout archive"
+                        val status = if (message.contains("too large", ignoreCase = true)) HttpStatusCode.PayloadTooLarge else HttpStatusCode.BadRequest
+                        call.respond(status, ErrorResponse(message))
+                    }
+
+                    else -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Invalid takeout archive"))
+                }
             }
         }
     }

@@ -52,9 +52,9 @@ class YoutubeTakeoutImportRoutesTest {
     private val previewLookup = YoutubeTakeoutPreviewLookupService(history, favorites, watchLater)
     private val signalImport = YoutubeTakeoutSignalImportService(favorites, watchLater, history)
     private val importService = YoutubeTakeoutImportJobService(
-        parser = YoutubeTakeoutParserService(),
-        previewService = YoutubeTakeoutPreviewService(subscriptions, playlists, previewLookup),
-        importerService = YoutubeTakeoutImporterService(subscriptions, playlists, signalImport),
+        YoutubeTakeoutParserService(),
+        YoutubeTakeoutPreviewService(subscriptions, playlists, previewLookup),
+        YoutubeTakeoutImporterService(subscriptions, playlists, signalImport),
     )
 
     companion object {
@@ -115,4 +115,5 @@ class YoutubeTakeoutImportRoutesTest {
         }
         return zip
     }
+
 }
