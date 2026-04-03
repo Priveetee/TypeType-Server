@@ -47,6 +47,15 @@ java -jar build/libs/typetype-server-all.jar
 
 The server starts on port `8080`. Logs go to stdout.
 
+### Docker image tags (GHCR)
+
+Container tags are published to GHCR with:
+
+- `latest` on default branch builds
+- `sha-<short-sha>` on every build
+- branch tags (for example `main`)
+- release tags when pushing Git tags like `v1.2.3` (`1.2.3` and `1.2`)
+
 ### Configuration
 
 All configuration is via environment variables. Defaults in `.env.example` work for local development.
