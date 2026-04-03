@@ -5,6 +5,7 @@ import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.models.MarkNotificationsReadResponse
 import dev.typetype.server.models.NotificationItem
 import dev.typetype.server.models.NotificationsResponse
+import dev.typetype.server.models.UnreadCountResponse
 import dev.typetype.server.models.VideoItem
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -16,13 +17,17 @@ class NotificationsService(
 ) {
     suspend fun getNotifications(userId: String, page: Int, limit: Int): NotificationsResponse {
         val items = buildItems(userId)
-        val lastSeenUploaded = getLastSeenUploaded(userId)
-        val unreadCount = items.count { it.createdAt > lastSeenUploaded }
+        val unreadCount = unreadCount(items, userId)
         val from = page * limit
         if (from >= items.size) return NotificationsResponse(items = emptyList(), unreadCount = unreadCount, nextpage = null)
         val to = minOf(from + limit, items.size)
         val nextpage = if (to < items.size) (page + 1).toString() else null
         return NotificationsResponse(items = items.subList(from, to), unreadCount = unreadCount, nextpage = nextpage)
+    }
+
+    suspend fun getUnreadCount(userId: String): UnreadCountResponse {
+        val items = buildItems(userId)
+        return UnreadCountResponse(unreadCount = unreadCount(items, userId))
     }
 
     suspend fun markAllRead(userId: String): MarkNotificationsReadResponse {
@@ -57,6 +62,11 @@ class NotificationsService(
     private suspend fun getLastSeenUploaded(userId: String): Long = DatabaseFactory.query {
         NotificationStatesTable.selectAll().where { NotificationStatesTable.userId eq userId }
             .singleOrNull()?.get(NotificationStatesTable.subscriptionLastSeenUploaded) ?: 0L
+    }
+
+    private suspend fun unreadCount(items: List<NotificationItem>, userId: String): Int {
+        val lastSeenUploaded = getLastSeenUploaded(userId)
+        return items.count { it.createdAt > lastSeenUploaded }
     }
 
     private fun notificationKey(video: VideoItem): String =

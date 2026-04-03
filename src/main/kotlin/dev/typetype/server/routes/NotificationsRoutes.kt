@@ -10,6 +10,12 @@ import io.ktor.server.routing.post
 private const val MAX_NOTIFICATIONS_PAGE = 10_000
 
 fun Route.notificationsRoutes(notificationsService: NotificationsService, authService: AuthService) {
+    get("/notifications/unread-count") {
+        call.withJwtAuth(authService) { userId ->
+            call.respond(notificationsService.getUnreadCount(userId))
+        }
+    }
+
     get("/notifications") {
         call.withJwtAuth(authService) { userId ->
             val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceIn(0, MAX_NOTIFICATIONS_PAGE) ?: 0
