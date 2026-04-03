@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.AdminBugReportDetailResponse
+import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -19,7 +20,7 @@ class GitHubIssueService(
 ) : BugReportGitHubIssueService {
     override suspend fun createIssue(report: AdminBugReportDetailResponse): GitHubIssueCreateResult {
         if (!repo.matches(REPO_PATTERN)) return GitHubIssueCreateResult.Failure("GitHub repository is invalid")
-        val title = "[Bug][${report.category}] ${report.description.take(80)}"
+        val title = "[Bug][${report.category}] ${redactDomains(report.description).take(80)}"
         val body = buildIssueBody(report)
         val url = buildIssueUrl(title = title, body = body)
         return GitHubIssueCreateResult.Success(url)
@@ -27,20 +28,20 @@ class GitHubIssueService(
 
     private fun buildIssueBody(report: AdminBugReportDetailResponse): String = buildString {
         appendLine("## Bug report")
-        appendLine(report.description)
+        appendLine(redactDomains(report.description))
         appendLine()
         appendLine("## Context")
-        appendLine("- User: ${report.userEmail} (${report.userId})")
-        appendLine("- Route: ${report.context.route}")
-        appendLine("- Video: ${report.context.videoUrl ?: "n/a"}")
+        appendLine("- User id: ${report.userId}")
+        appendLine("- Route: ${redactDomains(report.context.route)}")
+        appendLine("- Video: ${redactDomains(report.context.videoUrl ?: "n/a")}")
         appendLine("- Browser language: ${report.context.browserLanguage}")
-        appendLine("- User agent: ${report.context.userAgent}")
+        appendLine("- User agent: ${redactDomains(report.context.userAgent)}")
         appendLine("- Timestamp: ${report.context.timestamp}")
         appendLine("- Crash logs: ${report.context.crashLogs.size}")
         appendLine("- API errors: ${report.context.apiErrors.size}")
         val recentApiError = report.context.apiErrors.firstOrNull()
         if (recentApiError != null) {
-            appendLine("- Latest API endpoint: ${recentApiError.endpoint}")
+            appendLine("- Latest API endpoint: ${redactDomains(recentApiError.endpoint)}")
             appendLine("- Latest API status: ${recentApiError.status}")
             appendLine("- Latest API requestId: ${recentApiError.requestId ?: "n/a"}")
             appendLine("- Latest API code: ${recentApiError.code ?: "n/a"}")
@@ -52,8 +53,8 @@ class GitHubIssueService(
             appendLine()
             appendLine("## API errors")
             report.context.apiErrors.take(10).forEach { error ->
-                appendLine("- endpoint=${error.endpoint} status=${error.status} requestId=${error.requestId ?: "n/a"} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
-                if (!error.message.isNullOrBlank()) appendLine("  message=${error.message}")
+                appendLine("- endpoint=${redactDomains(error.endpoint)} status=${error.status} requestId=${error.requestId ?: "n/a"} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
+                if (!error.message.isNullOrBlank()) appendLine("  message=${redactDomains(error.message)}")
             }
         }
     }
@@ -70,8 +71,27 @@ class GitHubIssueService(
 
     private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
+    private fun redactDomains(value: String): String {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return "n/a"
+        val asUri = runCatching { URI(trimmed) }.getOrNull()
+        if (asUri != null && !asUri.host.isNullOrBlank()) return uriWithoutHost(asUri)
+        return urlRegex.replace(trimmed) { match ->
+            val uri = runCatching { URI(match.value) }.getOrNull()
+            if (uri == null || uri.host.isNullOrBlank()) match.value else uriWithoutHost(uri)
+        }
+    }
+
+    private fun uriWithoutHost(uri: URI): String {
+        val path = uri.rawPath?.takeIf { it.isNotBlank() } ?: "/"
+        val query = uri.rawQuery?.let { "?$it" } ?: ""
+        val fragment = uri.rawFragment?.let { "#$it" } ?: ""
+        return "$path$query$fragment"
+    }
+
     private companion object {
         const val DEFAULT_REPO: String = "Priveetee/TypeType-Server"
         val REPO_PATTERN = Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+        val urlRegex = Regex("https?://[^\\s)]+")
     }
 }

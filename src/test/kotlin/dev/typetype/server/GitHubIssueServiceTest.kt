@@ -6,6 +6,8 @@ import dev.typetype.server.models.BugReportContextItem
 import dev.typetype.server.services.GitHubIssueCreateResult
 import dev.typetype.server.services.GitHubIssueService
 import kotlinx.coroutines.runBlocking
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -27,6 +29,17 @@ class GitHubIssueServiceTest {
         assertTrue(url.contains("API+errors"))
         assertTrue(url.contains("requestId%3Dreq-123"))
         assertTrue(url.contains("code%3DBAD_REQUEST"))
+    }
+
+    @Test
+    fun `issue body redacts domains from urls and identifiers`() = runBlocking {
+        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val result = service.createIssue(sampleReportWithDomain())
+        val url = URLDecoder.decode((result as GitHubIssueCreateResult.Success).url, StandardCharsets.UTF_8)
+        assertTrue(url.contains("/watch?url=abc"), url)
+        assertTrue(url.contains("/api/streams?url=1"), url)
+        assertTrue(!url.contains("internal.local"), url)
+        assertTrue(!url.contains("private.example"), url)
     }
 
     private fun sampleReport(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
@@ -55,5 +68,34 @@ class GitHubIssueServiceTest {
         githubIssueUrl = null,
         createdAt = 1775200000000,
         updatedAt = 1775200000000,
+    )
+
+    private fun sampleReportWithDomain(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
+        id = "report-id-2",
+        category = "ui",
+        description = "Fails on https://internal.local/watch?url=abc",
+        status = "new",
+        userId = "user-id-2",
+        userEmail = "user@private.example",
+        context = BugReportContextItem(
+            route = "https://private.example/watch?url=abc",
+            timestamp = 1775200001000,
+            userAgent = "Mozilla/5.0 (see https://ua.example/meta)",
+            browserLanguage = "fr-FR",
+            videoUrl = "https://private.example/video?id=1",
+            apiErrors = listOf(
+                BugApiErrorItem(
+                    requestId = "req-redact",
+                    endpoint = "https://internal.local/api/streams?url=1",
+                    status = 500,
+                    code = "INTERNAL_ERROR",
+                    message = "Upstream from https://internal.local failed",
+                    timestamp = 1775200001001,
+                ),
+            ),
+        ),
+        githubIssueUrl = null,
+        createdAt = 1775200001000,
+        updatedAt = 1775200001000,
     )
 }
