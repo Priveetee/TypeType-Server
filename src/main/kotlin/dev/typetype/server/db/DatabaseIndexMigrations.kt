@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 
 object DatabaseIndexMigrations {
     fun apply() {
+        exec("CREATE EXTENSION IF NOT EXISTS pg_trgm")
         exec("CREATE INDEX IF NOT EXISTS idx_history_user_watched_id ON history (user_id, watched_at DESC, id DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_playlist_videos_user_playlist_position ON playlist_videos (user_id, playlist_id, position)")
         exec("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_subscribed_at ON subscriptions (user_id, subscribed_at DESC)")
@@ -16,6 +17,8 @@ object DatabaseIndexMigrations {
         exec("CREATE INDEX IF NOT EXISTS idx_reco_events_user_occurred ON recommendation_events (user_id, occurred_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_user_channel_interest_user_score ON user_channel_interest (user_id, score DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_user_topic_interest_user_score ON user_topic_interest (user_id, score DESC)")
+        exec("CREATE INDEX IF NOT EXISTS idx_history_title_trgm ON history USING gin (lower(title) gin_trgm_ops)")
+        exec("CREATE INDEX IF NOT EXISTS idx_history_channel_name_trgm ON history USING gin (lower(channel_name) gin_trgm_ops)")
     }
 
     private fun exec(sql: String) {
