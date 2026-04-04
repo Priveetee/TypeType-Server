@@ -1,24 +1,18 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SearchPageResponse
-import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.VideoItem
-import dev.typetype.server.routes.homeRecommendationRoutes
+import dev.typetype.server.routes.homeRecommendationShortsRoutes
 import dev.typetype.server.services.AuthService
-import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.ChannelService
-import dev.typetype.server.services.FavoritesService
-import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
-import dev.typetype.server.services.HomeRecommendationPoolResolver
-import dev.typetype.server.services.RecommendationFeedHistoryService
-import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.RecommendationEventService
+import dev.typetype.server.services.RecommendationFeedHistoryService
 import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
+import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionsService
@@ -42,18 +36,17 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class HomeRecommendationRoutesTest {
+class HomeRecommendationShortsRoutesTest {
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
-    private val feedback = RecommendationFeedbackService(RecommendationEventService(RecommendationInterestService()))
     private val eventService = RecommendationEventService(RecommendationInterestService())
-    private val subscriptions = SubscriptionsService()
+    private val feedback = RecommendationFeedbackService(eventService)
     private val feedHistoryService = RecommendationFeedHistoryService()
     private val privacyService = RecommendationPrivacyService(SettingsService())
     private val resolverDeps = homeResolverDependencies(
-        subscriptions = subscriptions,
+        subscriptions = SubscriptionsService(),
         channelService = channelService,
         cache = cache,
         feedbackService = feedback,
@@ -77,46 +70,51 @@ class HomeRecommendationRoutesTest {
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
+            listOf(video("s1", 40, true), video("l1", 400, false), video("s2", 55, true)),
+        )
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { homeRecommendationRoutes(service, auth) }
+            routing { homeRecommendationShortsRoutes(service, auth) }
         }
         block()
     }
 
     @Test
-    fun `GET recommendations home without token returns 401`() = withApp {
-        assertEquals(HttpStatusCode.Unauthorized, client.get("/recommendations/home").status)
+    fun `shorts endpoint requires auth`() = withApp {
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/recommendations/shorts").status)
     }
 
     @Test
-    fun `GET recommendations home returns items and cursor`() = withApp {
-        val now = System.currentTimeMillis()
-        subscriptions.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
-        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns ExtractionResult.Success(
-            ChannelResponse("A", "", "", "", 0L, false, listOf(video("v1", now), video("v2", now - 1)), null),
-        )
-        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t1", now - 2)))
-        val response = client.get("/recommendations/home?limit=2") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"nextCursor\":\""))
-    }
-
-    @Test
-    fun `GET recommendations home accepts intent parameter`() = withApp {
-        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t2", System.currentTimeMillis())))
-        val response = client.get("/recommendations/home?limit=2&intent=quick") {
+    fun `shorts endpoint returns short items only`() = withApp {
+        val response = client.get("/recommendations/shorts?limit=5&intent=quick") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.UserAgent, "Android Mobile")
         }
         assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("/v/s1") || body.contains("/v/s2"))
+        assertTrue(!body.contains("/v/l1"))
     }
 
-    private fun video(id: String, uploaded: Long): VideoItem = VideoItem(
-        id, id, "https://yt.com/v/$id", "", "Channel", "https://yt.com/c/$id", "", 60, 0, "", uploaded,
-        "video_stream", false, false, null,
+    private fun video(id: String, duration: Long, short: Boolean): VideoItem = VideoItem(
+        id = id,
+        title = id,
+        url = "https://yt.com/v/$id",
+        thumbnailUrl = "",
+        uploaderName = "Channel",
+        uploaderUrl = "https://yt.com/c/$id",
+        uploaderAvatarUrl = "",
+        duration = duration,
+        viewCount = 0,
+        uploadDate = "",
+        uploaded = System.currentTimeMillis(),
+        streamType = "video_stream",
+        isShortFormContent = short,
+        uploaderVerified = false,
+        shortDescription = null,
     )
 }

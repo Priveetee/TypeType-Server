@@ -5,6 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.HomeRecommendationPoolResolver
+import dev.typetype.server.services.HomeRecommendationPoolMode
 import dev.typetype.server.services.RecommendationEventService
 import dev.typetype.server.services.HomeRecommendationContext
 import dev.typetype.server.services.HomeRecommendationDeviceClass
@@ -63,8 +64,8 @@ class HomeRecommendationPoolResolverCacheKeyTest {
             if (key.startsWith("recommendations:home:")) homeKeys += key
             null
         }
-        resolver.resolve(TEST_USER_ID, 0, personalizationEnabled = true, context = context())
-        resolver.resolve(TEST_USER_ID, 0, personalizationEnabled = false, context = context())
+        resolver.resolve(TEST_USER_ID, 0, HomeRecommendationPoolMode.FULL, personalizationEnabled = true, context = context())
+        resolver.resolve(TEST_USER_ID, 0, HomeRecommendationPoolMode.FULL, personalizationEnabled = false, context = context())
         assertNotEquals(homeKeys.firstOrNull(), homeKeys.lastOrNull())
     }
 
