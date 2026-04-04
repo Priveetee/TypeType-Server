@@ -6,4 +6,5 @@ data class HomeRecommendationCursorMemory(
     val creatorMomentum: Map<String, Int>,
     val creatorCooldownUntilMs: Map<String, Long>,
     val recentTopicPairs: List<String>,
+    val recentUrls: List<String>,
 )

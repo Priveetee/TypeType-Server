@@ -30,6 +30,7 @@ object HomeRecommendationCursorCodec {
                 creatorMomentum = full.m,
                 creatorCooldownUntilMs = full.o,
                 recentTopicPairs = full.t,
+                recentUrls = full.u,
                 personaState = HomeRecommendationPersonaState(
                     persona = when (full.q) {
                         1 -> HomeRecommendationSessionPersona.QUICK
@@ -77,6 +78,7 @@ object HomeRecommendationCursorCodec {
                 m = cursor.creatorMomentum,
                 o = cursor.creatorCooldownUntilMs,
                 t = cursor.recentTopicPairs,
+                u = cursor.recentUrls,
                 q = when (cursor.personaState.persona) {
                     HomeRecommendationSessionPersona.AUTO -> 0
                     HomeRecommendationSessionPersona.QUICK -> 1

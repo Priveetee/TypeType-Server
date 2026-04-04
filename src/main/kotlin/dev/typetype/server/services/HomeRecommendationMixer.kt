@@ -49,6 +49,7 @@ object HomeRecommendationMixer {
                 creatorMomentum = memory.creatorMomentumMap(),
                 creatorCooldownUntilMs = memory.creatorCooldownMap(),
                 recentTopicPairs = memory.recentTopicPairsSet(),
+                recentUrls = memory.recentUrlsSet(),
             )
             val selection = HomeRecommendationSelector.pick(
                 picker = picker,
@@ -82,6 +83,7 @@ object HomeRecommendationMixer {
             val key = channelKey(video)
             if (key.isNotBlank()) channelCount[key] = (channelCount[key] ?: 0) + 1
             memory.onSelected(video.title, key)
+            memory.onSelectedUrl(video.url)
         }
         val hasMore = subIndex < pool.subscriptions.size || discoveryIndex < pool.discovery.size
         val nextCursor = if (hasMore && selected.isNotEmpty()) {
@@ -97,6 +99,7 @@ object HomeRecommendationMixer {
                     creatorMomentum = snapshot.creatorMomentum,
                     creatorCooldownUntilMs = snapshot.creatorCooldownUntilMs,
                     recentTopicPairs = snapshot.recentTopicPairs,
+                    recentUrls = snapshot.recentUrls,
                     personaState = personaState,
                 ),
             )

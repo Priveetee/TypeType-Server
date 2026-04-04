@@ -11,6 +11,7 @@ class HomeRecommendationPicker(
     private val creatorMomentum: Map<String, Int>,
     private val creatorCooldownUntilMs: Map<String, Long>,
     private val recentTopicPairs: Set<String>,
+    private val recentUrls: Set<String>,
 ) {
     fun fromDiscovery(start: Int, noveltyOnly: Boolean = false): Pair<VideoItem?, Int> =
         pick(pool.discovery, start, noveltyOnly)
@@ -22,6 +23,7 @@ class HomeRecommendationPicker(
         while (index < source.size) {
             val candidate = source[index]
             index += 1
+            if (candidate.url in recentUrls) continue
             if (noveltyOnly && !isNovel(candidate)) continue
             val channel = channelKey(candidate)
             if (channel.isBlank()) return candidate to index

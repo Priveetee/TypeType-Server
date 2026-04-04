@@ -28,6 +28,7 @@ class HomeRecommendationCursorCodecTest {
                 creatorMomentum = mapOf("https://yt.com/c/a" to 2),
                 creatorCooldownUntilMs = mapOf("https://yt.com/c/a" to 123L),
                 recentTopicPairs = listOf("linux|kernel"),
+                recentUrls = listOf("https://yt.com/v/a"),
             )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
@@ -40,6 +41,7 @@ class HomeRecommendationCursorCodecTest {
         assertEquals(2, decoded?.creatorMomentum?.get("https://yt.com/c/a"))
         assertEquals(123L, decoded?.creatorCooldownUntilMs?.get("https://yt.com/c/a"))
         assertEquals(listOf("linux|kernel"), decoded?.recentTopicPairs)
+        assertEquals(listOf("https://yt.com/v/a"), decoded?.recentUrls)
     }
 
     @Test
