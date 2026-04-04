@@ -107,12 +107,13 @@ class HomeRecommendationService(
 
     private fun cacheKey(userId: String, serviceId: Int): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val hex = digest.digest("$userId:$serviceId".toByteArray()).joinToString("") { "%02x".format(it) }
+        val hex = digest.digest("$CACHE_VERSION:$userId:$serviceId".toByteArray()).joinToString("") { "%02x".format(it) }
         return "recommendations:home:$hex"
     }
 
     companion object {
         private const val CACHE_TTL_SECONDS = 300L
         private const val FULL_BUILD_BUDGET_MS = 1_500L
+        private const val CACHE_VERSION = 3
     }
 }

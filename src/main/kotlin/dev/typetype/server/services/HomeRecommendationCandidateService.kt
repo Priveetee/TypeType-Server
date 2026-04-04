@@ -15,26 +15,48 @@ class HomeRecommendationCandidateService(
         mode: HomeRecommendationPoolMode,
     ): HomeRecommendationCandidatePool {
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
-        val queryLimit = if (mode == HomeRecommendationPoolMode.FAST) FAST_THEME_QUERY_LIMIT else FULL_THEME_QUERY_LIMIT
-        val searchCandidates = if (profile.themeQueries.isEmpty()) {
+        val themeQueryLimit = if (mode == HomeRecommendationPoolMode.FAST) FAST_THEME_QUERY_LIMIT else FULL_THEME_QUERY_LIMIT
+        val themedSearchCandidates = if (profile.themeQueries.isEmpty()) {
             emptyList()
         } else {
-            fetchSearchCandidates(serviceId, profile.themeQueries, queryLimit)
+            fetchSearchCandidates(
+                serviceId = serviceId,
+                queries = profile.themeQueries,
+                maxQueries = themeQueryLimit,
+                perQueryLimit = THEME_SEARCH_PER_QUERY,
+            )
         }
+        val explorationCandidates = fetchSearchCandidates(
+            serviceId = serviceId,
+            queries = HomeRecommendationExplorationQueryProvider.queries(mode),
+            maxQueries = EXPLORATION_QUERY_LIMIT,
+            perQueryLimit = EXPLORATION_SEARCH_PER_QUERY,
+        )
         val minThemeScore = if (profile.themeTokens.size < 8) 0.24 else 0.34
-        val discovery = (fetchTrendingCandidates(serviceId) + searchCandidates)
+        val rawDiscovery = (fetchTrendingCandidates(serviceId) + themedSearchCandidates + explorationCandidates)
             .asSequence()
             .filter { video -> video.uploaderUrl !in profile.subscriptionChannels }
             .filter { video -> video.url !in profile.feedbackBlockedVideos }
             .filter { video -> video.uploaderUrl !in profile.feedbackBlockedChannels }
-            .filter { video -> HomeRecommendationLanguageGate.isLikelyPreferred(video, profile) }
             .filter { video -> HomeRecommendationLiveTitleDetector.isLiveLike(video.title).not() }
             .filter { video -> (profile.channelInterest[video.uploaderUrl] ?: 0.0) > -1.5 }
-            .filter { video ->
-                HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens) >= minThemeScore
-            }
             .distinctBy { video -> video.url }
             .toList()
+        val languagePreferredDiscovery = rawDiscovery.filter { video ->
+            HomeRecommendationLanguageGate.isLikelyPreferred(video, profile)
+        }
+        val thematicDiscovery = languagePreferredDiscovery.filter { video ->
+            HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens) >= minThemeScore
+        }
+        val explorationCap = if (mode == HomeRecommendationPoolMode.FAST) FAST_EXPLORATION_CAP else FULL_EXPLORATION_CAP
+        val explorationSource = if (languagePreferredDiscovery.isEmpty()) rawDiscovery else languagePreferredDiscovery
+        val thematicUrls = thematicDiscovery.map { it.url }.toSet()
+        val explorationFill = explorationSource
+            .asSequence()
+            .filter { video -> video.url !in thematicUrls }
+            .take(explorationCap)
+            .toList()
+        val discovery = (thematicDiscovery + explorationFill).distinctBy { video -> video.url }
         return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)
     }
 
@@ -58,11 +80,16 @@ class HomeRecommendationCandidateService(
             is ExtractionResult.Failure -> emptyList()
         }
 
-    private suspend fun fetchSearchCandidates(serviceId: Int, queries: List<String>, maxQueries: Int): List<VideoItem> {
+    private suspend fun fetchSearchCandidates(
+        serviceId: Int,
+        queries: List<String>,
+        maxQueries: Int,
+        perQueryLimit: Int,
+    ): List<VideoItem> {
         val items = mutableListOf<VideoItem>()
         queries.take(maxQueries).forEach { query ->
             when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = null)) {
-                is ExtractionResult.Success -> items += result.data.items.take(18)
+                is ExtractionResult.Success -> items += result.data.items.take(perQueryLimit)
                 is ExtractionResult.BadRequest -> Unit
                 is ExtractionResult.Failure -> Unit
             }
@@ -74,5 +101,10 @@ class HomeRecommendationCandidateService(
         private const val FAST_SUBSCRIPTION_PAGE_SIZE = 60
         private const val FAST_THEME_QUERY_LIMIT = 2
         private const val FULL_THEME_QUERY_LIMIT = 6
+        private const val EXPLORATION_QUERY_LIMIT = 6
+        private const val THEME_SEARCH_PER_QUERY = 18
+        private const val EXPLORATION_SEARCH_PER_QUERY = 12
+        private const val FAST_EXPLORATION_CAP = 24
+        private const val FULL_EXPLORATION_CAP = 64
     }
 }

@@ -46,7 +46,7 @@ object HomeRecommendationMixer {
             val state = selection.state
             subIndex = state.subscriptionIndex
             discoveryIndex = state.discoveryIndex
-            if (video in pool.subscriptions) {
+            if (isSubscriptionVideo(video, pool)) {
                 subscriptionCount += 1
                 subscriptionRun = (subscriptionRun + 1)
                     .coerceAtMost(HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
@@ -87,4 +87,9 @@ object HomeRecommendationMixer {
     }
 
     private fun channelKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }
+
+    private fun isSubscriptionVideo(video: VideoItem, pool: HomeRecommendationPool): Boolean {
+        if (video in pool.subscriptions) return true
+        return video.uploaderUrl.isNotBlank() && video.uploaderUrl in pool.subscriptionChannels
+    }
 }
