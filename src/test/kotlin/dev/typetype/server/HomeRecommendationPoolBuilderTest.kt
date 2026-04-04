@@ -45,6 +45,11 @@ class HomeRecommendationPoolBuilderTest {
             themeQueries = emptyList(),
             channelInterest = emptyMap(),
             topicInterest = emptyMap(),
+            feedHistory = emptyMap(),
+            rejectionTopicPenalty = emptyMap(),
+            rejectionChannelPenalty = emptyMap(),
+            channelTopicProfile = emptyMap(),
+            shortsTopicInterest = emptyMap(),
         )
         val subscriptions = listOf(
             tagged(video("seen", "sub"), HomeRecommendationSourceTag.SUBSCRIPTION),
@@ -79,6 +84,11 @@ class HomeRecommendationPoolBuilderTest {
             themeQueries = emptyList(),
             channelInterest = emptyMap(),
             topicInterest = emptyMap(),
+            feedHistory = emptyMap(),
+            rejectionTopicPenalty = emptyMap(),
+            rejectionChannelPenalty = emptyMap(),
+            channelTopicProfile = emptyMap(),
+            shortsTopicInterest = emptyMap(),
         )
         val subscriptions = listOf(
             tagged(video("plain", "a", title = "daily vlog"), HomeRecommendationSourceTag.SUBSCRIPTION),
@@ -104,6 +114,11 @@ class HomeRecommendationPoolBuilderTest {
             themeQueries = emptyList(),
             channelInterest = emptyMap(),
             topicInterest = emptyMap(),
+            feedHistory = emptyMap(),
+            rejectionTopicPenalty = emptyMap(),
+            rejectionChannelPenalty = emptyMap(),
+            channelTopicProfile = emptyMap(),
+            shortsTopicInterest = emptyMap(),
         )
         val discovery = listOf(
             tagged(video("live1", "a", title = "Breaking is live now"), HomeRecommendationSourceTag.DISCOVERY_TRENDING),
@@ -133,6 +148,11 @@ class HomeRecommendationPoolBuilderTest {
             topicInterest = emptyMap(),
             subscriptionEngagement = 6.0,
             discoveryEngagement = 1.0,
+            feedHistory = emptyMap(),
+            rejectionTopicPenalty = emptyMap(),
+            rejectionChannelPenalty = emptyMap(),
+            channelTopicProfile = emptyMap(),
+            shortsTopicInterest = emptyMap(),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList())
         val subWeight = pool.sourceWeights[HomeRecommendationSourceTag.SUBSCRIPTION] ?: 1.0
