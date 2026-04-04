@@ -9,4 +9,5 @@ data class HomeRecommendationPool(
     val discovery: List<VideoItem>,
     val subscriptionChannels: Set<String> = emptySet(),
     val sourceByUrl: Map<String, HomeRecommendationSourceTag> = emptyMap(),
+    val sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
 )

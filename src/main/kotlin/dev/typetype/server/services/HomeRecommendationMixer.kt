@@ -4,12 +4,18 @@ import dev.typetype.server.models.HomeRecommendationPool
 import dev.typetype.server.models.VideoItem
 
 object HomeRecommendationMixer {
-    fun mix(pool: HomeRecommendationPool, cursor: HomeRecommendationCursor, limit: Int): HomeRecommendationPage {
+    fun mix(
+        pool: HomeRecommendationPool,
+        cursor: HomeRecommendationCursor,
+        limit: Int,
+        sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
+    ): HomeRecommendationPage {
         val planner = HomeRecommendationQuotaPlanner(
             limit = limit,
             subscriptionSize = pool.subscriptions.size,
             discoverySize = pool.discovery.size,
             sourceByUrl = pool.sourceByUrl,
+            sourceWeights = sourceWeights,
         )
         val machine = HomeRecommendationStateMachine(planner)
         val selected = mutableListOf<VideoItem>()

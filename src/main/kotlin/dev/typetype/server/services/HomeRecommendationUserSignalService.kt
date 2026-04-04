@@ -25,9 +25,7 @@ class HomeRecommendationUserSignalService(
         val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
         val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
         val feedbackSignals = feedbackSignalService.load(userId)
-        val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(
-            recommendationEventService.getAll(userId),
-        )
+        val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(recommendationEventService.getAll(userId))
         val interestProfile = interestProfileService.load(userId)
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()

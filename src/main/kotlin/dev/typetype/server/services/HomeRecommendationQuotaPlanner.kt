@@ -5,6 +5,7 @@ class HomeRecommendationQuotaPlanner(
     private val subscriptionSize: Int,
     private val discoverySize: Int,
     private val sourceByUrl: Map<String, HomeRecommendationSourceTag>,
+    private val sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
 ) {
     val target = computeTarget()
 
@@ -24,14 +25,20 @@ class HomeRecommendationQuotaPlanner(
         val themeWeight = sourceByUrl.values.count { it == HomeRecommendationSourceTag.DISCOVERY_THEME }
         val explorationWeight = sourceByUrl.values.count { it == HomeRecommendationSourceTag.DISCOVERY_EXPLORATION }
         val trendingWeight = sourceByUrl.values.count { it == HomeRecommendationSourceTag.DISCOVERY_TRENDING }
+        val discoveryWeights = sourceWeights
+            .filterKeys { it != HomeRecommendationSourceTag.SUBSCRIPTION }
+            .values
+        val banditDiscoveryBoost = if (discoveryWeights.isEmpty()) 1.0 else discoveryWeights.average().coerceIn(0.5, 1.4)
+        val banditSubscriptionBoost = (sourceWeights[HomeRecommendationSourceTag.SUBSCRIPTION] ?: 1.0).coerceIn(0.5, 1.4)
         val dynamicRatio = when {
             discoverySize == 0 -> 0.0
             subscriptionSize == 0 -> 1.0
             themeWeight + explorationWeight + trendingWeight >= subscriptionSize -> 0.65
             themeWeight + explorationWeight >= subscriptionSize / 2 -> 0.58
             else -> 0.50
-        }
-        val targetDiscovery = minOf((limit * dynamicRatio).toInt().coerceAtLeast(0), discoverySize)
+        } * (banditDiscoveryBoost / banditSubscriptionBoost)
+        val boundedRatio = dynamicRatio.coerceIn(0.35, 0.75)
+        val targetDiscovery = minOf((limit * boundedRatio).toInt().coerceAtLeast(0), discoverySize)
         val targetSubscription = minOf(limit - targetDiscovery, subscriptionSize)
         return HomeRecommendationTargetPlan(targetSubscription = targetSubscription, targetDiscovery = targetDiscovery)
     }

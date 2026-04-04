@@ -15,7 +15,7 @@ class HomeRecommendationBuilder(
     private val searchService: SearchService,
 ) {
     suspend fun build(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode): HomeRecommendationPool {
-        val profile = HomeRecommendationUserSignalService(
+        val signalService = HomeRecommendationUserSignalService(
             subscriptionsService = subscriptionsService,
             historyService = historyService,
             favoritesService = favoritesService,
@@ -24,17 +24,23 @@ class HomeRecommendationBuilder(
             recommendationEventService = eventService,
             feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
             interestProfileService = RecommendationInterestProfileService(),
-        ).loadProfile(userId)
+        )
+        val profile = signalService.loadProfile(userId)
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             trendingService = trendingService,
             searchService = searchService,
         )
-        val pool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile, mode = mode)
-        return HomeRecommendationPoolBuilder().build(
+        val candidatePool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile, mode = mode)
+        val pool = HomeRecommendationPoolBuilder().build(
             profile = profile,
-            subscriptionCandidates = pool.subscriptions,
-            discoveryCandidates = pool.discovery,
+            subscriptionCandidates = candidatePool.subscriptions,
+            discoveryCandidates = candidatePool.discovery,
         )
+        val sourceWeights = HomeRecommendationSourceBandit.weightBySource(
+            events = eventService.getAll(userId),
+            sourceByUrl = pool.sourceByUrl,
+        )
+        return pool.copy(sourceWeights = sourceWeights)
     }
 }

@@ -32,7 +32,6 @@ class HomeRecommendationService(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val fullBuilds = ConcurrentHashMap<String, Deferred<HomeRecommendationPool>>()
     private val pendingPersistence = ConcurrentHashMap.newKeySet<String>()
-
     suspend fun getHome(
         userId: String,
         serviceId: Int,
@@ -54,21 +53,24 @@ class HomeRecommendationService(
                 buildPool(userId, serviceId, HomeRecommendationPoolMode.FAST)
             }
         }
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = cursor, limit = limit)
+        val page = HomeRecommendationMixer.mix(
+            pool = pool,
+            cursor = cursor,
+            limit = limit,
+            sourceWeights = pool.sourceWeights,
+        )
         return HomeRecommendationsResponse(
             items = page.items,
             nextCursor = page.nextCursor,
             hasMore = page.nextCursor != null,
         )
     }
-
     private suspend fun readCachedPool(key: String): HomeRecommendationPool? {
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
             return runCatching { CacheJson.decodeFromString<HomeRecommendationPool>(raw) }.getOrNull()
         }
         return null
     }
-
     private fun fullBuild(key: String, userId: String, serviceId: Int): Deferred<HomeRecommendationPool> {
         fullBuilds[key]?.let { return it }
         val created = scope.async { buildPool(userId, serviceId, HomeRecommendationPoolMode.FULL) }
@@ -80,7 +82,6 @@ class HomeRecommendationService(
         created.invokeOnCompletion { fullBuilds.remove(key, created) }
         return created
     }
-
     private suspend fun buildPool(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode): HomeRecommendationPool =
         HomeRecommendationBuilder(
             subscriptionsService = subscriptionsService,
@@ -94,7 +95,6 @@ class HomeRecommendationService(
             trendingService = trendingService,
             searchService = searchService,
         ).build(userId = userId, serviceId = serviceId, mode = mode)
-
     private fun schedulePersistence(key: String, build: Deferred<HomeRecommendationPool>) {
         if (!pendingPersistence.add(key)) return
         scope.launch {
@@ -102,16 +102,13 @@ class HomeRecommendationService(
             pendingPersistence.remove(key)
         }
     }
-
     private suspend fun writeCachedPool(key: String, pool: HomeRecommendationPool): Unit =
         runCatching { cache.set(key, CacheJson.encodeToString(pool), CACHE_TTL_SECONDS) }.let { }
-
     private fun cacheKey(userId: String, serviceId: Int): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val hex = digest.digest("$CACHE_VERSION:$userId:$serviceId".toByteArray()).joinToString("") { "%02x".format(it) }
         return "recommendations:home:$hex"
     }
-
     companion object {
         private const val CACHE_TTL_SECONDS = 300L
         private const val FULL_BUILD_BUDGET_MS = 1_500L

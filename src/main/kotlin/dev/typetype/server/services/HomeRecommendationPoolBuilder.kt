@@ -29,6 +29,7 @@ class HomeRecommendationPoolBuilder {
             discovery = discoveryScored.map { it.video },
             subscriptionChannels = profile.subscriptionChannels,
             sourceByUrl = (subscriptionsScored + discoveryScored).associate { it.video.url to it.source },
+            sourceWeights = emptyMap(),
         )
     }
 
