@@ -44,6 +44,7 @@ class RecommendationEventService(
         title: String?,
         watchRatio: Double?,
         watchDurationMs: Long?,
+        contextKey: String? = null,
     ): RecommendationEventItem {
         if (!privacyService.isPersonalizationEnabled(userId)) {
             val now = System.currentTimeMillis()
@@ -55,6 +56,7 @@ class RecommendationEventService(
                 title = title,
                 watchRatio = watchRatio,
                 watchDurationMs = watchDurationMs,
+                contextKey = contextKey,
                 occurredAt = now,
             )
         }
@@ -70,11 +72,12 @@ class RecommendationEventService(
                 it[RecommendationEventsTable.title] = title
                 it[RecommendationEventsTable.watchRatio] = watchRatio
                 it[RecommendationEventsTable.watchDurationMs] = watchDurationMs
+                it[RecommendationEventsTable.contextKey] = contextKey
                 it[RecommendationEventsTable.occurredAt] = now
             }
         }
         interestService.update(userId, eventType, uploaderUrl, title, watchRatio)
-        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, watchDurationMs, now)
+        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, watchDurationMs, contextKey, now)
     }
 
     private fun ResultRow.toItem() = RecommendationEventItem(
@@ -85,6 +88,7 @@ class RecommendationEventService(
         title = this[RecommendationEventsTable.title],
         watchRatio = this[RecommendationEventsTable.watchRatio],
         watchDurationMs = this[RecommendationEventsTable.watchDurationMs],
+        contextKey = this[RecommendationEventsTable.contextKey],
         occurredAt = this[RecommendationEventsTable.occurredAt],
     )
 }

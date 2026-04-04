@@ -11,6 +11,7 @@ object RecommendationEventsTable : Table("recommendation_events") {
     val title = text("title").nullable()
     val watchRatio = double("watch_ratio").nullable()
     val watchDurationMs = long("watch_duration_ms").nullable()
+    val contextKey = text("context_key").nullable()
     val occurredAt = long("occurred_at")
     override val primaryKey = PrimaryKey(id)
 }

@@ -3,6 +3,9 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.RecommendationEventRequest
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.HomeRecommendationContextualBandit
+import dev.typetype.server.services.HomeRecommendationDeviceClass
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.RecommendationEventService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -34,6 +37,15 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
             if (request.watchDurationMs != null && request.watchDurationMs < 0) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid watchDurationMs"))
             }
+            if (request.contextKey != null && request.contextKey.length > 120) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid contextKey"))
+            }
+            val contextKey = request.contextKey ?: HomeRecommendationContextualBandit.contextKey(
+                serviceId = request.serviceId ?: 0,
+                intent = HomeRecommendationSessionIntent.parse(request.intent),
+                deviceClass = HomeRecommendationDeviceClass.parse(call.request.headers["User-Agent"]),
+                now = java.time.LocalDateTime.now(),
+            )
             call.respond(
                 HttpStatusCode.Created,
                 eventService.add(
@@ -44,6 +56,7 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
                     title = request.title,
                     watchRatio = request.watchRatio,
                     watchDurationMs = request.watchDurationMs,
+                    contextKey = contextKey,
                 ),
             )
         }

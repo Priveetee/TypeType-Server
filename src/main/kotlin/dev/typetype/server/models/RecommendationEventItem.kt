@@ -11,5 +11,6 @@ data class RecommendationEventItem(
     val title: String? = null,
     val watchRatio: Double? = null,
     val watchDurationMs: Long? = null,
+    val contextKey: String? = null,
     val occurredAt: Long,
 )

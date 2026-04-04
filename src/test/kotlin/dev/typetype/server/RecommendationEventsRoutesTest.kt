@@ -99,4 +99,36 @@ class RecommendationEventsRoutesTest {
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
+
+    @Test
+    fun `POST event with long contextKey returns 400`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { recommendationEventsRoutes(service, auth) }
+        }
+        val contextKey = "x".repeat(121)
+        val response = client.post("/recommendations/events") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"eventType":"click","videoUrl":"https://yt.com/v/ctx","contextKey":"$contextKey"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `POST event auto-derives context key when omitted`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { recommendationEventsRoutes(service, auth) }
+        }
+        val post = client.post("/recommendations/events") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"eventType":"click","videoUrl":"https://yt.com/v/ctx-auto","serviceId":0,"intent":"quick"}""")
+        }
+        assertEquals(HttpStatusCode.Created, post.status)
+        val get = client.get("/recommendations/events") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.OK, get.status)
+        assertTrue(get.bodyAsText().contains("ctx-auto"))
+    }
 }

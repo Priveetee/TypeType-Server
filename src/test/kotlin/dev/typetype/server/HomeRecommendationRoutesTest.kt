@@ -21,10 +21,8 @@ import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
-import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
-import dev.typetype.server.services.WatchLaterService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -44,6 +42,14 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+private fun defaultHomeContext(serviceId: Int = 0) = dev.typetype.server.services.HomeRecommendationContext(
+    serviceId = serviceId,
+    sessionContext = dev.typetype.server.services.HomeRecommendationSessionContext(
+        intent = dev.typetype.server.services.HomeRecommendationSessionIntent.AUTO,
+        deviceClass = dev.typetype.server.services.HomeRecommendationDeviceClass.UNKNOWN,
+    ),
+)
+
 class HomeRecommendationRoutesTest {
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
@@ -54,21 +60,18 @@ class HomeRecommendationRoutesTest {
     private val subscriptions = SubscriptionsService()
     private val feedHistoryService = RecommendationFeedHistoryService()
     private val privacyService = RecommendationPrivacyService(SettingsService())
+    private val resolverDeps = homeResolverDependencies(
+        subscriptions = subscriptions,
+        channelService = channelService,
+        cache = cache,
+        feedbackService = feedback,
+        eventService = eventService,
+        feedHistoryService = feedHistoryService,
+        trendingService = trendingService,
+        searchService = searchService,
+    )
     private val service = HomeRecommendationService(
-        poolResolver = HomeRecommendationPoolResolver(
-            subscriptionsService = subscriptions,
-            subscriptionFeedService = SubscriptionFeedService(subscriptions, channelService, cache),
-            historyService = HistoryService(),
-            favoritesService = FavoritesService(),
-            watchLaterService = WatchLaterService(),
-            blockedService = BlockedService(),
-            feedbackService = feedback,
-            eventService = eventService,
-            feedHistoryService = feedHistoryService,
-            trendingService = trendingService,
-            searchService = searchService,
-            cache = cache,
-        ),
+        poolResolver = buildHomeResolver(resolverDeps),
         feedHistoryService = feedHistoryService,
         privacyService = privacyService,
     )
@@ -108,6 +111,16 @@ class HomeRecommendationRoutesTest {
         val response = client.get("/recommendations/home?limit=2") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"nextCursor\":\""))
+    }
+
+    @Test
+    fun `GET recommendations home accepts intent parameter`() = withApp {
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t2", System.currentTimeMillis())))
+        val response = client.get("/recommendations/home?limit=2&intent=quick") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.UserAgent, "Android Mobile")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
     }
 
     private fun video(id: String, uploaded: Long): VideoItem = VideoItem(
