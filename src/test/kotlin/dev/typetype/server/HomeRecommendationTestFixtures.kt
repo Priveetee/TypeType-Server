@@ -12,6 +12,7 @@ import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
 import dev.typetype.server.services.HomeRecommendationSessionContext
 import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.HomeRecommendationSignalContextService
 import dev.typetype.server.services.RecommendationEventService
 import dev.typetype.server.services.RecommendationFeedHistoryService
 import dev.typetype.server.services.RecommendationFeedbackService
@@ -41,6 +42,7 @@ fun homeResolverDependencies(
     feedbackService = feedbackService,
     eventService = eventService,
     feedHistoryService = feedHistoryService,
+    signalContextService = HomeRecommendationSignalContextService(subscriptions, HistoryService()),
     trendingService = trendingService,
     searchService = searchService,
     cache = cache,

@@ -13,6 +13,7 @@ data class HomeRecommendationPoolResolverDependencies(
     val feedbackService: RecommendationFeedbackService,
     val eventService: RecommendationEventService,
     val feedHistoryService: RecommendationFeedHistoryService,
+    val signalContextService: HomeRecommendationSignalContextService,
     val trendingService: TrendingService,
     val searchService: SearchService,
     val cache: CacheService,

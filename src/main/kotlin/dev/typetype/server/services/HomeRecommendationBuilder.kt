@@ -13,6 +13,7 @@ class HomeRecommendationBuilder(
     private val eventService: RecommendationEventService,
     private val feedbackService: RecommendationFeedbackService,
     private val feedHistoryService: RecommendationFeedHistoryService,
+    private val signalContextService: HomeRecommendationSignalContextService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
 ) {
@@ -55,7 +56,14 @@ class HomeRecommendationBuilder(
             trendingService = trendingService,
             searchService = searchService,
         )
-        val candidatePool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile, mode = mode)
+        val signalContext = signalContextService.load(userId)
+        val candidatePool = candidates.fetchCandidates(
+            userId = userId,
+            serviceId = serviceId,
+            profile = profile,
+            mode = mode,
+            signalContext = signalContext,
+        )
         val pool = HomeRecommendationPoolBuilder().build(
             profile = profile,
             subscriptionCandidates = candidatePool.subscriptions,
