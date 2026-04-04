@@ -8,9 +8,19 @@ class HomeRecommendationCandidateService(
     private val trendingService: TrendingService,
     private val searchService: SearchService,
 ) {
-    suspend fun fetchCandidates(userId: String, serviceId: Int, profile: HomeRecommendationProfile): HomeRecommendationCandidatePool {
-        val subscriptions = fetchSubscriptionCandidates(userId)
-        val searchCandidates = if (profile.themeQueries.isEmpty()) emptyList() else fetchSearchCandidates(serviceId, profile.themeQueries)
+    suspend fun fetchCandidates(
+        userId: String,
+        serviceId: Int,
+        profile: HomeRecommendationProfile,
+        mode: HomeRecommendationPoolMode,
+    ): HomeRecommendationCandidatePool {
+        val subscriptions = fetchSubscriptionCandidates(userId, mode)
+        val queryLimit = if (mode == HomeRecommendationPoolMode.FAST) FAST_THEME_QUERY_LIMIT else FULL_THEME_QUERY_LIMIT
+        val searchCandidates = if (profile.themeQueries.isEmpty()) {
+            emptyList()
+        } else {
+            fetchSearchCandidates(serviceId, profile.themeQueries, queryLimit)
+        }
         val minThemeScore = if (profile.themeTokens.size < 8) 0.24 else 0.34
         val discovery = (fetchTrendingCandidates(serviceId) + searchCandidates)
             .asSequence()
@@ -28,7 +38,12 @@ class HomeRecommendationCandidateService(
         return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)
     }
 
-    private suspend fun fetchSubscriptionCandidates(userId: String): List<VideoItem> {
+    private suspend fun fetchSubscriptionCandidates(userId: String, mode: HomeRecommendationPoolMode): List<VideoItem> {
+        if (mode == HomeRecommendationPoolMode.FAST) {
+            return subscriptionFeedService.getCachedFeed(userId = userId, page = 0, limit = FAST_SUBSCRIPTION_PAGE_SIZE)
+                ?.videos
+                .orEmpty()
+        }
         val pages = listOf(
             subscriptionFeedService.getFeed(userId = userId, page = 0, limit = 120).videos,
             subscriptionFeedService.getFeed(userId = userId, page = 1, limit = 120).videos,
@@ -43,9 +58,9 @@ class HomeRecommendationCandidateService(
             is ExtractionResult.Failure -> emptyList()
         }
 
-    private suspend fun fetchSearchCandidates(serviceId: Int, queries: List<String>): List<VideoItem> {
+    private suspend fun fetchSearchCandidates(serviceId: Int, queries: List<String>, maxQueries: Int): List<VideoItem> {
         val items = mutableListOf<VideoItem>()
-        queries.take(6).forEach { query ->
+        queries.take(maxQueries).forEach { query ->
             when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = null)) {
                 is ExtractionResult.Success -> items += result.data.items.take(18)
                 is ExtractionResult.BadRequest -> Unit
@@ -53,5 +68,11 @@ class HomeRecommendationCandidateService(
             }
         }
         return items
+    }
+
+    companion object {
+        private const val FAST_SUBSCRIPTION_PAGE_SIZE = 60
+        private const val FAST_THEME_QUERY_LIMIT = 2
+        private const val FULL_THEME_QUERY_LIMIT = 6
     }
 }

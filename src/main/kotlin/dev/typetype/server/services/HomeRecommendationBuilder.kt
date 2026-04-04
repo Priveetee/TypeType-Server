@@ -13,7 +13,7 @@ class HomeRecommendationBuilder(
     private val trendingService: TrendingService,
     private val searchService: SearchService,
 ) {
-    suspend fun build(userId: String, serviceId: Int): HomeRecommendationPool {
+    suspend fun build(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode): HomeRecommendationPool {
         val profile = HomeRecommendationUserSignalService(
             subscriptionsService = subscriptionsService,
             historyService = historyService,
@@ -28,7 +28,7 @@ class HomeRecommendationBuilder(
             trendingService = trendingService,
             searchService = searchService,
         )
-        val pool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile)
+        val pool = candidates.fetchCandidates(userId = userId, serviceId = serviceId, profile = profile, mode = mode)
         return HomeRecommendationPoolBuilder().build(
             profile = profile,
             subscriptionCandidates = pool.subscriptions,

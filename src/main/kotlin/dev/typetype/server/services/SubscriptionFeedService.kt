@@ -32,6 +32,19 @@ class SubscriptionFeedService(
 
     suspend fun getAll(userId: String): List<VideoItem> = cachedAll(userId)
 
+    suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
+        val key = cacheKey(userId)
+        val raw = runCatching { cache.get(key) }.getOrNull() ?: return null
+        val all = runCatching {
+            CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw)
+        }.getOrNull() ?: return null
+        val from = page * limit
+        if (from >= all.size) return SubscriptionFeedResponse(videos = emptyList(), nextpage = null)
+        val to = minOf(from + limit, all.size)
+        val nextpage = if (to < all.size) encodeNextPage(page + 1) else null
+        return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = nextpage)
+    }
+
     private suspend fun cachedAll(userId: String): List<VideoItem> {
         val key = cacheKey(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
