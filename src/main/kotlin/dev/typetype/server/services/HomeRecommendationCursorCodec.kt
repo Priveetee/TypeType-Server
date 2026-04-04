@@ -30,6 +30,15 @@ object HomeRecommendationCursorCodec {
                 creatorMomentum = full.m,
                 creatorCooldownUntilMs = full.o,
                 recentTopicPairs = full.t,
+                personaState = HomeRecommendationPersonaState(
+                    persona = when (full.q) {
+                        1 -> HomeRecommendationSessionPersona.QUICK
+                        2 -> HomeRecommendationSessionPersona.DEEP
+                        else -> HomeRecommendationSessionPersona.AUTO
+                    },
+                    quickEvidence = full.qe,
+                    deepEvidence = full.de,
+                ),
             )
         }
         val multi = Regex(MULTI_PATTERN).matchEntire(decoded)
@@ -68,6 +77,13 @@ object HomeRecommendationCursorCodec {
                 m = cursor.creatorMomentum,
                 o = cursor.creatorCooldownUntilMs,
                 t = cursor.recentTopicPairs,
+                q = when (cursor.personaState.persona) {
+                    HomeRecommendationSessionPersona.AUTO -> 0
+                    HomeRecommendationSessionPersona.QUICK -> 1
+                    HomeRecommendationSessionPersona.DEEP -> 2
+                },
+                qe = cursor.personaState.quickEvidence,
+                de = cursor.personaState.deepEvidence,
             )
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))

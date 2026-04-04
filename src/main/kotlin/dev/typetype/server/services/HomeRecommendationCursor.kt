@@ -10,4 +10,5 @@ data class HomeRecommendationCursor(
     val creatorMomentum: Map<String, Int> = emptyMap(),
     val creatorCooldownUntilMs: Map<String, Long> = emptyMap(),
     val recentTopicPairs: List<String> = emptyList(),
+    val personaState: HomeRecommendationPersonaState = HomeRecommendationPersonaState(),
 )

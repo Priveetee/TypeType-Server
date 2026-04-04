@@ -4,6 +4,7 @@ class HomeRecommendationStateMachine(private val planner: HomeRecommendationQuot
     fun decide(
         subscriptionCount: Int,
         discoveryCount: Int,
+        noveltyCount: Int,
         selected: Int,
         subscriptionRun: Int,
         preferDiscovery: Boolean,
@@ -22,6 +23,7 @@ class HomeRecommendationStateMachine(private val planner: HomeRecommendationQuot
             forceDiscovery = force,
             wantDiscovery = prefer,
             target = planner.target,
+            forceNovelty = planner.shouldForceNovelty(noveltyCount = noveltyCount, selected = selected),
         )
     }
 }

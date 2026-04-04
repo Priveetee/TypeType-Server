@@ -18,21 +18,25 @@ object HomeRecommendationMixer {
             sourceByUrl = pool.sourceByUrl,
             sourceWeights = sourceWeights,
             sessionContext = context,
+            personaState = cursor.personaState,
         )
         val machine = HomeRecommendationStateMachine(planner)
         val selected = mutableListOf<VideoItem>()
         val channelCount = mutableMapOf<String, Int>()
         val memory = HomeRecommendationMomentumMemory(cursor)
+        var personaState = HomeRecommendationPersonaDrift.seed(context, cursor.personaState)
         var subIndex = cursor.subscriptionIndex
         var discoveryIndex = cursor.discoveryIndex
         var subscriptionRun = cursor.subscriptionRun.coerceIn(0, HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
         var preferDiscovery = cursor.preferDiscovery
         var subscriptionCount = 0
         var discoveryCount = 0
+        var noveltyCount = 0
         while (selected.size < limit) {
             val decision = machine.decide(
                 subscriptionCount = subscriptionCount,
                 discoveryCount = discoveryCount,
+                noveltyCount = noveltyCount,
                 selected = selected.size,
                 subscriptionRun = subscriptionRun,
                 preferDiscovery = preferDiscovery,
@@ -49,6 +53,7 @@ object HomeRecommendationMixer {
             val selection = HomeRecommendationSelector.pick(
                 picker = picker,
                 wantDiscovery = decision.wantDiscovery,
+                forceNovelty = decision.forceNovelty,
                 subIndex = subIndex,
                 discoveryIndex = discoveryIndex,
             )
@@ -72,6 +77,8 @@ object HomeRecommendationMixer {
                 preferDiscovery = false
             }
             selected += video
+            if (selection.isNovelty) noveltyCount += 1
+            personaState = HomeRecommendationPersonaDrift.onSelected(personaState, video)
             val key = channelKey(video)
             if (key.isNotBlank()) channelCount[key] = (channelCount[key] ?: 0) + 1
             memory.onSelected(video.title, key)
@@ -90,6 +97,7 @@ object HomeRecommendationMixer {
                     creatorMomentum = snapshot.creatorMomentum,
                     creatorCooldownUntilMs = snapshot.creatorCooldownUntilMs,
                     recentTopicPairs = snapshot.recentTopicPairs,
+                    personaState = personaState,
                 ),
             )
         } else {

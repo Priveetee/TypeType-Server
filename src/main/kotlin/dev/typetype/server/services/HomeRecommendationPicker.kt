@@ -12,15 +12,17 @@ class HomeRecommendationPicker(
     private val creatorCooldownUntilMs: Map<String, Long>,
     private val recentTopicPairs: Set<String>,
 ) {
-    fun fromDiscovery(start: Int): Pair<VideoItem?, Int> = pick(pool.discovery, start)
+    fun fromDiscovery(start: Int, noveltyOnly: Boolean = false): Pair<VideoItem?, Int> =
+        pick(pool.discovery, start, noveltyOnly)
 
-    fun fromSubscriptions(start: Int): Pair<VideoItem?, Int> = pick(pool.subscriptions, start)
+    fun fromSubscriptions(start: Int): Pair<VideoItem?, Int> = pick(pool.subscriptions, start, false)
 
-    private fun pick(source: List<VideoItem>, start: Int): Pair<VideoItem?, Int> {
+    private fun pick(source: List<VideoItem>, start: Int, noveltyOnly: Boolean): Pair<VideoItem?, Int> {
         var index = start
         while (index < source.size) {
             val candidate = source[index]
             index += 1
+            if (noveltyOnly && !isNovel(candidate)) continue
             val channel = channelKey(candidate)
             if (channel.isBlank()) return candidate to index
             val count = channelCount[channel] ?: 0
@@ -43,6 +45,11 @@ class HomeRecommendationPicker(
     }
 
     private fun channelKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }
+
+    private fun isNovel(video: VideoItem): Boolean {
+        val semanticKey = HomeRecommendationSemanticKey.fromTitle(video.title)
+        return semanticKey.isNotBlank() && semanticKey !in recentSemanticKeys
+    }
 
     companion object {
         private const val MAX_PER_CHANNEL_PER_PAGE = 2

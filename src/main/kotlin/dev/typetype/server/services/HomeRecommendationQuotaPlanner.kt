@@ -7,8 +7,15 @@ class HomeRecommendationQuotaPlanner(
     private val sourceByUrl: Map<String, HomeRecommendationSourceTag>,
     private val sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
     private val sessionContext: HomeRecommendationSessionContext,
+    private val personaState: HomeRecommendationPersonaState = HomeRecommendationPersonaState(),
 ) {
     val target = computeTarget()
+
+    fun shouldForceNovelty(noveltyCount: Int, selected: Int): Boolean {
+        val remainingSlots = limit - selected
+        val remainingNeed = (target.noveltyBudget - noveltyCount).coerceAtLeast(0)
+        return remainingNeed >= remainingSlots
+    }
 
     fun shouldForceDiscovery(subscriptionCount: Int, discoveryCount: Int, selected: Int): Boolean {
         val remainingSlots = limit - selected
@@ -38,15 +45,29 @@ class HomeRecommendationQuotaPlanner(
             themeWeight + explorationWeight >= subscriptionSize / 2 -> 0.58
             else -> 0.50
         } * (banditDiscoveryBoost / banditSubscriptionBoost)
+        val personaBias = when (personaState.persona) {
+            HomeRecommendationSessionPersona.AUTO -> 0.0
+            HomeRecommendationSessionPersona.QUICK -> 0.06
+            HomeRecommendationSessionPersona.DEEP -> -0.06
+        }
         val intentAdjustedRatio = when (sessionContext.intent) {
             HomeRecommendationSessionIntent.AUTO -> dynamicRatio
             HomeRecommendationSessionIntent.QUICK -> dynamicRatio + 0.08
             HomeRecommendationSessionIntent.DEEP -> dynamicRatio - 0.08
-        }
-        val boundedRatio = dynamicRatio.coerceIn(0.35, 0.75)
+        } + personaBias
         val targetDiscovery = minOf((limit * intentAdjustedRatio.coerceIn(0.30, 0.80)).toInt().coerceAtLeast(0), discoverySize)
         val targetSubscription = minOf(limit - targetDiscovery, subscriptionSize)
-        return HomeRecommendationTargetPlan(targetSubscription = targetSubscription, targetDiscovery = targetDiscovery)
+        val noveltyRatio = when (sessionContext.intent) {
+            HomeRecommendationSessionIntent.AUTO -> 0.25
+            HomeRecommendationSessionIntent.QUICK -> 0.35
+            HomeRecommendationSessionIntent.DEEP -> 0.20
+        }
+        val noveltyBudget = (limit * noveltyRatio).toInt().coerceIn(1, limit)
+        return HomeRecommendationTargetPlan(
+            targetSubscription = targetSubscription,
+            targetDiscovery = targetDiscovery,
+            noveltyBudget = noveltyBudget,
+        )
     }
 
     companion object {
