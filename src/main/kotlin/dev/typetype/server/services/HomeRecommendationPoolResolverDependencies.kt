@@ -5,6 +5,7 @@ import dev.typetype.server.cache.CacheService
 data class HomeRecommendationPoolResolverDependencies(
     val subscriptionsService: SubscriptionsService,
     val subscriptionFeedService: SubscriptionFeedService,
+    val subscriptionShortsFeedService: SubscriptionShortsFeedService,
     val historyService: HistoryService,
     val playlistService: PlaylistService = PlaylistService(),
     val favoritesService: FavoritesService,

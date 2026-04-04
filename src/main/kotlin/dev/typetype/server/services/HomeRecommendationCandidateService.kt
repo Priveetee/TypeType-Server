@@ -5,6 +5,7 @@ import dev.typetype.server.models.VideoItem
 
 class HomeRecommendationCandidateService(
     private val subscriptionFeedService: SubscriptionFeedService,
+    private val subscriptionShortsFeedService: SubscriptionShortsFeedService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
     private val discoveryAssembler: HomeRecommendationDiscoveryAssembler = HomeRecommendationDiscoveryAssembler(),
@@ -18,6 +19,9 @@ class HomeRecommendationCandidateService(
         signalContext: HomeRecommendationSignalContext = HomeRecommendationSignalContext(emptyList(), emptyList()),
     ): HomeRecommendationCandidatePool {
         if (mode == HomeRecommendationPoolMode.SHORTS) {
+            if (serviceId != YOUTUBE_SERVICE_ID) {
+                return HomeRecommendationCandidatePool(subscriptions = emptyList(), discovery = emptyList())
+            }
             return shortsCandidateService.fetch(userId, serviceId, profile, signalContext, this)
         }
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
@@ -51,6 +55,9 @@ class HomeRecommendationCandidateService(
     }
 
     suspend fun fetchSubscriptionCandidates(userId: String, mode: HomeRecommendationPoolMode): List<VideoItem> {
+        if (mode == HomeRecommendationPoolMode.SHORTS) {
+            return HomeRecommendationShortSubscriptionSource.fetch(userId, subscriptionShortsFeedService, subscriptionFeedService)
+        }
         if (mode == HomeRecommendationPoolMode.FAST) {
             return subscriptionFeedService.getCachedFeed(userId = userId, page = 0, limit = FAST_SUBSCRIPTION_PAGE_SIZE)
                 ?.videos

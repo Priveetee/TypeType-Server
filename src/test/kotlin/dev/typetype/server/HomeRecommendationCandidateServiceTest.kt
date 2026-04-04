@@ -10,6 +10,7 @@ import dev.typetype.server.services.HomeRecommendationProfile
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.TrendingService
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -20,13 +21,20 @@ import org.junit.jupiter.api.Test
 
 class HomeRecommendationCandidateServiceTest {
     private val subscriptionFeedService: SubscriptionFeedService = mockk()
+    private val subscriptionShortsFeedService: SubscriptionShortsFeedService = mockk()
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
-    private val service = HomeRecommendationCandidateService(subscriptionFeedService, trendingService, searchService)
+    private val service = HomeRecommendationCandidateService(
+        subscriptionFeedService,
+        subscriptionShortsFeedService,
+        trendingService,
+        searchService,
+    )
 
     @BeforeEach
     fun setup() {
         coEvery { subscriptionFeedService.getCachedFeed(any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
+        coEvery { subscriptionShortsFeedService.getBlendedFeed(any(), any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
         coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(
             SearchPageResponse(emptyList(), null, null, false),
         )

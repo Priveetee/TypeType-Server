@@ -93,6 +93,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
         subscriptionsService = subscriptionsService,
         subscriptionFeedService = subscriptionFeedService,
+        subscriptionShortsFeedService = subscriptionShortsFeedService,
         historyService = historyService,
         playlistService = playlistService,
         favoritesService = favoritesService,

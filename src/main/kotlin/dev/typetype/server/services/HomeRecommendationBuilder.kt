@@ -5,6 +5,7 @@ import dev.typetype.server.models.HomeRecommendationPool
 class HomeRecommendationBuilder(
     private val subscriptionsService: SubscriptionsService,
     private val subscriptionFeedService: SubscriptionFeedService,
+    private val subscriptionShortsFeedService: SubscriptionShortsFeedService,
     private val historyService: HistoryService,
     private val playlistService: PlaylistService,
     private val favoritesService: FavoritesService,
@@ -53,6 +54,7 @@ class HomeRecommendationBuilder(
         }
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
+            subscriptionShortsFeedService = subscriptionShortsFeedService,
             trendingService = trendingService,
             searchService = searchService,
         )

@@ -11,7 +11,7 @@ class HomeRecommendationSignalContextService(
             q = null,
             from = null,
             to = null,
-            limit = 200,
+            limit = 60,
             offset = 0,
         ).first.map { it.url }
         return HomeRecommendationSignalContext(

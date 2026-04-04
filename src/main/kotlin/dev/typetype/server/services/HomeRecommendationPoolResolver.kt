@@ -73,6 +73,7 @@ class HomeRecommendationPoolResolver(
     ): HomeRecommendationPool = HomeRecommendationBuilder(
         subscriptionsService = dependencies.subscriptionsService,
         subscriptionFeedService = dependencies.subscriptionFeedService,
+        subscriptionShortsFeedService = dependencies.subscriptionShortsFeedService,
         historyService = dependencies.historyService,
         playlistService = dependencies.playlistService,
         favoritesService = dependencies.favoritesService,

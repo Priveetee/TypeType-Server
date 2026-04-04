@@ -8,7 +8,7 @@ class HomeRecommendationShortsCandidateService {
         signalContext: HomeRecommendationSignalContext,
         candidateService: HomeRecommendationCandidateService,
     ): HomeRecommendationCandidatePool {
-        val subscriptions = candidateService.fetchSubscriptionCandidates(userId, HomeRecommendationPoolMode.FAST)
+        val subscriptions = candidateService.fetchSubscriptionCandidates(userId, HomeRecommendationPoolMode.SHORTS)
             .asSequence()
             .filter { it.isShortFormContent || it.duration in 1L..85L }
             .map { it.copy(isShortFormContent = true) }
@@ -22,7 +22,7 @@ class HomeRecommendationShortsCandidateService {
             .toList()
         val exploration = candidateService.fetchSearchCandidates(
             serviceId = serviceId,
-            queries = HomeRecommendationExplorationQueryProvider.shortQueries(),
+            queries = HomeRecommendationShortsQueryFactory.fromProfile(profile),
             maxQueries = 6,
             perQueryLimit = 10,
             source = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
@@ -40,14 +40,16 @@ class HomeRecommendationShortsCandidateService {
             historyUrls = signalContext.historyItems,
             subscriptionChannels = signalContext.userSubscriptions,
         )
+        val safeSubscriptions = HomeRecommendationShortProfileFallback.inject(dedupedSubscriptions, profile)
         val dedupedDiscovery = HomeRecommendationShortsDeduplicator.apply(
             candidates = discovery,
             historyUrls = signalContext.historyItems,
             subscriptionChannels = signalContext.userSubscriptions,
         )
+        val rebalancedDiscovery = dedupedDiscovery.take(70)
         return HomeRecommendationShortsFallback.apply(HomeRecommendationCandidatePool(
-            subscriptions = dedupedSubscriptions,
-            discovery = dedupedDiscovery,
+            subscriptions = safeSubscriptions,
+            discovery = rebalancedDiscovery,
         ))
     }
 }
