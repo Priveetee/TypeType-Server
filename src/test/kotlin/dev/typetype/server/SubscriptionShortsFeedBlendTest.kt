@@ -74,6 +74,22 @@ class SubscriptionShortsFeedBlendTest {
         assertTrue(joined.indexOf("/shorts/d2") <= joined.indexOf("/shorts/d1"))
     }
 
+    @Test
+    fun `blended feed pages discovery results without repeating first page`() = runTest {
+        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/sub", "Sub", ""))
+        coEvery { channelService.getChannel("https://yt.com/c/sub/shorts", null) } returns ExtractionResult.Success(
+            ChannelResponse("Sub", "", "", "", 0, false, listOf(video("s1", "https://yt.com/c/sub")), null),
+        )
+        coEvery { trendingService.getTrending(0) } returns ExtractionResult.Success(
+            listOf(video("d1", "https://yt.com/c/d1"), video("d2", "https://yt.com/c/d2"), video("d3", "https://yt.com/c/d3")),
+        )
+        val page1 = service.getBlendedFeed(TEST_USER_ID, 0, 0, 2).videos.map { it.url }
+        val page2 = service.getBlendedFeed(TEST_USER_ID, 0, 1, 2).videos.map { it.url }
+        assertTrue(page1.any { it.endsWith("/shorts/d1") || it.endsWith("/shorts/d2") })
+        assertTrue(page2.any { it.endsWith("/shorts/d3") })
+        assertTrue(page2.none { it in page1 })
+    }
+
     private fun video(id: String, uploaderUrl: String): VideoItem = VideoItem(
         id = id,
         title = id,
