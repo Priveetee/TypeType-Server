@@ -8,8 +8,11 @@ import dev.typetype.server.models.VideoItem
 import dev.typetype.server.routes.subscriptionShortsFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
+import dev.typetype.server.services.RecommendationEventService
+import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
+import dev.typetype.server.services.SubscriptionShortsSignalService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import io.ktor.client.request.get
@@ -34,7 +37,13 @@ class SubscriptionShortsFeedDiversityTest {
     private val cacheService: CacheService = mockk()
     private val trendingService: TrendingService = mockk()
     private val subscriptionsService = SubscriptionsService()
-    private val feedService = SubscriptionShortsFeedService(subscriptionsService, channelService, SubscriptionShortsBlendService(trendingService), cacheService)
+    private val eventService = RecommendationEventService(RecommendationInterestService())
+    private val feedService = SubscriptionShortsFeedService(
+        subscriptionsService,
+        channelService,
+        SubscriptionShortsBlendService(trendingService, SubscriptionShortsSignalService(eventService)),
+        cacheService,
+    )
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }

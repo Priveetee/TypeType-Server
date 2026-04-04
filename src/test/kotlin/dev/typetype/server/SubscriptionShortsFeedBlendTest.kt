@@ -6,8 +6,11 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.ChannelService
+import dev.typetype.server.services.RecommendationEventService
+import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
+import dev.typetype.server.services.SubscriptionShortsSignalService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import io.mockk.coEvery
@@ -23,7 +26,13 @@ class SubscriptionShortsFeedBlendTest {
     private val trendingService: TrendingService = mockk()
     private val cacheService: CacheService = mockk()
     private val subscriptionsService = SubscriptionsService()
-    private val service = SubscriptionShortsFeedService(subscriptionsService, channelService, SubscriptionShortsBlendService(trendingService), cacheService)
+    private val eventService = RecommendationEventService(RecommendationInterestService())
+    private val service = SubscriptionShortsFeedService(
+        subscriptionsService,
+        channelService,
+        SubscriptionShortsBlendService(trendingService, SubscriptionShortsSignalService(eventService)),
+        cacheService,
+    )
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
 
@@ -46,6 +55,23 @@ class SubscriptionShortsFeedBlendTest {
         val feed = service.getBlendedFeed(TEST_USER_ID, 0, 0, 3)
         assertTrue(feed.videos.any { it.url.endsWith("/shorts/s1") })
         assertTrue(feed.videos.any { it.url.endsWith("/shorts/d1") || it.url.endsWith("/shorts/d2") })
+    }
+
+    @Test
+    fun `blended feed downranks skipped shorts`() = runTest {
+        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/sub", "Sub", ""))
+        coEvery { channelService.getChannel("https://yt.com/c/sub/shorts", null) } returns ExtractionResult.Success(
+            ChannelResponse("Sub", "", "", "", 0, false, listOf(video("s1", "https://yt.com/c/sub")), null),
+        )
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
+        coEvery { trendingService.getTrending(0) } returns ExtractionResult.Success(
+            listOf(video("d1", "https://yt.com/c/discovery"), video("d2", "https://yt.com/c/discovery2")),
+        )
+        val feed = service.getBlendedFeed(TEST_USER_ID, 0, 0, 3)
+        val joined = feed.videos.joinToString("|") { it.url }
+        assertTrue(joined.indexOf("/shorts/d2") <= joined.indexOf("/shorts/d1"))
     }
 
     private fun video(id: String, uploaderUrl: String): VideoItem = VideoItem(

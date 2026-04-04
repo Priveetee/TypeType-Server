@@ -32,7 +32,7 @@ class SubscriptionShortsFeedService(
     suspend fun getBlendedFeed(userId: String, serviceId: Int, page: Int, limit: Int): SubscriptionFeedResponse {
         val sourcePage = page
         val subs = getFeed(userId, sourcePage, limit).videos
-        return blendService.build(subs = subs, serviceId = serviceId, page = page, limit = limit)
+        return blendService.build(userId = userId, subs = subs, serviceId = serviceId, page = page, limit = limit)
     }
 
     private suspend fun cachedAll(userId: String): List<VideoItem> {
