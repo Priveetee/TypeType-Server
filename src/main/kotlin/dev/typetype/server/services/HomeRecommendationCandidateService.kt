@@ -15,9 +15,10 @@ class HomeRecommendationCandidateService(
         serviceId: Int,
         profile: HomeRecommendationProfile,
         mode: HomeRecommendationPoolMode,
+        signalContext: HomeRecommendationSignalContext = HomeRecommendationSignalContext(emptyList(), emptyList()),
     ): HomeRecommendationCandidatePool {
         if (mode == HomeRecommendationPoolMode.SHORTS) {
-            return shortsCandidateService.fetch(userId, serviceId, profile, this)
+            return shortsCandidateService.fetch(userId, serviceId, profile, signalContext, this)
         }
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
             .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }

@@ -5,6 +5,7 @@ class HomeRecommendationShortsCandidateService {
         userId: String,
         serviceId: Int,
         profile: HomeRecommendationProfile,
+        signalContext: HomeRecommendationSignalContext,
         candidateService: HomeRecommendationCandidateService,
     ): HomeRecommendationCandidatePool {
         val subscriptions = candidateService.fetchSubscriptionCandidates(userId, HomeRecommendationPoolMode.FAST)
@@ -34,6 +35,19 @@ class HomeRecommendationShortsCandidateService {
             candidates = discoveryCandidates + exploration,
             explorationCap = 80,
         )
-        return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)
+        val dedupedSubscriptions = HomeRecommendationShortsDeduplicator.apply(
+            candidates = subscriptions,
+            historyUrls = signalContext.historyItems,
+            subscriptionChannels = signalContext.userSubscriptions,
+        )
+        val dedupedDiscovery = HomeRecommendationShortsDeduplicator.apply(
+            candidates = discovery,
+            historyUrls = signalContext.historyItems,
+            subscriptionChannels = signalContext.userSubscriptions,
+        )
+        return HomeRecommendationShortsFallback.apply(HomeRecommendationCandidatePool(
+            subscriptions = dedupedSubscriptions,
+            discovery = dedupedDiscovery,
+        ))
     }
 }
