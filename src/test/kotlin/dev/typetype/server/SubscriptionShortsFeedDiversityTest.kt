@@ -8,8 +8,10 @@ import dev.typetype.server.models.VideoItem
 import dev.typetype.server.routes.subscriptionShortsFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
+import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.TrendingService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -30,8 +32,9 @@ import org.junit.jupiter.api.Test
 class SubscriptionShortsFeedDiversityTest {
     private val channelService: ChannelService = mockk()
     private val cacheService: CacheService = mockk()
+    private val trendingService: TrendingService = mockk()
     private val subscriptionsService = SubscriptionsService()
-    private val feedService = SubscriptionShortsFeedService(subscriptionsService, channelService, cacheService)
+    private val feedService = SubscriptionShortsFeedService(subscriptionsService, channelService, SubscriptionShortsBlendService(trendingService), cacheService)
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
@@ -41,6 +44,7 @@ class SubscriptionShortsFeedDiversityTest {
         TestDatabase.truncateAll()
         coEvery { cacheService.get(any()) } returns null
         coEvery { cacheService.set(any(), any(), any()) } returns Unit
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

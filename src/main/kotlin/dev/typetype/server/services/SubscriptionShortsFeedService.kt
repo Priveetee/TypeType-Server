@@ -15,6 +15,7 @@ import java.security.MessageDigest
 class SubscriptionShortsFeedService(
     private val subscriptionsService: SubscriptionsService,
     private val channelService: ChannelService,
+    private val blendService: SubscriptionShortsBlendService,
     private val cache: CacheService,
 ) {
     private val semaphore = Semaphore(20)
@@ -26,6 +27,12 @@ class SubscriptionShortsFeedService(
         val to = minOf(from + limit, all.size)
         val next = if (to < all.size) (page + 1).toString() else null
         return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = next)
+    }
+
+    suspend fun getBlendedFeed(userId: String, serviceId: Int, page: Int, limit: Int): SubscriptionFeedResponse {
+        val sourcePage = page
+        val subs = getFeed(userId, sourcePage, limit).videos
+        return blendService.build(subs = subs, serviceId = serviceId, page = page, limit = limit)
     }
 
     private suspend fun cachedAll(userId: String): List<VideoItem> {
