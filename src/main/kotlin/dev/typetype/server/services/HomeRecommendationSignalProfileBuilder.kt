@@ -54,19 +54,22 @@ object HomeRecommendationSignalProfileBuilder {
 
     fun buildTopicPairPenalty(events: List<RecommendationEventItem>): Map<String, Double> {
         if (events.isEmpty()) return emptyMap()
-        val counts = mutableMapOf<String, Int>()
+        val counts = mutableMapOf<String, Double>()
         events.take(500)
             .filter { it.eventType == "short_skip" }
             .forEach { event ->
                 val title = event.title ?: return@forEach
+                val agePenalty = HomeRecommendationDecay.eventRecencyPenalty(event.occurredAt)
                 HomeRecommendationTopicPairs.fromTitle(title)
-                    .forEach { pair -> counts[pair] = (counts[pair] ?: 0) + 1 }
+                    .forEach { pair ->
+                        counts[pair] = (counts[pair] ?: 0.0) + agePenalty
+                    }
             }
         return counts
             .mapValues { (_, count) -> when {
-                count >= 6 -> 0.45
-                count >= 3 -> 0.70
-                count >= 2 -> 0.85
+                count >= 5.5 -> 0.45
+                count >= 3.0 -> 0.70
+                count >= 1.8 -> 0.85
                 else -> 1.0
             } }
             .filterValues { it < 1.0 }
