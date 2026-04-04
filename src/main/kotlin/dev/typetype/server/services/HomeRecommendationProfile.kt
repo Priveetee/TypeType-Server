@@ -16,4 +16,6 @@ data class HomeRecommendationProfile(
     val topicInterest: Map<String, Double> = emptyMap(),
     val eventPenaltyByVideo: Map<String, Double> = emptyMap(),
     val implicitBlockedVideos: Set<String> = emptySet(),
+    val subscriptionEngagement: Double = 0.0,
+    val discoveryEngagement: Double = 0.0,
 )

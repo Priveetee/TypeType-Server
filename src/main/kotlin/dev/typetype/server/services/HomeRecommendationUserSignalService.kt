@@ -25,7 +25,8 @@ class HomeRecommendationUserSignalService(
         val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
         val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
         val feedbackSignals = feedbackSignalService.load(userId)
-        val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(recommendationEventService.getAll(userId))
+        val events = recommendationEventService.getAll(userId)
+        val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(events)
         val interestProfile = interestProfileService.load(userId)
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
@@ -46,6 +47,8 @@ class HomeRecommendationUserSignalService(
             subscriptions = subscriptions,
             watchLater = watchLater,
         )
+        val subscriptionChannels = subscriptions.map { it.channelUrl }.toSet()
+        val engagementSplit = HomeRecommendationEngagementSplitCalculator.compute(events, subscriptionChannels)
         val themeQueries = HomeRecommendationThemeExtractor.buildThemeQueries(themeTokens)
         return HomeRecommendationProfile(
             seenUrls = seenUrls,
@@ -53,7 +56,7 @@ class HomeRecommendationUserSignalService(
             blockedChannels = blockedChannels,
             feedbackBlockedVideos = feedbackSignals.blockedVideos,
             feedbackBlockedChannels = feedbackSignals.blockedUploaders,
-            subscriptionChannels = subscriptions.map { it.channelUrl }.toSet(),
+            subscriptionChannels = subscriptionChannels,
             favoriteUrls = favoriteUrls,
             watchLaterUrls = watchLaterUrls,
             keywordAffinity = keywordAffinity,
@@ -63,6 +66,8 @@ class HomeRecommendationUserSignalService(
             topicInterest = interestProfile.topicScores,
             eventPenaltyByVideo = eventSignals.videoPenalty,
             implicitBlockedVideos = eventSignals.implicitBlockedVideos,
+            subscriptionEngagement = engagementSplit.subscriptionEngagement,
+            discoveryEngagement = engagementSplit.discoveryEngagement,
         )
     }
 }

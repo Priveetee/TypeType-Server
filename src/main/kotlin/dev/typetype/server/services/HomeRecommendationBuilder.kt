@@ -41,6 +41,11 @@ class HomeRecommendationBuilder(
             events = eventService.getAll(userId),
             sourceByUrl = pool.sourceByUrl,
         )
-        return pool.copy(sourceWeights = sourceWeights)
+        val mergedWeights = (pool.sourceWeights.keys + sourceWeights.keys).associateWith { source ->
+            val poolWeight = pool.sourceWeights[source] ?: 1.0
+            val banditWeight = sourceWeights[source] ?: 1.0
+            ((poolWeight + banditWeight) / 2.0).coerceIn(0.55, 1.55)
+        }
+        return pool.copy(sourceWeights = mergedWeights)
     }
 }

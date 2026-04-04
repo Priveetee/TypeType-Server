@@ -115,6 +115,6 @@ class HomeRecommendationService(
     companion object {
         private const val CACHE_TTL_SECONDS = 300L
         private const val FULL_BUILD_BUDGET_MS = 1_500L
-        private const val CACHE_VERSION = 4
+        private const val CACHE_VERSION = 5
     }
 }

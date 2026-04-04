@@ -115,6 +115,31 @@ class HomeRecommendationPoolBuilderTest {
         assertTrue(pool.discovery.first().url.endsWith("/normal1"))
     }
 
+    @Test
+    fun `pool builder increases subscription weight when subscription engagement is stronger`() {
+        val profile = HomeRecommendationProfile(
+            seenUrls = emptySet(),
+            blockedVideos = emptySet(),
+            blockedChannels = emptySet(),
+            feedbackBlockedVideos = emptySet(),
+            feedbackBlockedChannels = emptySet(),
+            subscriptionChannels = emptySet(),
+            favoriteUrls = emptySet(),
+            watchLaterUrls = emptySet(),
+            keywordAffinity = emptySet(),
+            themeTokens = emptySet(),
+            themeQueries = emptyList(),
+            channelInterest = emptyMap(),
+            topicInterest = emptyMap(),
+            subscriptionEngagement = 6.0,
+            discoveryEngagement = 1.0,
+        )
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList())
+        val subWeight = pool.sourceWeights[HomeRecommendationSourceTag.SUBSCRIPTION] ?: 1.0
+        val discWeight = pool.sourceWeights[HomeRecommendationSourceTag.DISCOVERY_TRENDING] ?: 1.0
+        assertTrue(subWeight > discWeight)
+    }
+
     private fun tagged(video: VideoItem, source: HomeRecommendationSourceTag): HomeRecommendationTaggedVideo =
         HomeRecommendationTaggedVideo(video = video, source = source)
 }
