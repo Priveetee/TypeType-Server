@@ -9,8 +9,28 @@ class HomeRecommendationEngagementSplitCalculatorTest {
     @Test
     fun `calculator separates subscription and discovery engagement`() {
         val events = listOf(
-            RecommendationEventItem("1", "watch", "u1", "https://yt.com/c/sub", null, 0.8, null, 1),
-            RecommendationEventItem("2", "short_skip", "u2", "https://yt.com/c/disc", null, null, 200, 2),
+            RecommendationEventItem(
+                id = "1",
+                eventType = "watch",
+                videoUrl = "u1",
+                uploaderUrl = "https://yt.com/c/sub",
+                title = null,
+                watchRatio = 0.8,
+                watchDurationMs = null,
+                contextKey = null,
+                occurredAt = 1,
+            ),
+            RecommendationEventItem(
+                id = "2",
+                eventType = "short_skip",
+                videoUrl = "u2",
+                uploaderUrl = "https://yt.com/c/disc",
+                title = null,
+                watchRatio = null,
+                watchDurationMs = 200,
+                contextKey = null,
+                occurredAt = 2,
+            ),
         )
         val split = HomeRecommendationEngagementSplitCalculator.compute(
             events = events,

@@ -18,6 +18,7 @@ class HomeRecommendationEventAnalyzerRejectionTest {
                 title = "music remix $index",
                 watchRatio = null,
                 watchDurationMs = 200L,
+                contextKey = null,
                 occurredAt = now - (index * 1_000L),
             )
         }

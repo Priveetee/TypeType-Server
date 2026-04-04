@@ -3,7 +3,10 @@ package dev.typetype.server
 import dev.typetype.server.models.HomeRecommendationPool
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationCursor
+import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationMixer
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -20,7 +23,7 @@ class HomeRecommendationSubscriptionQuotaSourceTest {
             ),
             subscriptionChannels = setOf(subscribedChannel),
         )
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4)
+        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
         assertTrue(page.subscriptionCount >= 2)
     }
 
@@ -40,5 +43,10 @@ class HomeRecommendationSubscriptionQuotaSourceTest {
         isShortFormContent = false,
         uploaderVerified = false,
         shortDescription = null,
+    )
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
     )
 }

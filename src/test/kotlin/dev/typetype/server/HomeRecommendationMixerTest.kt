@@ -3,7 +3,10 @@ package dev.typetype.server
 import dev.typetype.server.models.HomeRecommendationPool
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationCursor
+import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationMixer
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -50,6 +53,7 @@ class HomeRecommendationMixerTest {
             pool = pool,
             cursor = HomeRecommendationCursor(subscriptionIndex = 0, discoveryIndex = 0),
             limit = 8,
+            context = context,
         )
         val items = page.items
         val channels = items.map { it.uploaderUrl }
@@ -71,6 +75,7 @@ class HomeRecommendationMixerTest {
             pool = pool,
             cursor = HomeRecommendationCursor(subscriptionIndex = 0, discoveryIndex = 0),
             limit = 3,
+            context = context,
         )
         assertEquals(3, page.items.size)
         assertNotNull(page.nextCursor)
@@ -82,7 +87,7 @@ class HomeRecommendationMixerTest {
             subscriptions = listOf(video("s1", "a"), video("s2", "b"), video("s3", "c")),
             discovery = listOf(video("d1", "d"), video("d2", "e"), video("d3", "f")),
         )
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4)
+        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
         val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
         assertTrue((decoded?.recentChannels?.size ?: 0) > 0)
     }
@@ -101,7 +106,7 @@ class HomeRecommendationMixerTest {
                 video("d3", "f").copy(title = "coding tutorial kotlin"),
             ),
         )
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4)
+        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
         val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
         assertTrue((decoded?.recentSemanticKeys?.size ?: 0) > 0)
     }
@@ -115,6 +120,7 @@ class HomeRecommendationMixerTest {
             pool = pool,
             cursor = HomeRecommendationCursor(),
             limit = 10,
+            context = context,
         )
         assertTrue(page.discoveryCount >= 5)
         assertTrue(page.subscriptionCount <= 5)
@@ -129,6 +135,7 @@ class HomeRecommendationMixerTest {
             pool = pool,
             cursor = HomeRecommendationCursor(),
             limit = 10,
+            context = context,
         )
         val subUrls = pool.subscriptions.map { it.url }.toSet()
         var run = 0
@@ -141,4 +148,9 @@ class HomeRecommendationMixerTest {
             }
         }
     }
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
+    )
 }

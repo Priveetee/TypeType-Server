@@ -1,6 +1,9 @@
 package dev.typetype.server
 
 import dev.typetype.server.services.HomeRecommendationQuotaPlanner
+import dev.typetype.server.services.HomeRecommendationDeviceClass
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,6 +21,7 @@ class HomeRecommendationQuotaPlannerDynamicTest {
             subscriptionSize = 10,
             discoverySize = 25,
             sourceByUrl = sourceMap,
+            sessionContext = context,
         )
         assertTrue(planner.target.targetDiscovery >= 6)
     }
@@ -33,7 +37,13 @@ class HomeRecommendationQuotaPlannerDynamicTest {
             subscriptionSize = 10,
             discoverySize = 10,
             sourceByUrl = sourceMap,
+            sessionContext = context,
         )
         assertEquals(5, planner.target.targetDiscovery)
     }
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
+    )
 }

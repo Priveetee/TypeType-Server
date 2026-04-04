@@ -18,6 +18,7 @@ class HomeRecommendationEventAnalyzerTest {
                 uploaderUrl = "https://yt.com/c/a",
                 title = null,
                 watchRatio = null,
+                contextKey = null,
                 occurredAt = now - index * 1_000L,
             )
         }
@@ -37,6 +38,7 @@ class HomeRecommendationEventAnalyzerTest {
                 uploaderUrl = "https://yt.com/c/b",
                 title = null,
                 watchRatio = null,
+                contextKey = null,
                 occurredAt = now - index * 1_000L,
             )
         }

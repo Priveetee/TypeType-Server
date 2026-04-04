@@ -2,7 +2,10 @@ package dev.typetype.server
 
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
+import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -33,7 +36,7 @@ class HomeRecommendationDiscoveryQuotaFallbackTest {
                 source = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
             ),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery)
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery, context)
         assertEquals(1, pool.discovery.size)
         assertTrue(pool.discovery.first().url.endsWith("/broad1"))
     }
@@ -54,5 +57,10 @@ class HomeRecommendationDiscoveryQuotaFallbackTest {
         isShortFormContent = false,
         uploaderVerified = false,
         shortDescription = null,
+    )
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
     )
 }

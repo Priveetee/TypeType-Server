@@ -2,6 +2,9 @@ package dev.typetype.server
 
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
+import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationProfile
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
@@ -61,7 +64,7 @@ class HomeRecommendationPoolBuilderTest {
             tagged(video("ok", "sub"), HomeRecommendationSourceTag.DISCOVERY_TRENDING),
             tagged(video("new", "x"), HomeRecommendationSourceTag.DISCOVERY_THEME),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, discovery)
+        val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, discovery, context)
         assertEquals(1, pool.subscriptions.size)
         assertEquals("https://yt.com/v/ok", pool.subscriptions.first().url)
         assertEquals(1, pool.discovery.size)
@@ -94,7 +97,7 @@ class HomeRecommendationPoolBuilderTest {
             tagged(video("plain", "a", title = "daily vlog"), HomeRecommendationSourceTag.SUBSCRIPTION),
             tagged(video("match", "a", title = "music review"), HomeRecommendationSourceTag.SUBSCRIPTION),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, emptyList())
+        val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, emptyList(), context)
         assertTrue(pool.subscriptions.first().url.endsWith("/match"))
     }
 
@@ -125,7 +128,7 @@ class HomeRecommendationPoolBuilderTest {
             tagged(video("normal1", "b", title = "Weekly tech roundup"), HomeRecommendationSourceTag.DISCOVERY_THEME),
             tagged(video("live2", "c", title = "DIRECT: match day"), HomeRecommendationSourceTag.DISCOVERY_EXPLORATION),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery)
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery, context)
         assertEquals(1, pool.discovery.size)
         assertTrue(pool.discovery.first().url.endsWith("/normal1"))
     }
@@ -154,7 +157,7 @@ class HomeRecommendationPoolBuilderTest {
             channelTopicProfile = emptyMap(),
             shortsTopicInterest = emptyMap(),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList())
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList(), context)
         val subWeight = pool.sourceWeights[HomeRecommendationSourceTag.SUBSCRIPTION] ?: 1.0
         val discWeight = pool.sourceWeights[HomeRecommendationSourceTag.DISCOVERY_TRENDING] ?: 1.0
         assertTrue(subWeight > discWeight)
@@ -162,4 +165,9 @@ class HomeRecommendationPoolBuilderTest {
 
     private fun tagged(video: VideoItem, source: HomeRecommendationSourceTag): HomeRecommendationTaggedVideo =
         HomeRecommendationTaggedVideo(video = video, source = source)
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
+    )
 }

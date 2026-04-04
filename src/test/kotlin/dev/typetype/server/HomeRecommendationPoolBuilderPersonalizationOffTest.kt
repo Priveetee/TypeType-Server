@@ -2,7 +2,10 @@ package dev.typetype.server
 
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
+import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationSessionContext
+import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import dev.typetype.server.services.RecommendationFeedHistoryEntry
@@ -34,6 +37,7 @@ class HomeRecommendationPoolBuilderPersonalizationOffTest {
             profile = profile,
             subscriptionCandidates = listOf(HomeRecommendationTaggedVideo(video, HomeRecommendationSourceTag.SUBSCRIPTION)),
             discoveryCandidates = emptyList(),
+            context = context,
         )
         assertTrue(pool.subscriptions.isNotEmpty())
     }
@@ -54,5 +58,10 @@ class HomeRecommendationPoolBuilderPersonalizationOffTest {
         isShortFormContent = false,
         uploaderVerified = false,
         shortDescription = null,
+    )
+
+    private val context = HomeRecommendationSessionContext(
+        intent = HomeRecommendationSessionIntent.AUTO,
+        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
     )
 }

@@ -25,6 +25,9 @@ class HomeRecommendationCursorCodecTest {
                 preferDiscovery = false,
                 recentChannels = listOf("c1", "c2"),
                 recentSemanticKeys = listOf("linux|kernel"),
+                creatorMomentum = mapOf("https://yt.com/c/a" to 2),
+                creatorCooldownUntilMs = mapOf("https://yt.com/c/a" to 123L),
+                recentTopicPairs = listOf("linux|kernel"),
             )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
@@ -34,6 +37,9 @@ class HomeRecommendationCursorCodecTest {
         assertEquals(false, decoded?.preferDiscovery)
         assertEquals(listOf("c1", "c2"), decoded?.recentChannels)
         assertEquals(listOf("linux|kernel"), decoded?.recentSemanticKeys)
+        assertEquals(2, decoded?.creatorMomentum?.get("https://yt.com/c/a"))
+        assertEquals(123L, decoded?.creatorCooldownUntilMs?.get("https://yt.com/c/a"))
+        assertEquals(listOf("linux|kernel"), decoded?.recentTopicPairs)
     }
 
     @Test
