@@ -43,6 +43,7 @@ class HomeRecommendationPoolBuilder {
             if (video.url.isBlank()) return@forEach
             if (video.url in profile.seenUrls || video.url in profile.blockedVideos) return@forEach
             if (video.url in profile.feedbackBlockedVideos) return@forEach
+            if (video.url in profile.implicitBlockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.feedbackBlockedChannels) return@forEach
             if (!allowLive && HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) return@forEach
@@ -54,7 +55,8 @@ class HomeRecommendationPoolBuilder {
                 )
                 if (themeScore < minThemeScore) return@forEach
             }
-            val scored = HomeRecommendationScoredVideo(video = video, score = scorer(video, profile))
+            val score = scorer(video, profile) * (profile.eventPenaltyByVideo[video.url] ?: 1.0)
+            val scored = HomeRecommendationScoredVideo(video = video, score = score)
             val current = byUrl[video.url]
             if (current == null || scored.score > current.score) {
                 byUrl[video.url] = scored

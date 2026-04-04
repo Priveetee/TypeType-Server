@@ -38,7 +38,8 @@ class HomeRecommendationServiceFastPathTest {
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
     private val subscriptions = SubscriptionsService()
-    private val feedback = RecommendationFeedbackService(RecommendationEventService(RecommendationInterestService()))
+    private val eventService = RecommendationEventService(RecommendationInterestService())
+    private val feedback = RecommendationFeedbackService(eventService)
     private val service = HomeRecommendationService(
         subscriptions,
         SubscriptionFeedService(subscriptions, channelService, cache),
@@ -47,6 +48,7 @@ class HomeRecommendationServiceFastPathTest {
         WatchLaterService(),
         BlockedService(),
         feedback,
+        eventService,
         trendingService,
         searchService,
         cache,

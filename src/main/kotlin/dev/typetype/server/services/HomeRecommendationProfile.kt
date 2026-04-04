@@ -14,4 +14,6 @@ data class HomeRecommendationProfile(
     val themeQueries: List<String>,
     val channelInterest: Map<String, Double> = emptyMap(),
     val topicInterest: Map<String, Double> = emptyMap(),
+    val eventPenaltyByVideo: Map<String, Double> = emptyMap(),
+    val implicitBlockedVideos: Set<String> = emptySet(),
 )

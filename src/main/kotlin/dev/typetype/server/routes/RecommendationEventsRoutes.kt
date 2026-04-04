@@ -22,7 +22,7 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
             val request = runCatching { call.receive<RecommendationEventRequest>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            if (request.eventType !in setOf("impression", "click", "watch", "favorite", "watch_later_add")) {
+            if (request.eventType !in setOf("impression", "click", "watch", "favorite", "watch_later_add", "short_skip")) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid eventType"))
             }
             if ((request.eventType == "click" || request.eventType == "watch") && request.videoUrl.isNullOrBlank()) {

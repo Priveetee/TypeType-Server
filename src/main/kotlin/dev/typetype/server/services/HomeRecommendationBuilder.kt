@@ -9,6 +9,7 @@ class HomeRecommendationBuilder(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
+    private val eventService: RecommendationEventService,
     private val feedbackService: RecommendationFeedbackService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
@@ -20,6 +21,7 @@ class HomeRecommendationBuilder(
             favoritesService = favoritesService,
             watchLaterService = watchLaterService,
             blockedService = blockedService,
+            recommendationEventService = eventService,
             feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
             interestProfileService = RecommendationInterestProfileService(),
         ).loadProfile(userId)

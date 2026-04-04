@@ -38,6 +38,7 @@ import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
@@ -66,7 +67,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val historyService = HistoryService(recommendationEventService)
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
-    val subscriptionShortsFeedService = SubscriptionShortsFeedService(subscriptionsService, channelService, cache)
+    val subscriptionShortsFeedService = SubscriptionShortsFeedService(subscriptionsService, channelService, SubscriptionShortsBlendService(trendingService), cache)
     val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
     val watchLaterService = WatchLaterService(recommendationEventService)
@@ -78,5 +79,5 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val bugReportService = BugReportService()
     val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
-    val homeRecommendationService = HomeRecommendationService(subscriptionsService, subscriptionFeedService, historyService, favoritesService, watchLaterService, blockedService, recommendationFeedbackService, trendingService, searchService, cache)
+    val homeRecommendationService = HomeRecommendationService(subscriptionsService, subscriptionFeedService, historyService, favoritesService, watchLaterService, blockedService, recommendationFeedbackService, recommendationEventService, trendingService, searchService, cache)
 }

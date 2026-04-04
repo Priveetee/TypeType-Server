@@ -46,6 +46,7 @@ class HomeRecommendationRoutesTest {
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
     private val feedback = RecommendationFeedbackService(RecommendationEventService(RecommendationInterestService()))
+    private val eventService = RecommendationEventService(RecommendationInterestService())
     private val subscriptions = SubscriptionsService()
     private val service = HomeRecommendationService(
         subscriptions,
@@ -55,6 +56,7 @@ class HomeRecommendationRoutesTest {
         WatchLaterService(),
         BlockedService(),
         feedback,
+        eventService,
         trendingService,
         searchService,
         cache,

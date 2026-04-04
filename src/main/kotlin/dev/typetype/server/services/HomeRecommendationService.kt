@@ -24,6 +24,7 @@ class HomeRecommendationService(
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
     private val feedbackService: RecommendationFeedbackService,
+    private val eventService: RecommendationEventService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
     private val cache: CacheService,
@@ -88,6 +89,7 @@ class HomeRecommendationService(
             favoritesService = favoritesService,
             watchLaterService = watchLaterService,
             blockedService = blockedService,
+            eventService = eventService,
             feedbackService = feedbackService,
             trendingService = trendingService,
             searchService = searchService,
@@ -101,9 +103,8 @@ class HomeRecommendationService(
         }
     }
 
-    private suspend fun writeCachedPool(key: String, pool: HomeRecommendationPool): Unit {
-        runCatching { cache.set(key, CacheJson.encodeToString(pool), CACHE_TTL_SECONDS) }
-    }
+    private suspend fun writeCachedPool(key: String, pool: HomeRecommendationPool): Unit =
+        runCatching { cache.set(key, CacheJson.encodeToString(pool), CACHE_TTL_SECONDS) }.let { }
 
     private fun cacheKey(userId: String, serviceId: Int): String {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -114,6 +115,6 @@ class HomeRecommendationService(
     companion object {
         private const val CACHE_TTL_SECONDS = 300L
         private const val FULL_BUILD_BUDGET_MS = 1_500L
-        private const val CACHE_VERSION = 3
+        private const val CACHE_VERSION = 4
     }
 }

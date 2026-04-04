@@ -6,6 +6,7 @@ class HomeRecommendationUserSignalService(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
+    private val recommendationEventService: RecommendationEventService,
     private val feedbackSignalService: RecommendationFeedbackSignalService,
     private val interestProfileService: RecommendationInterestProfileService,
 ) {
@@ -24,6 +25,9 @@ class HomeRecommendationUserSignalService(
         val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
         val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
         val feedbackSignals = feedbackSignalService.load(userId)
+        val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(
+            recommendationEventService.getAll(userId),
+        )
         val interestProfile = interestProfileService.load(userId)
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
@@ -59,6 +63,8 @@ class HomeRecommendationUserSignalService(
             themeQueries = themeQueries,
             channelInterest = interestProfile.channelScores,
             topicInterest = interestProfile.topicScores,
+            eventPenaltyByVideo = eventSignals.videoPenalty,
+            implicitBlockedVideos = eventSignals.implicitBlockedVideos,
         )
     }
 }
