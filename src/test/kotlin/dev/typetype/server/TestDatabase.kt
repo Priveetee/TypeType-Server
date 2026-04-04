@@ -18,6 +18,7 @@ import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
+import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
@@ -58,6 +59,7 @@ object TestDatabase {
         BlockedVideosTable.deleteAll()
         RecommendationFeedbackTable.deleteAll()
         RecommendationEventsTable.deleteAll()
+        RecommendationFeedHistoryTable.deleteAll()
         UserChannelInterestTable.deleteAll()
         UserTopicInterestTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()

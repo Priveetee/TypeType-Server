@@ -21,6 +21,7 @@ import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
+import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
@@ -63,6 +64,7 @@ object DatabaseFactory {
                 PasswordResetTable,
                 RecommendationFeedbackTable,
                 RecommendationEventsTable,
+                RecommendationFeedHistoryTable,
                 UserChannelInterestTable,
                 UserTopicInterestTable,
                 YoutubeTakeoutImportJobsTable,
@@ -76,6 +78,7 @@ object DatabaseFactory {
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_subtitle_language TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS prefer_original_language BOOLEAN NOT NULL DEFAULT false")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS recommendation_personalization_enabled BOOLEAN NOT NULL DEFAULT true")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS channel_avatar TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")

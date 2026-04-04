@@ -15,6 +15,7 @@ object DatabaseIndexMigrations {
         exec("CREATE INDEX IF NOT EXISTS idx_reco_feedback_user_created_at ON recommendation_feedback (user_id, created_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_reco_events_user_event_occurred ON recommendation_events (user_id, event_type, occurred_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_reco_events_user_occurred ON recommendation_events (user_id, occurred_at DESC)")
+        exec("CREATE INDEX IF NOT EXISTS idx_reco_feed_history_user_last_shown ON recommendation_feed_history (user_id, last_shown DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_user_channel_interest_user_score ON user_channel_interest (user_id, score DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_user_topic_interest_user_score ON user_topic_interest (user_id, score DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_history_title_trgm ON history USING gin (lower(title) gin_trgm_ops)")
