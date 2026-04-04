@@ -51,4 +51,46 @@ object HomeRecommendationSignalProfileBuilder {
             .take(80)
             .associate { it.key to it.value.coerceIn(-6.0, 6.0) }
     }
+
+    fun buildTopicPairPenalty(events: List<RecommendationEventItem>): Map<String, Double> {
+        if (events.isEmpty()) return emptyMap()
+        val counts = mutableMapOf<String, Int>()
+        events.take(500)
+            .filter { it.eventType == "short_skip" }
+            .forEach { event ->
+                val title = event.title ?: return@forEach
+                HomeRecommendationTopicPairs.fromTitle(title)
+                    .forEach { pair -> counts[pair] = (counts[pair] ?: 0) + 1 }
+            }
+        return counts
+            .mapValues { (_, count) -> when {
+                count >= 6 -> 0.45
+                count >= 3 -> 0.70
+                count >= 2 -> 0.85
+                else -> 1.0
+            } }
+            .filterValues { it < 1.0 }
+    }
+
+    fun buildCreatorMomentum(events: List<RecommendationEventItem>): Map<String, Double> {
+        if (events.isEmpty()) return emptyMap()
+        val scoreByUploader = mutableMapOf<String, Double>()
+        events.take(360).forEach { event ->
+            val uploader = event.uploaderUrl ?: return@forEach
+            val delta = when (event.eventType) {
+                "watch" -> if ((event.watchRatio ?: 0.0) >= 0.5) 0.8 else 0.3
+                "click" -> 0.35
+                "favorite", "watch_later_add" -> 0.9
+                "short_skip" -> -0.6
+                else -> 0.0
+            }
+            if (delta == 0.0) return@forEach
+            scoreByUploader[uploader] = (scoreByUploader[uploader] ?: 0.0) + delta
+        }
+        return scoreByUploader
+            .entries
+            .sortedByDescending { abs(it.value) }
+            .take(80)
+            .associate { it.key to it.value.coerceIn(-6.0, 6.0) }
+    }
 }

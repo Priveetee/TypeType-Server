@@ -10,4 +10,7 @@ data class HomeRecommendationCursorPayload(
     val p: Int,
     val c: List<String> = emptyList(),
     val k: List<String> = emptyList(),
+    val m: Map<String, Int> = emptyMap(),
+    val o: Map<String, Long> = emptyMap(),
+    val t: List<String> = emptyList(),
 )

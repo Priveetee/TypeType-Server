@@ -12,6 +12,21 @@ class HomeRecommendationUserSignalService(
     private val interestProfileService: RecommendationInterestProfileService,
 ) {
     suspend fun loadProfile(userId: String, personalizationEnabled: Boolean): HomeRecommendationProfile {
+        return loadProfile(
+            userId = userId,
+            personalizationEnabled = personalizationEnabled,
+            sessionContext = HomeRecommendationSessionContext(
+                intent = HomeRecommendationSessionIntent.AUTO,
+                deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
+            ),
+        )
+    }
+
+    suspend fun loadProfile(
+        userId: String,
+        personalizationEnabled: Boolean,
+        sessionContext: HomeRecommendationSessionContext,
+    ): HomeRecommendationProfile {
         val subscriptions = subscriptionsService.getAll(userId)
         val favorites = if (personalizationEnabled) favoritesService.getAll(userId) else emptyList()
         val watchLater = if (personalizationEnabled) watchLaterService.getAll(userId) else emptyList()
@@ -77,6 +92,8 @@ class HomeRecommendationUserSignalService(
             rejectionChannelPenalty = eventSignals.rejectionChannelPenalty,
             channelTopicProfile = HomeRecommendationSignalProfileBuilder.buildChannelTopicProfile(historyItems),
             shortsTopicInterest = HomeRecommendationSignalProfileBuilder.buildShortsTopicInterest(events),
+            rejectionTopicPairPenalty = HomeRecommendationSignalProfileBuilder.buildTopicPairPenalty(events),
+            creatorMomentum = HomeRecommendationSignalProfileBuilder.buildCreatorMomentum(events),
             personalizationEnabled = personalizationEnabled,
         )
     }

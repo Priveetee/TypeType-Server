@@ -27,6 +27,9 @@ object HomeRecommendationCursorCodec {
                 preferDiscovery = full.p == 1,
                 recentChannels = full.c,
                 recentSemanticKeys = full.k,
+                creatorMomentum = full.m,
+                creatorCooldownUntilMs = full.o,
+                recentTopicPairs = full.t,
             )
         }
         val multi = Regex(MULTI_PATTERN).matchEntire(decoded)
@@ -62,6 +65,9 @@ object HomeRecommendationCursorCodec {
                 p = if (cursor.preferDiscovery) 1 else 0,
                 c = cursor.recentChannels,
                 k = cursor.recentSemanticKeys,
+                m = cursor.creatorMomentum,
+                o = cursor.creatorCooldownUntilMs,
+                t = cursor.recentTopicPairs,
             )
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))

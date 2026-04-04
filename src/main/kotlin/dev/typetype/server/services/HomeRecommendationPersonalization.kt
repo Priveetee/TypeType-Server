@@ -43,8 +43,9 @@ object HomeRecommendationPersonalization {
         val feedPenalty = HomeRecommendationFeedHistoryPenalty.penalty(profile.feedHistory[video.url])
         val channelPenalty = profile.rejectionChannelPenalty[video.uploaderUrl].orDefault()
         val topicPenalty = topicPenalty(video, profile.rejectionTopicPenalty)
+        val topicPairPenalty = topicPairPenalty(video, profile.rejectionTopicPairPenalty)
         val shortTopicBoost = shortTopicBoost(video, profile.shortsTopicInterest)
-        return (score * feedPenalty * channelPenalty * topicPenalty) + shortTopicBoost
+        return (score * feedPenalty * channelPenalty * topicPenalty * topicPairPenalty) + shortTopicBoost
     }
 
     private fun topicPenalty(video: VideoItem, penalties: Map<String, Double>): Double {
@@ -60,6 +61,13 @@ object HomeRecommendationPersonalization {
         if (tokens.isEmpty()) return 0.0
         val score = tokens.sumOf { shortsTopicInterest[it] ?: 0.0 }
         return (score * 0.04).coerceIn(-0.4, 0.4)
+    }
+
+    private fun topicPairPenalty(video: VideoItem, penalties: Map<String, Double>): Double {
+        if (penalties.isEmpty()) return 1.0
+        val pairs = HomeRecommendationTopicPairs.fromTitle(video.title)
+        if (pairs.isEmpty()) return 1.0
+        return pairs.mapNotNull { penalties[it] }.minOrNull().orDefault()
     }
 
     private fun Double?.orDefault(default: Double = 1.0): Double = this ?: default

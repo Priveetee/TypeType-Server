@@ -7,4 +7,7 @@ data class HomeRecommendationCursor(
     val preferDiscovery: Boolean = true,
     val recentChannels: List<String> = emptyList(),
     val recentSemanticKeys: List<String> = emptyList(),
+    val creatorMomentum: Map<String, Int> = emptyMap(),
+    val creatorCooldownUntilMs: Map<String, Long> = emptyMap(),
+    val recentTopicPairs: List<String> = emptyList(),
 )

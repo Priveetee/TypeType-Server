@@ -5,4 +5,5 @@ data class HomeRecommendationEngagementSignals(
     val implicitBlockedVideos: Set<String>,
     val rejectionTopicPenalty: Map<String, Double> = emptyMap(),
     val rejectionChannelPenalty: Map<String, Double> = emptyMap(),
+    val rejectionTopicPairPenalty: Map<String, Double> = emptyMap(),
 )
