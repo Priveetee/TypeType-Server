@@ -11,10 +11,16 @@ class HomeRecommendationBuilder(
     private val blockedService: BlockedService,
     private val eventService: RecommendationEventService,
     private val feedbackService: RecommendationFeedbackService,
+    private val feedHistoryService: RecommendationFeedHistoryService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
 ) {
-    suspend fun build(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode): HomeRecommendationPool {
+    suspend fun build(
+        userId: String,
+        serviceId: Int,
+        mode: HomeRecommendationPoolMode,
+        personalizationEnabled: Boolean,
+    ): HomeRecommendationPool {
         val signalService = HomeRecommendationUserSignalService(
             subscriptionsService = subscriptionsService,
             historyService = historyService,
@@ -22,10 +28,11 @@ class HomeRecommendationBuilder(
             watchLaterService = watchLaterService,
             blockedService = blockedService,
             recommendationEventService = eventService,
+            feedHistoryService = feedHistoryService,
             feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
             interestProfileService = RecommendationInterestProfileService(),
         )
-        val profile = signalService.loadProfile(userId)
+        val profile = signalService.loadProfile(userId, personalizationEnabled)
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             trendingService = trendingService,
@@ -37,10 +44,14 @@ class HomeRecommendationBuilder(
             subscriptionCandidates = candidatePool.subscriptions,
             discoveryCandidates = candidatePool.discovery,
         )
-        val sourceWeights = HomeRecommendationSourceBandit.weightBySource(
-            events = eventService.getAll(userId),
-            sourceByUrl = pool.sourceByUrl,
-        )
+        val sourceWeights = if (!personalizationEnabled) {
+            emptyMap()
+        } else {
+            HomeRecommendationSourceBandit.weightBySource(
+                events = eventService.getAll(userId),
+                sourceByUrl = pool.sourceByUrl,
+            )
+        }
         val mergedWeights = (pool.sourceWeights.keys + sourceWeights.keys).associateWith { source ->
             val poolWeight = pool.sourceWeights[source] ?: 1.0
             val banditWeight = sourceWeights[source] ?: 1.0

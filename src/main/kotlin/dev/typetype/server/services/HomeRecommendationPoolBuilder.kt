@@ -16,6 +16,11 @@ class HomeRecommendationPoolBuilder {
             allowLive = false,
             minThemeScore = 0.0,
         )
+        val jitteredSubscriptions = if (profile.personalizationEnabled) {
+            HomeRecommendationJitter.apply(subscriptionsScored, profile.feedHistory)
+        } else {
+            subscriptionsScored
+        }
         val subscriptionUrls = subscriptionsScored.map { it.video.url }.toSet()
         val discoveryScored = scoreAndFilter(
             candidates = discoveryCandidates,
@@ -24,11 +29,16 @@ class HomeRecommendationPoolBuilder {
             allowLive = false,
             minThemeScore = 0.0,
         ).filterNot { scored -> scored.video.url in subscriptionUrls }
+        val jitteredDiscovery = if (profile.personalizationEnabled) {
+            HomeRecommendationJitter.apply(discoveryScored, profile.feedHistory)
+        } else {
+            discoveryScored
+        }
         return HomeRecommendationPool(
-            subscriptions = subscriptionsScored.map { it.video },
-            discovery = discoveryScored.map { it.video },
+            subscriptions = jitteredSubscriptions.map { it.video },
+            discovery = jitteredDiscovery.map { it.video },
             subscriptionChannels = profile.subscriptionChannels,
-            sourceByUrl = (subscriptionsScored + discoveryScored).associate { it.video.url to it.source },
+            sourceByUrl = (jitteredSubscriptions + jitteredDiscovery).associate { it.video.url to it.source },
             sourceWeights = adjustWeights(profile),
         )
     }
@@ -68,7 +78,12 @@ class HomeRecommendationPoolBuilder {
                 val themeScore = HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens)
                 if (themeScore < minThemeScore) return@forEach
             }
-            val score = scorer(video, profile) * (profile.eventPenaltyByVideo[video.url] ?: 1.0)
+            val rawScore = scorer(video, profile) * (profile.eventPenaltyByVideo[video.url] ?: 1.0)
+            val score = if (profile.personalizationEnabled) {
+                HomeRecommendationScoring.applyPersonalizationPenalties(video, rawScore, profile)
+            } else {
+                rawScore
+            }
             val scored = HomeRecommendationScoredVideo(video = video, score = score, source = tagged.source)
             val current = byUrl[video.url]
             if (current == null || scored.score > current.score) byUrl[video.url] = scored
