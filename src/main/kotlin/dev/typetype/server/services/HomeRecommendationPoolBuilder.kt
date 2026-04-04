@@ -29,7 +29,7 @@ class HomeRecommendationPoolBuilder {
         val discoveryScored = scoreAndFilter(
             candidates = discoveryCandidates,
             profile = profile,
-            scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p, context) },
+            scorer = { video, p -> HomeRecommendationPoolScorer.discovery(video, p, context, shortsMode) },
             allowLive = false,
             minThemeScore = 0.0,
             shortsOnly = shortsMode,
@@ -44,22 +44,7 @@ class HomeRecommendationPoolBuilder {
             discovery = jitteredDiscovery.map { it.video },
             subscriptionChannels = profile.subscriptionChannels,
             sourceByUrl = (jitteredSubscriptions + jitteredDiscovery).associate { it.video.url to it.source },
-            sourceWeights = adjustWeights(profile),
-        )
-    }
-
-    private fun adjustWeights(profile: HomeRecommendationProfile): Map<HomeRecommendationSourceTag, Double> {
-        val sub = profile.subscriptionEngagement
-        val disc = profile.discoveryEngagement
-        if (sub == 0.0 && disc == 0.0) return emptyMap()
-        val gap = (sub - disc).coerceIn(-8.0, 8.0)
-        val subWeight = (1.0 + gap * 0.04).coerceIn(0.65, 1.5)
-        val discWeight = (1.0 - gap * 0.03).coerceIn(0.65, 1.5)
-        return mapOf(
-            HomeRecommendationSourceTag.SUBSCRIPTION to subWeight,
-            HomeRecommendationSourceTag.DISCOVERY_TRENDING to discWeight,
-            HomeRecommendationSourceTag.DISCOVERY_THEME to discWeight,
-            HomeRecommendationSourceTag.DISCOVERY_EXPLORATION to discWeight,
+            sourceWeights = HomeRecommendationPoolWeights.forMode(profile, shortsMode),
         )
     }
 

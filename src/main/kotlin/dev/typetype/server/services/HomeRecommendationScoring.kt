@@ -21,6 +21,12 @@ object HomeRecommendationScoring {
         return base + HomeRecommendationSessionIntentScorer.bonus(video, context) + HomeRecommendationDeviceScorer.bonus(video, context)
     }
 
+    fun scoreShortsDiscovery(
+        video: VideoItem,
+        profile: HomeRecommendationProfile,
+        context: HomeRecommendationSessionContext,
+    ): Double = scoreDiscovery(video, profile, context) + HomeRecommendationShortsProfileFit.score(video, profile)
+
     fun scoreSubscription(video: VideoItem, profile: HomeRecommendationProfile): Double {
         val base = 1.25
         return base + commonSignals(video, profile) + 0.25
