@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SearchPageResponse
+import dev.typetype.server.models.SettingsItem
 import dev.typetype.server.routes.homeRecommendationRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
@@ -11,11 +12,11 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationPoolResolver
 import dev.typetype.server.services.HomeRecommendationService
-import dev.typetype.server.services.RecommendationFeedHistoryService
-import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.RecommendationEventService
+import dev.typetype.server.services.RecommendationFeedHistoryService
 import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
+import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionFeedService
@@ -30,7 +31,6 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
-import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -39,15 +39,15 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class HomeRecommendationRoutesValidationTest {
+class HomeRecommendationRoutesKillSwitchTest {
     private val cache: CacheService = mockk()
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
+    private val settings = SettingsService()
     private val eventService = RecommendationEventService(RecommendationInterestService())
     private val feedback = RecommendationFeedbackService(eventService)
-    private val feedHistoryService = RecommendationFeedHistoryService()
-    private val privacyService = RecommendationPrivacyService(SettingsService())
+    private val feedHistory = RecommendationFeedHistoryService()
     private val service = HomeRecommendationService(
         poolResolver = HomeRecommendationPoolResolver(
             subscriptionsService = SubscriptionsService(),
@@ -58,13 +58,13 @@ class HomeRecommendationRoutesValidationTest {
             blockedService = BlockedService(),
             feedbackService = feedback,
             eventService = eventService,
-            feedHistoryService = feedHistoryService,
+            feedHistoryService = feedHistory,
             trendingService = trendingService,
             searchService = searchService,
             cache = cache,
         ),
-        feedHistoryService = feedHistoryService,
-        privacyService = privacyService,
+        feedHistoryService = feedHistory,
+        privacyService = RecommendationPrivacyService(settings),
     )
     private val auth = AuthService.fixed(TEST_USER_ID)
 
@@ -73,29 +73,24 @@ class HomeRecommendationRoutesValidationTest {
     @BeforeEach
     fun clean() {
         TestDatabase.truncateAll()
+        kotlinx.coroutines.runBlocking {
+            settings.upsert(TEST_USER_ID, SettingsItem(recommendationPersonalizationEnabled = false))
+        }
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
         coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
     }
 
-    private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
+    @Test
+    fun `home route still returns 200 when personalization disabled`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
             routing { homeRecommendationRoutes(service, auth) }
         }
-        block()
-    }
-
-    @Test
-    fun `invalid cursor returns 400`() = withApp {
-        val response = client.get("/recommendations/home?cursor=bad!!") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
-
-    @Test
-    fun `invalid service returns 400`() = withApp {
-        val response = client.get("/recommendations/home?service=999") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
-        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val response = client.get("/recommendations/home") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
     }
 }
