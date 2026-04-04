@@ -55,7 +55,7 @@ class BlockedService(private val eventService: RecommendationEventService? = nul
                 it[blockedAt] = now
             }
         }
-        eventService?.add(userId, "block_channel", null, url, name, null)
+        eventService?.add(userId, "block_channel", null, url, name, null, null)
         return BlockedItem(url = url, name = name, thumbnailUrl = thumbnailUrl, blockedAt = now)
     }
 
@@ -69,7 +69,7 @@ class BlockedService(private val eventService: RecommendationEventService? = nul
                 it[blockedAt] = now
             }
         }
-        eventService?.add(userId, "block_video", url, null, null, null)
+        eventService?.add(userId, "block_video", url, null, null, null, null)
         return BlockedItem(url = url, blockedAt = now)
     }
 

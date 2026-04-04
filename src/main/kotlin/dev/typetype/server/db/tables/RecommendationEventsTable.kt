@@ -10,6 +10,7 @@ object RecommendationEventsTable : Table("recommendation_events") {
     val uploaderUrl = text("uploader_url").nullable()
     val title = text("title").nullable()
     val watchRatio = double("watch_ratio").nullable()
+    val watchDurationMs = long("watch_duration_ms").nullable()
     val occurredAt = long("occurred_at")
     override val primaryKey = PrimaryKey(id)
 }

@@ -39,6 +39,7 @@ class WatchLaterService(private val eventService: RecommendationEventService? = 
             uploaderUrl = null,
             title = item.title,
             watchRatio = null,
+            watchDurationMs = null,
         )
         return item.copy(addedAt = now)
     }

@@ -10,5 +10,6 @@ data class RecommendationEventItem(
     val uploaderUrl: String? = null,
     val title: String? = null,
     val watchRatio: Double? = null,
+    val watchDurationMs: Long? = null,
     val occurredAt: Long,
 )

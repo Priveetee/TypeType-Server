@@ -31,6 +31,9 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
             if (request.watchRatio != null && (request.watchRatio < 0.0 || request.watchRatio > 1.0)) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid watchRatio"))
             }
+            if (request.watchDurationMs != null && request.watchDurationMs < 0) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid watchDurationMs"))
+            }
             call.respond(
                 HttpStatusCode.Created,
                 eventService.add(
@@ -40,6 +43,7 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
                     uploaderUrl = request.uploaderUrl,
                     title = request.title,
                     watchRatio = request.watchRatio,
+                    watchDurationMs = request.watchDurationMs,
                 ),
             )
         }

@@ -34,6 +34,7 @@ class RecommendationEventService(private val interestService: RecommendationInte
         uploaderUrl: String?,
         title: String?,
         watchRatio: Double?,
+        watchDurationMs: Long?,
     ): RecommendationEventItem {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -46,11 +47,12 @@ class RecommendationEventService(private val interestService: RecommendationInte
                 it[RecommendationEventsTable.uploaderUrl] = uploaderUrl
                 it[RecommendationEventsTable.title] = title
                 it[RecommendationEventsTable.watchRatio] = watchRatio
+                it[RecommendationEventsTable.watchDurationMs] = watchDurationMs
                 it[RecommendationEventsTable.occurredAt] = now
             }
         }
         interestService.update(userId, eventType, uploaderUrl, title, watchRatio)
-        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, now)
+        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, watchDurationMs, now)
     }
 
     private fun ResultRow.toItem() = RecommendationEventItem(
@@ -60,6 +62,7 @@ class RecommendationEventService(private val interestService: RecommendationInte
         uploaderUrl = this[RecommendationEventsTable.uploaderUrl],
         title = this[RecommendationEventsTable.title],
         watchRatio = this[RecommendationEventsTable.watchRatio],
+        watchDurationMs = this[RecommendationEventsTable.watchDurationMs],
         occurredAt = this[RecommendationEventsTable.occurredAt],
     )
 }

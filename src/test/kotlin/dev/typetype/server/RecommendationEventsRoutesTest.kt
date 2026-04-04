@@ -85,4 +85,18 @@ class RecommendationEventsRoutesTest {
         }
         assertEquals(HttpStatusCode.Created, response.status)
     }
+
+    @Test
+    fun `POST short skip with negative watchDurationMs returns 400`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { recommendationEventsRoutes(service, auth) }
+        }
+        val response = client.post("/recommendations/events") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"eventType":"short_skip","videoUrl":"https://yt.com/v/skip","watchDurationMs":-1}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
 }

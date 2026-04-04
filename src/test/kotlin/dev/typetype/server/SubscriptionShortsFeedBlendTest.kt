@@ -63,9 +63,9 @@ class SubscriptionShortsFeedBlendTest {
         coEvery { channelService.getChannel("https://yt.com/c/sub/shorts", null) } returns ExtractionResult.Success(
             ChannelResponse("Sub", "", "", "", 0, false, listOf(video("s1", "https://yt.com/c/sub")), null),
         )
-        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
-        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
-        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null)
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null, 300)
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null, 300)
+        eventService.add(TEST_USER_ID, "short_skip", "https://www.youtube.com/shorts/d1", null, null, null, 300)
         coEvery { trendingService.getTrending(0) } returns ExtractionResult.Success(
             listOf(video("d1", "https://yt.com/c/discovery"), video("d2", "https://yt.com/c/discovery2")),
         )

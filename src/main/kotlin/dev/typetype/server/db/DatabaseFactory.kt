@@ -96,6 +96,7 @@ object DatabaseFactory {
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_code TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS public_username TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            exec("ALTER TABLE recommendation_events ADD COLUMN IF NOT EXISTS watch_duration_ms BIGINT")
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")

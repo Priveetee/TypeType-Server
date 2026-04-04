@@ -40,6 +40,7 @@ class RecommendationFeedbackService(private val eventService: RecommendationEven
             uploaderUrl = uploaderUrl,
             title = null,
             watchRatio = null,
+            watchDurationMs = null,
         )
         return RecommendationFeedbackItem(id, feedbackType, videoUrl, uploaderUrl, now)
     }

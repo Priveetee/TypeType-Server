@@ -36,6 +36,7 @@ class FavoritesService(private val eventService: RecommendationEventService? = n
             uploaderUrl = null,
             title = null,
             watchRatio = null,
+            watchDurationMs = null,
         )
         return FavoriteItem(videoUrl = videoUrl, favoritedAt = now)
     }

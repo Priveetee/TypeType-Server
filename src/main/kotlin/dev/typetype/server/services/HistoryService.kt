@@ -86,7 +86,15 @@ class HistoryService(private val eventService: RecommendationEventService? = nul
             }
         }
         val ratio = if (item.duration > 0) item.progress.toDouble() / item.duration.toDouble() else 0.0
-        eventService?.add(userId = userId, eventType = "watch", videoUrl = item.url, uploaderUrl = item.channelUrl, title = item.title, watchRatio = ratio.coerceIn(0.0, 1.0))
+        eventService?.add(
+            userId = userId,
+            eventType = "watch",
+            videoUrl = item.url,
+            uploaderUrl = item.channelUrl,
+            title = item.title,
+            watchRatio = ratio.coerceIn(0.0, 1.0),
+            watchDurationMs = item.progress * 1_000L,
+        )
         return item.copy(id = id, watchedAt = watchedAt)
     }
 

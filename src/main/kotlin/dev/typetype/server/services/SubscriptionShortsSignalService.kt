@@ -5,14 +5,17 @@ class SubscriptionShortsSignalService(private val recommendationEventService: Re
         val events = recommendationEventService.getAll(userId)
         val byVideo = events
             .asSequence()
-            .mapNotNull { event -> event.videoUrl?.takeIf { it.isNotBlank() }?.let { it to event.eventType } }
+            .mapNotNull { event -> event.videoUrl?.takeIf { it.isNotBlank() }?.let { it to event } }
             .groupBy({ it.first }, { it.second })
-        return byVideo.mapValues { (_, types) ->
-            val skip = types.count { it == "short_skip" }
-            val watch = types.count { it == "watch" || it == "click" }
+        return byVideo.mapValues { (_, items) ->
+            val skipLight = items.count { it.eventType == "short_skip" && (it.watchDurationMs ?: 0L) in 800L..4_999L }
+            val skipInstant = items.count { it.eventType == "short_skip" && (it.watchDurationMs ?: 0L) in 0L..799L }
+            val skipLate = items.count { it.eventType == "short_skip" && (it.watchDurationMs ?: 0L) >= 5_000L }
+            val watch = items.count { it.eventType == "watch" || it.eventType == "click" }
+            val skipScore = skipInstant * 1.2 + skipLight * 0.9 + skipLate * 0.4
             when {
-                skip >= 3 && watch == 0 -> 0.35
-                skip >= 1 && watch == 0 -> 0.65
+                skipScore >= 3.0 && watch == 0 -> 0.35
+                skipScore >= 1.0 && watch == 0 -> 0.65
                 else -> 1.0
             }
         }
