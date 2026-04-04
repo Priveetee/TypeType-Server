@@ -6,6 +6,7 @@ class HomeRecommendationBuilder(
     private val subscriptionsService: SubscriptionsService,
     private val subscriptionFeedService: SubscriptionFeedService,
     private val historyService: HistoryService,
+    private val playlistService: PlaylistService,
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
@@ -25,6 +26,7 @@ class HomeRecommendationBuilder(
         val signalService = HomeRecommendationUserSignalService(
             subscriptionsService = subscriptionsService,
             historyService = historyService,
+            playlistService = playlistService,
             favoritesService = favoritesService,
             watchLaterService = watchLaterService,
             blockedService = blockedService,
@@ -38,6 +40,16 @@ class HomeRecommendationBuilder(
             personalizationEnabled = personalizationEnabled,
             sessionContext = context.sessionContext,
         )
+        val allEvents = if (!personalizationEnabled) emptyList() else eventService.getAll(userId)
+        val personaState = HomeRecommendationPersonaTracker.infer(
+            events = allEvents,
+            sessionContext = context.sessionContext,
+        )
+        val effectiveContext = when (personaState.persona) {
+            HomeRecommendationSessionPersona.AUTO -> context.sessionContext
+            HomeRecommendationSessionPersona.QUICK -> context.sessionContext.copy(intent = HomeRecommendationSessionIntent.QUICK)
+            HomeRecommendationSessionPersona.DEEP -> context.sessionContext.copy(intent = HomeRecommendationSessionIntent.DEEP)
+        }
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             trendingService = trendingService,
@@ -48,22 +60,21 @@ class HomeRecommendationBuilder(
             profile = profile,
             subscriptionCandidates = candidatePool.subscriptions,
             discoveryCandidates = candidatePool.discovery,
-            context = context.sessionContext,
+            context = effectiveContext,
         )
         val sourceWeights = if (!personalizationEnabled) {
             emptyMap()
         } else {
-            val events = eventService.getAll(userId)
             val classic = HomeRecommendationSourceBandit.weightBySource(
-                events = events,
+                events = allEvents,
                 sourceByUrl = pool.sourceByUrl,
             )
             val contextual = HomeRecommendationContextualBandit.weightBySource(
-                events = events,
+                events = allEvents,
                 sourceByUrl = pool.sourceByUrl,
                 serviceId = serviceId,
-                sessionIntent = context.sessionContext.intent,
-                deviceClass = context.sessionContext.deviceClass,
+                sessionIntent = effectiveContext.intent,
+                deviceClass = effectiveContext.deviceClass,
             )
             (classic.keys + contextual.keys).associateWith { source ->
                 val a = classic[source] ?: 1.0
@@ -71,7 +82,6 @@ class HomeRecommendationBuilder(
                 ((a + b) / 2.0).coerceIn(0.45, 1.55)
             }
         }
-        val allEvents = if (!personalizationEnabled) emptyList() else eventService.getAll(userId)
         val mergedWeights = (pool.sourceWeights.keys + sourceWeights.keys).associateWith { source ->
             val poolWeight = pool.sourceWeights[source] ?: 1.0
             val banditWeight = sourceWeights[source] ?: 1.0

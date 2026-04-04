@@ -92,6 +92,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
         subscriptionsService = subscriptionsService,
         subscriptionFeedService = subscriptionFeedService,
         historyService = historyService,
+        playlistService = playlistService,
         favoritesService = favoritesService,
         watchLaterService = watchLaterService,
         blockedService = blockedService,

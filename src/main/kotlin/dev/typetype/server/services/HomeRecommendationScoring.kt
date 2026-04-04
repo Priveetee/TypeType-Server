@@ -36,7 +36,9 @@ object HomeRecommendationScoring {
         val themeBoost = themeScore * 0.8
         val channelBoost = (profile.channelInterest[video.uploaderUrl] ?: 0.0).coerceIn(-5.0, 8.0) * 0.08
         val topicBoost = topicBoost(video, profile.topicInterest)
-        return base + commonSignals(video, profile) + themeBoost + channelBoost + topicBoost
+        val delayedVideoBoost = (profile.delayedVideoCredit[video.url] ?: 0.0).coerceIn(0.0, 2.0) * 0.18
+        val delayedChannelBoost = (profile.delayedChannelCredit[video.uploaderUrl] ?: 0.0).coerceIn(0.0, 2.0) * 0.12
+        return base + commonSignals(video, profile) + themeBoost + channelBoost + topicBoost + delayedVideoBoost + delayedChannelBoost
     }
 
     private fun commonSignals(video: VideoItem, profile: HomeRecommendationProfile): Double {

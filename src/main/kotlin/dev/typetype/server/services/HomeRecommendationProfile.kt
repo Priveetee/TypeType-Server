@@ -25,5 +25,7 @@ data class HomeRecommendationProfile(
     val shortsTopicInterest: Map<String, Double> = emptyMap(),
     val rejectionTopicPairPenalty: Map<String, Double> = emptyMap(),
     val creatorMomentum: Map<String, Double> = emptyMap(),
+    val delayedVideoCredit: Map<String, Double> = emptyMap(),
+    val delayedChannelCredit: Map<String, Double> = emptyMap(),
     val personalizationEnabled: Boolean = true,
 )

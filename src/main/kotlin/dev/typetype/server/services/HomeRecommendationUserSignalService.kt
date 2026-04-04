@@ -3,6 +3,7 @@ package dev.typetype.server.services
 class HomeRecommendationUserSignalService(
     private val subscriptionsService: SubscriptionsService,
     private val historyService: HistoryService,
+    private val playlistService: PlaylistService,
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
@@ -30,6 +31,7 @@ class HomeRecommendationUserSignalService(
         val subscriptions = subscriptionsService.getAll(userId)
         val favorites = if (personalizationEnabled) favoritesService.getAll(userId) else emptyList()
         val watchLater = if (personalizationEnabled) watchLaterService.getAll(userId) else emptyList()
+        val playlists = if (personalizationEnabled) playlistService.getAll(userId) else emptyList()
         val historyItems = if (personalizationEnabled) {
             historyService.search(userId = userId, q = null, from = null, to = null, limit = 240, offset = 0).first
         } else {
@@ -42,6 +44,16 @@ class HomeRecommendationUserSignalService(
         val eventSignals = HomeRecommendationEventAnalyzer.buildSignals(events)
         val interestProfile = if (personalizationEnabled) interestProfileService.load(userId) else RecommendationInterestProfile(emptyMap(), emptyMap())
         val feedHistory = if (personalizationEnabled) feedHistoryService.load(userId) else emptyMap()
+        val delayedVideoCredit = if (personalizationEnabled) {
+            HomeRecommendationDelayedCreditBuilder.buildVideoCredit(historyItems, favorites, watchLater, playlists)
+        } else {
+            emptyMap()
+        }
+        val delayedChannelCredit = if (personalizationEnabled) {
+            HomeRecommendationDelayedCreditBuilder.buildChannelCredit(historyItems)
+        } else {
+            emptyMap()
+        }
         val seenUrls = if (personalizationEnabled) historyItems.map { it.url }.toSet() else emptySet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLater.map { it.url }.toSet()
@@ -94,6 +106,8 @@ class HomeRecommendationUserSignalService(
             shortsTopicInterest = HomeRecommendationSignalProfileBuilder.buildShortsTopicInterest(events),
             rejectionTopicPairPenalty = HomeRecommendationSignalProfileBuilder.buildTopicPairPenalty(events),
             creatorMomentum = HomeRecommendationSignalProfileBuilder.buildCreatorMomentum(events),
+            delayedVideoCredit = delayedVideoCredit,
+            delayedChannelCredit = delayedChannelCredit,
             personalizationEnabled = personalizationEnabled,
         )
     }

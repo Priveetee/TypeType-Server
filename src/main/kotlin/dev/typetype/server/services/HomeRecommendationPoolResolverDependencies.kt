@@ -6,6 +6,7 @@ data class HomeRecommendationPoolResolverDependencies(
     val subscriptionsService: SubscriptionsService,
     val subscriptionFeedService: SubscriptionFeedService,
     val historyService: HistoryService,
+    val playlistService: PlaylistService = PlaylistService(),
     val favoritesService: FavoritesService,
     val watchLaterService: WatchLaterService,
     val blockedService: BlockedService,

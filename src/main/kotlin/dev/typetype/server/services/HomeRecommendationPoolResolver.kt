@@ -65,6 +65,7 @@ class HomeRecommendationPoolResolver(
         subscriptionsService = dependencies.subscriptionsService,
         subscriptionFeedService = dependencies.subscriptionFeedService,
         historyService = dependencies.historyService,
+        playlistService = dependencies.playlistService,
         favoritesService = dependencies.favoritesService,
         watchLaterService = dependencies.watchLaterService,
         blockedService = dependencies.blockedService,
