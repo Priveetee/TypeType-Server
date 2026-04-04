@@ -11,7 +11,10 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
-class WatchLaterService(private val eventService: RecommendationEventService? = null) {
+class WatchLaterService(
+    private val eventService: RecommendationEventService? = null,
+    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
+) {
 
     suspend fun getAll(userId: String): List<WatchLaterItem> = DatabaseFactory.query {
         WatchLaterTable.selectAll()
@@ -32,15 +35,17 @@ class WatchLaterService(private val eventService: RecommendationEventService? = 
                 it[addedAt] = now
             }
         }
-        eventService?.add(
-            userId = userId,
-            eventType = "watch_later_add",
-            videoUrl = item.url,
-            uploaderUrl = null,
-            title = item.title,
-            watchRatio = null,
-            watchDurationMs = null,
-        )
+        if (privacyService.isPersonalizationEnabled(userId)) {
+            eventService?.add(
+                userId = userId,
+                eventType = "watch_later_add",
+                videoUrl = item.url,
+                uploaderUrl = null,
+                title = item.title,
+                watchRatio = null,
+                watchDurationMs = null,
+            )
+        }
         return item.copy(addedAt = now)
     }
 

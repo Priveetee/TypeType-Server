@@ -10,16 +10,31 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
-class RecommendationFeedbackService(private val eventService: RecommendationEventService) {
-    suspend fun getAll(userId: String): List<RecommendationFeedbackItem> = DatabaseFactory.query {
+class RecommendationFeedbackService(
+    private val eventService: RecommendationEventService,
+    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
+) {
+    suspend fun getAll(userId: String): List<RecommendationFeedbackItem> {
+        if (!privacyService.isPersonalizationEnabled(userId)) return emptyList()
+        return DatabaseFactory.query {
         RecommendationFeedbackTable.selectAll()
             .where { RecommendationFeedbackTable.userId eq userId }
             .orderBy(RecommendationFeedbackTable.createdAt to SortOrder.DESC)
             .limit(300)
             .map { it.toItem() }
+        }
     }
 
     suspend fun add(userId: String, feedbackType: String, videoUrl: String?, uploaderUrl: String?): RecommendationFeedbackItem {
+        if (!privacyService.isPersonalizationEnabled(userId)) {
+            return RecommendationFeedbackItem(
+                id = "disabled",
+                feedbackType = feedbackType,
+                videoUrl = videoUrl,
+                uploaderUrl = uploaderUrl,
+                createdAt = System.currentTimeMillis(),
+            )
+        }
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {

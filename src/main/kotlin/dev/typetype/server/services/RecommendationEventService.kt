@@ -11,20 +11,29 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
-class RecommendationEventService(private val interestService: RecommendationInterestService) {
-    suspend fun hasClick(userId: String): Boolean = DatabaseFactory.query {
+class RecommendationEventService(
+    private val interestService: RecommendationInterestService,
+    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
+) {
+    suspend fun hasClick(userId: String): Boolean {
+        if (!privacyService.isPersonalizationEnabled(userId)) return false
+        return DatabaseFactory.query {
         RecommendationEventsTable.selectAll()
             .where { (RecommendationEventsTable.userId eq userId) and (RecommendationEventsTable.eventType eq "click") }
             .limit(1)
             .count() > 0
+        }
     }
 
-    suspend fun getAll(userId: String): List<RecommendationEventItem> = DatabaseFactory.query {
+    suspend fun getAll(userId: String): List<RecommendationEventItem> {
+        if (!privacyService.isPersonalizationEnabled(userId)) return emptyList()
+        return DatabaseFactory.query {
         RecommendationEventsTable.selectAll()
             .where { RecommendationEventsTable.userId eq userId }
             .orderBy(RecommendationEventsTable.occurredAt to SortOrder.DESC)
             .limit(500)
             .map { it.toItem() }
+        }
     }
 
     suspend fun add(
@@ -36,6 +45,19 @@ class RecommendationEventService(private val interestService: RecommendationInte
         watchRatio: Double?,
         watchDurationMs: Long?,
     ): RecommendationEventItem {
+        if (!privacyService.isPersonalizationEnabled(userId)) {
+            val now = System.currentTimeMillis()
+            return RecommendationEventItem(
+                id = "disabled",
+                eventType = eventType,
+                videoUrl = videoUrl,
+                uploaderUrl = uploaderUrl,
+                title = title,
+                watchRatio = watchRatio,
+                watchDurationMs = watchDurationMs,
+                occurredAt = now,
+            )
+        }
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {

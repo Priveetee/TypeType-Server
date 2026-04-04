@@ -95,6 +95,7 @@ class SettingsRoutesTest {
         assertTrue(body.contains("\"defaultSubtitleLanguage\":\"\""))
         assertTrue(body.contains("\"defaultAudioLanguage\":\"\""))
         assertTrue(body.contains("\"preferOriginalLanguage\":false"))
+        assertTrue(body.contains("\"recommendationPersonalizationEnabled\":true"))
         assertTrue(!body.contains("subscriptionSyncInterval"))
     }
 
@@ -103,13 +104,14 @@ class SettingsRoutesTest {
         client.put("/settings") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"subtitlesEnabled":true,"defaultSubtitleLanguage":"fr","defaultAudioLanguage":"fr","preferOriginalLanguage":true,"subscriptionSyncInterval":60}""")
+            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"subtitlesEnabled":true,"defaultSubtitleLanguage":"fr","defaultAudioLanguage":"fr","preferOriginalLanguage":true,"recommendationPersonalizationEnabled":false,"subscriptionSyncInterval":60}""")
         }
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"subtitlesEnabled\":true"))
         assertTrue(body.contains("\"defaultSubtitleLanguage\":\"fr\""))
         assertTrue(body.contains("\"defaultAudioLanguage\":\"fr\""))
         assertTrue(body.contains("\"preferOriginalLanguage\":true"))
+        assertTrue(body.contains("\"recommendationPersonalizationEnabled\":false"))
         assertTrue(!body.contains("subscriptionSyncInterval"))
     }
 

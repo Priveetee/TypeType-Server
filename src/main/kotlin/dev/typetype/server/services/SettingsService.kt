@@ -22,6 +22,7 @@ class SettingsService {
                 defaultSubtitleLanguage = it[SettingsTable.defaultSubtitleLanguage],
                 defaultAudioLanguage = it[SettingsTable.defaultAudioLanguage],
                 preferOriginalLanguage = it[SettingsTable.preferOriginalLanguage],
+                recommendationPersonalizationEnabled = it[SettingsTable.recommendationPersonalizationEnabled],
             )
         } ?: SettingsItem()
     }
@@ -38,6 +39,7 @@ class SettingsService {
                 it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
                 it[defaultAudioLanguage] = settings.defaultAudioLanguage
                 it[preferOriginalLanguage] = settings.preferOriginalLanguage
+                it[recommendationPersonalizationEnabled] = settings.recommendationPersonalizationEnabled
             }
             if (updated == 0) {
                 SettingsTable.insert {
@@ -51,6 +53,7 @@ class SettingsService {
                     it[defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
                     it[defaultAudioLanguage] = settings.defaultAudioLanguage
                     it[preferOriginalLanguage] = settings.preferOriginalLanguage
+                    it[recommendationPersonalizationEnabled] = settings.recommendationPersonalizationEnabled
                 }
             }
         }

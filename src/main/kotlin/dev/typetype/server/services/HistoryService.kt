@@ -19,7 +19,10 @@ import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
-class HistoryService(private val eventService: RecommendationEventService? = null) {
+class HistoryService(
+    private val eventService: RecommendationEventService? = null,
+    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
+) {
     suspend fun search(userId: String, q: String?, from: Long?, to: Long?, limit: Int, offset: Int): Pair<List<HistoryItem>, Long> = DatabaseFactory.query {
         val query = HistoryTable.selectAll().where { HistoryTable.userId eq userId }
         if (!q.isNullOrBlank()) {
@@ -86,15 +89,17 @@ class HistoryService(private val eventService: RecommendationEventService? = nul
             }
         }
         val ratio = if (item.duration > 0) item.progress.toDouble() / item.duration.toDouble() else 0.0
-        eventService?.add(
-            userId = userId,
-            eventType = "watch",
-            videoUrl = item.url,
-            uploaderUrl = item.channelUrl,
-            title = item.title,
-            watchRatio = ratio.coerceIn(0.0, 1.0),
-            watchDurationMs = item.progress * 1_000L,
-        )
+        if (privacyService.isPersonalizationEnabled(userId)) {
+            eventService?.add(
+                userId = userId,
+                eventType = "watch",
+                videoUrl = item.url,
+                uploaderUrl = item.channelUrl,
+                title = item.title,
+                watchRatio = ratio.coerceIn(0.0, 1.0),
+                watchDurationMs = item.progress * 1_000L,
+            )
+        }
         return item.copy(id = id, watchedAt = watchedAt)
     }
 
