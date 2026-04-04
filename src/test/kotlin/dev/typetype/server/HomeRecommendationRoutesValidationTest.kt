@@ -18,10 +18,8 @@ import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
-import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
-import dev.typetype.server.services.WatchLaterService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
@@ -48,21 +46,18 @@ class HomeRecommendationRoutesValidationTest {
     private val feedback = RecommendationFeedbackService(eventService)
     private val feedHistoryService = RecommendationFeedHistoryService()
     private val privacyService = RecommendationPrivacyService(SettingsService())
+    private val resolverDeps = homeResolverDependencies(
+        subscriptions = SubscriptionsService(),
+        channelService = channelService,
+        cache = cache,
+        feedbackService = feedback,
+        eventService = eventService,
+        feedHistoryService = feedHistoryService,
+        trendingService = trendingService,
+        searchService = searchService,
+    )
     private val service = HomeRecommendationService(
-        poolResolver = HomeRecommendationPoolResolver(
-            subscriptionsService = SubscriptionsService(),
-            subscriptionFeedService = SubscriptionFeedService(SubscriptionsService(), channelService, cache),
-            historyService = HistoryService(),
-            favoritesService = FavoritesService(),
-            watchLaterService = WatchLaterService(),
-            blockedService = BlockedService(),
-            feedbackService = feedback,
-            eventService = eventService,
-            feedHistoryService = feedHistoryService,
-            trendingService = trendingService,
-            searchService = searchService,
-            cache = cache,
-        ),
+        poolResolver = buildHomeResolver(resolverDeps),
         feedHistoryService = feedHistoryService,
         privacyService = privacyService,
     )

@@ -21,10 +21,8 @@ import dev.typetype.server.services.RecommendationFeedbackService
 import dev.typetype.server.services.RecommendationInterestService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
-import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
-import dev.typetype.server.services.WatchLaterService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.delay
@@ -47,21 +45,18 @@ class HomeRecommendationServiceFastPathTest {
     private val feedback = RecommendationFeedbackService(eventService)
     private val feedHistoryService = RecommendationFeedHistoryService()
     private val privacyService = RecommendationPrivacyService(SettingsService())
+    private val resolverDeps = homeResolverDependencies(
+        subscriptions = subscriptions,
+        channelService = channelService,
+        cache = cache,
+        feedbackService = feedback,
+        eventService = eventService,
+        feedHistoryService = feedHistoryService,
+        trendingService = trendingService,
+        searchService = searchService,
+    )
     private val service = HomeRecommendationService(
-        poolResolver = HomeRecommendationPoolResolver(
-            subscriptionsService = subscriptions,
-            subscriptionFeedService = SubscriptionFeedService(subscriptions, channelService, cache),
-            historyService = HistoryService(),
-            favoritesService = FavoritesService(),
-            watchLaterService = WatchLaterService(),
-            blockedService = BlockedService(),
-            feedbackService = feedback,
-            eventService = eventService,
-            feedHistoryService = feedHistoryService,
-            trendingService = trendingService,
-            searchService = searchService,
-            cache = cache,
-        ),
+        poolResolver = buildHomeResolver(resolverDeps),
         feedHistoryService = feedHistoryService,
         privacyService = privacyService,
     )
@@ -87,7 +82,7 @@ class HomeRecommendationServiceFastPathTest {
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
             listOf(video("d1", now - 1), video("d2", now - 2), video("d3", now - 3), video("d4", now - 4)),
         )
-        val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor())
+        val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor(), context)
         assertTrue(response.items.isNotEmpty())
         assertTrue(response.items.any { it.id.startsWith("d") })
         assertFalse(response.items.any { it.id == "s1" })
@@ -108,7 +103,7 @@ class HomeRecommendationServiceFastPathTest {
             delay(2_500)
             ExtractionResult.Failure("slow channel fetch")
         }
-        val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor())
+        val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor(), context)
         assertTrue(response.items.isNotEmpty())
     }
 
@@ -118,10 +113,10 @@ class HomeRecommendationServiceFastPathTest {
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
             (1..12).map { index -> video("d$index", now - index, channel = "c$index") },
         )
-        val first = service.getHome(TEST_USER_ID, 0, 6, HomeRecommendationCursor())
+        val first = service.getHome(TEST_USER_ID, 0, 6, HomeRecommendationCursor(), context)
         val firstLastChannel = first.items.last().uploaderUrl
         val cursor = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(first.nextCursor)
-        val second = service.getHome(TEST_USER_ID, 0, 6, cursor ?: HomeRecommendationCursor())
+        val second = service.getHome(TEST_USER_ID, 0, 6, cursor ?: HomeRecommendationCursor(), context)
         val secondFirstChannel = second.items.firstOrNull()?.uploaderUrl
         if (secondFirstChannel != null) assertNotEquals(firstLastChannel, secondFirstChannel)
     }
@@ -130,4 +125,6 @@ class HomeRecommendationServiceFastPathTest {
         id, id, "https://yt.com/v/$id", "", channel, "https://yt.com/c/$channel", "", 60, 0, "", uploaded,
         "video_stream", false, false, null,
     )
+
+    private val context = defaultContext()
 }
