@@ -91,10 +91,15 @@ class HomeRecommendationPoolBuilder {
             } else {
                 rawScore
             }
-            val score = if (profile.personalizationEnabled) {
-                HomeRecommendationScoring.applyPersonalizationPenalties(video, shortAdjustedScore, profile)
+            val seenAdjustedScore = if (video.isShortFormContent) {
+                shortAdjustedScore * HomeRecommendationShortsSeenMemory.penalty(profile.feedHistory[video.url])
             } else {
                 shortAdjustedScore
+            }
+            val score = if (profile.personalizationEnabled) {
+                HomeRecommendationScoring.applyPersonalizationPenalties(video, seenAdjustedScore, profile)
+            } else {
+                seenAdjustedScore
             }
             val scored = HomeRecommendationScoredVideo(video = video, score = score, source = tagged.source)
             val current = byUrl[video.url]
