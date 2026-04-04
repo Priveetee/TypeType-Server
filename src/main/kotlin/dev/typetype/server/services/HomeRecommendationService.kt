@@ -57,7 +57,10 @@ class HomeRecommendationService(
             pool = pool,
             cursor = cursor,
             limit = limit,
-            sourceWeights = pool.sourceWeights,
+            sourceWeights = HomeRecommendationExploreBonus.apply(
+                sourceWeights = pool.sourceWeights,
+                pageIndex = HomeRecommendationCursorPageIndex.from(cursor, limit),
+            ),
         )
         return HomeRecommendationsResponse(
             items = page.items,

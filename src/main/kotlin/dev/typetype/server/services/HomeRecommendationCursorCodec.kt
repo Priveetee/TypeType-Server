@@ -26,6 +26,7 @@ object HomeRecommendationCursorCodec {
                 subscriptionRun = full.r,
                 preferDiscovery = full.p == 1,
                 recentChannels = full.c,
+                recentSemanticKeys = full.k,
             )
         }
         val multi = Regex(MULTI_PATTERN).matchEntire(decoded)
@@ -60,6 +61,7 @@ object HomeRecommendationCursorCodec {
                 r = cursor.subscriptionRun,
                 p = if (cursor.preferDiscovery) 1 else 0,
                 c = cursor.recentChannels,
+                k = cursor.recentSemanticKeys,
             )
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))

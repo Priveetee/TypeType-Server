@@ -24,6 +24,7 @@ class HomeRecommendationCursorCodecTest {
                 subscriptionRun = 2,
                 preferDiscovery = false,
                 recentChannels = listOf("c1", "c2"),
+                recentSemanticKeys = listOf("linux|kernel"),
             )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
@@ -32,6 +33,7 @@ class HomeRecommendationCursorCodecTest {
         assertEquals(2, decoded?.subscriptionRun)
         assertEquals(false, decoded?.preferDiscovery)
         assertEquals(listOf("c1", "c2"), decoded?.recentChannels)
+        assertEquals(listOf("linux|kernel"), decoded?.recentSemanticKeys)
     }
 
     @Test

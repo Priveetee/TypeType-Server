@@ -21,6 +21,7 @@ object HomeRecommendationMixer {
         val selected = mutableListOf<VideoItem>()
         val channelCount = mutableMapOf<String, Int>()
         val recentChannels = ArrayDeque(cursor.recentChannels.takeLast(MAX_RECENT_CHANNEL_MEMORY))
+        val recentSemanticKeys = ArrayDeque(cursor.recentSemanticKeys.takeLast(MAX_RECENT_SEMANTIC_MEMORY))
         var subIndex = cursor.subscriptionIndex
         var discoveryIndex = cursor.discoveryIndex
         var subscriptionRun = cursor.subscriptionRun.coerceIn(0, HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
@@ -39,6 +40,7 @@ object HomeRecommendationMixer {
                 pool = pool,
                 channelCount = channelCount,
                 recentChannels = recentChannels.toSet(),
+                recentSemanticKeys = recentSemanticKeys.toSet(),
             )
             val selection = HomeRecommendationSelector.pick(
                 picker = picker,
@@ -72,6 +74,11 @@ object HomeRecommendationMixer {
                 recentChannels += key
                 while (recentChannels.size > MAX_RECENT_CHANNEL_MEMORY) recentChannels.removeFirst()
             }
+            val semanticKey = HomeRecommendationSemanticKey.fromTitle(video.title)
+            if (semanticKey.isNotBlank()) {
+                recentSemanticKeys += semanticKey
+                while (recentSemanticKeys.size > MAX_RECENT_SEMANTIC_MEMORY) recentSemanticKeys.removeFirst()
+            }
         }
         val hasMore = subIndex < pool.subscriptions.size || discoveryIndex < pool.discovery.size
         val nextCursor = if (hasMore && selected.isNotEmpty()) {
@@ -82,6 +89,7 @@ object HomeRecommendationMixer {
                     subscriptionRun = subscriptionRun,
                     preferDiscovery = preferDiscovery,
                     recentChannels = recentChannels.toList(),
+                    recentSemanticKeys = recentSemanticKeys.toList(),
                 ),
             )
         } else {
@@ -103,4 +111,5 @@ object HomeRecommendationMixer {
     }
 
     private const val MAX_RECENT_CHANNEL_MEMORY = 4
+    private const val MAX_RECENT_SEMANTIC_MEMORY = 5
 }

@@ -88,6 +88,25 @@ class HomeRecommendationMixerTest {
     }
 
     @Test
+    fun `mix carries semantic keys in cursor payload`() {
+        val pool = HomeRecommendationPool(
+            subscriptions = listOf(
+                video("s1", "a").copy(title = "linux kernel update"),
+                video("s2", "b").copy(title = "android privacy guide"),
+                video("s3", "c").copy(title = "music discovery mix"),
+            ),
+            discovery = listOf(
+                video("d1", "d").copy(title = "gaming highlights daily"),
+                video("d2", "e").copy(title = "science world news"),
+                video("d3", "f").copy(title = "coding tutorial kotlin"),
+            ),
+        )
+        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4)
+        val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
+        assertTrue((decoded?.recentSemanticKeys?.size ?: 0) > 0)
+    }
+
+    @Test
     fun `mix enforces at least half discovery when stock exists`() {
         val subs = (1..12).map { index -> video("s$index", "s$index") }
         val discover = (1..12).map { index -> video("d$index", "d$index") }

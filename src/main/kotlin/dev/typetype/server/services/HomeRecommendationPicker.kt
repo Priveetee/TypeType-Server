@@ -7,6 +7,7 @@ class HomeRecommendationPicker(
     private val pool: HomeRecommendationPool,
     private val channelCount: Map<String, Int>,
     private val recentChannels: Set<String>,
+    private val recentSemanticKeys: Set<String>,
 ) {
     fun fromDiscovery(start: Int): Pair<VideoItem?, Int> = pick(pool.discovery, start)
 
@@ -22,6 +23,8 @@ class HomeRecommendationPicker(
             val count = channelCount[channel] ?: 0
             if (count >= MAX_PER_CHANNEL_PER_PAGE) continue
             if (channel in recentChannels) continue
+            val semanticKey = HomeRecommendationSemanticKey.fromTitle(candidate.title)
+            if (semanticKey.isNotBlank() && semanticKey in recentSemanticKeys) continue
             return candidate to index
         }
         return null to index

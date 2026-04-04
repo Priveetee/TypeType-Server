@@ -6,4 +6,5 @@ data class HomeRecommendationCursor(
     val subscriptionRun: Int = 0,
     val preferDiscovery: Boolean = true,
     val recentChannels: List<String> = emptyList(),
+    val recentSemanticKeys: List<String> = emptyList(),
 )
