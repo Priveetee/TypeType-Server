@@ -7,6 +7,7 @@ import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationCandidateService
 import dev.typetype.server.services.HomeRecommendationPoolMode
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.TrendingService
@@ -38,7 +39,7 @@ class HomeRecommendationCandidateServiceTest {
         )
         val profile = profile(themeTokens = setOf("linux"), themeQueries = listOf("linux kernel"))
         val pool = service.fetchCandidates("u", 0, profile, HomeRecommendationPoolMode.FAST)
-        assertTrue(pool.discovery.any { it.id == "d1" })
+        assertTrue(pool.discovery.any { it.video.id == "d1" })
     }
 
     @Test
@@ -54,7 +55,16 @@ class HomeRecommendationCandidateServiceTest {
             ExtractionResult.Success(SearchPageResponse(items, null, null, false))
         }
         val pool = service.fetchCandidates("u", 0, profile(themeTokens = emptySet(), themeQueries = emptyList()), HomeRecommendationPoolMode.FAST)
-        assertTrue(pool.discovery.any { it.id == "e1" })
+        assertTrue(pool.discovery.any { it.video.id == "e1" })
+    }
+
+    @Test
+    fun `candidate tagging preserves source attribution`() = runTest {
+        coEvery { trendingService.getTrending(0) } returns ExtractionResult.Success(
+            listOf(video(id = "t1", title = "Trend now", channel = "TrendHub")),
+        )
+        val pool = service.fetchCandidates("u", 0, profile(themeTokens = emptySet(), themeQueries = emptyList()), HomeRecommendationPoolMode.FAST)
+        assertTrue(pool.discovery.any { it.video.id == "t1" && it.source == HomeRecommendationSourceTag.DISCOVERY_TRENDING })
     }
 
     private fun profile(themeTokens: Set<String>, themeQueries: List<String>): HomeRecommendationProfile = HomeRecommendationProfile(

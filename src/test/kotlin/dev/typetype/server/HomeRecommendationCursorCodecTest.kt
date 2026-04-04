@@ -23,6 +23,7 @@ class HomeRecommendationCursorCodecTest {
                 discoveryIndex = 12,
                 subscriptionRun = 2,
                 preferDiscovery = false,
+                recentChannels = listOf("c1", "c2"),
             )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
@@ -30,6 +31,7 @@ class HomeRecommendationCursorCodecTest {
         assertEquals(12, decoded?.discoveryIndex)
         assertEquals(2, decoded?.subscriptionRun)
         assertEquals(false, decoded?.preferDiscovery)
+        assertEquals(listOf("c1", "c2"), decoded?.recentChannels)
     }
 
     @Test

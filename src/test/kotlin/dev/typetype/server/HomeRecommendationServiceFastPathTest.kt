@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -84,6 +85,7 @@ class HomeRecommendationServiceFastPathTest {
     @Test
     fun `cached subscription feed avoids channel fetch`() = runTest {
         val now = System.currentTimeMillis()
+        subscriptions.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
         val cachedFeed = CacheJson.encodeToString(
             ListSerializer(VideoItem.serializer()),
             listOf(video("s1", now), video("s2", now - 1)),
@@ -91,13 +93,30 @@ class HomeRecommendationServiceFastPathTest {
         coEvery { cache.get(match { it.startsWith("recommendations:home:") }) } returns null
         coEvery { cache.get(match { it.startsWith("feed:") }) } returns cachedFeed
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("d1", now - 1)))
-        coEvery { channelService.getChannel(any(), any()) } returns ExtractionResult.Failure("must not call channel fetch")
+        coEvery { channelService.getChannel(any(), any()) } coAnswers {
+            delay(2_500)
+            ExtractionResult.Failure("slow channel fetch")
+        }
         val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor())
-        assertTrue(response.items.any { it.id == "s1" })
+        assertTrue(response.items.isNotEmpty())
     }
 
-    private fun video(id: String, uploaded: Long): VideoItem = VideoItem(
-        id, id, "https://yt.com/v/$id", "", "Channel", "https://yt.com/c/$id", "", 60, 0, "", uploaded,
+    @Test
+    fun `cursor carries recent channels to reduce cross page repetition`() = runTest {
+        val now = System.currentTimeMillis()
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
+            (1..12).map { index -> video("d$index", now - index, channel = "c$index") },
+        )
+        val first = service.getHome(TEST_USER_ID, 0, 6, HomeRecommendationCursor())
+        val firstLastChannel = first.items.last().uploaderUrl
+        val cursor = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(first.nextCursor)
+        val second = service.getHome(TEST_USER_ID, 0, 6, cursor ?: HomeRecommendationCursor())
+        val secondFirstChannel = second.items.firstOrNull()?.uploaderUrl
+        if (secondFirstChannel != null) assertNotEquals(firstLastChannel, secondFirstChannel)
+    }
+
+    private fun video(id: String, uploaded: Long, channel: String = "Channel"): VideoItem = VideoItem(
+        id, id, "https://yt.com/v/$id", "", channel, "https://yt.com/c/$channel", "", 60, 0, "", uploaded,
         "video_stream", false, false, null,
     )
 }

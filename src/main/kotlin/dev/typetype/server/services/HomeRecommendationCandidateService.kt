@@ -7,6 +7,7 @@ class HomeRecommendationCandidateService(
     private val subscriptionFeedService: SubscriptionFeedService,
     private val trendingService: TrendingService,
     private val searchService: SearchService,
+    private val discoveryAssembler: HomeRecommendationDiscoveryAssembler = HomeRecommendationDiscoveryAssembler(),
 ) {
     suspend fun fetchCandidates(
         userId: String,
@@ -15,7 +16,9 @@ class HomeRecommendationCandidateService(
         mode: HomeRecommendationPoolMode,
     ): HomeRecommendationCandidatePool {
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
+            .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
         val themeQueryLimit = if (mode == HomeRecommendationPoolMode.FAST) FAST_THEME_QUERY_LIMIT else FULL_THEME_QUERY_LIMIT
+        val explorationCap = if (mode == HomeRecommendationPoolMode.FAST) FAST_EXPLORATION_CAP else FULL_EXPLORATION_CAP
         val themedSearchCandidates = if (profile.themeQueries.isEmpty()) {
             emptyList()
         } else {
@@ -24,6 +27,7 @@ class HomeRecommendationCandidateService(
                 queries = profile.themeQueries,
                 maxQueries = themeQueryLimit,
                 perQueryLimit = THEME_SEARCH_PER_QUERY,
+                source = HomeRecommendationSourceTag.DISCOVERY_THEME,
             )
         }
         val explorationCandidates = fetchSearchCandidates(
@@ -31,32 +35,13 @@ class HomeRecommendationCandidateService(
             queries = HomeRecommendationExplorationQueryProvider.queries(mode),
             maxQueries = EXPLORATION_QUERY_LIMIT,
             perQueryLimit = EXPLORATION_SEARCH_PER_QUERY,
+            source = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
         )
-        val minThemeScore = if (profile.themeTokens.size < 8) 0.24 else 0.34
-        val rawDiscovery = (fetchTrendingCandidates(serviceId) + themedSearchCandidates + explorationCandidates)
-            .asSequence()
-            .filter { video -> video.uploaderUrl !in profile.subscriptionChannels }
-            .filter { video -> video.url !in profile.feedbackBlockedVideos }
-            .filter { video -> video.uploaderUrl !in profile.feedbackBlockedChannels }
-            .filter { video -> HomeRecommendationLiveTitleDetector.isLiveLike(video.title).not() }
-            .filter { video -> (profile.channelInterest[video.uploaderUrl] ?: 0.0) > -1.5 }
-            .distinctBy { video -> video.url }
-            .toList()
-        val languagePreferredDiscovery = rawDiscovery.filter { video ->
-            HomeRecommendationLanguageGate.isLikelyPreferred(video, profile)
-        }
-        val thematicDiscovery = languagePreferredDiscovery.filter { video ->
-            HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens) >= minThemeScore
-        }
-        val explorationCap = if (mode == HomeRecommendationPoolMode.FAST) FAST_EXPLORATION_CAP else FULL_EXPLORATION_CAP
-        val explorationSource = if (languagePreferredDiscovery.isEmpty()) rawDiscovery else languagePreferredDiscovery
-        val thematicUrls = thematicDiscovery.map { it.url }.toSet()
-        val explorationFill = explorationSource
-            .asSequence()
-            .filter { video -> video.url !in thematicUrls }
-            .take(explorationCap)
-            .toList()
-        val discovery = (thematicDiscovery + explorationFill).distinctBy { video -> video.url }
+        val discovery = discoveryAssembler.build(
+            profile = profile,
+            candidates = fetchTrendingCandidates(serviceId) + themedSearchCandidates + explorationCandidates,
+            explorationCap = explorationCap,
+        )
         return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)
     }
 
@@ -73,9 +58,11 @@ class HomeRecommendationCandidateService(
         return pages.flatten()
     }
 
-    private suspend fun fetchTrendingCandidates(serviceId: Int): List<VideoItem> =
+    private suspend fun fetchTrendingCandidates(serviceId: Int): List<HomeRecommendationTaggedVideo> =
         when (val trending = trendingService.getTrending(serviceId)) {
-            is ExtractionResult.Success -> trending.data
+            is ExtractionResult.Success -> trending.data.map {
+                HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.DISCOVERY_TRENDING)
+            }
             is ExtractionResult.BadRequest -> emptyList()
             is ExtractionResult.Failure -> emptyList()
         }
@@ -85,11 +72,14 @@ class HomeRecommendationCandidateService(
         queries: List<String>,
         maxQueries: Int,
         perQueryLimit: Int,
-    ): List<VideoItem> {
-        val items = mutableListOf<VideoItem>()
+        source: HomeRecommendationSourceTag,
+    ): List<HomeRecommendationTaggedVideo> {
+        val items = mutableListOf<HomeRecommendationTaggedVideo>()
         queries.take(maxQueries).forEach { query ->
             when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = null)) {
-                is ExtractionResult.Success -> items += result.data.items.take(perQueryLimit)
+                is ExtractionResult.Success -> items += result.data.items
+                    .take(perQueryLimit)
+                    .map { HomeRecommendationTaggedVideo(it, source) }
                 is ExtractionResult.BadRequest -> Unit
                 is ExtractionResult.Failure -> Unit
             }

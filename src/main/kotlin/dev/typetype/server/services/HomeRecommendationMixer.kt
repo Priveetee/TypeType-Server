@@ -9,11 +9,12 @@ object HomeRecommendationMixer {
             limit = limit,
             subscriptionSize = pool.subscriptions.size,
             discoverySize = pool.discovery.size,
+            sourceByUrl = pool.sourceByUrl,
         )
         val machine = HomeRecommendationStateMachine(planner)
         val selected = mutableListOf<VideoItem>()
         val channelCount = mutableMapOf<String, Int>()
-        var lastChannel = ""
+        val recentChannels = ArrayDeque(cursor.recentChannels.takeLast(MAX_RECENT_CHANNEL_MEMORY))
         var subIndex = cursor.subscriptionIndex
         var discoveryIndex = cursor.discoveryIndex
         var subscriptionRun = cursor.subscriptionRun.coerceIn(0, HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
@@ -31,7 +32,7 @@ object HomeRecommendationMixer {
             val picker = HomeRecommendationPicker(
                 pool = pool,
                 channelCount = channelCount,
-                lastChannel = lastChannel,
+                recentChannels = recentChannels.toSet(),
             )
             val selection = HomeRecommendationSelector.pick(
                 picker = picker,
@@ -62,7 +63,8 @@ object HomeRecommendationMixer {
             val key = channelKey(video)
             if (key.isNotBlank()) {
                 channelCount[key] = (channelCount[key] ?: 0) + 1
-                lastChannel = key
+                recentChannels += key
+                while (recentChannels.size > MAX_RECENT_CHANNEL_MEMORY) recentChannels.removeFirst()
             }
         }
         val hasMore = subIndex < pool.subscriptions.size || discoveryIndex < pool.discovery.size
@@ -73,6 +75,7 @@ object HomeRecommendationMixer {
                     discoveryIndex = discoveryIndex,
                     subscriptionRun = subscriptionRun,
                     preferDiscovery = preferDiscovery,
+                    recentChannels = recentChannels.toList(),
                 ),
             )
         } else {
@@ -92,4 +95,6 @@ object HomeRecommendationMixer {
         if (video in pool.subscriptions) return true
         return video.uploaderUrl.isNotBlank() && video.uploaderUrl in pool.subscriptionChannels
     }
+
+    private const val MAX_RECENT_CHANNEL_MEMORY = 4
 }

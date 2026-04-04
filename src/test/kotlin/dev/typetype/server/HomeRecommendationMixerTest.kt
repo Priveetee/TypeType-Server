@@ -77,6 +77,17 @@ class HomeRecommendationMixerTest {
     }
 
     @Test
+    fun `mix carries recent channels in cursor payload`() {
+        val pool = HomeRecommendationPool(
+            subscriptions = listOf(video("s1", "a"), video("s2", "b"), video("s3", "c")),
+            discovery = listOf(video("d1", "d"), video("d2", "e"), video("d3", "f")),
+        )
+        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4)
+        val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
+        assertTrue((decoded?.recentChannels?.size ?: 0) > 0)
+    }
+
+    @Test
     fun `mix enforces at least half discovery when stock exists`() {
         val subs = (1..12).map { index -> video("s$index", "s$index") }
         val discover = (1..12).map { index -> video("d$index", "d$index") }

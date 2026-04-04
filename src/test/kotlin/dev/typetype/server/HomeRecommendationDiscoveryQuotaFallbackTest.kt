@@ -3,6 +3,8 @@ package dev.typetype.server
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationSourceTag
+import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -25,7 +27,12 @@ class HomeRecommendationDiscoveryQuotaFallbackTest {
             channelInterest = emptyMap(),
             topicInterest = emptyMap(),
         )
-        val discovery = listOf(video("broad1", "news", title = "Football match recap"))
+        val discovery = listOf(
+            HomeRecommendationTaggedVideo(
+                video = video("broad1", "news", title = "Football match recap"),
+                source = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
+            ),
+        )
         val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery)
         assertEquals(1, pool.discovery.size)
         assertTrue(pool.discovery.first().url.endsWith("/broad1"))

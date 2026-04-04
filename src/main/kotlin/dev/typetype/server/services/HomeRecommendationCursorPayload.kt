@@ -8,4 +8,5 @@ data class HomeRecommendationCursorPayload(
     val d: Int,
     val r: Int,
     val p: Int,
+    val c: List<String> = emptyList(),
 )

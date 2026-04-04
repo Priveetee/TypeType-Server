@@ -3,6 +3,8 @@ package dev.typetype.server
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationSourceTag
+import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -45,14 +47,14 @@ class HomeRecommendationPoolBuilderTest {
             topicInterest = emptyMap(),
         )
         val subscriptions = listOf(
-            video("seen", "sub"),
-            video("blocked", "sub"),
-            video("ok", "sub", title = "music review"),
-            video("chblocked", "blocked"),
+            tagged(video("seen", "sub"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("blocked", "sub"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("ok", "sub", title = "music review"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("chblocked", "blocked"), HomeRecommendationSourceTag.SUBSCRIPTION),
         )
         val discovery = listOf(
-            video("ok", "sub"),
-            video("new", "x"),
+            tagged(video("ok", "sub"), HomeRecommendationSourceTag.DISCOVERY_TRENDING),
+            tagged(video("new", "x"), HomeRecommendationSourceTag.DISCOVERY_THEME),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, discovery)
         assertEquals(1, pool.subscriptions.size)
@@ -79,8 +81,8 @@ class HomeRecommendationPoolBuilderTest {
             topicInterest = emptyMap(),
         )
         val subscriptions = listOf(
-            video("plain", "a", title = "daily vlog"),
-            video("match", "a", title = "music review"),
+            tagged(video("plain", "a", title = "daily vlog"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("match", "a", title = "music review"), HomeRecommendationSourceTag.SUBSCRIPTION),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, emptyList())
         assertTrue(pool.subscriptions.first().url.endsWith("/match"))
@@ -104,12 +106,15 @@ class HomeRecommendationPoolBuilderTest {
             topicInterest = emptyMap(),
         )
         val discovery = listOf(
-            video("live1", "a", title = "Breaking is live now"),
-            video("normal1", "b", title = "Weekly tech roundup"),
-            video("live2", "c", title = "DIRECT: match day"),
+            tagged(video("live1", "a", title = "Breaking is live now"), HomeRecommendationSourceTag.DISCOVERY_TRENDING),
+            tagged(video("normal1", "b", title = "Weekly tech roundup"), HomeRecommendationSourceTag.DISCOVERY_THEME),
+            tagged(video("live2", "c", title = "DIRECT: match day"), HomeRecommendationSourceTag.DISCOVERY_EXPLORATION),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery)
         assertEquals(1, pool.discovery.size)
         assertTrue(pool.discovery.first().url.endsWith("/normal1"))
     }
+
+    private fun tagged(video: VideoItem, source: HomeRecommendationSourceTag): HomeRecommendationTaggedVideo =
+        HomeRecommendationTaggedVideo(video = video, source = source)
 }

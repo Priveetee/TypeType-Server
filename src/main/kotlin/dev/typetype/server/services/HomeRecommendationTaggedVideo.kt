@@ -2,8 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.VideoItem
 
-data class HomeRecommendationScoredVideo(
+data class HomeRecommendationTaggedVideo(
     val video: VideoItem,
-    val score: Double,
     val source: HomeRecommendationSourceTag,
 )

@@ -18,6 +18,10 @@ class HomeRecommendationStateMachine(private val planner: HomeRecommendationQuot
             discoveryCount = discoveryCount,
             preferDiscovery = preferDiscovery,
         ) || force
-        return HomeRecommendationDecision(forceDiscovery = force, wantDiscovery = prefer)
+        return HomeRecommendationDecision(
+            forceDiscovery = force,
+            wantDiscovery = prefer,
+            target = planner.target,
+        )
     }
 }
