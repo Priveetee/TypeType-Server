@@ -6,6 +6,7 @@ class HomeRecommendationQuotaPlanner(
     private val discoverySize: Int,
     private val sourceByUrl: Map<String, HomeRecommendationSourceTag>,
     private val sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
+    private val sessionContext: HomeRecommendationSessionContext,
 ) {
     val target = computeTarget()
 
@@ -37,8 +38,13 @@ class HomeRecommendationQuotaPlanner(
             themeWeight + explorationWeight >= subscriptionSize / 2 -> 0.58
             else -> 0.50
         } * (banditDiscoveryBoost / banditSubscriptionBoost)
+        val intentAdjustedRatio = when (sessionContext.intent) {
+            HomeRecommendationSessionIntent.AUTO -> dynamicRatio
+            HomeRecommendationSessionIntent.QUICK -> dynamicRatio + 0.08
+            HomeRecommendationSessionIntent.DEEP -> dynamicRatio - 0.08
+        }
         val boundedRatio = dynamicRatio.coerceIn(0.35, 0.75)
-        val targetDiscovery = minOf((limit * boundedRatio).toInt().coerceAtLeast(0), discoverySize)
+        val targetDiscovery = minOf((limit * intentAdjustedRatio.coerceIn(0.30, 0.80)).toInt().coerceAtLeast(0), discoverySize)
         val targetSubscription = minOf(limit - targetDiscovery, subscriptionSize)
         return HomeRecommendationTargetPlan(targetSubscription = targetSubscription, targetDiscovery = targetDiscovery)
     }

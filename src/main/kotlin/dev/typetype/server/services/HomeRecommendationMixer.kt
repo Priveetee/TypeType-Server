@@ -8,6 +8,7 @@ object HomeRecommendationMixer {
         pool: HomeRecommendationPool,
         cursor: HomeRecommendationCursor,
         limit: Int,
+        context: HomeRecommendationSessionContext,
         sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
     ): HomeRecommendationPage {
         val planner = HomeRecommendationQuotaPlanner(
@@ -16,12 +17,12 @@ object HomeRecommendationMixer {
             discoverySize = pool.discovery.size,
             sourceByUrl = pool.sourceByUrl,
             sourceWeights = sourceWeights,
+            sessionContext = context,
         )
         val machine = HomeRecommendationStateMachine(planner)
         val selected = mutableListOf<VideoItem>()
         val channelCount = mutableMapOf<String, Int>()
-        val recentChannels = ArrayDeque(cursor.recentChannels.takeLast(MAX_RECENT_CHANNEL_MEMORY))
-        val recentSemanticKeys = ArrayDeque(cursor.recentSemanticKeys.takeLast(MAX_RECENT_SEMANTIC_MEMORY))
+        val memory = HomeRecommendationMomentumMemory(cursor)
         var subIndex = cursor.subscriptionIndex
         var discoveryIndex = cursor.discoveryIndex
         var subscriptionRun = cursor.subscriptionRun.coerceIn(0, HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
@@ -39,8 +40,11 @@ object HomeRecommendationMixer {
             val picker = HomeRecommendationPicker(
                 pool = pool,
                 channelCount = channelCount,
-                recentChannels = recentChannels.toSet(),
-                recentSemanticKeys = recentSemanticKeys.toSet(),
+                recentChannels = memory.recentChannelsSet(),
+                recentSemanticKeys = memory.recentSemanticKeysSet(),
+                creatorMomentum = memory.creatorMomentumMap(),
+                creatorCooldownUntilMs = memory.creatorCooldownMap(),
+                recentTopicPairs = memory.recentTopicPairsSet(),
             )
             val selection = HomeRecommendationSelector.pick(
                 picker = picker,
@@ -69,27 +73,23 @@ object HomeRecommendationMixer {
             }
             selected += video
             val key = channelKey(video)
-            if (key.isNotBlank()) {
-                channelCount[key] = (channelCount[key] ?: 0) + 1
-                recentChannels += key
-                while (recentChannels.size > MAX_RECENT_CHANNEL_MEMORY) recentChannels.removeFirst()
-            }
-            val semanticKey = HomeRecommendationSemanticKey.fromTitle(video.title)
-            if (semanticKey.isNotBlank()) {
-                recentSemanticKeys += semanticKey
-                while (recentSemanticKeys.size > MAX_RECENT_SEMANTIC_MEMORY) recentSemanticKeys.removeFirst()
-            }
+            if (key.isNotBlank()) channelCount[key] = (channelCount[key] ?: 0) + 1
+            memory.onSelected(video.title, key)
         }
         val hasMore = subIndex < pool.subscriptions.size || discoveryIndex < pool.discovery.size
         val nextCursor = if (hasMore && selected.isNotEmpty()) {
+            val snapshot = memory.snapshot()
             HomeRecommendationCursorCodec.encode(
                 HomeRecommendationCursor(
                     subscriptionIndex = subIndex,
                     discoveryIndex = discoveryIndex,
                     subscriptionRun = subscriptionRun,
                     preferDiscovery = preferDiscovery,
-                    recentChannels = recentChannels.toList(),
-                    recentSemanticKeys = recentSemanticKeys.toList(),
+                    recentChannels = snapshot.recentChannels,
+                    recentSemanticKeys = snapshot.recentSemanticKeys,
+                    creatorMomentum = snapshot.creatorMomentum,
+                    creatorCooldownUntilMs = snapshot.creatorCooldownUntilMs,
+                    recentTopicPairs = snapshot.recentTopicPairs,
                 ),
             )
         } else {
@@ -110,6 +110,4 @@ object HomeRecommendationMixer {
         return video.uploaderUrl.isNotBlank() && video.uploaderUrl in pool.subscriptionChannels
     }
 
-    private const val MAX_RECENT_CHANNEL_MEMORY = 4
-    private const val MAX_RECENT_SEMANTIC_MEMORY = 5
 }

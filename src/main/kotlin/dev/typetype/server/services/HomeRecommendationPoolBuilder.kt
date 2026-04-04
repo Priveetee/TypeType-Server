@@ -8,11 +8,12 @@ class HomeRecommendationPoolBuilder {
         profile: HomeRecommendationProfile,
         subscriptionCandidates: List<HomeRecommendationTaggedVideo>,
         discoveryCandidates: List<HomeRecommendationTaggedVideo>,
+        context: HomeRecommendationSessionContext,
     ): HomeRecommendationPool {
         val subscriptionsScored = scoreAndFilter(
             candidates = subscriptionCandidates,
             profile = profile,
-            scorer = { video, p -> HomeRecommendationScoring.scoreSubscription(video, p) },
+            scorer = { video, p -> HomeRecommendationScoring.scoreSubscription(video, p, context) },
             allowLive = false,
             minThemeScore = 0.0,
         )
@@ -25,7 +26,7 @@ class HomeRecommendationPoolBuilder {
         val discoveryScored = scoreAndFilter(
             candidates = discoveryCandidates,
             profile = profile,
-            scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p) },
+            scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p, context) },
             allowLive = false,
             minThemeScore = 0.0,
         ).filterNot { scored -> scored.video.url in subscriptionUrls }

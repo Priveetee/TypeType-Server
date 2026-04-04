@@ -20,6 +20,7 @@ class HomeRecommendationBuilder(
         serviceId: Int,
         mode: HomeRecommendationPoolMode,
         personalizationEnabled: Boolean,
+        context: HomeRecommendationContext,
     ): HomeRecommendationPool {
         val signalService = HomeRecommendationUserSignalService(
             subscriptionsService = subscriptionsService,
@@ -32,7 +33,11 @@ class HomeRecommendationBuilder(
             feedbackSignalService = RecommendationFeedbackSignalService(feedbackService),
             interestProfileService = RecommendationInterestProfileService(),
         )
-        val profile = signalService.loadProfile(userId, personalizationEnabled)
+        val profile = signalService.loadProfile(
+            userId = userId,
+            personalizationEnabled = personalizationEnabled,
+            sessionContext = context.sessionContext,
+        )
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             trendingService = trendingService,
@@ -43,20 +48,42 @@ class HomeRecommendationBuilder(
             profile = profile,
             subscriptionCandidates = candidatePool.subscriptions,
             discoveryCandidates = candidatePool.discovery,
+            context = context.sessionContext,
         )
         val sourceWeights = if (!personalizationEnabled) {
             emptyMap()
         } else {
-            HomeRecommendationSourceBandit.weightBySource(
-                events = eventService.getAll(userId),
+            val events = eventService.getAll(userId)
+            val classic = HomeRecommendationSourceBandit.weightBySource(
+                events = events,
                 sourceByUrl = pool.sourceByUrl,
             )
+            val contextual = HomeRecommendationContextualBandit.weightBySource(
+                events = events,
+                sourceByUrl = pool.sourceByUrl,
+                serviceId = serviceId,
+                sessionIntent = context.sessionContext.intent,
+                deviceClass = context.sessionContext.deviceClass,
+            )
+            (classic.keys + contextual.keys).associateWith { source ->
+                val a = classic[source] ?: 1.0
+                val b = contextual[source] ?: 1.0
+                ((a + b) / 2.0).coerceIn(0.45, 1.55)
+            }
         }
+        val allEvents = if (!personalizationEnabled) emptyList() else eventService.getAll(userId)
         val mergedWeights = (pool.sourceWeights.keys + sourceWeights.keys).associateWith { source ->
             val poolWeight = pool.sourceWeights[source] ?: 1.0
             val banditWeight = sourceWeights[source] ?: 1.0
             ((poolWeight + banditWeight) / 2.0).coerceIn(0.55, 1.55)
         }
-        return pool.copy(sourceWeights = mergedWeights)
+        val explorationWeights = if (!personalizationEnabled) mergedWeights else {
+            HomeRecommendationExplorationBandit.apply(
+                events = allEvents,
+                sourceWeights = mergedWeights,
+                sourceByUrl = pool.sourceByUrl,
+            )
+        }
+        return pool.copy(sourceWeights = explorationWeights)
     }
 }

@@ -3,6 +3,24 @@ package dev.typetype.server.services
 import dev.typetype.server.models.VideoItem
 
 object HomeRecommendationScoring {
+    fun scoreSubscription(
+        video: VideoItem,
+        profile: HomeRecommendationProfile,
+        context: HomeRecommendationSessionContext,
+    ): Double {
+        val base = scoreSubscription(video, profile)
+        return base + HomeRecommendationSessionIntentScorer.bonus(video, context) + HomeRecommendationDeviceScorer.bonus(video, context)
+    }
+
+    fun scoreDiscovery(
+        video: VideoItem,
+        profile: HomeRecommendationProfile,
+        context: HomeRecommendationSessionContext,
+    ): Double {
+        val base = scoreDiscovery(video, profile)
+        return base + HomeRecommendationSessionIntentScorer.bonus(video, context) + HomeRecommendationDeviceScorer.bonus(video, context)
+    }
+
     fun scoreSubscription(video: VideoItem, profile: HomeRecommendationProfile): Double {
         val base = 1.25
         return base + commonSignals(video, profile) + 0.25

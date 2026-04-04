@@ -12,13 +12,20 @@ class HomeRecommendationService(
         serviceId: Int,
         limit: Int,
         cursor: HomeRecommendationCursor,
+        context: HomeRecommendationContext,
     ): HomeRecommendationsResponse {
         val personalizationEnabled = privacyService.isPersonalizationEnabled(userId)
-        val pool = poolResolver.resolve(userId = userId, serviceId = serviceId, personalizationEnabled = personalizationEnabled)
+        val pool = poolResolver.resolve(
+            userId = userId,
+            serviceId = serviceId,
+            personalizationEnabled = personalizationEnabled,
+            context = context,
+        )
         val page = HomeRecommendationMixer.mix(
             pool = pool,
             cursor = cursor,
             limit = limit,
+            context = context.sessionContext,
             sourceWeights = HomeRecommendationExploreBonus.apply(
                 sourceWeights = pool.sourceWeights,
                 pageIndex = HomeRecommendationCursorPageIndex.from(cursor, limit),
