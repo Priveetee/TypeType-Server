@@ -18,4 +18,10 @@ data class HomeRecommendationProfile(
     val implicitBlockedVideos: Set<String> = emptySet(),
     val subscriptionEngagement: Double = 0.0,
     val discoveryEngagement: Double = 0.0,
+    val feedHistory: Map<String, RecommendationFeedHistoryEntry> = emptyMap(),
+    val rejectionTopicPenalty: Map<String, Double> = emptyMap(),
+    val rejectionChannelPenalty: Map<String, Double> = emptyMap(),
+    val channelTopicProfile: Map<String, Map<String, Double>> = emptyMap(),
+    val shortsTopicInterest: Map<String, Double> = emptyMap(),
+    val personalizationEnabled: Boolean = true,
 )

@@ -24,11 +24,16 @@ object HomeRecommendationScoring {
     private fun commonSignals(video: VideoItem, profile: HomeRecommendationProfile): Double {
         val recency = recencyBoost(video.uploaded)
         val keywordBoost = keywordBoost(video, profile.keywordAffinity)
+        val temporalBoost = HomeRecommendationTemporalBoost.boost(video.title)
+        val viralBoost = HomeRecommendationPersonalization.viralVelocityBoost(video)
+        val curiosityBoost = HomeRecommendationPersonalization.curiosityBoost(video, profile)
+        val serendipityBoost = HomeRecommendationPersonalization.serendipityBoost(video, profile)
+        val channelProfileBoost = HomeRecommendationPersonalization.channelProfileBoost(video, profile)
         val subscriptionBoost = if (video.uploaderUrl in profile.subscriptionChannels) 0.2 else 0.0
         val favoriteBoost = if (video.url in profile.favoriteUrls) 0.15 else 0.0
         val watchLaterBoost = if (video.url in profile.watchLaterUrls) 0.08 else 0.0
         val livePenalty = if (HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) -0.5 else 0.0
-        return recency + keywordBoost + subscriptionBoost + favoriteBoost + watchLaterBoost + livePenalty
+        return recency + keywordBoost + temporalBoost + viralBoost + curiosityBoost + serendipityBoost + channelProfileBoost + subscriptionBoost + favoriteBoost + watchLaterBoost + livePenalty
     }
 
     private fun keywordBoost(video: VideoItem, keywords: Set<String>): Double {
@@ -50,6 +55,10 @@ object HomeRecommendationScoring {
         if (tokens.isEmpty()) return 0.0
         val raw = tokens.sumOf { token -> topicInterest[token] ?: 0.0 }
         return raw.coerceIn(-4.0, 10.0) * 0.06
+    }
+
+    fun applyPersonalizationPenalties(video: VideoItem, score: Double, profile: HomeRecommendationProfile): Double {
+        return HomeRecommendationPersonalization.applyPenalties(video, score, profile)
     }
 
 }
