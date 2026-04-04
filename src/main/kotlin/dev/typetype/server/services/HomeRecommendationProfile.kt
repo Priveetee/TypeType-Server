@@ -27,5 +27,6 @@ data class HomeRecommendationProfile(
     val creatorMomentum: Map<String, Double> = emptyMap(),
     val delayedVideoCredit: Map<String, Double> = emptyMap(),
     val delayedChannelCredit: Map<String, Double> = emptyMap(),
+    val shortPenaltyByVideo: Map<String, Double> = emptyMap(),
     val personalizationEnabled: Boolean = true,
 )

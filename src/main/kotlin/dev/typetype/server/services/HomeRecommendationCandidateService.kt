@@ -8,6 +8,7 @@ class HomeRecommendationCandidateService(
     private val trendingService: TrendingService,
     private val searchService: SearchService,
     private val discoveryAssembler: HomeRecommendationDiscoveryAssembler = HomeRecommendationDiscoveryAssembler(),
+    private val shortsCandidateService: HomeRecommendationShortsCandidateService = HomeRecommendationShortsCandidateService(),
 ) {
     suspend fun fetchCandidates(
         userId: String,
@@ -15,6 +16,9 @@ class HomeRecommendationCandidateService(
         profile: HomeRecommendationProfile,
         mode: HomeRecommendationPoolMode,
     ): HomeRecommendationCandidatePool {
+        if (mode == HomeRecommendationPoolMode.SHORTS) {
+            return shortsCandidateService.fetch(userId, serviceId, profile, this)
+        }
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
             .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
         val themeQueryLimit = if (mode == HomeRecommendationPoolMode.FAST) FAST_THEME_QUERY_LIMIT else FULL_THEME_QUERY_LIMIT
@@ -45,7 +49,7 @@ class HomeRecommendationCandidateService(
         return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = discovery)
     }
 
-    private suspend fun fetchSubscriptionCandidates(userId: String, mode: HomeRecommendationPoolMode): List<VideoItem> {
+    suspend fun fetchSubscriptionCandidates(userId: String, mode: HomeRecommendationPoolMode): List<VideoItem> {
         if (mode == HomeRecommendationPoolMode.FAST) {
             return subscriptionFeedService.getCachedFeed(userId = userId, page = 0, limit = FAST_SUBSCRIPTION_PAGE_SIZE)
                 ?.videos
@@ -58,7 +62,7 @@ class HomeRecommendationCandidateService(
         return pages.flatten()
     }
 
-    private suspend fun fetchTrendingCandidates(serviceId: Int): List<HomeRecommendationTaggedVideo> =
+    suspend fun fetchTrendingCandidates(serviceId: Int): List<HomeRecommendationTaggedVideo> =
         when (val trending = trendingService.getTrending(serviceId)) {
             is ExtractionResult.Success -> trending.data.map {
                 HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.DISCOVERY_TRENDING)
@@ -67,7 +71,7 @@ class HomeRecommendationCandidateService(
             is ExtractionResult.Failure -> emptyList()
         }
 
-    private suspend fun fetchSearchCandidates(
+    suspend fun fetchSearchCandidates(
         serviceId: Int,
         queries: List<String>,
         maxQueries: Int,

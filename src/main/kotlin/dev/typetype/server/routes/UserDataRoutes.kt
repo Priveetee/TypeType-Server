@@ -35,5 +35,6 @@ internal fun Route.userDataRoutes(
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
     homeRecommendationRoutes(svc.homeRecommendationService, authService)
+    homeRecommendationShortsRoutes(svc.homeRecommendationService, authService)
     homeRecommendationMetricsRoutes(svc.homeRecommendationService, authService)
 }

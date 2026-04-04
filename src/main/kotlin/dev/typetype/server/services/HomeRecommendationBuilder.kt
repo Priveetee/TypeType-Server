@@ -61,6 +61,7 @@ class HomeRecommendationBuilder(
             subscriptionCandidates = candidatePool.subscriptions,
             discoveryCandidates = candidatePool.discovery,
             context = effectiveContext,
+            mode = mode,
         )
         val sourceWeights = if (!personalizationEnabled) {
             emptyMap()

@@ -108,6 +108,7 @@ class HomeRecommendationUserSignalService(
             creatorMomentum = HomeRecommendationSignalProfileBuilder.buildCreatorMomentum(events),
             delayedVideoCredit = delayedVideoCredit,
             delayedChannelCredit = delayedChannelCredit,
+            shortPenaltyByVideo = HomeRecommendationShortsSignals.shortSkipPenaltyByUrl(events),
             personalizationEnabled = personalizationEnabled,
         )
     }

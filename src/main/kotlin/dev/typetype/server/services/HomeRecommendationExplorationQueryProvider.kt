@@ -6,6 +6,8 @@ object HomeRecommendationExplorationQueryProvider {
         return DEFAULT_QUERIES.take(limit)
     }
 
+    fun shortQueries(): List<String> = SHORT_QUERIES
+
     private val DEFAULT_QUERIES = listOf(
         "trending videos",
         "viral videos",
@@ -15,6 +17,15 @@ object HomeRecommendationExplorationQueryProvider {
         "gaming",
         "music",
         "documentary",
+    )
+
+    private val SHORT_QUERIES = listOf(
+        "shorts trending",
+        "viral shorts",
+        "quick facts shorts",
+        "short comedy",
+        "short tech clips",
+        "music shorts",
     )
 
     private const val FAST_QUERY_COUNT = 2

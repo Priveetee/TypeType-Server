@@ -9,13 +9,16 @@ class HomeRecommendationPoolBuilder {
         subscriptionCandidates: List<HomeRecommendationTaggedVideo>,
         discoveryCandidates: List<HomeRecommendationTaggedVideo>,
         context: HomeRecommendationSessionContext,
+        mode: HomeRecommendationPoolMode = HomeRecommendationPoolMode.FULL,
     ): HomeRecommendationPool {
+        val shortsMode = mode == HomeRecommendationPoolMode.SHORTS
         val subscriptionsScored = scoreAndFilter(
             candidates = subscriptionCandidates,
             profile = profile,
             scorer = { video, p -> HomeRecommendationScoring.scoreSubscription(video, p, context) },
             allowLive = false,
             minThemeScore = 0.0,
+            shortsOnly = shortsMode,
         )
         val jitteredSubscriptions = if (profile.personalizationEnabled) {
             HomeRecommendationJitter.apply(subscriptionsScored, profile.feedHistory)
@@ -29,6 +32,7 @@ class HomeRecommendationPoolBuilder {
             scorer = { video, p -> HomeRecommendationScoring.scoreDiscovery(video, p, context) },
             allowLive = false,
             minThemeScore = 0.0,
+            shortsOnly = shortsMode,
         ).filterNot { scored -> scored.video.url in subscriptionUrls }
         val jitteredDiscovery = if (profile.personalizationEnabled) {
             HomeRecommendationJitter.apply(discoveryScored, profile.feedHistory)
@@ -65,12 +69,14 @@ class HomeRecommendationPoolBuilder {
         scorer: (VideoItem, HomeRecommendationProfile) -> Double,
         allowLive: Boolean,
         minThemeScore: Double,
+        shortsOnly: Boolean,
     ): List<HomeRecommendationScoredVideo> {
         val byUrl = linkedMapOf<String, HomeRecommendationScoredVideo>()
         candidates.forEach { tagged ->
             val video = tagged.video
             if (video.url.isBlank()) return@forEach
             if (video.url in profile.seenUrls || video.url in profile.blockedVideos) return@forEach
+            if (shortsOnly && !(video.isShortFormContent || video.duration in 1L..85L)) return@forEach
             if (video.url in profile.feedbackBlockedVideos || video.url in profile.implicitBlockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.feedbackBlockedChannels) return@forEach
@@ -80,10 +86,15 @@ class HomeRecommendationPoolBuilder {
                 if (themeScore < minThemeScore) return@forEach
             }
             val rawScore = scorer(video, profile) * (profile.eventPenaltyByVideo[video.url] ?: 1.0)
-            val score = if (profile.personalizationEnabled) {
-                HomeRecommendationScoring.applyPersonalizationPenalties(video, rawScore, profile)
+            val shortAdjustedScore = if (video.isShortFormContent) {
+                rawScore * (profile.shortPenaltyByVideo[video.url] ?: 1.0)
             } else {
                 rawScore
+            }
+            val score = if (profile.personalizationEnabled) {
+                HomeRecommendationScoring.applyPersonalizationPenalties(video, shortAdjustedScore, profile)
+            } else {
+                shortAdjustedScore
             }
             val scored = HomeRecommendationScoredVideo(video = video, score = score, source = tagged.source)
             val current = byUrl[video.url]

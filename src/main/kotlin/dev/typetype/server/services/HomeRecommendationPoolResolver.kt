@@ -19,32 +19,41 @@ class HomeRecommendationPoolResolver(
     suspend fun resolve(
         userId: String,
         serviceId: Int,
+        mode: HomeRecommendationPoolMode,
         personalizationEnabled: Boolean,
         context: HomeRecommendationContext,
     ): HomeRecommendationPool {
-        val key = poolCache.key(userId = userId, serviceId = serviceId, personalizationEnabled = personalizationEnabled)
+        val key = poolCache.key(
+            userId = userId,
+            serviceId = serviceId,
+            mode = mode,
+            personalizationEnabled = personalizationEnabled,
+        )
         val cached = poolCache.read(key)
         if (cached != null) return cached
-        val fullBuild = fullBuild(key, userId, serviceId, personalizationEnabled, context)
+        val fullBuild = fullBuild(key, userId, serviceId, mode, personalizationEnabled, context)
         val quickFull = withTimeoutOrNull(FULL_BUILD_BUDGET_MS) { fullBuild.await() }
         if (quickFull != null) {
             poolCache.write(key, quickFull)
             return quickFull
         }
         schedulePersistence(key, fullBuild)
-        return buildPool(userId, serviceId, HomeRecommendationPoolMode.FAST, personalizationEnabled, context)
+        val fastMode = if (mode == HomeRecommendationPoolMode.SHORTS) HomeRecommendationPoolMode.SHORTS else HomeRecommendationPoolMode.FAST
+        return buildPool(userId, serviceId, fastMode, personalizationEnabled, context)
     }
 
     private fun fullBuild(
         key: String,
         userId: String,
         serviceId: Int,
+        mode: HomeRecommendationPoolMode,
         personalizationEnabled: Boolean,
         context: HomeRecommendationContext,
     ): Deferred<HomeRecommendationPool> {
         state.fullBuilds[key]?.let { return it }
         val created = scope.async {
-            buildPool(userId, serviceId, HomeRecommendationPoolMode.FULL, personalizationEnabled, context)
+            val fullMode = if (mode == HomeRecommendationPoolMode.SHORTS) HomeRecommendationPoolMode.SHORTS else HomeRecommendationPoolMode.FULL
+            buildPool(userId, serviceId, fullMode, personalizationEnabled, context)
         }
         val winner = state.fullBuilds.putIfAbsent(key, created)
         if (winner != null) {

@@ -13,31 +13,37 @@ class HomeRecommendationService(
         limit: Int,
         cursor: HomeRecommendationCursor,
         context: HomeRecommendationContext,
-    ): HomeRecommendationsResponse {
-        val personalizationEnabled = privacyService.isPersonalizationEnabled(userId)
-        val pool = poolResolver.resolve(
+    ): HomeRecommendationsResponse = HomeRecommendationPageBuilder.build(
+        args = HomeRecommendationApiArgs(
             userId = userId,
             serviceId = serviceId,
-            personalizationEnabled = personalizationEnabled,
-            context = context,
-        )
-        val page = HomeRecommendationMixer.mix(
-            pool = pool,
-            cursor = cursor,
             limit = limit,
-            context = context.sessionContext,
-            sourceWeights = HomeRecommendationExploreBonus.apply(
-                sourceWeights = pool.sourceWeights,
-                pageIndex = HomeRecommendationCursorPageIndex.from(cursor, limit),
-            ),
-        )
-        if (personalizationEnabled) {
-            feedHistoryService.recordShown(userId, page.items.map { it.url })
-        }
-        return HomeRecommendationsResponse(
-            items = page.items,
-            nextCursor = page.nextCursor,
-            hasMore = page.nextCursor != null,
-        )
-    }
+            cursor = cursor,
+            context = context,
+        ),
+        mode = HomeRecommendationPoolMode.FULL,
+        poolResolver = poolResolver,
+        feedHistoryService = feedHistoryService,
+        privacyService = privacyService,
+    )
+
+    suspend fun getShorts(
+        userId: String,
+        serviceId: Int,
+        limit: Int,
+        cursor: HomeRecommendationCursor,
+        context: HomeRecommendationContext,
+    ): HomeRecommendationsResponse = HomeRecommendationPageBuilder.build(
+        args = HomeRecommendationApiArgs(
+            userId = userId,
+            serviceId = serviceId,
+            limit = limit,
+            cursor = cursor,
+            context = context,
+        ),
+        mode = HomeRecommendationPoolMode.SHORTS,
+        poolResolver = poolResolver,
+        feedHistoryService = feedHistoryService,
+        privacyService = privacyService,
+    )
 }
