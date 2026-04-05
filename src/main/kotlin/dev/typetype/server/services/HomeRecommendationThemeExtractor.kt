@@ -13,6 +13,11 @@ object HomeRecommendationThemeExtractor {
         "sur", "les", "des", "une", "pour", "avec", "dans", "par", "est", "une", "que", "qui", "plus", "tout",
     )
 
+    private val topicNoiseTokens = setOf(
+        "investigation", "investigators", "murder", "crime", "fraud", "police", "news", "update", "breaking",
+        "reaction", "react", "recap", "episode", "full", "highlights", "vs", "live", "stream",
+    )
+
     fun extractThemeTokens(
         subscriptions: List<SubscriptionItem>,
         watchLater: List<WatchLaterItem>,
@@ -28,6 +33,7 @@ object HomeRecommendationThemeExtractor {
             .groupingBy { it }
             .eachCount()
             .filterKeys { it !in stopWords }
+            .filterKeys { it !in topicNoiseTokens }
             .filterKeys { it.length >= 3 }
             .entries
             .sortedByDescending { it.value }
@@ -65,8 +71,8 @@ object HomeRecommendationThemeExtractor {
     }
 
     private fun tokenize(text: String): List<String> =
-        text.lowercase()
-            .replace(Regex("[^a-z0-9]+"), " ")
-            .split(" ")
+        text
+            .split(Regex("[^\\p{L}\\p{N}]+"))
+            .map { HomeRecommendationTokenNormalizer.normalize(it) }
             .filter { it.isNotEmpty() }
 }
