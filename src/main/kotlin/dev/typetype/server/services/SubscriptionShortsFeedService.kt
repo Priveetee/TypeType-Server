@@ -10,7 +10,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.builtins.ListSerializer
-import java.security.MessageDigest
 
 class SubscriptionShortsFeedService(
     private val subscriptionsService: SubscriptionsService,
@@ -36,7 +35,7 @@ class SubscriptionShortsFeedService(
     }
 
     private suspend fun cachedAll(userId: String): List<VideoItem> {
-        val key = cacheKey(userId)
+        val key = SubscriptionFeedCacheKeys.shorts(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
             return runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
                 .getOrElse { fetchAndCache(userId, key) }
@@ -107,9 +106,4 @@ class SubscriptionShortsFeedService(
         return if (channelUrl.endsWith('/')) "${channelUrl}shorts" else "$channelUrl/shorts"
     }
 
-    private fun cacheKey(userId: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hex = digest.digest(userId.toByteArray()).joinToString("") { "%02x".format(it) }
-        return "feed:shorts:$hex"
-    }
 }

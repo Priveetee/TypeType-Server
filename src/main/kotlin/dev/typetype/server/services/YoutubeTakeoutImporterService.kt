@@ -89,7 +89,7 @@ class YoutubeTakeoutImporterService(
         val favoriteStats = favoriteDeferred?.await() ?: emptyStats
         val watchLaterStats = watchLaterDeferred?.await() ?: emptyStats
         val historyStats = historyDeferred?.await() ?: emptyStats
-        YoutubeTakeoutImportReportItem(
+        val report = YoutubeTakeoutImportReportItem(
             subscriptions = YoutubeTakeoutImportStats(imported = subImported, skipped = subSkipped, failed = 0),
             playlists = YoutubeTakeoutImportStats(imported = plImported, skipped = plSkipped, failed = 0),
             playlistItems = YoutubeTakeoutImportStats(imported = itemImported, skipped = itemSkipped, failed = 0),
@@ -103,5 +103,7 @@ class YoutubeTakeoutImporterService(
             issueSummary = issueSummary,
             finishedAt = System.currentTimeMillis(),
         )
+        if (plan.importSubscriptions) SubscriptionFeedCacheInvalidation.invalidate(userId)
+        report
     }
 }

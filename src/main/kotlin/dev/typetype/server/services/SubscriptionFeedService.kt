@@ -11,7 +11,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.builtins.ListSerializer
-import java.security.MessageDigest
 import java.util.Base64
 
 class SubscriptionFeedService(
@@ -33,7 +32,7 @@ class SubscriptionFeedService(
     suspend fun getAll(userId: String): List<VideoItem> = cachedAll(userId)
 
     suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
-        val key = cacheKey(userId)
+        val key = SubscriptionFeedCacheKeys.feed(userId)
         val raw = runCatching { cache.get(key) }.getOrNull() ?: return null
         val all = runCatching {
             CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw)
@@ -46,7 +45,7 @@ class SubscriptionFeedService(
     }
 
     private suspend fun cachedAll(userId: String): List<VideoItem> {
-        val key = cacheKey(userId)
+        val key = SubscriptionFeedCacheKeys.feed(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
             return runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
                 .getOrElse { fetchAndCache(userId, key) }
@@ -75,12 +74,6 @@ class SubscriptionFeedService(
         )
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), sorted), FEED_TTL_SECONDS) }
         return sorted
-    }
-
-    private fun cacheKey(token: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hex = digest.digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
-        return "feed:$hex"
     }
 
     private fun encodeNextPage(page: Int): String =

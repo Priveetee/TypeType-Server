@@ -32,6 +32,8 @@ class PipePipeBackupPersisterService {
             historyMinWatchedAt = minWatchedAt,
             historyMaxWatchedAt = maxWatchedAt,
         )
+    }.also {
+        SubscriptionFeedCacheInvalidation.invalidate(userId)
     }
 
     private fun clearUserData(userId: String) {

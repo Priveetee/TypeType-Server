@@ -46,6 +46,8 @@ import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionShortsSignalService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubeTakeoutFactory
@@ -53,6 +55,10 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: String) {
+    init {
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
+    }
+
     private val httpClient = OkHttpClient()
     private val proxyHttpClient = httpClient.newBuilder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).followRedirects(true).build()
     val streamService = CachedStreamService(PipePipeStreamService(cache, YouTubeSubtitleService(httpClient, subtitleServiceUrl), BilibiliRelatedService()), cache)
