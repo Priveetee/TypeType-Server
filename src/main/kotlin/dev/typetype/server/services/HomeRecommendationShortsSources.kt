@@ -15,4 +15,5 @@ object HomeRecommendationShortsSources {
     const val TARGET_DISCOVERY_RATIO_MAX = 0.82
     const val FLOOR_DISCOVERY_RATIO_AUTO = 0.65
     const val FLOOR_DISCOVERY_RATIO_DEEP = 0.60
+    const val DISCOVERY_CURSOR_REWIND = 24
 }

@@ -29,6 +29,7 @@ object HomeRecommendationMixRound {
         return HomeRecommendationSelector.pick(
             picker = picker,
             wantDiscovery = decision.wantDiscovery,
+            forceDiscovery = decision.forceDiscovery,
             forceNovelty = decision.forceNovelty,
             subIndex = state.subIndex,
             discoveryIndex = state.discoveryIndex,

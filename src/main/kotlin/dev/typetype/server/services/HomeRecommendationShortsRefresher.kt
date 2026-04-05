@@ -3,13 +3,33 @@ package dev.typetype.server.services
 import dev.typetype.server.models.HomeRecommendationPool
 
 object HomeRecommendationShortsRefresher {
-    fun refresh(pool: HomeRecommendationPool, page: HomeRecommendationPage): HomeRecommendationPool {
-        if (page.discoveryCount > 0) return pool
+    fun refresh(
+        pool: HomeRecommendationPool,
+        page: HomeRecommendationPage,
+        cursor: HomeRecommendationCursor,
+    ): HomeRecommendationShortsRefreshResult {
+        val minDiscovery = minOf((page.items.size * page.discoveryFloorRatio).toInt(), page.items.size)
+        if (page.discoveryCount >= minDiscovery) return HomeRecommendationShortsRefreshResult(pool, null)
         val recovered = pool.subscriptions
             .drop(HomeRecommendationShortsSources.DISCOVERY_RECOVERY_DROP)
             .take(HomeRecommendationShortsSources.DISCOVERY_RECOVERY_TAKE)
-        if (recovered.isEmpty()) return pool
+        if (recovered.isEmpty() && page.discoveryCount > 0) {
+            return HomeRecommendationShortsRefreshResult(pool, rewindCursor(cursor))
+        }
+        if (recovered.isEmpty()) return HomeRecommendationShortsRefreshResult(pool, null)
         val mergedDiscovery = (pool.discovery + recovered).distinctBy { it.url }
-        return pool.copy(discovery = mergedDiscovery)
+        val nextCursor = rewindCursor(cursor)
+        return HomeRecommendationShortsRefreshResult(pool.copy(discovery = mergedDiscovery), nextCursor)
+    }
+
+    private fun rewindCursor(cursor: HomeRecommendationCursor): HomeRecommendationCursor {
+        val rewind = HomeRecommendationShortsSources.DISCOVERY_CURSOR_REWIND
+        val discoveryIndex = (cursor.discoveryIndex - rewind).coerceAtLeast(0)
+        return cursor.copy(discoveryIndex = discoveryIndex)
     }
 }
+
+data class HomeRecommendationShortsRefreshResult(
+    val pool: HomeRecommendationPool,
+    val cursorOverride: HomeRecommendationCursor?,
+)

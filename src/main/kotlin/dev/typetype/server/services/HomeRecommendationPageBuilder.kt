@@ -31,19 +31,23 @@ object HomeRecommendationPageBuilder {
             userId = args.userId,
             serviceId = args.serviceId,
         )
-        val finalPage = if (mode == HomeRecommendationPoolMode.SHORTS && page.discoveryCount == 0) {
-            val refreshedPool = HomeRecommendationShortsRefresher.refresh(pool, page)
-            if (refreshedPool == pool) {
+        val finalPage = if (mode == HomeRecommendationPoolMode.SHORTS) {
+            val refresh = HomeRecommendationShortsRefresher.refresh(
+                pool = pool,
+                page = page,
+                cursor = args.cursor,
+            )
+            if (refresh.pool == pool) {
                 page
             } else {
                 HomeRecommendationMixer.mix(
-                    pool = refreshedPool,
-                    cursor = args.cursor,
+                    pool = refresh.pool,
+                    cursor = refresh.cursorOverride ?: args.cursor,
                     limit = args.limit,
                     context = args.context.sessionContext,
                     sourceWeights = HomeRecommendationExploreBonus.apply(
-                        sourceWeights = refreshedPool.sourceWeights,
-                        pageIndex = HomeRecommendationCursorPageIndex.from(args.cursor, args.limit),
+                        sourceWeights = refresh.pool.sourceWeights,
+                        pageIndex = HomeRecommendationCursorPageIndex.from(refresh.cursorOverride ?: args.cursor, args.limit),
                     ),
                     mode = mode,
                     userId = args.userId,

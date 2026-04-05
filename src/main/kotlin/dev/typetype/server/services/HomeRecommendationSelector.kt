@@ -4,12 +4,13 @@ object HomeRecommendationSelector {
     fun pick(
         picker: HomeRecommendationPicker,
         wantDiscovery: Boolean,
+        forceDiscovery: Boolean,
         forceNovelty: Boolean,
         subIndex: Int,
         discoveryIndex: Int,
     ): HomeRecommendationSelection? {
         val pick = if (wantDiscovery) {
-            pickDiscoveryFirst(picker, forceNovelty, subIndex, discoveryIndex)
+            pickDiscoveryFirst(picker, forceDiscovery, forceNovelty, subIndex, discoveryIndex)
         } else {
             pickSubscriptionFirst(picker, subIndex, discoveryIndex)
         }
@@ -24,6 +25,7 @@ object HomeRecommendationSelector {
 
     private fun pickDiscoveryFirst(
         picker: HomeRecommendationPicker,
+        forceDiscovery: Boolean,
         forceNovelty: Boolean,
         subIndex: Int,
         discoveryIndex: Int,
@@ -43,6 +45,7 @@ object HomeRecommendationSelector {
             )
                 .let { it to true }
         }
+        if (forceDiscovery) return null to false
         val subscription = picker.fromSubscriptions(subIndex)
         val subscriptionVideo = subscription.first ?: return null to false
         return HomeRecommendationPickState(
