@@ -18,6 +18,9 @@ class HomeRecommendationPicker(
 
     fun fromSubscriptions(start: Int): Pair<VideoItem?, Int> = pick(pool.subscriptions, start, false)
 
+    fun sourceOf(video: VideoItem): HomeRecommendationSourceTag =
+        pool.sourceByUrl[video.url] ?: HomeRecommendationSourceTag.DISCOVERY_EXPLORATION
+
     private fun pick(source: List<VideoItem>, start: Int, noveltyOnly: Boolean): Pair<VideoItem?, Int> {
         var index = start
         while (index < source.size) {

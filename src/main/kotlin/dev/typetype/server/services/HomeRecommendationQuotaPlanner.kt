@@ -8,6 +8,7 @@ class HomeRecommendationQuotaPlanner(
     private val sourceWeights: Map<HomeRecommendationSourceTag, Double> = emptyMap(),
     private val sessionContext: HomeRecommendationSessionContext,
     private val personaState: HomeRecommendationPersonaState = HomeRecommendationPersonaState(),
+    private val mode: HomeRecommendationPoolMode = HomeRecommendationPoolMode.FULL,
 ) {
     val target = computeTarget()
 
@@ -19,6 +20,8 @@ class HomeRecommendationQuotaPlanner(
 
     fun shouldForceDiscovery(subscriptionCount: Int, discoveryCount: Int, selected: Int): Boolean {
         val remainingSlots = limit - selected
+        val floorNeed = (target.discoveryFloor - discoveryCount).coerceAtLeast(0)
+        if (floorNeed >= remainingSlots) return true
         val remainingNeed = (target.targetDiscovery - discoveryCount).coerceAtLeast(0)
         return remainingNeed >= remainingSlots || subscriptionCount >= target.targetSubscription
     }
@@ -55,8 +58,16 @@ class HomeRecommendationQuotaPlanner(
             HomeRecommendationSessionIntent.QUICK -> dynamicRatio + 0.08
             HomeRecommendationSessionIntent.DEEP -> dynamicRatio - 0.08
         } + personaBias
-        val targetDiscovery = minOf((limit * intentAdjustedRatio.coerceIn(0.30, 0.80)).toInt().coerceAtLeast(0), discoverySize)
+        val ratioBounds = if (mode == HomeRecommendationPoolMode.SHORTS) 0.60..0.82 else 0.30..0.80
+        val clampedRatio = intentAdjustedRatio.coerceIn(ratioBounds.start, ratioBounds.endInclusive)
+        val targetDiscovery = minOf((limit * clampedRatio).toInt().coerceAtLeast(0), discoverySize)
         val targetSubscription = minOf(limit - targetDiscovery, subscriptionSize)
+        val floorRatio = if (mode == HomeRecommendationPoolMode.SHORTS) {
+            if (sessionContext.intent == HomeRecommendationSessionIntent.DEEP) 0.60 else 0.65
+        } else {
+            0.50
+        }
+        val discoveryFloor = minOf((limit * floorRatio).toInt().coerceAtLeast(0), discoverySize)
         val noveltyRatio = when (sessionContext.intent) {
             HomeRecommendationSessionIntent.AUTO -> 0.25
             HomeRecommendationSessionIntent.QUICK -> 0.35
@@ -67,6 +78,9 @@ class HomeRecommendationQuotaPlanner(
             targetSubscription = targetSubscription,
             targetDiscovery = targetDiscovery,
             noveltyBudget = noveltyBudget,
+            discoveryFloor = discoveryFloor,
+            targetDiscoveryRatio = clampedRatio,
+            discoveryFloorRatio = floorRatio,
         )
     }
 

@@ -7,4 +7,7 @@ data class HomeRecommendationPage(
     val nextCursor: String?,
     val subscriptionCount: Int,
     val discoveryCount: Int,
+    val targetDiscoveryRatio: Double,
+    val discoveryFloorRatio: Double,
+    val sourceByUrl: Map<String, HomeRecommendationSourceTag>,
 )

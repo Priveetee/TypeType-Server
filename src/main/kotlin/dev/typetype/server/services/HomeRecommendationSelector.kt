@@ -1,7 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.models.VideoItem
-
 object HomeRecommendationSelector {
     fun pick(
         picker: HomeRecommendationPicker,
@@ -15,8 +13,13 @@ object HomeRecommendationSelector {
         } else {
             pickSubscriptionFirst(picker, subIndex, discoveryIndex)
         }
-        val video = pick.first ?: return null
-        return HomeRecommendationSelection(video = video.first, state = video.second, isNovelty = pick.second)
+        val selection = pick.first ?: return null
+        return HomeRecommendationSelection(
+            video = selection.video,
+            state = selection.state,
+            isNovelty = pick.second,
+            source = selection.source,
+        )
     }
 
     private fun pickDiscoveryFirst(
@@ -24,29 +27,33 @@ object HomeRecommendationSelector {
         forceNovelty: Boolean,
         subIndex: Int,
         discoveryIndex: Int,
-    ): Pair<Pair<VideoItem, HomeRecommendationCursorState>?, Boolean> {
+    ): Pair<HomeRecommendationPickState?, Boolean> {
         val discovery = picker.fromDiscovery(discoveryIndex, forceNovelty)
         val discoveryVideo = discovery.first
         if (discoveryVideo != null) {
-            return (
-                discoveryVideo to HomeRecommendationCursorState(
+            return HomeRecommendationPickState(
+                video = discoveryVideo,
+                state = HomeRecommendationCursorState(
                     subscriptionIndex = subIndex,
                     discoveryIndex = discovery.second,
                     subscriptionRun = 0,
                     preferDiscovery = false,
-                )
+                ),
+                source = picker.sourceOf(discoveryVideo),
             )
                 .let { it to true }
         }
         val subscription = picker.fromSubscriptions(subIndex)
         val subscriptionVideo = subscription.first ?: return null to false
-        return (
-            subscriptionVideo to HomeRecommendationCursorState(
+        return HomeRecommendationPickState(
+            video = subscriptionVideo,
+            state = HomeRecommendationCursorState(
                 subscriptionIndex = subscription.second,
                 discoveryIndex = discoveryIndex,
                 subscriptionRun = 1,
                 preferDiscovery = false,
-            )
+            ),
+            source = picker.sourceOf(subscriptionVideo),
         )
             .let { it to false }
     }
@@ -55,29 +62,33 @@ object HomeRecommendationSelector {
         picker: HomeRecommendationPicker,
         subIndex: Int,
         discoveryIndex: Int,
-    ): Pair<Pair<VideoItem, HomeRecommendationCursorState>?, Boolean> {
+    ): Pair<HomeRecommendationPickState?, Boolean> {
         val subscription = picker.fromSubscriptions(subIndex)
         val subscriptionVideo = subscription.first
         if (subscriptionVideo != null) {
-            return (
-                subscriptionVideo to HomeRecommendationCursorState(
+            return HomeRecommendationPickState(
+                video = subscriptionVideo,
+                state = HomeRecommendationCursorState(
                     subscriptionIndex = subscription.second,
                     discoveryIndex = discoveryIndex,
                     subscriptionRun = 1,
                     preferDiscovery = false,
-                )
+                ),
+                source = picker.sourceOf(subscriptionVideo),
             )
                 .let { it to false }
         }
         val discovery = picker.fromDiscovery(discoveryIndex)
         val discoveryVideo = discovery.first ?: return null to false
-        return (
-            discoveryVideo to HomeRecommendationCursorState(
+        return HomeRecommendationPickState(
+            video = discoveryVideo,
+            state = HomeRecommendationCursorState(
                 subscriptionIndex = subIndex,
                 discoveryIndex = discovery.second,
                 subscriptionRun = 0,
                 preferDiscovery = false,
-            )
+            ),
+            source = picker.sourceOf(discoveryVideo),
         )
             .let { it to true }
     }
