@@ -56,5 +56,10 @@ object HomeRecommendationShortsAudit {
             discoveryFloorRatio = discoveryFloorRatio,
             sourceBySelectedUrl = sourceBySelectedUrl,
         )
+        if (discoveryCount == 0) {
+            log.warn(
+                "shorts-composition-zero-discovery userId=${userId ?: "unknown"} serviceId=${serviceId ?: -1} intent=${context.intent.name.lowercase()} pageSize=$selectedSize",
+            )
+        }
     }
 }

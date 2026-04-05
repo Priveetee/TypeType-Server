@@ -8,11 +8,19 @@ object HomeRecommendationShortSubscriptionSource {
         subscriptionShortsFeedService: SubscriptionShortsFeedService,
         subscriptionFeedService: SubscriptionFeedService,
     ): List<VideoItem> {
-        val pureSubscriptions = subscriptionShortsFeedService.getFeed(userId = userId, page = 0, limit = 180).videos
+        val pureSubscriptions = subscriptionShortsFeedService.getFeed(
+            userId = userId,
+            page = 0,
+            limit = HomeRecommendationShortsSources.SUBSCRIPTION_LIMIT,
+        ).videos
         if (pureSubscriptions.isNotEmpty()) return pureSubscriptions
-        return subscriptionFeedService.getCachedFeed(userId = userId, page = 0, limit = 160)
+        return subscriptionFeedService.getCachedFeed(
+            userId = userId,
+            page = 0,
+            limit = HomeRecommendationShortsSources.SUBSCRIPTION_LIMIT,
+        )
             ?.videos
             .orEmpty()
-            .filter { it.isShortFormContent || it.duration in 1L..85L }
+            .filter(HomeRecommendationShortsClassifier::isShort)
     }
 }

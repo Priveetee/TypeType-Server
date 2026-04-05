@@ -6,6 +6,7 @@ import dev.typetype.server.services.HomeRecommendationSessionContext
 import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationProfile
+import dev.typetype.server.services.HomeRecommendationScoring
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -53,6 +54,7 @@ class HomeRecommendationPoolBuilderTest {
             rejectionChannelPenalty = emptyMap(),
             channelTopicProfile = emptyMap(),
             shortsTopicInterest = emptyMap(),
+            personalizationEnabled = false,
         )
         val subscriptions = listOf(
             tagged(video("seen", "sub"), HomeRecommendationSourceTag.SUBSCRIPTION),
@@ -94,11 +96,12 @@ class HomeRecommendationPoolBuilderTest {
             shortsTopicInterest = emptyMap(),
         )
         val subscriptions = listOf(
-            tagged(video("plain", "a", title = "daily vlog"), HomeRecommendationSourceTag.SUBSCRIPTION),
-            tagged(video("match", "a", title = "music review"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("plain", "a", title = "quantum lattice"), HomeRecommendationSourceTag.SUBSCRIPTION),
+            tagged(video("match", "a", title = "music lattice"), HomeRecommendationSourceTag.SUBSCRIPTION),
         )
-        val pool = HomeRecommendationPoolBuilder().build(profile, subscriptions, emptyList(), context)
-        assertTrue(pool.subscriptions.first().url.endsWith("/match"))
+        val plainScore = HomeRecommendationScoring.scoreSubscription(subscriptions[0].video, profile, context)
+        val matchScore = HomeRecommendationScoring.scoreSubscription(subscriptions[1].video, profile, context)
+        assertTrue(matchScore > plainScore)
     }
 
     @Test

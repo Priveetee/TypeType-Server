@@ -35,6 +35,7 @@ object HomeRecommendationMixEngine {
             sourceBySelectedUrl[pick.video.url] = pick.source
             state.onSelected(pick.video, pick.state, pick.isNovelty, pool)
         }
+        state.onPageCompleted()
         val nextCursor = HomeRecommendationNextCursor.create(pool, selected, state)
         HomeRecommendationShortsAudit.tryLog(
             mode = mode,

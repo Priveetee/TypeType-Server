@@ -14,6 +14,7 @@ class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: Home
     var subscriptionCount = 0
     var discoveryCount = 0
     var noveltyCount = 0
+    var consecutiveSubscriptionPages = if (cursor.preferDiscovery) 0 else 1
 
     fun onSelected(video: VideoItem, state: HomeRecommendationCursorState, isNovelty: Boolean, pool: HomeRecommendationPool) {
         subIndex = state.subscriptionIndex
@@ -33,6 +34,15 @@ class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: Home
         if (key.isNotBlank()) channelCount[key] = (channelCount[key] ?: 0) + 1
         memory.onSelected(video.title, key)
         memory.onSelectedUrl(video.url)
+    }
+
+    fun onPageCompleted(): HomeRecommendationMixState {
+        if (discoveryCount > 0) {
+            consecutiveSubscriptionPages = 0
+        } else {
+            consecutiveSubscriptionPages += 1
+        }
+        return this
     }
 
     private fun channelKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }

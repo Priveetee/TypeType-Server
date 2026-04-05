@@ -58,12 +58,20 @@ class HomeRecommendationQuotaPlanner(
             HomeRecommendationSessionIntent.QUICK -> dynamicRatio + 0.08
             HomeRecommendationSessionIntent.DEEP -> dynamicRatio - 0.08
         } + personaBias
-        val ratioBounds = if (mode == HomeRecommendationPoolMode.SHORTS) 0.60..0.82 else 0.30..0.80
+        val ratioBounds = if (mode == HomeRecommendationPoolMode.SHORTS) {
+            HomeRecommendationShortsSources.TARGET_DISCOVERY_RATIO..HomeRecommendationShortsSources.TARGET_DISCOVERY_RATIO_MAX
+        } else {
+            0.30..0.80
+        }
         val clampedRatio = intentAdjustedRatio.coerceIn(ratioBounds.start, ratioBounds.endInclusive)
         val targetDiscovery = minOf((limit * clampedRatio).toInt().coerceAtLeast(0), discoverySize)
         val targetSubscription = minOf(limit - targetDiscovery, subscriptionSize)
         val floorRatio = if (mode == HomeRecommendationPoolMode.SHORTS) {
-            if (sessionContext.intent == HomeRecommendationSessionIntent.DEEP) 0.60 else 0.65
+            if (sessionContext.intent == HomeRecommendationSessionIntent.DEEP) {
+                HomeRecommendationShortsSources.FLOOR_DISCOVERY_RATIO_DEEP
+            } else {
+                HomeRecommendationShortsSources.FLOOR_DISCOVERY_RATIO_AUTO
+            }
         } else {
             0.50
         }

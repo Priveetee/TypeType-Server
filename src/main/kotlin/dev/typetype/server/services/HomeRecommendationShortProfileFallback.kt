@@ -12,7 +12,7 @@ object HomeRecommendationShortProfileFallback {
         return profile.watchLaterUrls
             .asSequence()
             .filter { it.contains("youtube.com") || it.contains("youtu.be") }
-            .take(8)
+            .take(HomeRecommendationShortsSources.WATCH_LATER_SEED_LIMIT)
             .map { seed(it) }
             .toList()
     }
@@ -26,7 +26,7 @@ object HomeRecommendationShortProfileFallback {
             uploaderName = "",
             uploaderUrl = "",
             uploaderAvatarUrl = "",
-            duration = 45,
+            duration = HomeRecommendationShortsDefaults.DEFAULT_SHORTS_DURATION,
             viewCount = 0,
             uploadDate = "",
             uploaded = -1L,
