@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 
 class HomeRecommendationSubscriptionQuotaSourceTest {
     @Test
-    fun `mix counts discovery from subscribed channels as subscription quota`() {
+    fun `mix counts by explicit source tag not subscription channel`() {
         val subscribedChannel = "https://yt.com/c/subscribed"
         val pool = HomeRecommendationPool(
             subscriptions = listOf(video("s1", "subscribed").copy(uploaderUrl = subscribedChannel), video("s2", "alt")),
@@ -22,9 +22,16 @@ class HomeRecommendationSubscriptionQuotaSourceTest {
                 video("d3", "disc2"),
             ),
             subscriptionChannels = setOf(subscribedChannel),
+            sourceByUrl = mapOf(
+                "https://yt.com/v/s1" to dev.typetype.server.services.HomeRecommendationSourceTag.SUBSCRIPTION,
+                "https://yt.com/v/s2" to dev.typetype.server.services.HomeRecommendationSourceTag.SUBSCRIPTION,
+                "https://yt.com/v/d1" to dev.typetype.server.services.HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
+                "https://yt.com/v/d2" to dev.typetype.server.services.HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
+                "https://yt.com/v/d3" to dev.typetype.server.services.HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
+            ),
         )
         val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
-        assertTrue(page.subscriptionCount >= 2)
+        assertTrue(page.discoveryCount >= 2)
     }
 
     private fun video(id: String, channel: String): VideoItem = VideoItem(

@@ -33,9 +33,13 @@ object HomeRecommendationMixEngine {
             if (pick == null) break
             selected += pick.video
             sourceBySelectedUrl[pick.video.url] = pick.source
-            state.onSelected(pick.video, pick.state, pick.isNovelty, pool)
+            state.onSelected(
+                video = pick.video,
+                state = pick.state,
+                source = pick.source,
+                isNovelty = pick.isNovelty,
+            )
         }
-        state.onPageCompleted()
         val nextCursor = HomeRecommendationNextCursor.create(pool, selected, state)
         HomeRecommendationShortsAudit.tryLog(
             mode = mode,

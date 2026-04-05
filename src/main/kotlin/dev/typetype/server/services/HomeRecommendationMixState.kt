@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.models.HomeRecommendationPool
 import dev.typetype.server.models.VideoItem
 
 class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: HomeRecommendationSessionContext) {
@@ -14,12 +13,16 @@ class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: Home
     var subscriptionCount = 0
     var discoveryCount = 0
     var noveltyCount = 0
-    var consecutiveSubscriptionPages = if (cursor.preferDiscovery) 0 else 1
 
-    fun onSelected(video: VideoItem, state: HomeRecommendationCursorState, isNovelty: Boolean, pool: HomeRecommendationPool) {
+    fun onSelected(
+        video: VideoItem,
+        state: HomeRecommendationCursorState,
+        source: HomeRecommendationSourceTag,
+        isNovelty: Boolean,
+    ) {
         subIndex = state.subscriptionIndex
         discoveryIndex = state.discoveryIndex
-        if (isSubscriptionVideo(video, pool)) {
+        if (source == HomeRecommendationSourceTag.SUBSCRIPTION) {
             subscriptionCount += 1
             subscriptionRun = (subscriptionRun + 1).coerceAtMost(HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN)
             if (subscriptionRun >= HomeRecommendationQuotaPlanner.MAX_SUBSCRIPTION_RUN) preferDiscovery = true
@@ -36,19 +39,5 @@ class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: Home
         memory.onSelectedUrl(video.url)
     }
 
-    fun onPageCompleted(): HomeRecommendationMixState {
-        if (discoveryCount > 0) {
-            consecutiveSubscriptionPages = 0
-        } else {
-            consecutiveSubscriptionPages += 1
-        }
-        return this
-    }
-
     private fun channelKey(video: VideoItem): String = video.uploaderUrl.ifBlank { video.uploaderName }
-
-    private fun isSubscriptionVideo(video: VideoItem, pool: HomeRecommendationPool): Boolean {
-        if (video in pool.subscriptions) return true
-        return video.uploaderUrl.isNotBlank() && video.uploaderUrl in pool.subscriptionChannels
-    }
 }
