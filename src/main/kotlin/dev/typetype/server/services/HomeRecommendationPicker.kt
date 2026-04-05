@@ -18,6 +18,8 @@ class HomeRecommendationPicker(
     fun fromDiscovery(start: Int, noveltyOnly: Boolean = false): Pair<VideoItem?, Int> =
         pick(pool.discovery, start, noveltyOnly)
 
+    fun fromDiscoveryRelaxed(start: Int): Pair<VideoItem?, Int> = pickDiscoveryRelaxed(start)
+
     fun fromSubscriptions(start: Int): Pair<VideoItem?, Int> = pick(pool.subscriptions, start, false)
 
     fun sourceOf(video: VideoItem): HomeRecommendationSourceTag =
@@ -43,6 +45,21 @@ class HomeRecommendationPicker(
             if (semanticKey.isNotBlank() && semanticKey in recentSemanticKeys) continue
             val pairs = HomeRecommendationTopicPairs.fromTitle(candidate.title)
             if (pairs.isNotEmpty() && pairs.any { it in recentTopicPairs }) continue
+            return candidate to index
+        }
+        return null to index
+    }
+
+    private fun pickDiscoveryRelaxed(start: Int): Pair<VideoItem?, Int> {
+        var index = start
+        while (index < pool.discovery.size) {
+            val candidate = pool.discovery[index]
+            index += 1
+            val channel = channelKey(candidate)
+            if (channel.isNotBlank()) {
+                val count = channelCount[channel] ?: 0
+                if (count >= MAX_PER_CHANNEL_PER_PAGE) continue
+            }
             return candidate to index
         }
         return null to index

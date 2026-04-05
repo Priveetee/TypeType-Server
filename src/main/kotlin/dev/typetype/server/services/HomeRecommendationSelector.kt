@@ -30,7 +30,7 @@ object HomeRecommendationSelector {
         subIndex: Int,
         discoveryIndex: Int,
     ): Pair<HomeRecommendationPickState?, Boolean> {
-        val discovery = picker.fromDiscovery(discoveryIndex, forceNovelty)
+        val discovery = pickDiscovery(picker, discoveryIndex, forceNovelty)
         val discoveryVideo = discovery.first
         if (discoveryVideo != null) {
             return HomeRecommendationPickState(
@@ -81,7 +81,7 @@ object HomeRecommendationSelector {
             )
                 .let { it to false }
         }
-        val discovery = picker.fromDiscovery(discoveryIndex)
+        val discovery = pickDiscovery(picker, discoveryIndex, forceNovelty = false)
         val discoveryVideo = discovery.first ?: return null to false
         return HomeRecommendationPickState(
             video = discoveryVideo,
@@ -94,5 +94,15 @@ object HomeRecommendationSelector {
             source = picker.sourceOf(discoveryVideo),
         )
             .let { it to true }
+    }
+
+    private fun pickDiscovery(
+        picker: HomeRecommendationPicker,
+        discoveryIndex: Int,
+        forceNovelty: Boolean,
+    ): Pair<dev.typetype.server.models.VideoItem?, Int> {
+        val strict = picker.fromDiscovery(discoveryIndex, forceNovelty)
+        if (strict.first != null) return strict
+        return picker.fromDiscoveryRelaxed(discoveryIndex)
     }
 }

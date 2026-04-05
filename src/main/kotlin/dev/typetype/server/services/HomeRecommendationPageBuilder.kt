@@ -37,7 +37,7 @@ object HomeRecommendationPageBuilder {
                 page = page,
                 cursor = args.cursor,
             )
-            if (refresh.pool == pool) {
+            if (refresh.pool == pool && refresh.cursorOverride == null) {
                 page
             } else {
                 HomeRecommendationMixer.mix(

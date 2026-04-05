@@ -19,7 +19,12 @@ object HomeRecommendationShortsRefresher {
         if (recovered.isEmpty()) return HomeRecommendationShortsRefreshResult(pool, null)
         val mergedDiscovery = (pool.discovery + recovered).distinctBy { it.url }
         val nextCursor = rewindCursor(cursor)
-        return HomeRecommendationShortsRefreshResult(pool.copy(discovery = mergedDiscovery), nextCursor)
+        val mergedSourceByUrl = pool.sourceByUrl.toMutableMap()
+        recovered.forEach { mergedSourceByUrl[it.url] = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION }
+        return HomeRecommendationShortsRefreshResult(
+            pool = pool.copy(discovery = mergedDiscovery, sourceByUrl = mergedSourceByUrl),
+            cursorOverride = nextCursor,
+        )
     }
 
     private fun rewindCursor(cursor: HomeRecommendationCursor): HomeRecommendationCursor {
