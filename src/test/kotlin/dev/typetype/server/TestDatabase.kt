@@ -35,12 +35,20 @@ const val TEST_USER_ID = "test-user-id"
 
 object TestDatabase {
 
+    @Volatile
+    private var initialized = false
+
     private val container: PostgreSQLContainer<*> by lazy {
         PostgreSQLContainer("postgres:16-alpine").apply { start() }
     }
 
     fun setup() {
-        DatabaseFactory.init(container.jdbcUrl, container.username, container.password)
+        if (initialized) return
+        synchronized(this) {
+            if (initialized) return
+            DatabaseFactory.init(container.jdbcUrl, container.username, container.password)
+            initialized = true
+        }
     }
 
     fun truncateAll() = transaction {
