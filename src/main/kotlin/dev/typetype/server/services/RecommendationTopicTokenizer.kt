@@ -7,8 +7,9 @@ object RecommendationTopicTokenizer {
     )
 
     fun tokenize(text: String): Set<String> = text
-        .lowercase()
-        .split(Regex("[^a-z0-9]+"))
+        .split(Regex("[^\\p{L}\\p{N}]+"))
+        .asSequence()
+        .map { HomeRecommendationTokenNormalizer.normalize(it) }
         .filter { token -> token.length >= 3 && token !in stopWords }
         .toSet()
 }
