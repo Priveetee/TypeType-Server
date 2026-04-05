@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.HomeRecommendationsDebug
 import dev.typetype.server.models.HomeRecommendationsResponse
 
 object HomeRecommendationPageBuilder {
@@ -27,6 +28,9 @@ object HomeRecommendationPageBuilder {
                 sourceWeights = pool.sourceWeights,
                 pageIndex = HomeRecommendationCursorPageIndex.from(args.cursor, args.limit),
             ),
+            mode = mode,
+            userId = args.userId,
+            serviceId = args.serviceId,
         )
         if (personalizationEnabled) {
             feedHistoryService.recordShown(args.userId, page.items.map { it.url })
@@ -35,6 +39,25 @@ object HomeRecommendationPageBuilder {
             items = page.items,
             nextCursor = page.nextCursor,
             hasMore = page.nextCursor != null,
+            debug = if (args.debug) {
+                val itemSources = page.items.associate { item ->
+                    val source = page.sourceByUrl[item.url] ?: HomeRecommendationSourceTag.DISCOVERY_EXPLORATION
+                    item.url to source.apiLabel()
+                }
+                val sourceBreakdown = HomeRecommendationSourceTag.entries.associate { tag ->
+                    tag.apiLabel() to itemSources.values.count { it == tag.apiLabel() }
+                }
+                val total = page.items.size.coerceAtLeast(1)
+                HomeRecommendationsDebug(
+                    itemSources = itemSources,
+                    sourceBreakdown = sourceBreakdown,
+                    discoveryRatio = page.discoveryCount.toDouble() / total.toDouble(),
+                    targetDiscoveryRatio = page.targetDiscoveryRatio,
+                    discoveryFloorRatio = page.discoveryFloorRatio,
+                )
+            } else {
+                null
+            },
         )
     }
 }

@@ -6,4 +6,5 @@ data class HomeRecommendationApiArgs(
     val limit: Int,
     val cursor: HomeRecommendationCursor,
     val context: HomeRecommendationContext,
+    val debug: Boolean = false,
 )

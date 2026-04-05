@@ -26,6 +26,7 @@ fun Route.homeRecommendationShortsRoutes(recommendationService: HomeRecommendati
             }
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_RECOMMENDATION_SHORTS_LIMIT)
                 ?: 20
+            val debug = call.request.queryParameters["debug"]?.toBooleanStrictOrNull() ?: false
             val sessionContext = HomeRecommendationSessionContext(
                 intent = HomeRecommendationSessionIntent.parse(call.request.queryParameters["intent"]),
                 deviceClass = HomeRecommendationDeviceClass.parse(call.request.headers["User-Agent"]),
@@ -43,6 +44,7 @@ fun Route.homeRecommendationShortsRoutes(recommendationService: HomeRecommendati
                     limit = limit,
                     cursor = cursor,
                     context = HomeRecommendationContext(serviceId, sessionContext),
+                    debug = debug,
                 ),
             )
         }

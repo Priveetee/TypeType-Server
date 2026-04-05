@@ -7,20 +7,31 @@ class HomeRecommendationService(
     private val feedHistoryService: RecommendationFeedHistoryService,
     private val privacyService: RecommendationPrivacyService,
 ) {
+    private fun args(
+        userId: String,
+        serviceId: Int,
+        limit: Int,
+        cursor: HomeRecommendationCursor,
+        context: HomeRecommendationContext,
+        debug: Boolean,
+    ): HomeRecommendationApiArgs = HomeRecommendationApiArgs(
+        userId = userId,
+        serviceId = serviceId,
+        limit = limit,
+        cursor = cursor,
+        context = context,
+        debug = debug,
+    )
+
     suspend fun getHome(
         userId: String,
         serviceId: Int,
         limit: Int,
         cursor: HomeRecommendationCursor,
         context: HomeRecommendationContext,
+        debug: Boolean = false,
     ): HomeRecommendationsResponse = HomeRecommendationPageBuilder.build(
-        args = HomeRecommendationApiArgs(
-            userId = userId,
-            serviceId = serviceId,
-            limit = limit,
-            cursor = cursor,
-            context = context,
-        ),
+        args = args(userId, serviceId, limit, cursor, context, debug),
         mode = HomeRecommendationPoolMode.FULL,
         poolResolver = poolResolver,
         feedHistoryService = feedHistoryService,
@@ -33,14 +44,9 @@ class HomeRecommendationService(
         limit: Int,
         cursor: HomeRecommendationCursor,
         context: HomeRecommendationContext,
+        debug: Boolean = false,
     ): HomeRecommendationsResponse = HomeRecommendationPageBuilder.build(
-        args = HomeRecommendationApiArgs(
-            userId = userId,
-            serviceId = serviceId,
-            limit = limit,
-            cursor = cursor,
-            context = context,
-        ),
+        args = args(userId, serviceId, limit, cursor, context, debug),
         mode = HomeRecommendationPoolMode.SHORTS,
         poolResolver = poolResolver,
         feedHistoryService = feedHistoryService,
