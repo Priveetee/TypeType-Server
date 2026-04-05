@@ -75,6 +75,7 @@ A huge thanks to the projects that made this possible. TypeType-Server is a wrap
 - [InfinityLoop1308/PipePipeExtractor](https://github.com/InfinityLoop1308/PipePipeExtractor) — the extraction engine at the core of this server
 - [InfinityLoop1308/PipePipeClient](https://github.com/InfinityLoop1308/PipePipeClient) — reference for consuming PipePipeExtractor in Java
 - [InfinityLoop1308/PipePipe](https://github.com/InfinityLoop1308/PipePipe) — reference for multi-service support
+- [A-EDev/Flow](https://github.com/A-EDev/Flow) — inspiration for discovery-first recommendation direction and iteration patterns
 - [TeamPiped/Piped](https://github.com/TeamPiped/Piped) — API patterns and architecture reference
 - [deniscerri/ytdlnis](https://github.com/deniscerri/ytdlnis) — groundbreaking work on YouTube PO token integration that directly shaped the design of TypeType-Token
 
