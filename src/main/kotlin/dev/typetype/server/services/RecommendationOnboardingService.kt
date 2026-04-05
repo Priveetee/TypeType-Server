@@ -42,6 +42,19 @@ class RecommendationOnboardingService(
         return state(userId)
     }
 
+    suspend fun skip(userId: String): RecommendationOnboardingStateResponse {
+        val now = System.currentTimeMillis()
+        stateStore.markCompleted(userId = userId, at = now)
+        return state(userId)
+    }
+
+    suspend fun reapply(userId: String): RecommendationOnboardingStateResponse {
+        val saved = state(userId)
+        require(saved.completedAt != null)
+        seedService.apply(userId = userId, topics = saved.selectedTopics, channels = saved.selectedChannels)
+        return saved
+    }
+
     private fun normalizeTopics(raw: List<String>): List<String> = raw
         .map { RecommendationTopicTokenizer.tokenize(it).firstOrNull().orEmpty() }
         .filter { it.isNotBlank() }

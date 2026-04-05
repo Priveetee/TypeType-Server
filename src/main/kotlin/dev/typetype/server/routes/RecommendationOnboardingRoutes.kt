@@ -38,4 +38,17 @@ fun Route.recommendationOnboardingRoutes(onboardingService: RecommendationOnboar
             call.respond(completed)
         }
     }
+    post("/recommendations/onboarding/skip") {
+        call.withJwtAuth(authService) { userId ->
+            call.respond(onboardingService.skip(userId))
+        }
+    }
+    post("/recommendations/onboarding/reapply") {
+        call.withJwtAuth(authService) { userId ->
+            val reapplied = runCatching { onboardingService.reapply(userId) }.getOrElse {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Complete onboarding before reapply"))
+            }
+            call.respond(reapplied)
+        }
+    }
 }
