@@ -137,7 +137,7 @@ class HomeRecommendationPoolBuilderTest {
     }
 
     @Test
-    fun `pool builder increases subscription weight when subscription engagement is stronger`() {
+    fun `pool builder keeps neutral home source weights`() {
         val profile = HomeRecommendationProfile(
             seenUrls = emptySet(),
             blockedVideos = emptySet(),
@@ -161,9 +161,7 @@ class HomeRecommendationPoolBuilderTest {
             shortsTopicInterest = emptyMap(),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList(), context)
-        val subWeight = pool.sourceWeights[HomeRecommendationSourceTag.SUBSCRIPTION] ?: 1.0
-        val discWeight = pool.sourceWeights[HomeRecommendationSourceTag.DISCOVERY_TRENDING] ?: 1.0
-        assertTrue(subWeight > discWeight)
+        assertTrue(pool.sourceWeights.isEmpty())
     }
 
     private fun tagged(video: VideoItem, source: HomeRecommendationSourceTag): HomeRecommendationTaggedVideo =
