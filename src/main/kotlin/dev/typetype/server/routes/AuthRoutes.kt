@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
 data class RegisterRequest(val email: String, val password: String, val name: String)
 
 @Serializable
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequest(val identifier: String? = null, val email: String? = null, val password: String)
 
 @Serializable
 data class RefreshRequest(val token: String)
@@ -52,7 +52,8 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
 
     post("/auth/login") {
         val req = call.receive<LoginRequest>()
-        val token = authService.login(req.email, req.password)
+        val identifier = req.identifier?.trim().orEmpty().ifBlank { req.email?.trim().orEmpty() }
+        val token = authService.login(identifier, req.password)
         if (token == null) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
             return@post

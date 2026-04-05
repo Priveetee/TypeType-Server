@@ -5,6 +5,7 @@ import dev.typetype.server.services.AuthService
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -57,6 +58,21 @@ class AuthServiceCoreTest {
         val refreshed = service.refreshToken(registered)
         assertNotNull(refreshed)
         assertEquals(expectedUser, refreshed?.let { service.verify(it) })
+    }
+
+    @Test
+    fun `login supports public username identifier`() {
+        val service = AuthService("test-secret")
+        val token = service.register("username@test.local", "secret-1", "User")
+        val userId = service.verify(token) ?: error("missing user id")
+        transaction {
+            UsersTable.update({ UsersTable.id eq userId }) {
+                it[publicUsername] = "InfinityLoop1308"
+            }
+        }
+        val byUsername = service.login("InfinityLoop1308", "secret-1")
+        assertNotNull(byUsername)
+        assertEquals(userId, byUsername?.let { service.verify(it) })
     }
 
     @Test
