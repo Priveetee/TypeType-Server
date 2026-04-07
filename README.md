@@ -51,10 +51,13 @@ The server starts on port `8080`. Logs go to stdout.
 
 Container tags are published to GHCR with:
 
-- `latest` on default branch builds
+- stable image `${{ github.repository }}` on `main` and Git tags `v*`
+- beta image `${{ github.repository }}-beta` on `dev`
 - `sha-<short-sha>` on every build
-- branch tags (for example `main`)
-- release tags when pushing Git tags like `v1.2.3` (`1.2.3` and `1.2`)
+- branch tags (`main` on stable image, `dev` on beta image)
+- `latest` on default branch (stable image) and on `dev` (beta image)
+- `beta` on `dev` (beta image)
+- release tags when pushing Git tags like `v1.2.3` (`1.2.3` and `1.2`) on stable image
 
 ### Configuration
 

@@ -29,7 +29,10 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.PostgreSQLContainer
+import java.sql.DriverManager
+import java.util.UUID
 
 const val TEST_USER_ID = "test-user-id"
 
@@ -37,6 +40,8 @@ object TestDatabase {
 
     @Volatile
     private var initialized = false
+
+    private val schemaName: String = "tt_test_${UUID.randomUUID().toString().replace("-", "")}".lowercase()
 
     private val container: PostgreSQLContainer<*> by lazy {
         PostgreSQLContainer("postgres:16-alpine").apply { start() }
@@ -46,10 +51,39 @@ object TestDatabase {
         if (initialized) return
         synchronized(this) {
             if (initialized) return
-            DatabaseFactory.init(container.jdbcUrl, container.username, container.password)
+            val (baseUrl, user, password) = runCatching {
+                val c = container
+                Triple(c.jdbcUrl, c.username, c.password)
+            }.getOrElse {
+                if (it is ContainerLaunchException) {
+                    Triple(
+                        firstNonBlank(System.getenv("TEST_DATABASE_URL"), "jdbc:postgresql://localhost:5432/typetype"),
+                        firstNonBlank(System.getenv("TEST_DATABASE_USER"), "typetype"),
+                        firstNonBlank(System.getenv("TEST_DATABASE_PASSWORD"), "typetype"),
+                    )
+                } else throw it
+            }
+            ensureSchemaExists(baseUrl = baseUrl, user = user, password = password, schema = schemaName)
+            DatabaseFactory.init(withCurrentSchema(baseUrl = baseUrl, schema = schemaName), user, password)
             initialized = true
         }
     }
+
+    private fun ensureSchemaExists(baseUrl: String, user: String, password: String, schema: String): Unit {
+        DriverManager.getConnection(baseUrl, user, password).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("CREATE SCHEMA IF NOT EXISTS \"$schema\"")
+            }
+        }
+    }
+
+    private fun withCurrentSchema(baseUrl: String, schema: String): String {
+        val searchPath = "$schema,public"
+        return if ("?" in baseUrl) "$baseUrl&currentSchema=$searchPath" else "$baseUrl?currentSchema=$searchPath"
+    }
+
+    private fun firstNonBlank(value: String?, fallback: String): String =
+        value?.takeIf { it.isNotBlank() } ?: fallback
 
     fun truncateAll() = transaction {
         PlaylistVideosTable.deleteAll()
