@@ -28,10 +28,10 @@ class StreamExtractionErrorMapperTest {
     }
 
     @Test
-    fun `maps youtube timeout message to member-only fallback for youtube watch urls`() {
+    fun `does not rewrite youtube timeout message to members-only fallback`() {
         val timeout = IllegalStateException("Error occurs when fetching the page. Try increase the loading timeout in Settings.")
         val mapped = StreamExtractionErrorMapper.map<Any>(timeout, sourceUrl = "https://www.youtube.com/watch?v=test")
-        assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), mapped)
+        assertEquals(ExtractionResult.Failure("Error occurs when fetching the page. Try increase the loading timeout in Settings."), mapped)
     }
 
     @Test

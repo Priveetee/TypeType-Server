@@ -29,8 +29,9 @@ class SettingsPrimaryKeyMigrationTest {
                 SELECT a.attname
                 FROM pg_index i
                 JOIN pg_class t ON t.oid = i.indrelid
+                JOIN pg_namespace n ON n.oid = t.relnamespace
                 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(i.indkey)
-                WHERE t.relname = 'settings' AND i.indisprimary
+                WHERE t.relname = 'settings' AND n.nspname = current_schema() AND i.indisprimary
                 ORDER BY array_position(i.indkey, a.attnum)
             """.trimIndent()
             exec(sql) { rs ->

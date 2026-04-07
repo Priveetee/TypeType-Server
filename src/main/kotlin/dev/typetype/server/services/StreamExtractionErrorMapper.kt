@@ -10,14 +10,11 @@ import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentExcepti
 
 internal object StreamExtractionErrorMapper {
     const val MEMBERS_ONLY_FALLBACK = "This video is only available for members"
-    private const val EXTRACTOR_TIMEOUT_MESSAGE = "Error occurs when fetching the page. Try increase the loading timeout in Settings."
 
     fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> = when {
         error is NeedLoginException ||
             error is PaidContentException ||
             error is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(error.message?.takeIf { it.isNotBlank() } ?: MEMBERS_ONLY_FALLBACK)
-        sourceUrl?.contains("youtube.com/watch", ignoreCase = true) == true &&
-            error.message == EXTRACTOR_TIMEOUT_MESSAGE -> ExtractionResult.BadRequest(MEMBERS_ONLY_FALLBACK)
         else -> mapByType(error, fallback)
     }
 

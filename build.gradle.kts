@@ -29,7 +29,7 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.18")
-    implementation("com.github.TeamNewPipe:extractor:v4.8.1")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:cc497b3becb980013d6503b349ff1a5facef6ecb")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.lettuce:lettuce-core:6.7.1.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.1.1")
