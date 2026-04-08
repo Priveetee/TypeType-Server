@@ -11,6 +11,7 @@ data class CommentItem(
     val authorAvatarUrl: String,
     val likeCount: Long,
     val textualLikeCount: String,
+    val publishedAt: Long,
     val publishedTime: String,
     val isHeartedByUploader: Boolean,
     val isPinned: Boolean,

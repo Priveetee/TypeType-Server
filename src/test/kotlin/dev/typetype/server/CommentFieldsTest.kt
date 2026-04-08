@@ -32,14 +32,15 @@ class CommentFieldsTest {
     }
 
     @Test
-    fun `GET comments serializes commentsDisabled textualLikeCount uploaderVerified`() = withApp {
-        val item = testCommentItem(textualLikeCount = "3.3K", uploaderVerified = true)
+    fun `GET comments serializes commentsDisabled textualLikeCount uploaderVerified publishedAt`() = withApp {
+        val item = testCommentItem(textualLikeCount = "3.3K", uploaderVerified = true, publishedAt = 1_700_000_000_123)
         coEvery { commentService.getComments(any(), any()) } returns
             ExtractionResult.Success(CommentsPageResponse(listOf(item), null, commentsDisabled = true))
         val body = client.get("/comments?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"commentsDisabled\":true"))
         assertTrue(body.contains("\"textualLikeCount\":\"3.3K\""))
         assertTrue(body.contains("\"uploaderVerified\":true"))
+        assertTrue(body.contains("\"publishedAt\":1700000000123"))
     }
 
     @Test
