@@ -7,6 +7,7 @@ fun testCommentItem(
     repliesPage: String? = null,
     textualLikeCount: String = "",
     uploaderVerified: Boolean = false,
+    publishedAt: Long = 1_700_000_000_000,
 ): CommentItem = CommentItem(
     id = "comment-id",
     text = "Test comment",
@@ -15,6 +16,7 @@ fun testCommentItem(
     authorAvatarUrl = "",
     likeCount = 10L,
     textualLikeCount = textualLikeCount,
+    publishedAt = publishedAt,
     publishedTime = "2 days ago",
     isHeartedByUploader = false,
     isPinned = false,
