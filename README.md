@@ -33,6 +33,27 @@ cp .env.example .env
 docker compose up -d postgres dragonfly
 ```
 
+### Start full dev mirror stack (frontend + server + downloader)
+
+```bash
+docker compose -f docker-compose.dev-mirror.yml up -d
+./scripts/bootstrap-garage.sh
+```
+
+Stack endpoints:
+
+- Frontend: `http://localhost:28082`
+- API server: `http://localhost:28080`
+- Downloader: `http://localhost:28093`
+- Token service: `http://localhost:28081`
+
+Pull latest beta images before restart:
+
+```bash
+./scripts/pull-dev-images.sh
+docker compose -f docker-compose.dev-mirror.yml up -d --force-recreate
+```
+
 ### Build
 
 ```bash
@@ -70,6 +91,7 @@ All configuration is via environment variables. Defaults in `.env.example` work 
 | `DATABASE_USER` | `typetype` | PostgreSQL user |
 | `DATABASE_PASSWORD` | `typetype` | PostgreSQL password |
 | `DRAGONFLY_URL` | `redis://localhost:6379` | Dragonfly/Redis URL |
+| `DOWNLOADER_SERVICE_URL` | `http://typetype-downloader:18093` | Downloader backend base URL used by `/downloader/*` gateway |
 
 ## Acknowledgments
 
