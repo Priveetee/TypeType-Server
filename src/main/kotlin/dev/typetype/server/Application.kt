@@ -8,6 +8,7 @@ import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
+import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.favoritesRoutes
 import dev.typetype.server.routes.historyRoutes
 import dev.typetype.server.routes.homeRecommendationRoutes
@@ -37,6 +38,7 @@ import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.DownloaderGatewayService
 import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
@@ -73,8 +75,10 @@ fun Application.module() {
 
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
+    val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
     val cache = DragonflyService(cacheUrl)
     val svc = ServiceRegistry(cache, subtitleServiceUrl)
+    val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
 
     configurePlugins(authService)
@@ -101,6 +105,7 @@ fun Application.module() {
         rateLimit(PROXY_STORYBOARD_ZONE) {
             storyboardProxyRoutes(svc.proxyService)
         }
+        downloaderGatewayRoutes(downloaderGatewayService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
