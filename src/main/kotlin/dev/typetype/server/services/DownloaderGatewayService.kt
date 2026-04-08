@@ -14,7 +14,7 @@ data class DownloaderGatewayResponse(
 
 class DownloaderGatewayService(
     private val baseUrl: String,
-    private val client: OkHttpClient = OkHttpClient(),
+    private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build(),
 ) {
     fun forward(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): DownloaderGatewayResponse {
         val url = buildUrl(path, query)
