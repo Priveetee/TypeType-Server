@@ -39,6 +39,22 @@ class DownloaderGatewayService(
         }
     }
 
+    fun fetchAbsolute(method: String, url: String, headers: Map<String, String>): DownloaderGatewayResponse {
+        val requestMethod = if (method == "HEAD") "HEAD" else "GET"
+        val requestBuilder = Request.Builder().url(url).method(requestMethod, null)
+        headers["Range"]?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
+
+        client.newCall(requestBuilder.build()).execute().use { response ->
+            val responseHeaders = response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
+            return DownloaderGatewayResponse(
+                status = response.code,
+                contentType = response.header("Content-Type"),
+                headers = responseHeaders,
+                body = response.body?.bytes() ?: ByteArray(0),
+            )
+        }
+    }
+
     private fun buildUrl(path: String, query: String?): String {
         val cleanPath = if (path.startsWith('/')) path else "/$path"
         val withPath = "${baseUrl.trimEnd('/')}$cleanPath"
