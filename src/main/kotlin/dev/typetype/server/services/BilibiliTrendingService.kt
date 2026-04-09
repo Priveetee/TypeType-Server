@@ -38,6 +38,7 @@ class BilibiliTrendingService {
                     val mid = owner?.get("mid")?.jsonPrimitive?.longOrNull ?: 0L
                     val pic = item["pic"]?.jsonPrimitive?.content ?: ""
                     val pubdate = item["pubdate"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val uploaded = if (pubdate > 0L) pubdate * 1000L else -1L
                     val uri = item["uri"]?.jsonPrimitive?.content ?: ""
                     val bvid = item["bvid"]?.jsonPrimitive?.content ?: ""
                     val url = if (uri.isNotBlank()) "$uri?p=1" else "https://www.bilibili.com/video/$bvid?p=1"
@@ -52,11 +53,12 @@ class BilibiliTrendingService {
                         duration = item["duration"]?.jsonPrimitive?.longOrNull ?: 0L,
                         viewCount = item["stat"]?.jsonObject?.get("view")?.jsonPrimitive?.long ?: 0L,
                         uploadDate = if (pubdate > 0L) formatDate(pubdate) else "",
-                        uploaded = if (pubdate > 0L) pubdate * 1000L else -1L,
+                        uploaded = uploaded,
                         streamType = "video",
                         isShortFormContent = false,
                         uploaderVerified = false,
                         shortDescription = null,
+                        publishedAt = PublishedAtMapper.fromUploaded(uploaded),
                     )
                 }
             }.fold(

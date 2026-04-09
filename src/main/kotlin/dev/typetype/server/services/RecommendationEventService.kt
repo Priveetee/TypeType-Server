@@ -58,6 +58,7 @@ class RecommendationEventService(
                 watchDurationMs = watchDurationMs,
                 contextKey = contextKey,
                 occurredAt = now,
+                publishedAt = now,
             )
         }
         val id = UUID.randomUUID().toString()
@@ -77,7 +78,7 @@ class RecommendationEventService(
             }
         }
         interestService.update(userId, eventType, uploaderUrl, title, watchRatio)
-        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, watchDurationMs, contextKey, now)
+        return RecommendationEventItem(id, eventType, videoUrl, uploaderUrl, title, watchRatio, watchDurationMs, contextKey, now, now)
     }
 
     private fun ResultRow.toItem() = RecommendationEventItem(
@@ -90,5 +91,6 @@ class RecommendationEventService(
         watchDurationMs = this[RecommendationEventsTable.watchDurationMs],
         contextKey = this[RecommendationEventsTable.contextKey],
         occurredAt = this[RecommendationEventsTable.occurredAt],
+        publishedAt = this[RecommendationEventsTable.occurredAt],
     )
 }

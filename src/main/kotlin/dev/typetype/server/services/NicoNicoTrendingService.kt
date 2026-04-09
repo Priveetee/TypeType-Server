@@ -71,6 +71,7 @@ class NicoNicoTrendingService(private val httpClient: OkHttpClient) {
                         isShortFormContent = false,
                         uploaderVerified = false,
                         shortDescription = item["shortDescription"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                        publishedAt = PublishedAtMapper.fromUploaded(uploaded),
                     )
                 }
             }.fold(

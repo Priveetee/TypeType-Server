@@ -19,4 +19,5 @@ data class VideoItem(
     val isShortFormContent: Boolean,
     val uploaderVerified: Boolean,
     val shortDescription: String?,
+    val publishedAt: Long? = null,
 )

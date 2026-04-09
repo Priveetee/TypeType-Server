@@ -34,23 +34,27 @@ internal fun List<SponsorBlockSegmentItem>.toSponsorBlockSegments(): Array<Spons
         }.getOrNull()
     }.toTypedArray()
 
-internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem = VideoItem(
-    id = url ?: "",
-    title = name ?: "",
-    url = url ?: "",
-    thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
-    uploaderName = uploaderName ?: "",
-    uploaderUrl = uploaderUrl ?: "",
-    uploaderAvatarUrl = (uploaderAvatarUrl?.takeIf { it.isNotEmpty() } ?: fallbackAvatarUrl).replace("httpss://", "https://"),
-    duration = duration,
-    viewCount = viewCount,
-    uploadDate = textualUploadDate?.extractJapaneseDate() ?: "",
-    uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L,
-    streamType = streamType?.name?.lowercase() ?: "video",
-    isShortFormContent = isShortFormContent,
-    uploaderVerified = isUploaderVerified,
-    shortDescription = shortDescription?.takeIf { it.isNotBlank() },
-)
+internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem {
+    val uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L
+    return VideoItem(
+        id = url ?: "",
+        title = name ?: "",
+        url = url ?: "",
+        thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
+        uploaderName = uploaderName ?: "",
+        uploaderUrl = uploaderUrl ?: "",
+        uploaderAvatarUrl = (uploaderAvatarUrl?.takeIf { it.isNotEmpty() } ?: fallbackAvatarUrl).replace("httpss://", "https://"),
+        duration = duration,
+        viewCount = viewCount,
+        uploadDate = textualUploadDate?.extractJapaneseDate() ?: "",
+        uploaded = uploaded,
+        streamType = streamType?.name?.lowercase() ?: "video",
+        isShortFormContent = isShortFormContent,
+        uploaderVerified = isUploaderVerified,
+        shortDescription = shortDescription?.takeIf { it.isNotBlank() },
+        publishedAt = PublishedAtMapper.fromUploaded(uploaded),
+    )
+}
 
 internal fun VideoItem.toShortCanonicalUrl(): VideoItem {
     val id = extractYouTubeVideoId(url) ?: return this

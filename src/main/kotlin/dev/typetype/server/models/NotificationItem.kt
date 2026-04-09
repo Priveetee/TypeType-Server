@@ -7,6 +7,7 @@ data class NotificationItem(
     val type: String,
     val title: String,
     val createdAt: Long,
+    val publishedAt: Long = createdAt,
     val channelUrl: String,
     val channelName: String,
     val channelAvatarUrl: String,
