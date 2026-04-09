@@ -39,9 +39,8 @@ class DownloaderGatewayService(
         }
     }
 
-    fun fetchAbsolute(method: String, url: String, headers: Map<String, String>): DownloaderGatewayResponse {
-        val requestMethod = if (method == "HEAD") "HEAD" else "GET"
-        val requestBuilder = Request.Builder().url(url).method(requestMethod, null)
+    fun fetchAbsolute(url: String, headers: Map<String, String>): DownloaderGatewayResponse {
+        val requestBuilder = Request.Builder().url(url).method("GET", null)
         headers["Range"]?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
 
         client.newCall(requestBuilder.build()).execute().use { response ->
