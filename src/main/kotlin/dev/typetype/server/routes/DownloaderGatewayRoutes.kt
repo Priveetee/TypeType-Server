@@ -62,7 +62,7 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
         if (location == null) {
             response
         } else {
-            runCatching { gateway.fetchAbsolute(requestMethod, location, requestHeaders) }
+            runCatching { gateway.fetchAbsolute(location, requestHeaders) }
                 .getOrElse {
                     call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
                     return
