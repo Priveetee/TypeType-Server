@@ -58,6 +58,9 @@ fun Application.configurePlugins(authService: AuthService) {
     install(Compression) {
         gzip {
             excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
+            excludeContentType(ContentType.Video.Any)
+            excludeContentType(ContentType.Audio.Any)
+            excludeContentType(ContentType.Application.OctetStream)
         }
     }
     val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
