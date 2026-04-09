@@ -60,7 +60,7 @@ class PipePipeCommentService : CommentService {
         authorAvatarUrl = (uploaderAvatarUrl ?: "").normalizeHttpSchema(),
         likeCount = likeCount.toLong(),
         textualLikeCount = textualLikeCount ?: "",
-        publishedAt = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L,
+        publishedAt = PublishedAtMapper.fromUploaded(uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L),
         publishedTime = textualUploadDate ?: "",
         isHeartedByUploader = isHeartedByUploader,
         isPinned = isPinned,

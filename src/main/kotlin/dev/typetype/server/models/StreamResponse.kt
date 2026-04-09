@@ -37,4 +37,5 @@ data class StreamResponse(
     val previewFrames: List<PreviewFrameItem>,
     val sponsorBlockSegments: List<SponsorBlockSegmentItem>,
     val relatedStreams: List<VideoItem>,
+    val publishedAt: Long? = null,
 )

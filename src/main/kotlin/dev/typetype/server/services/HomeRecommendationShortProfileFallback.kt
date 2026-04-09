@@ -34,6 +34,7 @@ object HomeRecommendationShortProfileFallback {
             isShortFormContent = true,
             uploaderVerified = false,
             shortDescription = null,
+            publishedAt = null,
         ),
         source = HomeRecommendationSourceTag.SUBSCRIPTION,
     )

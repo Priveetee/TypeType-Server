@@ -89,6 +89,7 @@ class NotificationsService(
         type = "subscription_new_video",
         title = "$uploaderName uploaded a new video",
         createdAt = uploaded,
+        publishedAt = uploaded,
         channelUrl = uploaderUrl,
         channelName = uploaderName,
         channelAvatarUrl = uploaderAvatarUrl,
