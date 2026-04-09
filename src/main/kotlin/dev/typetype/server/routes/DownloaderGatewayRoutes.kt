@@ -14,6 +14,7 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.head
 import io.ktor.server.routing.options
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
@@ -22,6 +23,7 @@ import io.ktor.server.routing.route
 
 fun Route.downloaderGatewayRoutes(gateway: DownloaderGatewayService) {
     route("/downloader") {
+        head { forwardDownloaderRequest(call, gateway) }
         get { forwardDownloaderRequest(call, gateway) }
         post { forwardDownloaderRequest(call, gateway) }
         put { forwardDownloaderRequest(call, gateway) }
@@ -30,6 +32,7 @@ fun Route.downloaderGatewayRoutes(gateway: DownloaderGatewayService) {
         options { forwardDownloaderRequest(call, gateway) }
     }
     route("/downloader/{...}") {
+        head { forwardDownloaderRequest(call, gateway) }
         get { forwardDownloaderRequest(call, gateway) }
         post { forwardDownloaderRequest(call, gateway) }
         put { forwardDownloaderRequest(call, gateway) }
@@ -40,7 +43,8 @@ fun Route.downloaderGatewayRoutes(gateway: DownloaderGatewayService) {
 }
 
 private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: DownloaderGatewayService) {
-    val method = call.request.httpMethod.value
+    val requestMethod = call.request.httpMethod.value
+    val method = if (requestMethod == "HEAD") "GET" else requestMethod
     val path = call.request.path().removePrefix("/downloader").ifBlank { "/" }
     val query = call.request.queryString().takeIf { it.isNotBlank() }
     val requestHeaders = call.request.headers.names().associateWith { call.request.headers[it].orEmpty() }
