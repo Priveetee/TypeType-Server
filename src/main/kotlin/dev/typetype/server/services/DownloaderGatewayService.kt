@@ -4,6 +4,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 
 data class DownloaderGatewayResponse(
     val status: Int,
@@ -17,6 +18,18 @@ class DownloaderGatewayService(
     private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build(),
 ) {
     fun forward(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): DownloaderGatewayResponse {
+        openForward(method, path, query, headers, body).use { response ->
+            val responseHeaders = response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
+            return DownloaderGatewayResponse(
+                status = response.code,
+                contentType = response.header("Content-Type"),
+                headers = responseHeaders,
+                body = response.body?.bytes() ?: ByteArray(0),
+            )
+        }
+    }
+
+    fun openForward(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): Response {
         val url = buildUrl(path, query)
         val requestBody = if (hasBody(method)) {
             val mediaType = headers["Content-Type"]?.toMediaTypeOrNull()
@@ -28,7 +41,11 @@ class DownloaderGatewayService(
         val requestBuilder = Request.Builder().url(url).method(method, requestBody)
         headers.forEach { (name, value) -> if (shouldForwardRequestHeader(name)) requestBuilder.addHeader(name, value) }
 
-        client.newCall(requestBuilder.build()).execute().use { response ->
+        return client.newCall(requestBuilder.build()).execute()
+    }
+
+    fun fetchAbsolute(url: String, headers: Map<String, String>): DownloaderGatewayResponse {
+        openFetchAbsolute(url, headers).use { response ->
             val responseHeaders = response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
             return DownloaderGatewayResponse(
                 status = response.code,
@@ -39,19 +56,10 @@ class DownloaderGatewayService(
         }
     }
 
-    fun fetchAbsolute(url: String, headers: Map<String, String>): DownloaderGatewayResponse {
+    fun openFetchAbsolute(url: String, headers: Map<String, String>): Response {
         val requestBuilder = Request.Builder().url(url).method("GET", null)
         headers["Range"]?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
-
-        client.newCall(requestBuilder.build()).execute().use { response ->
-            val responseHeaders = response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
-            return DownloaderGatewayResponse(
-                status = response.code,
-                contentType = response.header("Content-Type"),
-                headers = responseHeaders,
-                body = response.body?.bytes() ?: ByteArray(0),
-            )
-        }
+        return client.newCall(requestBuilder.build()).execute()
     }
 
     private fun buildUrl(path: String, query: String?): String {
