@@ -77,13 +77,22 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
         response
     }
 
+    val forceDownload = shouldForceArtifactDownload(path, query)
+
     effectiveResponse.headers.forEach { (name, value) ->
-        if (shouldForwardResponseHeader(name)) call.response.headers.append(name, value, safeOnly = false)
+        if (shouldForwardGatewayResponseHeader(name, forceDownload)) {
+            call.response.headers.append(name, value, safeOnly = false)
+        }
     }
+    if (forceDownload) applyArtifactDownloadHeaders(call, effectiveResponse)
 
     val status = HttpStatusCode.fromValue(effectiveResponse.status)
-    val contentType = effectiveResponse.contentType?.let { runCatching { ContentType.parse(it) }.getOrNull() }
-        ?: ContentType.Application.OctetStream
+    val contentType = if (forceDownload) {
+        ContentType.Application.OctetStream
+    } else {
+        effectiveResponse.contentType?.let { runCatching { ContentType.parse(it) }.getOrNull() }
+            ?: ContentType.Application.OctetStream
+    }
     call.respondBytes(effectiveResponse.body, contentType = contentType, status = status)
 }
 
@@ -108,9 +117,4 @@ private fun headerValue(response: dev.typetype.server.services.DownloaderGateway
 private fun isInternalHost(location: String): Boolean {
     val host = runCatching { URI(location).host }.getOrNull() ?: return false
     return host.equals("garage", ignoreCase = true)
-}
-
-private fun shouldForwardResponseHeader(name: String): Boolean {
-    val lower = name.lowercase()
-    return lower != "content-length" && lower != "transfer-encoding" && lower != "connection"
 }
