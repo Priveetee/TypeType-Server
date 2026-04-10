@@ -51,6 +51,11 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
     val requestHeaders = call.request.headers.names().associateWith { call.request.headers[it].orEmpty() }
     val body = if (hasRequestBody(method)) call.receiveText().toByteArray() else null
 
+    if (isSseRequest(path, requestHeaders)) {
+        forwardDownloaderSseRequest(call, gateway, method, path, query, requestHeaders, body)
+        return
+    }
+
     val response = runCatching { gateway.forward(method, path, query, requestHeaders, body) }
         .getOrElse {
             call.respond(HttpStatusCode.BadGateway, ErrorResponse("downloader unavailable"))
@@ -83,6 +88,12 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
 }
 
 private fun hasRequestBody(method: String): Boolean = method == "POST" || method == "PUT" || method == "PATCH"
+
+private fun isSseRequest(path: String, headers: Map<String, String>): Boolean {
+    if (path.endsWith("/events")) return true
+    val accept = headers.entries.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value.orEmpty()
+    return accept.contains("text/event-stream", ignoreCase = true)
+}
 
 private fun shouldProxyArtifact(path: String, response: dev.typetype.server.services.DownloaderGatewayResponse): Boolean {
     if (!path.endsWith("/artifact")) return false
