@@ -25,7 +25,7 @@ suspend fun forwardDownloaderSseRequest(
 
     upstream.use { response ->
         response.headers.names().forEach { name ->
-            if (shouldForwardResponseHeader(name)) {
+            if (shouldForwardGatewayResponseHeader(name)) {
                 response.headers(name).forEach { value ->
                     call.response.headers.append(name, value, safeOnly = false)
                 }
@@ -49,9 +49,4 @@ suspend fun forwardDownloaderSseRequest(
             }
         } ?: call.respond(HttpStatusCode.fromValue(response.code))
     }
-}
-
-private fun shouldForwardResponseHeader(name: String): Boolean {
-    val lower = name.lowercase()
-    return lower != "content-length" && lower != "transfer-encoding" && lower != "connection"
 }
