@@ -22,7 +22,7 @@ class YoutubeTakeoutImporterService(
         val existingSubsDeferred = async { subscriptionsService.getAll(userId).map { it.channelUrl }.toSet() }
         val existingPlaylistsDeferred = async { playlistService.getAll(userId) }
         val sourceMappingsDeferred = async { playlistKeyService.getMappings(userId).toMutableMap() }
-        val existingSubs = existingSubsDeferred.await()
+        val existingSubs = existingSubsDeferred.await().toMutableSet()
         val existingPlaylistRows = existingPlaylistsDeferred.await()
         val existingPlaylists = existingPlaylistRows.associateBy { it.name.lowercase() }
         val sourceMappings = sourceMappingsDeferred.await()
@@ -32,8 +32,10 @@ class YoutubeTakeoutImporterService(
         var subSkipped = 0
         if (plan.importSubscriptions) {
             parsed.subscriptions.forEach { item ->
-                if (item.channelUrl in existingSubs) subSkipped += 1 else {
+                val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(item.channelUrl)
+                if (canonicalUrl in existingSubs) subSkipped += 1 else {
                     subscriptionsService.add(userId, SubscriptionItem(item.channelUrl, item.name, item.avatarUrl))
+                    existingSubs += canonicalUrl
                     subImported += 1
                 }
             }

@@ -21,25 +21,27 @@ class SubscriptionsService {
     }
 
     suspend fun add(userId: String, item: SubscriptionItem): SubscriptionItem {
+        val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(item.channelUrl)
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
             SubscriptionsTable.insert {
                 it[SubscriptionsTable.userId] = userId
-                it[channelUrl] = item.channelUrl
+                it[channelUrl] = canonicalUrl
                 it[name] = item.name
                 it[avatarUrl] = item.avatarUrl
                 it[subscribedAt] = now
             }
         }
-        return item.copy(subscribedAt = now)
+        return item.copy(channelUrl = canonicalUrl, subscribedAt = now)
     }
 
     suspend fun delete(userId: String, channelUrl: String): Boolean = DatabaseFactory.query {
-        SubscriptionsTable.deleteWhere { SubscriptionsTable.channelUrl eq channelUrl and (SubscriptionsTable.userId eq userId) } > 0
+        val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(channelUrl)
+        SubscriptionsTable.deleteWhere { SubscriptionsTable.channelUrl eq canonicalUrl and (SubscriptionsTable.userId eq userId) } > 0
     }
 
     private fun ResultRow.toItem() = SubscriptionItem(
-        channelUrl = this[SubscriptionsTable.channelUrl],
+        channelUrl = ChannelUrlCanonicalizer.canonicalize(this[SubscriptionsTable.channelUrl]),
         name = this[SubscriptionsTable.name],
         avatarUrl = this[SubscriptionsTable.avatarUrl],
         subscribedAt = this[SubscriptionsTable.subscribedAt],
