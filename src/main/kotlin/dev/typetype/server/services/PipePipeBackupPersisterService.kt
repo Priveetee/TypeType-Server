@@ -55,8 +55,9 @@ class PipePipeBackupPersisterService {
 
     private fun insertSubscriptions(userId: String, items: List<PipePipeBackupSubscriptionItem>): Int =
         items.sumOf { item ->
+            val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(item.url)
             SubscriptionsTable.insertIgnore {
-                it[SubscriptionsTable.userId] = userId; it[channelUrl] = item.url; it[name] = item.name; it[avatarUrl] = item.avatarUrl; it[subscribedAt] = System.currentTimeMillis()
+                it[SubscriptionsTable.userId] = userId; it[channelUrl] = canonicalUrl; it[name] = item.name; it[avatarUrl] = item.avatarUrl; it[subscribedAt] = System.currentTimeMillis()
             }.insertedCount
         }
 
