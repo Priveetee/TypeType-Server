@@ -64,5 +64,11 @@ private fun ApplicationCall.extractDeleteChannelUrl(): String? {
     if (rawTail.isBlank()) return null
     return runCatching { URLDecoder.decode(rawTail, StandardCharsets.UTF_8) }
         .getOrDefault(rawTail)
+        .restoreCollapsedScheme()
         .takeIf { it.isNotBlank() }
+}
+
+private fun String.restoreCollapsedScheme(): String {
+    val match = Regex("^([A-Za-z][A-Za-z0-9+.-]*):/([^/].*)$").matchEntire(this) ?: return this
+    return "${match.groupValues[1]}://${match.groupValues[2]}"
 }
