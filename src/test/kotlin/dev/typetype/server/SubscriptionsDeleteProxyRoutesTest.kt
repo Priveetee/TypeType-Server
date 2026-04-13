@@ -61,9 +61,9 @@ class SubscriptionsDeleteProxyRoutesTest {
     }
 
     @Test
-    fun `DELETE subscriptions uses query url when path is proxy-decoded`() = withApp {
+    fun `DELETE subscriptions repairs proxy-decoded path`() = withApp {
         service.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://www.youtube.com/channel/UC123", name = "T", avatarUrl = ""))
-        val response = client.delete("/subscriptions/https:/www.youtube.com/channel/UC123?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUC123") {
+        val response = client.delete("/subscriptions/https:/www.youtube.com/channel/UC123") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -71,5 +71,14 @@ class SubscriptionsDeleteProxyRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
         assertFalse(body.contains("UC123"))
+    }
+
+    @Test
+    fun `DELETE subscriptions accepts query url when provided`() = withApp {
+        service.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://www.youtube.com/channel/UC123", name = "T", avatarUrl = ""))
+        val response = client.delete("/subscriptions/https:/www.youtube.com/channel/UC123?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUC123") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NoContent, response.status)
     }
 }
