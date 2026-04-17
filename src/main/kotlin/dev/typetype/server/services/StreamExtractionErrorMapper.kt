@@ -14,17 +14,19 @@ internal object StreamExtractionErrorMapper {
     fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> = when {
         error is NeedLoginException ||
             error is PaidContentException ||
-            error is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(error.message?.takeIf { it.isNotBlank() } ?: MEMBERS_ONLY_FALLBACK)
+            error is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: MEMBERS_ONLY_FALLBACK)
         else -> mapByType(error, fallback)
     }
 
     private fun <T> mapByType(error: Throwable, fallback: String): ExtractionResult<T> = when (error) {
         is NeedLoginException,
         is PaidContentException,
-        is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(error.message?.takeIf { it.isNotBlank() } ?: MEMBERS_ONLY_FALLBACK)
+        is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: MEMBERS_ONLY_FALLBACK)
         is GeographicRestrictionException,
         is AgeRestrictedContentException,
-        is PrivateContentException -> ExtractionResult.BadRequest(error.message ?: "Content not available")
-        else -> ExtractionResult.Failure(error.message ?: fallback)
+        is PrivateContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: "Content not available")
+        else -> ExtractionResult.Failure(sanitize(error.message) ?: fallback)
     }
+
+    private fun sanitize(message: String?): String? = ExtractionErrorSanitizer.sanitize(message)
 }
