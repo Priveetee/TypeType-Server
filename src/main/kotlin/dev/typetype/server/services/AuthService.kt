@@ -3,8 +3,6 @@ package dev.typetype.server.services
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.password4j.Password
-import dev.typetype.server.db.DatabaseFactory
-import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
@@ -15,8 +13,14 @@ import java.util.UUID
 import java.util.Date
 
 open class AuthService(private val jwtSecret: String, private val hasUsersProbe: (() -> Boolean)? = null) {
+    private val accessCodec = AuthAccessTokenCodec(jwtSecret)
+    private val sessionStore = AuthSessionStore()
+    private val tokenIssuer = AuthTokenIssuer(accessCodec, sessionStore)
+    private val sessionRefresher = AuthSessionRefresher(sessionStore, tokenIssuer)
+    private val sessionVerifier = AuthSessionVerifier(accessCodec, sessionStore)
+    private val sessionRevoker = AuthSessionRevoker(sessionStore)
 
-    fun register(email: String, password: String, name: String): String {
+    fun register(email: String, password: String, name: String): AuthSessionTokens {
         val hashed = Password.hash(password).withArgon2().result
         val userId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -35,10 +39,10 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
                 it[UsersTable.updatedAt] = now
             }
         }
-        return createToken(userId)
+        return tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
     }
 
-    fun login(identifier: String, password: String): String? {
+    fun login(identifier: String, password: String): AuthSessionTokens? {
         val user = transaction {
             UsersTable.selectAll().where { (UsersTable.email eq identifier) or (UsersTable.publicUsername eq identifier) }.singleOrNull()
         } ?: return null
@@ -47,44 +51,17 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
         val verified = Password.check(password, hashed).withArgon2()
         if (!verified) return null
 
-        return createToken(user[UsersTable.id])
+        return tokenIssuer.issue(user[UsersTable.id])
     }
 
-    fun refreshToken(oldToken: String): String? {
-        val userId = transaction {
-            SessionsTable.selectAll().where { SessionsTable.token eq oldToken }.singleOrNull()
-        }?.get(SessionsTable.userId) ?: return null
-        return createToken(userId)
-    }
+    fun refreshSession(refreshToken: String): AuthSessionTokens? = sessionRefresher.refresh(refreshToken)
 
-    private fun createToken(userId: String): String {
-        val expiresAt = Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)
-        val tokenId = UUID.randomUUID().toString()
-        val token = JWT.create()
-            .withJWTId(tokenId)
-            .withSubject(userId)
-            .withExpiresAt(expiresAt)
-            .sign(Algorithm.HMAC256(jwtSecret))
-        val sessionId = UUID.randomUUID().toString()
-        transaction {
-            SessionsTable.insert {
-                it[SessionsTable.id] = sessionId
-                it[SessionsTable.userId] = userId
-                it[SessionsTable.token] = token
-                it[SessionsTable.expiresAt] = expiresAt.time
-            }
-        }
-        return token
+    fun logout(refreshToken: String?) {
+        sessionRevoker.revokeByRefreshToken(refreshToken)
     }
 
     open fun verify(token: String): String? {
-        return try {
-            val verifier = JWT.require(Algorithm.HMAC256(jwtSecret)).build()
-            val decoded = verifier.verify(token)
-            decoded.subject
-        } catch (e: Exception) {
-            null
-        }
+        return sessionVerifier.verifyUserId(token)
     }
 
     fun guestLogin(): String {
