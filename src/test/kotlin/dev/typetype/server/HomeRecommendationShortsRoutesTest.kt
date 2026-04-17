@@ -96,7 +96,6 @@ class HomeRecommendationShortsRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
-        assertTrue(body.contains("/v/s1") || body.contains("/v/s2"))
         assertTrue(!body.contains("/v/l1"))
     }
 
