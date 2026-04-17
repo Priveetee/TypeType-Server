@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.UserProfileItem
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AuthCookieHelpers
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
@@ -11,24 +12,8 @@ import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.post
 import io.ktor.server.routing.get
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class RegisterRequest(val email: String, val password: String, val name: String)
-
-@Serializable
-data class LoginRequest(val identifier: String? = null, val email: String? = null, val password: String)
-
-@Serializable
-data class RefreshRequest(val token: String)
-
-@Serializable
-data class AuthResponse(val token: String)
-
-@Serializable
-private data class ResetPasswordRequest(val resetToken: String, val newPassword: String)
+import io.ktor.server.routing.post
 
 fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService) {
     post("/auth/register") {
@@ -44,7 +29,8 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
         }
         try {
             val token = authService.register(req.email, req.password, req.name)
-            call.respond(AuthResponse(token))
+            AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
+            call.respond(SessionResponse(token.accessToken))
         } catch (e: Exception) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("Registration failed"))
         }
@@ -58,17 +44,27 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
             return@post
         }
-        call.respond(AuthResponse(token))
+        AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
+        call.respond(SessionResponse(token.accessToken))
     }
 
     post("/auth/refresh") {
-        val req = call.receive<RefreshRequest>()
-        val newToken = authService.refreshToken(req.token)
+        val req = runCatching { call.receive<RefreshRequest>() }.getOrNull()
+        val refreshToken = AuthCookieHelpers.extractRefreshToken(call) ?: req?.token
+        val newToken = refreshToken?.let { authService.refreshSession(it) }
         if (newToken == null) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
             return@post
         }
-        call.respond(AuthResponse(newToken))
+        AuthCookieHelpers.setRefreshCookie(call.response, newToken.refreshToken)
+        call.respond(SessionResponse(newToken.accessToken))
+    }
+
+    post("/auth/logout") {
+        val refreshToken = AuthCookieHelpers.extractRefreshToken(call)
+        authService.logout(refreshToken)
+        AuthCookieHelpers.clearRefreshCookie(call.response)
+        call.respond(HttpStatusCode.NoContent)
     }
 
     get("/auth/me") {

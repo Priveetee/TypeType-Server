@@ -32,7 +32,7 @@ class PasswordResetServiceCoreTest {
         val reset = PasswordResetService()
         val oldPassword = "secret-1"
         val email = "reset@test.local"
-        val userId = auth.verify(auth.register(email, oldPassword, "Reset User"))
+        val userId = auth.verify(auth.register(email, oldPassword, "Reset User").accessToken)
         assertNotNull(userId)
 
         val token = reset.generateToken(userId!!)
@@ -46,7 +46,7 @@ class PasswordResetServiceCoreTest {
     fun `expired token is rejected`() {
         val auth = AuthService("test-secret")
         val reset = PasswordResetService()
-        val userId = auth.verify(auth.register("expired@test.local", "secret-1", "Expired"))
+        val userId = auth.verify(auth.register("expired@test.local", "secret-1", "Expired").accessToken)
         val token = reset.generateToken(userId!!)
 
         transaction {

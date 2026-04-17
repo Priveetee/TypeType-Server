@@ -32,14 +32,14 @@ class AuthServiceCoreTest {
         val service = AuthService("test-secret")
         assertFalse(service.hasUsers())
 
-        val token1 = service.register("first@test.local", "secret-1", "First")
-        val user1 = service.verify(token1)
+        val session1 = service.register("first@test.local", "secret-1", "First")
+        val user1 = service.verify(session1.accessToken)
         assertNotNull(user1)
         assertEquals("admin", user1?.let { roleOf(it) })
         assertTrue(service.hasUsers())
 
-        val token2 = service.register("second@test.local", "secret-2", "Second")
-        val user2 = service.verify(token2)
+        val session2 = service.register("second@test.local", "secret-2", "Second")
+        val user2 = service.verify(session2.accessToken)
         assertNotNull(user2)
         assertEquals("user", user2?.let { roleOf(it) })
     }
@@ -48,23 +48,23 @@ class AuthServiceCoreTest {
     fun `login and refresh token keep same user`() {
         val service = AuthService("test-secret")
         val registered = service.register("login@test.local", "secret-1", "Login")
-        val expectedUser = service.verify(registered)
+        val expectedUser = service.verify(registered.accessToken)
 
         val loginToken = service.login("login@test.local", "secret-1")
         assertNotNull(loginToken)
-        assertEquals(expectedUser, loginToken?.let { service.verify(it) })
+        assertEquals(expectedUser, loginToken?.let { service.verify(it.accessToken) })
         assertNull(service.login("login@test.local", "wrong"))
 
-        val refreshed = service.refreshToken(registered)
+        val refreshed = service.refreshSession(registered.refreshToken)
         assertNotNull(refreshed)
-        assertEquals(expectedUser, refreshed?.let { service.verify(it) })
+        assertEquals(expectedUser, refreshed?.let { service.verify(it.accessToken) })
     }
 
     @Test
     fun `login supports public username identifier`() {
         val service = AuthService("test-secret")
-        val token = service.register("username@test.local", "secret-1", "User")
-        val userId = service.verify(token) ?: error("missing user id")
+        val session = service.register("username@test.local", "secret-1", "User")
+        val userId = service.verify(session.accessToken) ?: error("missing user id")
         transaction {
             UsersTable.update({ UsersTable.id eq userId }) {
                 it[publicUsername] = "InfinityLoop1308"
@@ -72,7 +72,7 @@ class AuthServiceCoreTest {
         }
         val byUsername = service.login("InfinityLoop1308", "secret-1")
         assertNotNull(byUsername)
-        assertEquals(userId, byUsername?.let { service.verify(it) })
+        assertEquals(userId, byUsername?.let { service.verify(it.accessToken) })
     }
 
     @Test
