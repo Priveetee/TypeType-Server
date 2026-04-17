@@ -84,6 +84,7 @@ class HomeRecommendationPoolResolver(
         feedHistoryService = dependencies.feedHistoryService,
         trendingService = dependencies.trendingService,
         searchService = dependencies.searchService,
+        streamService = dependencies.streamService,
         signalContextService = dependencies.signalContextService,
     ).build(
         userId = userId,
