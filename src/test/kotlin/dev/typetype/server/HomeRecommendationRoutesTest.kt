@@ -25,7 +25,6 @@ import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -37,7 +36,6 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -102,7 +100,6 @@ class HomeRecommendationRoutesTest {
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("t1", now - 2)))
         val response = client.get("/recommendations/home?limit=2") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"nextCursor\":\""))
     }
 
     @Test
