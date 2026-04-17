@@ -3,7 +3,6 @@ package dev.typetype.server.services
 class HomeRecommendationShortsCandidateService {
     suspend fun fetch(
         userId: String,
-        serviceId: Int,
         profile: HomeRecommendationProfile,
         signalContext: HomeRecommendationSignalContext,
         candidateService: HomeRecommendationCandidateService,
@@ -15,24 +14,28 @@ class HomeRecommendationShortsCandidateService {
             .take(HomeRecommendationShortsSources.SUBSCRIPTION_LIMIT)
             .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
             .toList()
-        val discoveryCandidates = candidateService.fetchTrendingCandidates(serviceId)
+        val relatedFromSubscriptions = candidateService.fetchRelatedCandidates(
+            seedUrls = subscriptions.map { it.video.url },
+            source = HomeRecommendationSourceTag.DISCOVERY_THEME,
+            seedLimit = HomeRecommendationCandidateLimits.SUBSCRIPTION_SEED_LIMIT,
+            relatedPerSeedLimit = HomeRecommendationCandidateLimits.RELATED_PER_SEED_LIMIT,
+        )
             .asSequence()
             .map { it.copy(video = it.video.copy(isShortFormContent = it.video.isShortFormContent || it.video.duration in 1L..85L)) }
             .filter { it.video.isShortFormContent }
             .toList()
-        val exploration = candidateService.fetchSearchCandidates(
-            serviceId = serviceId,
-            queries = HomeRecommendationShortsQueryFactory.fromProfile(profile),
-            maxQueries = HomeRecommendationShortsSources.SEARCH_QUERY_LIMIT,
-            perQueryLimit = HomeRecommendationShortsSources.SEARCH_PER_QUERY_LIMIT,
+        val relatedFromFavorites = candidateService.fetchRelatedCandidates(
+            seedUrls = signalContext.favoriteUrls,
             source = HomeRecommendationSourceTag.DISCOVERY_EXPLORATION,
+            seedLimit = HomeRecommendationCandidateLimits.FAVORITE_SEED_LIMIT,
+            relatedPerSeedLimit = HomeRecommendationCandidateLimits.RELATED_PER_SEED_LIMIT,
         ).asSequence()
             .map { it.copy(video = it.video.copy(isShortFormContent = it.video.isShortFormContent || it.video.duration in 1L..85L)) }
             .filter { it.video.isShortFormContent }
             .toList()
         val discovery = HomeRecommendationDiscoveryAssembler().build(
             profile = profile,
-            candidates = discoveryCandidates + exploration,
+            candidates = relatedFromSubscriptions + relatedFromFavorites,
             explorationCap = HomeRecommendationShortsSources.DISCOVERY_CAP,
         )
         val dedupedSubscriptions = HomeRecommendationShortsDeduplicator.apply(

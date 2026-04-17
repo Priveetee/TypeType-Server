@@ -25,7 +25,7 @@ class HomeRecommendationCandidateService(
             if (serviceId != YOUTUBE_SERVICE_ID) {
                 return HomeRecommendationCandidatePool(subscriptions = emptyList(), discovery = emptyList())
             }
-            return shortsCandidateService.fetch(userId, serviceId, profile, signalContext, this)
+            return shortsCandidateService.fetch(userId, profile, signalContext, this)
         }
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
             .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
@@ -81,4 +81,12 @@ class HomeRecommendationCandidateService(
         source: HomeRecommendationSourceTag,
     ): List<HomeRecommendationTaggedVideo> =
         searchCandidateFetcher.fetchSearchCandidates(serviceId, queries, maxQueries, perQueryLimit, source)
+
+    suspend fun fetchRelatedCandidates(
+        seedUrls: List<String>,
+        source: HomeRecommendationSourceTag,
+        seedLimit: Int,
+        relatedPerSeedLimit: Int,
+    ): List<HomeRecommendationTaggedVideo> =
+        relatedCandidateService.fetch(seedUrls, source, seedLimit, relatedPerSeedLimit)
 }
