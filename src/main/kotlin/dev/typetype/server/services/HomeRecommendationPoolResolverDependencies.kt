@@ -17,5 +17,6 @@ data class HomeRecommendationPoolResolverDependencies(
     val signalContextService: HomeRecommendationSignalContextService,
     val trendingService: TrendingService,
     val searchService: SearchService,
+    val streamService: StreamService = HomeRecommendationNoopStreamService,
     val cache: CacheService,
 )

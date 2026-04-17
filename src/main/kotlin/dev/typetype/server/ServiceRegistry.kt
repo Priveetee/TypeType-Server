@@ -1,5 +1,4 @@
 package dev.typetype.server
-
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
@@ -53,7 +52,6 @@ import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubeTakeoutFactory
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
-
 internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: String) {
     init {
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
@@ -96,7 +94,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val bugReportService = BugReportService()
     val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
     val recommendationOnboardingService = RecommendationOnboardingService()
-    val recommendationSignalContextService = HomeRecommendationSignalContextService(subscriptionsService, historyService)
+    val recommendationSignalContextService = HomeRecommendationSignalContextService(subscriptionsService, historyService, favoritesService)
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
         subscriptionsService = subscriptionsService,
@@ -113,6 +111,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
         signalContextService = recommendationSignalContextService,
         trendingService = trendingService,
         searchService = searchService,
+        streamService = streamService,
         cache = cache,
     )
     private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies, recommendationPrivacyService)

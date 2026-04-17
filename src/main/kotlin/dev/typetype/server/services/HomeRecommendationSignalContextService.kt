@@ -3,9 +3,10 @@ package dev.typetype.server.services
 class HomeRecommendationSignalContextService(
     private val subscriptionsService: SubscriptionsService,
     private val historyService: HistoryService,
+    private val favoritesService: FavoritesService = FavoritesService(),
 ) {
     suspend fun load(userId: String): HomeRecommendationSignalContext {
-        val subscriptions = subscriptionsService.getAll(userId).map { it.channelUrl }
+        val subscriptions = subscriptionsService.getAll(userId)
         val history = historyService.search(
             userId = userId,
             q = null,
@@ -13,10 +14,12 @@ class HomeRecommendationSignalContextService(
             to = null,
             limit = 60,
             offset = 0,
-        ).first.map { it.url }
+        ).first
+        val favorites = favoritesService.getAll(userId)
         return HomeRecommendationSignalContext(
-            userSubscriptions = subscriptions,
-            historyItems = history,
+            userSubscriptions = subscriptions.map { it.channelUrl },
+            historyItems = history.map { it.url },
+            favoriteUrls = favorites.map { it.videoUrl },
         )
     }
 }

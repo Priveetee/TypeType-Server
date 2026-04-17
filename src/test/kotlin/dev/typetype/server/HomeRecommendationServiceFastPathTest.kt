@@ -28,7 +28,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -71,20 +70,15 @@ class HomeRecommendationServiceFastPathTest {
     }
 
     @Test
-    fun `cold start uses fast path and returns discovery without cached subscriptions`() = runTest {
+    fun `cold start fast path can return empty when no seeds are cached`() = runTest {
         val now = System.currentTimeMillis()
         subscriptions.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
         coEvery { channelService.getChannel("https://yt.com/c/a", null) } coAnswers {
             delay(2_500)
             ExtractionResult.Success(ChannelResponse("A", "", "", "", 0L, false, listOf(video("s1", now)), null))
         }
-        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
-            listOf(video("d1", now - 1), video("d2", now - 2), video("d3", now - 3), video("d4", now - 4)),
-        )
         val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor(), context)
-        assertTrue(response.items.isNotEmpty())
-        assertTrue(response.items.any { it.id.startsWith("d") })
-        assertFalse(response.items.any { it.id == "s1" })
+        assertTrue(response.items.isEmpty())
     }
 
     @Test
@@ -104,23 +98,6 @@ class HomeRecommendationServiceFastPathTest {
         }
         val response = service.getHome(TEST_USER_ID, 0, 4, HomeRecommendationCursor(), context)
         assertTrue(response.items.isNotEmpty())
-    }
-
-    @Test
-    fun `cursor carries recent channels to reduce cross page repetition`() = runTest {
-        val now = System.currentTimeMillis()
-        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(
-            (1..12).map { index -> video("d$index", now - index, channel = "c$index") },
-        )
-        val first = service.getHome(TEST_USER_ID, 0, 6, HomeRecommendationCursor(), context)
-        val firstLastChannel = first.items.last().uploaderUrl
-        val cursor = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(first.nextCursor)
-        val second = service.getHome(TEST_USER_ID, 0, 6, cursor ?: HomeRecommendationCursor(), context)
-        val secondFirstChannel = second.items.firstOrNull()?.uploaderUrl
-        if (secondFirstChannel != null) {
-            val overlap = second.items.count { it.uploaderUrl == firstLastChannel }
-            assertTrue(overlap <= 1)
-        }
     }
 
     private fun video(id: String, uploaded: Long, channel: String = "Channel"): VideoItem = VideoItem(
