@@ -8,6 +8,7 @@ import io.ktor.server.response.ApplicationResponse
 
 object AuthCookieHelpers {
     const val REFRESH_COOKIE_NAME = "refresh_token"
+    private const val REFRESH_COOKIE_PATH = "/"
 
     fun extractRefreshToken(call: ApplicationCall): String? = call.request.cookies[REFRESH_COOKIE_NAME]
 
@@ -18,7 +19,7 @@ object AuthCookieHelpers {
                 value = token,
                 httpOnly = true,
                 secure = true,
-                path = "/auth",
+                path = REFRESH_COOKIE_PATH,
                 maxAge = REFRESH_TTL_SECONDS.toInt(),
                 encoding = CookieEncoding.RAW,
                 extensions = mapOf("SameSite" to "None"),
@@ -34,7 +35,7 @@ object AuthCookieHelpers {
                 value = "",
                 httpOnly = true,
                 secure = true,
-                path = "/auth",
+                path = REFRESH_COOKIE_PATH,
                 maxAge = 0,
                 encoding = CookieEncoding.RAW,
                 extensions = mapOf("SameSite" to "None"),

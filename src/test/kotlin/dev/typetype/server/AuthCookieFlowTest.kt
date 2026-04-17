@@ -57,6 +57,7 @@ class AuthCookieFlowTest {
         assertEquals(HttpStatusCode.OK, login.status)
         val setCookie = login.headers.getAll(HttpHeaders.SetCookie).orEmpty().joinToString("; ")
         assertTrue(setCookie.contains("refresh_token="))
+        assertTrue(setCookie.contains("Path=/"))
         val refresh = client.post("/auth/refresh") { header(HttpHeaders.Cookie, setCookie) }
         assertEquals(HttpStatusCode.OK, refresh.status)
         assertTrue(refresh.bodyAsText().contains("\"accessToken\":"))
