@@ -9,6 +9,7 @@ import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -45,8 +46,8 @@ class AuthRoutesLoginIdentifierTest {
     fun `login accepts public username identifier`() = testApplication {
         adminSettings.upsert(AdminSettingsItem(allowRegistration = true, allowGuest = true, forceEmailVerification = false))
         val auth = AuthService("test-secret")
-        val registerToken = auth.register("identifier@test.local", "secret", "Identifier")
-        val userId = auth.verify(registerToken) ?: error("missing user id")
+        val registerSession = auth.register("identifier@test.local", "secret", "Identifier")
+        val userId = auth.verify(registerSession.accessToken) ?: error("missing user id")
         transaction {
             UsersTable.update({ UsersTable.id eq userId }) {
                 it[publicUsername] = "InfinityLoop1308"
@@ -61,6 +62,7 @@ class AuthRoutesLoginIdentifierTest {
             setBody("""{"identifier":"InfinityLoop1308","password":"secret"}""")
         }
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(true, response.bodyAsText().contains("\"accessToken\":"))
     }
 
     @Test
@@ -77,5 +79,6 @@ class AuthRoutesLoginIdentifierTest {
             setBody("""{"email":"legacy@test.local","password":"secret"}""")
         }
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(true, response.bodyAsText().contains("\"accessToken\":"))
     }
 }

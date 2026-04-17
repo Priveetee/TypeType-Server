@@ -71,7 +71,9 @@ fun Application.configurePlugins(authService: AuthService) {
         .ifEmpty { error("ALLOWED_ORIGINS environment variable must be set") }
     install(CORS) {
         allowOrigins { it in allowedOrigins }
+        allowCredentials = true
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
     }

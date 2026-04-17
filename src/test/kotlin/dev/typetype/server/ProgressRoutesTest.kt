@@ -83,4 +83,31 @@ class ProgressRoutesTest {
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
+
+    @Test
+    fun `PUT progress keeps previous value when payload resets to zero`() = withApp {
+        service.upsert(TEST_USER_ID, "https://yt.com/v?v=test", 12000L)
+        val response = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"position":0}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"position\":12000"))
+    }
+
+    @Test
+    fun `query progress endpoint supports put and get`() = withApp {
+        val putResponse = client.put("/progress?url=https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"position":3300}""")
+        }
+        assertEquals(HttpStatusCode.OK, putResponse.status)
+        val getResponse = client.get("/progress?url=https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, getResponse.status)
+        assertTrue(getResponse.bodyAsText().contains("\"position\":3300"))
+    }
 }
