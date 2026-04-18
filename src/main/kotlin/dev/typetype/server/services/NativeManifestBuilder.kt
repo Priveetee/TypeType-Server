@@ -8,7 +8,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 internal object NativeManifestBuilder {
 
-    fun build(videos: List<VideoStream>, audios: List<AudioStream>, duration: Long): String {
+    fun build(videos: List<VideoStream>, audios: List<AudioStream>, duration: Long, preferredAudioTrackId: String?): String {
         val sb = StringBuilder()
         sb.appendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
         sb.appendLine("<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\"")
@@ -18,7 +18,7 @@ internal object NativeManifestBuilder {
         sb.appendLine("     minBufferTime=\"PT4S\">")
         sb.appendLine("  <Period>")
         buildVideoAdaptationSets(sb, videos, duration)
-        buildAudioAdaptationSets(sb, audios, duration)
+        buildAudioAdaptationSets(sb, audios, duration, preferredAudioTrackId)
         sb.appendLine("  </Period>")
         sb.append("</MPD>")
         return sb.toString()
@@ -34,10 +34,18 @@ internal object NativeManifestBuilder {
             }
     }
 
-    private fun buildAudioAdaptationSets(sb: StringBuilder, audios: List<AudioStream>, duration: Long) {
+    private fun buildAudioAdaptationSets(
+        sb: StringBuilder,
+        audios: List<AudioStream>,
+        duration: Long,
+        preferredAudioTrackId: String?,
+    ) {
         if (audios.isEmpty()) return
         var id = 0
-        audios.groupBy { audioMimeType(it.getCodec() ?: "") }
+        val ordered = if (preferredAudioTrackId == null) audios else audios.sortedBy {
+            it.getAudioTrackId() != preferredAudioTrackId
+        }
+        ordered.groupBy { audioMimeType(it.getCodec() ?: "") }
             .forEach { (mime, group) ->
                 sb.appendLine("    <AdaptationSet mimeType=\"$mime\">")
                 group.forEach { s -> appendAudioRepresentation(sb, s, id++, duration) }

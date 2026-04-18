@@ -1,5 +1,4 @@
 package dev.typetype.server.services
-
 import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.PreviewFrameItem
 import dev.typetype.server.models.StreamResponse
@@ -46,6 +45,8 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse {
         dashMpdUrl = dashMpdUrl?.takeIf { it.startsWith("http") } ?: "",
         videoStreams = videoStreams.map { it.toVideoStreamItem(false) },
         audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem() }.getOrNull() },
+        originalAudioTrackId = null,
+        preferredDefaultAudioTrackId = null,
         videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(true) },
         subtitles = subtitles.mapNotNull { runCatching { it.toSubtitleItem() }.getOrNull() },
         previewFrames = previewFrames.mapNotNull { runCatching { it.toPreviewFrameItem() }.getOrNull() },
@@ -53,7 +54,6 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse {
         relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { runCatching { it.toVideoItem() }.getOrNull() },
     )
 }
-
 internal fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamItem =
     VideoStreamItem(
         url = getContent() ?: "",
@@ -90,6 +90,7 @@ internal fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
     audioTrackId = getAudioTrackId(),
     audioTrackName = getAudioTrackName(),
     audioLocale = getAudioLocale(),
+    isOriginal = false,
 )
 
 internal fun SubtitlesStream.toSubtitleItem(): SubtitleItem = SubtitleItem(

@@ -7,13 +7,12 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 class ManifestService(private val streamService: StreamService) {
-
     suspend fun dashManifest(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
         if (result !is ExtractionResult.Success) return result.recast()
         val info = result.data
         val videos = compatibleVideoStreams(info.videoOnlyStreams)
-        val audios = compatibleAudioStreams(info.audioStreams)
+        val audios = compatibleAudioStreams(info.audioStreams, info.preferredDefaultAudioTrackId)
         if (videos.isEmpty() && audios.isEmpty())
             return ExtractionResult.Failure("No compatible streams found for DASH manifest")
         return ExtractionResult.Success(buildMpd(videos, audios, info.duration))
@@ -23,9 +22,10 @@ class ManifestService(private val streamService: StreamService) {
         streams.filter { it.codec?.startsWith("av01") != true && it.url.isNotBlank() && !it.codec.isNullOrBlank() }
             .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: bwFromUrl(it.url) ?: 0) }))
 
-    private fun compatibleAudioStreams(streams: List<AudioStreamItem>): List<AudioStreamItem> =
+    private fun compatibleAudioStreams(streams: List<AudioStreamItem>, preferredTrackId: String?): List<AudioStreamItem> =
         streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
-            .sortedByDescending { it.bitrate ?: 0 }
+            .sortedWith(compareBy<AudioStreamItem> { preferredTrackId != null && it.audioTrackId != preferredTrackId }
+                .thenByDescending { it.bitrate ?: 0 })
 
     private fun codecPriority(codec: String): Int = when {
         codec.startsWith("avc1") -> 0
