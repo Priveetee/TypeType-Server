@@ -78,7 +78,8 @@ class HomeRecommendationCandidateServiceTest {
         uploaderSubscriberCount = 0, uploaderVerified = false, category = "", license = "", visibility = "",
         tags = emptyList(), streamType = "video_stream", isShortFormContent = false, requiresMembership = false,
         startPosition = 0, streamSegments = emptyList(), hlsUrl = "", dashMpdUrl = "", videoStreams = emptyList(),
-        audioStreams = emptyList(), videoOnlyStreams = emptyList(), subtitles = emptyList(), previewFrames = emptyList(),
+        audioStreams = emptyList(), originalAudioTrackId = null, preferredDefaultAudioTrackId = null,
+        videoOnlyStreams = emptyList(), subtitles = emptyList(), previewFrames = emptyList(),
         sponsorBlockSegments = emptyList(), relatedStreams = related, publishedAt = 0,
     )
 

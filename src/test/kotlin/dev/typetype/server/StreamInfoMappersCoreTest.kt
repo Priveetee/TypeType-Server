@@ -61,6 +61,7 @@ class StreamInfoMappersCoreTest {
         assertNull(mappedAudio.bitrate)
         assertNull(mappedAudio.codec)
         assertEquals("en", mappedAudio.audioLocale)
+        assertEquals(false, mappedAudio.isOriginal)
     }
 
     @Test
