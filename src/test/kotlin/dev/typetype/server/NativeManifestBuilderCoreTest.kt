@@ -25,7 +25,7 @@ class NativeManifestBuilderCoreTest {
         every { video.getInitStart() } returns 0
         every { video.getInitEnd() } returns 220
 
-        val manifest = NativeManifestBuilder.build(videos = listOf(video), audios = emptyList(), duration = 300)
+        val manifest = NativeManifestBuilder.build(videos = listOf(video), audios = emptyList(), duration = 300, preferredAudioTrackId = null)
 
         assertTrue(manifest.contains("mediaPresentationDuration=\"PT300S\""))
         assertTrue(manifest.contains("<AdaptationSet mimeType=\"video/mp4\""))
@@ -50,7 +50,7 @@ class NativeManifestBuilderCoreTest {
         every { video.getInitStart() } returns 0
         every { video.getInitEnd() } returns 0
 
-        val manifest = NativeManifestBuilder.build(videos = listOf(video), audios = emptyList(), duration = 120)
+        val manifest = NativeManifestBuilder.build(videos = listOf(video), audios = emptyList(), duration = 120, preferredAudioTrackId = null)
 
         assertTrue(manifest.contains("<AdaptationSet mimeType=\"video/webm\""))
         assertTrue(manifest.contains("<Representation id=\"v-0\""))

@@ -19,4 +19,5 @@ data class AudioStreamItem(
     val audioTrackId: String?,
     val audioTrackName: String?,
     val audioLocale: String?,
+    val isOriginal: Boolean,
 )

@@ -48,7 +48,7 @@ internal class PipePipeStreamService(
                         val segmentsDeferred = async { resolveSegments(extractor) }
                         val streamInfo = streamInfoDeferred.await()
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
-                        val response = streamInfo.toStreamResponse()
+                        val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
                         val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
                             response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
                         } else {

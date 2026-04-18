@@ -31,11 +31,12 @@ class NativeManifestService {
     private fun buildManifest(info: StreamInfo): ExtractionResult<String> {
         val videos = compatibleVideoStreams(info.videoOnlyStreams)
         val audios = compatibleAudioStreams(info.audioStreams)
+        val preferredAudioTrackId = resolvePreferredAudioTrackId(audios)
         if (videos.isEmpty() && audios.isEmpty())
             return ExtractionResult.Failure("No compatible streams found")
         return runCatching {
             ExtractionResult.Success(
-                NativeManifestBuilder.build(videos, audios, info.duration)
+                NativeManifestBuilder.build(videos, audios, info.duration, preferredAudioTrackId)
             )
         }.getOrElse {
             ExtractionResult.Failure(it.message ?: "Manifest build failed")
@@ -72,5 +73,20 @@ class NativeManifestService {
             codec.startsWith("vp9") || codec.startsWith("vp09") -> 1
             else -> 2
         }
+    }
+
+    private fun resolvePreferredAudioTrackId(audios: List<AudioStream>): String? {
+        val original = audios.firstNotNullOfOrNull { stream ->
+            val name = stream.getAudioTrackName()?.lowercase() ?: return@firstNotNullOfOrNull null
+            stream.getAudioTrackId()?.takeIf { "original" in name || "default" in name || "yokuqala" in name }
+        }
+        if (original != null) return original
+        val english = audios.firstNotNullOfOrNull { stream ->
+            stream.getAudioTrackId()?.takeIf {
+                stream.getAudioLocale() == "en" || it.substringBefore('.').substringBefore('-') == "en"
+            }
+        }
+        if (english != null) return english
+        return audios.firstNotNullOfOrNull { it.getAudioTrackId() }
     }
 }

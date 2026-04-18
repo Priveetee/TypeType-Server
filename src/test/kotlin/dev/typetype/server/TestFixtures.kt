@@ -48,6 +48,7 @@ fun testAudioStream(
     audioTrackId: String? = null,
     audioTrackName: String? = null,
     audioLocale: String? = null,
+    isOriginal: Boolean = false,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -64,6 +65,7 @@ fun testAudioStream(
     audioTrackId = audioTrackId,
     audioTrackName = audioTrackName,
     audioLocale = audioLocale,
+    isOriginal = isOriginal,
 )
 
 fun testStreamResponse(
@@ -100,10 +102,11 @@ fun testStreamResponse(
     dashMpdUrl = dashMpdUrl,
     videoStreams = emptyList(),
     audioStreams = audioStreams,
+    originalAudioTrackId = null,
+    preferredDefaultAudioTrackId = null,
     videoOnlyStreams = videoOnlyStreams,
     subtitles = emptyList(),
     previewFrames = emptyList(),
     sponsorBlockSegments = emptyList(),
     relatedStreams = emptyList(),
 )
-

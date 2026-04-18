@@ -32,6 +32,8 @@ data class StreamResponse(
     val dashMpdUrl: String,
     val videoStreams: List<VideoStreamItem>,
     val audioStreams: List<AudioStreamItem>,
+    val originalAudioTrackId: String?,
+    val preferredDefaultAudioTrackId: String?,
     val videoOnlyStreams: List<VideoStreamItem>,
     val subtitles: List<SubtitleItem>,
     val previewFrames: List<PreviewFrameItem>,

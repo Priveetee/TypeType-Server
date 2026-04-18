@@ -73,11 +73,19 @@ class StreamFieldsTest {
 
     @Test
     fun `GET streams serializes audioLocale in audioStreams`() = withApp {
-        val audio = testAudioStream().copy(audioLocale = "en")
+        val audio = testAudioStream().copy(audioLocale = "en", isOriginal = true)
         coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse(audioStreams = listOf(audio)))
+            ExtractionResult.Success(
+                testStreamResponse(audioStreams = listOf(audio)).copy(
+                    originalAudioTrackId = "en.0",
+                    preferredDefaultAudioTrackId = "en.0",
+                )
+            )
         val body = client.get("/streams?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"audioLocale\":\"en\""))
+        assertTrue(body.contains("\"isOriginal\":true"))
+        assertTrue(body.contains("\"originalAudioTrackId\":\"en.0\""))
+        assertTrue(body.contains("\"preferredDefaultAudioTrackId\":\"en.0\""))
     }
 
     @Test
