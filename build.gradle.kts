@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm") version "2.3.0"
-    kotlin("plugin.serialization") version "2.3.0"
-    id("io.ktor.plugin") version "3.4.1"
+    kotlin("jvm") version "2.3.20"
+    kotlin("plugin.serialization") version "2.3.20"
+    id("io.ktor.plugin") version "3.4.2"
     id("jacoco")
 }
 
@@ -28,20 +28,20 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
-    implementation("ch.qos.logback:logback-classic:1.5.18")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:cc497b3becb980013d6503b349ff1a5facef6ecb")
+    implementation("ch.qos.logback:logback-classic:1.5.32")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:274ba4ddf31a7d39679f44be2db9cbdfc7986b20")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("io.lettuce:lettuce-core:6.7.1.RELEASE")
-    implementation("org.jetbrains.exposed:exposed-core:1.1.1")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
-    implementation("com.zaxxer:HikariCP:6.3.0")
-    implementation("org.postgresql:postgresql:42.7.7")
-    implementation("org.xerial:sqlite-jdbc:3.46.1.3")
-    implementation("com.password4j:password4j:1.7.1")
-    implementation("com.auth0:java-jwt:4.4.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    implementation("io.lettuce:lettuce-core:6.8.2.RELEASE")
+    implementation("org.jetbrains.exposed:exposed-core:1.2.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")
+    implementation("com.zaxxer:HikariCP:6.3.3")
+    implementation("org.postgresql:postgresql:42.7.10")
+    implementation("org.xerial:sqlite-jdbc:3.53.0.0")
+    implementation("com.password4j:password4j:1.8.4")
+    implementation("com.auth0:java-jwt:4.5.1")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("io.mockk:mockk:1.14.3")
+    testImplementation("io.mockk:mockk:1.14.9")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("io.ktor:ktor-server-content-negotiation-jvm")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
