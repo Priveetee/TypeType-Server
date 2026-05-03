@@ -68,7 +68,7 @@ class NicoVideoProxyService {
                         response.close()
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val text = body?.string() ?: ""
+                        val text = body.string()
                         response.close()
                         val rewritten = rewriteNicoManifest(text, manifestUrl, resolvedBid)
                         ExtractionResult.Success(ProxyResponse(
@@ -109,7 +109,7 @@ class NicoVideoProxyService {
                             contentLength = response.header("Content-Length")?.toLongOrNull(),
                             contentRange = response.header("Content-Range"),
                             acceptRanges = response.header("Accept-Ranges"),
-                            stream = body?.byteStream() ?: java.io.InputStream.nullInputStream(),
+                            stream = body.byteStream(),
                             close = response::close,
                         ))
                     }

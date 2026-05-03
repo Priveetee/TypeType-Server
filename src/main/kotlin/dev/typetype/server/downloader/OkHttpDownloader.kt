@@ -31,8 +31,8 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
             throw ReCaptchaException("reCaptcha required", request.url())
         }
 
-        val responseBodyBytes = httpResponse.body?.bytes()
-        val responseBody = responseBodyBytes?.toString(Charsets.UTF_8) ?: ""
+        val responseBodyBytes = httpResponse.body.bytes()
+        val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
         return Response(
             httpResponse.code,
             httpResponse.message,
@@ -50,8 +50,8 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
 
         call.enqueue(object : Callback {
             override fun onResponse(call: Call, response: okhttp3.Response) {
-                val responseBodyBytes = response.body?.bytes()
-                val responseBody = responseBodyBytes?.toString(Charsets.UTF_8) ?: ""
+                val responseBodyBytes = response.body.bytes()
+                val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
                 val extractorResponse = Response(
                     response.code,
                     response.message,

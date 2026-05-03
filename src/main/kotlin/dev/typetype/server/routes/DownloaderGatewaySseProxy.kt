@@ -37,7 +37,7 @@ suspend fun forwardDownloaderSseRequest(
             ?.let { runCatching { ContentType.parse(it) }.getOrNull() }
             ?: ContentType.Text.EventStream
 
-        response.body?.byteStream()?.use { input ->
+        response.body.byteStream().use { input ->
             call.respondOutputStream(contentType = contentType, status = status) {
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {
@@ -47,6 +47,6 @@ suspend fun forwardDownloaderSseRequest(
                     flush()
                 }
             }
-        } ?: call.respond(HttpStatusCode.fromValue(response.code))
+        }
     }
 }

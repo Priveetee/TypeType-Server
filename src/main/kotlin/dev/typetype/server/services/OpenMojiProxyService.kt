@@ -56,7 +56,7 @@ class OpenMojiProxyService(private val cache: CacheService) {
             client.newCall(request).execute().use { response ->
                 if (response.code == 404) return@use FetchResult.NotFound
                 if (!response.isSuccessful) return@use FetchResult.Failed
-                val bytes = response.body?.bytes() ?: return@use FetchResult.Failed
+                val bytes = response.body.bytes()
                 FetchResult.Success(bytes)
             }
         }.getOrElse { FetchResult.Failed }

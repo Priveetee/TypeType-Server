@@ -36,7 +36,7 @@ class NicoNicoTrendingService(private val httpClient: OkHttpClient) {
                     .url(TRENDING_URL)
                     .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
                     .build()
-                val body = httpClient.newCall(request).execute().use { it.body?.string() ?: "" }
+                val body = httpClient.newCall(request).execute().use { it.body.string() }
                 val rawMeta = META_REGEX.find(body)?.groupValues?.get(1)
                     ?: return@runCatching emptyList<VideoItem>()
                 val unescaped = htmlUnescape(rawMeta)

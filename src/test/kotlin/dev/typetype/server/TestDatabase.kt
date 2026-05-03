@@ -30,7 +30,7 @@ import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.testcontainers.containers.ContainerLaunchException
-import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.DriverManager
 import java.util.UUID
 
@@ -43,7 +43,7 @@ object TestDatabase {
 
     private val schemaName: String = "tt_test_${UUID.randomUUID().toString().replace("-", "")}".lowercase()
 
-    private val container: PostgreSQLContainer<*> by lazy {
+    private val container: PostgreSQLContainer by lazy {
         PostgreSQLContainer("postgres:16-alpine").apply { start() }
     }
 

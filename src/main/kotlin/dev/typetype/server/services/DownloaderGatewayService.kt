@@ -24,7 +24,7 @@ class DownloaderGatewayService(
                 status = response.code,
                 contentType = response.header("Content-Type"),
                 headers = responseHeaders,
-                body = response.body?.bytes() ?: ByteArray(0),
+                body = response.body.bytes(),
             )
         }
     }
@@ -51,7 +51,7 @@ class DownloaderGatewayService(
                 status = response.code,
                 contentType = response.header("Content-Type"),
                 headers = responseHeaders,
-                body = response.body?.bytes() ?: ByteArray(0),
+                body = response.body.bytes(),
             )
         }
     }

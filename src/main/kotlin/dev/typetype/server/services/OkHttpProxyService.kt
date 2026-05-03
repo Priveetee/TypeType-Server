@@ -7,7 +7,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayInputStream
-import java.io.InputStream
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -48,7 +47,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                         val acceptRanges = response.header("Accept-Ranges")
                         val contentLength = response.header("Content-Length")?.toLongOrNull()
                         if (isHls(contentType)) {
-                            val rewritten = rewriteHlsManifest(body?.string() ?: "")
+                            val rewritten = rewriteHlsManifest(body.string())
                             response.close()
                             ExtractionResult.Success(ProxyResponse(
                                 status = statusCode,
@@ -66,7 +65,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                                 contentLength = contentLength,
                                 contentRange = contentRange,
                                 acceptRanges = acceptRanges,
-                                stream = body?.byteStream() ?: InputStream.nullInputStream(),
+                                stream = body.byteStream(),
                                 close = response::close,
                             ))
                         }
