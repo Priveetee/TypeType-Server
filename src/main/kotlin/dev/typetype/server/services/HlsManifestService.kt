@@ -76,7 +76,7 @@ class HlsManifestService(
                         response.close()
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val text = body?.string() ?: ""
+                        val text = body.string()
                         response.close()
                         ExtractionResult.Success(rewriteYouTubeHlsManifest(text))
                     }

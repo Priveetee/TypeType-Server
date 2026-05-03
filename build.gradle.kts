@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm") version "2.3.20"
-    kotlin("plugin.serialization") version "2.3.20"
-    id("io.ktor.plugin") version "3.4.2"
+    kotlin("jvm") version "2.3.21"
+    kotlin("plugin.serialization") version "2.3.21"
+    id("io.ktor.plugin") version "3.4.3"
     id("jacoco")
 }
 
@@ -29,25 +29,25 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.32")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:274ba4ddf31a7d39679f44be2db9cbdfc7986b20")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("io.lettuce:lettuce-core:6.8.2.RELEASE")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:810a08db8efc8bf218e92019c09a83229c6abd1b")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+    implementation("io.lettuce:lettuce-core:7.5.1.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.2.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")
-    implementation("com.zaxxer:HikariCP:6.3.3")
-    implementation("org.postgresql:postgresql:42.7.10")
+    implementation("com.zaxxer:HikariCP:7.0.2")
+    implementation("org.postgresql:postgresql:42.7.11")
     implementation("org.xerial:sqlite-jdbc:3.53.0.0")
     implementation("com.password4j:password4j:1.8.4")
-    implementation("com.auth0:java-jwt:4.5.1")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.14.3")
+    implementation("com.auth0:java-jwt:4.5.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.9")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("io.ktor:ktor-server-content-negotiation-jvm")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
-    testImplementation("org.testcontainers:testcontainers:1.21.4")
-    testImplementation("org.testcontainers:postgresql:1.21.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
 }
 
 tasks.test {

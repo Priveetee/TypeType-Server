@@ -17,9 +17,7 @@ internal class YouTubeSubtitleService(private val httpClient: OkHttpClient, priv
                         .url("$baseUrl/subtitles?videoId=$videoId")
                         .build()
                 ).execute()
-                CacheJson.decodeFromString<List<SubtitleItem>>(
-                    response.body?.string() ?: return@runCatching emptyList()
-                )
+                response.use { CacheJson.decodeFromString<List<SubtitleItem>>(it.body.string()) }
             }.getOrElse { emptyList() }
         }
 }
