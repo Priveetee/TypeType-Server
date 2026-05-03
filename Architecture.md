@@ -65,6 +65,7 @@ Public extraction and proxy routes:
 - `/search`, `/suggestions`, `/trending`
 - `/comments`, `/bullet-comments`, `/channel`
 - `/proxy`, `/proxy/storyboard`, `/proxy/nicovideo`
+- `/health`, `/instance` (public instance metadata from `admin_settings` + Gradle version; `/instance` returns name, tagline, logoUrl, bannerUrl, version, apiVersion, registrationAllowed, guestAllowed, supportedServices, and minClientVersion.android with `Cache-Control: public, max-age=300`)
 
 Protected user routes:
 

@@ -50,6 +50,24 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
 }
 
+val buildInfoVersion = version.toString().trim().takeUnless { it.isBlank() || it == "unspecified" } ?: "0.0.0-dev"
+val generatedBuildInfoDir = layout.buildDirectory.dir("generated/sources/buildInfo/main")
+val generateBuildInfo = tasks.register("generateBuildInfo") {
+    inputs.property("version", buildInfoVersion)
+    outputs.dir(generatedBuildInfoDir)
+    doLast {
+        val output = generatedBuildInfoDir.get().file("dev/typetype/server/BuildInfo.kt").asFile
+        output.parentFile.mkdirs()
+        output.writeText("""
+            package dev.typetype.server
+
+            object BuildInfo {
+                const val VERSION: String = "${buildInfoVersion.replace("\\", "\\\\").replace("\"", "\\\"")}"
+            }
+        """.trimIndent())
+    }
+}
+
 tasks.test {
     useJUnitPlatform {
         excludeTags("network")
@@ -89,7 +107,10 @@ tasks.check {
 
 kotlin {
     jvmToolchain(21)
+    sourceSets.named("main") { kotlin.srcDir(generatedBuildInfoDir) }
 }
+
+tasks.named("compileKotlin") { dependsOn(generateBuildInfo) }
 
 tasks.withType<AbstractCopyTask>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
