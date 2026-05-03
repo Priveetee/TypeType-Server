@@ -27,6 +27,7 @@ import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
+import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.testcontainers.containers.ContainerLaunchException
@@ -48,6 +49,7 @@ object TestDatabase {
     }
 
     fun setup() {
+        AdminSettingsService.clearCache()
         if (initialized) return
         synchronized(this) {
             if (initialized) return
@@ -112,5 +114,6 @@ object TestDatabase {
         YoutubeTakeoutPlaylistKeysTable.deleteAll()
         BugReportsTable.deleteAll()
         NotificationStatesTable.deleteAll()
+        AdminSettingsService.clearCache()
     }
 }
