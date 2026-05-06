@@ -11,7 +11,7 @@ class HomeRecommendationPoolBuilder {
         context: HomeRecommendationSessionContext,
         mode: HomeRecommendationPoolMode = HomeRecommendationPoolMode.FULL,
     ): HomeRecommendationPool {
-        val shortsMode = mode == HomeRecommendationPoolMode.SHORTS
+        val shortsMode = mode == HomeRecommendationPoolMode.SHORTS || mode == HomeRecommendationPoolMode.FAST_SHORTS
         val subscriptionsScored = scoreAndFilter(
             candidates = subscriptionCandidates,
             profile = profile,

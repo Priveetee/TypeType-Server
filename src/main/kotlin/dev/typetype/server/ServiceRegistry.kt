@@ -31,7 +31,6 @@ import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
-import dev.typetype.server.services.HomeRecommendationSignalContextService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
@@ -83,7 +82,6 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val searchHistoryService = SearchHistoryService()
     val blockedService = BlockedService()
     val bugReportService = BugReportService()
-    val recommendationSignalContextService = HomeRecommendationSignalContextService(subscriptionsService, historyService, favoritesService)
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
         subscriptionsService = subscriptionsService,
@@ -93,7 +91,6 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
         favoritesService = favoritesService,
         watchLaterService = watchLaterService,
         blockedService = blockedService,
-        signalContextService = recommendationSignalContextService,
         streamService = streamService,
         cache = cache,
     )

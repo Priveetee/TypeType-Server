@@ -27,13 +27,21 @@ class SubscriptionShortsFeedService(
         val next = if (to < all.size) (page + 1).toString() else null
         return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = next)
     }
-
+    suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
+        val raw = runCatching { cache.get(SubscriptionFeedCacheKeys.shorts(userId)) }.getOrNull() ?: return null
+        val all = runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }.getOrNull()
+            ?: return null
+        val from = page * limit
+        if (from >= all.size) return SubscriptionFeedResponse(videos = emptyList(), nextpage = null)
+        val to = minOf(from + limit, all.size)
+        val next = if (to < all.size) (page + 1).toString() else null
+        return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = next)
+    }
     suspend fun getBlendedFeed(userId: String, serviceId: Int, page: Int, limit: Int): SubscriptionFeedResponse {
         val sourcePage = page
         val subs = getFeed(userId, sourcePage, limit).videos
         return blendService.build(subs = subs, serviceId = serviceId, page = page, limit = limit)
     }
-
     private suspend fun cachedAll(userId: String): List<VideoItem> {
         val key = SubscriptionFeedCacheKeys.shorts(userId)
         runCatching { cache.get(key) }.getOrNull()?.let { raw ->
@@ -42,7 +50,6 @@ class SubscriptionShortsFeedService(
         }
         return fetchAndCache(userId, key)
     }
-
     private suspend fun fetchAndCache(userId: String, key: String): List<VideoItem> {
         val subs = subscriptionsService.getAll(userId)
         val videos = coroutineScope {
@@ -59,10 +66,9 @@ class SubscriptionShortsFeedService(
             .map { it.toShortCanonicalUrl() }
             .sortedByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
             .let { diversifyByUploader(it) }
-        runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), 300L) }
+        runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), dedup), FEED_TTL_SECONDS) }
         return dedup
     }
-
     private fun diversifyByUploader(videos: List<VideoItem>): List<VideoItem> {
         val grouped = videos.groupBy { uploaderKey(it) }
         val queues = grouped.values
@@ -106,4 +112,7 @@ class SubscriptionShortsFeedService(
         return if (channelUrl.endsWith('/')) "${channelUrl}shorts" else "$channelUrl/shorts"
     }
 
+    companion object {
+        private const val FEED_TTL_SECONDS = 900L
+    }
 }

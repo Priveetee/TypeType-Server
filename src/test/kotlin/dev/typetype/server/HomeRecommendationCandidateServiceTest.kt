@@ -30,18 +30,18 @@ class HomeRecommendationCandidateServiceTest {
     @BeforeEach
     fun setup() {
         coEvery { subscriptionFeedService.getCachedFeed(any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
+        coEvery { subscriptionFeedService.getFeed(any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
         coEvery { subscriptionShortsFeedService.getBlendedFeed(any(), any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Failure("none")
     }
 
     @Test
-    fun `fast mode builds discovery from subscription related streams`() = runTest {
+    fun `fast mode stays cache-only without related streams`() = runTest {
         val seed = video("s1", "seed")
-        val related = video("r1", "related")
         coEvery { subscriptionFeedService.getCachedFeed(any(), any(), any()) } returns SubscriptionFeedResponse(listOf(seed), null)
-        coEvery { streamService.getStreamInfo(seed.url) } returns ExtractionResult.Success(stream(seed.url, listOf(related)))
         val pool = service.fetchCandidates("u", 0, profile(), HomeRecommendationPoolMode.FAST)
-        assertTrue(pool.discovery.any { it.video.id == "r1" && it.source == HomeRecommendationSourceTag.DISCOVERY_THEME })
+        assertTrue(pool.subscriptions.any { it.video.id == "s1" && it.source == HomeRecommendationSourceTag.SUBSCRIPTION })
+        assertTrue(pool.discovery.isEmpty())
     }
 
     @Test
@@ -50,7 +50,7 @@ class HomeRecommendationCandidateServiceTest {
         val related = video("rf1", "related")
         coEvery { streamService.getStreamInfo(favoriteSeed.url) } returns ExtractionResult.Success(stream(favoriteSeed.url, listOf(related)))
         val signalContext = HomeRecommendationSignalContext(favoriteUrls = listOf(favoriteSeed.url))
-        val pool = service.fetchCandidates("u", 0, profile(), HomeRecommendationPoolMode.FAST, signalContext)
+        val pool = service.fetchCandidates("u", 0, profile(), HomeRecommendationPoolMode.FULL, signalContext)
         assertTrue(pool.discovery.any { it.video.id == "rf1" && it.source == HomeRecommendationSourceTag.DISCOVERY_EXPLORATION })
     }
 
