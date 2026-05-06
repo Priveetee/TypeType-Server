@@ -4,7 +4,6 @@ import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.models.HistoryItem
 import org.jetbrains.exposed.v1.core.LowerCase
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -32,7 +31,8 @@ class HistoryService(
         if (from != null) query.andWhere { HistoryTable.watchedAt greaterEq from }
         if (to != null) query.andWhere { HistoryTable.watchedAt less to }
         val total = query.count()
-        val items = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC).limit(limit).offset(offset.toLong()).map { it.toHistoryItem() }
+        val rows = query.orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC).limit(limit).offset(offset.toLong()).toList()
+        val items = HistoryProgressMapper.toHistoryItems(userId, rows)
         items to total
     }
 
@@ -48,6 +48,7 @@ class HistoryService(
             Triple(UUID.randomUUID().toString(), item, watchedAt)
         }
         DatabaseFactory.query {
+            val progressByUrl = HistoryProgressMapper.savedProgressSeconds(userId, rows.map { it.second.url })
             HistoryTable.batchInsert(data = rows, shouldReturnGeneratedValues = false) { (id, item, watchedAt) ->
                 this[HistoryTable.id] = id
                 this[HistoryTable.userId] = userId
@@ -58,7 +59,7 @@ class HistoryService(
                 this[HistoryTable.channelUrl] = item.channelUrl
                 this[HistoryTable.channelAvatar] = item.channelAvatar
                 this[HistoryTable.duration] = item.duration
-                this[HistoryTable.progress] = item.progress
+                this[HistoryTable.progress] = maxOf(item.progress, progressByUrl[item.url] ?: 0L)
                 this[HistoryTable.watchedAt] = watchedAt
             }
         }
@@ -73,6 +74,7 @@ class HistoryService(
 
     private suspend fun insert(userId: String, item: HistoryItem, watchedAt: Long): HistoryItem {
         val id = UUID.randomUUID().toString()
+        val progress = DatabaseFactory.query { maxOf(item.progress, HistoryProgressMapper.savedProgressSeconds(userId, item.url) ?: 0L) }
         DatabaseFactory.query {
             HistoryTable.insert {
                 it[HistoryTable.id] = id
@@ -84,11 +86,11 @@ class HistoryService(
                 it[channelUrl] = item.channelUrl
                 it[channelAvatar] = item.channelAvatar
                 it[duration] = item.duration
-                it[progress] = item.progress
+                it[HistoryTable.progress] = progress
                 it[HistoryTable.watchedAt] = watchedAt
             }
         }
-        val ratio = if (item.duration > 0) item.progress.toDouble() / item.duration.toDouble() else 0.0
+        val ratio = if (item.duration > 0) progress.toDouble() / item.duration.toDouble() else 0.0
         if (privacyService.isPersonalizationEnabled(userId)) {
             eventService?.add(
                 userId = userId,
@@ -97,11 +99,9 @@ class HistoryService(
                 uploaderUrl = item.channelUrl,
                 title = item.title,
                 watchRatio = ratio.coerceIn(0.0, 1.0),
-                watchDurationMs = item.progress * 1_000L,
+                watchDurationMs = progress * 1_000L,
             )
         }
-        return item.copy(id = id, watchedAt = watchedAt)
+        return item.copy(id = id, progress = progress, watchedAt = watchedAt)
     }
-
-    private fun ResultRow.toHistoryItem() = HistoryItem(id = this[HistoryTable.id], url = this[HistoryTable.url], title = this[HistoryTable.title], thumbnail = this[HistoryTable.thumbnail], channelName = this[HistoryTable.channelName], channelUrl = this[HistoryTable.channelUrl], channelAvatar = this[HistoryTable.channelAvatar], duration = this[HistoryTable.duration], progress = this[HistoryTable.progress], watchedAt = this[HistoryTable.watchedAt])
 }
