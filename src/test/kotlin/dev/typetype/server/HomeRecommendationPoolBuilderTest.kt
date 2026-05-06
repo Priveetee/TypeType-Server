@@ -6,7 +6,6 @@ import dev.typetype.server.services.HomeRecommendationSessionContext
 import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationProfile
-import dev.typetype.server.services.HomeRecommendationScoring
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -71,37 +70,6 @@ class HomeRecommendationPoolBuilderTest {
         assertEquals("https://yt.com/v/ok", pool.subscriptions.first().url)
         assertEquals(1, pool.discovery.size)
         assertEquals("https://yt.com/v/new", pool.discovery.first().url)
-    }
-
-    @Test
-    fun `pool builder ranks title keyword matches higher`() {
-        val profile = HomeRecommendationProfile(
-            seenUrls = emptySet(),
-            blockedVideos = emptySet(),
-            blockedChannels = emptySet(),
-            feedbackBlockedVideos = emptySet(),
-            feedbackBlockedChannels = emptySet(),
-            subscriptionChannels = emptySet(),
-            favoriteUrls = emptySet(),
-            watchLaterUrls = emptySet(),
-            keywordAffinity = setOf("music"),
-            themeTokens = emptySet(),
-            themeQueries = emptyList(),
-            channelInterest = emptyMap(),
-            topicInterest = emptyMap(),
-            feedHistory = emptyMap(),
-            rejectionTopicPenalty = emptyMap(),
-            rejectionChannelPenalty = emptyMap(),
-            channelTopicProfile = emptyMap(),
-            shortsTopicInterest = emptyMap(),
-        )
-        val subscriptions = listOf(
-            tagged(video("plain", "a", title = "quantum lattice"), HomeRecommendationSourceTag.SUBSCRIPTION),
-            tagged(video("match", "a", title = "music lattice"), HomeRecommendationSourceTag.SUBSCRIPTION),
-        )
-        val plainScore = HomeRecommendationScoring.scoreSubscription(subscriptions[0].video, profile, context)
-        val matchScore = HomeRecommendationScoring.scoreSubscription(subscriptions[1].video, profile, context)
-        assertTrue(matchScore > plainScore)
     }
 
     @Test

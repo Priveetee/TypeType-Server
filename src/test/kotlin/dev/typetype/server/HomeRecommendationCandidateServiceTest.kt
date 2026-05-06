@@ -9,11 +9,9 @@ import dev.typetype.server.services.HomeRecommendationPoolMode
 import dev.typetype.server.services.HomeRecommendationProfile
 import dev.typetype.server.services.HomeRecommendationSignalContext
 import dev.typetype.server.services.HomeRecommendationSourceTag
-import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionShortsFeedService
-import dev.typetype.server.services.TrendingService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -24,11 +22,9 @@ import org.junit.jupiter.api.Test
 class HomeRecommendationCandidateServiceTest {
     private val subscriptionFeedService: SubscriptionFeedService = mockk()
     private val subscriptionShortsFeedService: SubscriptionShortsFeedService = mockk()
-    private val trendingService: TrendingService = mockk()
-    private val searchService: SearchService = mockk()
     private val streamService: StreamService = mockk()
     private val service = HomeRecommendationCandidateService(
-        subscriptionFeedService, subscriptionShortsFeedService, trendingService, searchService, streamService,
+        subscriptionFeedService, subscriptionShortsFeedService, streamService,
     )
 
     @BeforeEach

@@ -16,13 +16,6 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
-import dev.typetype.server.db.tables.RecommendationFeedbackTable
-import dev.typetype.server.db.tables.RecommendationEventsTable
-import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
-import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
-import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
-import dev.typetype.server.db.tables.UserChannelInterestTable
-import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.UsersTable
@@ -103,13 +96,6 @@ object TestDatabase {
         AdminSettingsTable.deleteAll()
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()
-        RecommendationFeedbackTable.deleteAll()
-        RecommendationEventsTable.deleteAll()
-        RecommendationFeedHistoryTable.deleteAll()
-        RecommendationOnboardingPreferencesTable.deleteAll()
-        RecommendationOnboardingStateTable.deleteAll()
-        UserChannelInterestTable.deleteAll()
-        UserTopicInterestTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()
         YoutubeTakeoutPlaylistKeysTable.deleteAll()
         BugReportsTable.deleteAll()

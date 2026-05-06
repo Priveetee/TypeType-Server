@@ -8,13 +8,7 @@ import dev.typetype.server.routes.homeRecommendationShortsRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.HomeRecommendationService
-import dev.typetype.server.services.RecommendationEventService
-import dev.typetype.server.services.RecommendationFeedHistoryService
-import dev.typetype.server.services.RecommendationFeedbackService
-import dev.typetype.server.services.RecommendationInterestService
-import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.SearchService
-import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TrendingService
 import io.ktor.client.request.get
@@ -41,24 +35,14 @@ class HomeRecommendationShortsRoutesTest {
     private val channelService: ChannelService = mockk()
     private val trendingService: TrendingService = mockk()
     private val searchService: SearchService = mockk()
-    private val eventService = RecommendationEventService(RecommendationInterestService())
-    private val feedback = RecommendationFeedbackService(eventService)
-    private val feedHistoryService = RecommendationFeedHistoryService()
-    private val privacyService = RecommendationPrivacyService(SettingsService())
     private val resolverDeps = homeResolverDependencies(
         subscriptions = SubscriptionsService(),
         channelService = channelService,
         cache = cache,
-        feedbackService = feedback,
-        eventService = eventService,
-        feedHistoryService = feedHistoryService,
         trendingService = trendingService,
-        searchService = searchService,
     )
     private val service = HomeRecommendationService(
         poolResolver = buildHomeResolver(resolverDeps),
-        feedHistoryService = feedHistoryService,
-        privacyService = privacyService,
     )
     private val auth = AuthService.fixed(TEST_USER_ID)
 
