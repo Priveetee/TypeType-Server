@@ -13,10 +13,8 @@ import java.util.UUID
 
 class RecommendationEventService(
     private val interestService: RecommendationInterestService,
-    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
 ) {
     suspend fun hasClick(userId: String): Boolean {
-        if (!privacyService.isPersonalizationEnabled(userId)) return false
         return DatabaseFactory.query {
         RecommendationEventsTable.selectAll()
             .where { (RecommendationEventsTable.userId eq userId) and (RecommendationEventsTable.eventType eq "click") }
@@ -26,7 +24,6 @@ class RecommendationEventService(
     }
 
     suspend fun getAll(userId: String): List<RecommendationEventItem> {
-        if (!privacyService.isPersonalizationEnabled(userId)) return emptyList()
         return DatabaseFactory.query {
         RecommendationEventsTable.selectAll()
             .where { RecommendationEventsTable.userId eq userId }
@@ -46,21 +43,6 @@ class RecommendationEventService(
         watchDurationMs: Long?,
         contextKey: String? = null,
     ): RecommendationEventItem {
-        if (!privacyService.isPersonalizationEnabled(userId)) {
-            val now = System.currentTimeMillis()
-            return RecommendationEventItem(
-                id = "disabled",
-                eventType = eventType,
-                videoUrl = videoUrl,
-                uploaderUrl = uploaderUrl,
-                title = title,
-                watchRatio = watchRatio,
-                watchDurationMs = watchDurationMs,
-                contextKey = contextKey,
-                occurredAt = now,
-                publishedAt = now,
-            )
-        }
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {

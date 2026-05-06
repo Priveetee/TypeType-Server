@@ -4,8 +4,6 @@ import dev.typetype.server.models.HomeRecommendationsResponse
 
 class HomeRecommendationService(
     private val poolResolver: HomeRecommendationPoolResolver,
-    private val feedHistoryService: RecommendationFeedHistoryService,
-    private val privacyService: RecommendationPrivacyService,
 ) {
     private fun args(
         userId: String,
@@ -34,8 +32,6 @@ class HomeRecommendationService(
         args = args(userId, serviceId, limit, cursor, context, debug),
         mode = HomeRecommendationPoolMode.FULL,
         poolResolver = poolResolver,
-        feedHistoryService = feedHistoryService,
-        privacyService = privacyService,
     )
 
     suspend fun getShorts(
@@ -49,7 +45,5 @@ class HomeRecommendationService(
         args = args(userId, serviceId, limit, cursor, context, debug),
         mode = HomeRecommendationPoolMode.SHORTS,
         poolResolver = poolResolver,
-        feedHistoryService = feedHistoryService,
-        privacyService = privacyService,
     )
 }

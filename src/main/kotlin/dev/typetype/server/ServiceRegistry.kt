@@ -31,11 +31,6 @@ import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
-import dev.typetype.server.services.RecommendationEventService
-import dev.typetype.server.services.RecommendationFeedbackService
-import dev.typetype.server.services.RecommendationInterestService
-import dev.typetype.server.services.RecommendationOnboardingService
-import dev.typetype.server.services.RecommendationPrivacyService
 import dev.typetype.server.services.HomeRecommendationSignalContextService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
@@ -43,7 +38,6 @@ import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
-import dev.typetype.server.services.SubscriptionShortsSignalService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
@@ -71,29 +65,24 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
     val suggestionService = CachedSuggestionService(PipePipeSuggestionService(), cache)
-    val recommendationPrivacyService = RecommendationPrivacyService(SettingsService())
-    val recommendationInterestService = RecommendationInterestService()
-    val recommendationEventService = RecommendationEventService(recommendationInterestService, recommendationPrivacyService)
-    val historyService = HistoryService(recommendationEventService)
+    val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
     val subscriptionShortsFeedService = SubscriptionShortsFeedService(
         subscriptionsService,
         channelService,
-        SubscriptionShortsBlendService(trendingService, SubscriptionShortsSignalService(recommendationEventService)),
+        SubscriptionShortsBlendService(trendingService),
         cache,
     )
     val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
-    val watchLaterService = WatchLaterService(recommendationEventService)
+    val watchLaterService = WatchLaterService()
     val progressService = ProgressService()
-    val favoritesService = FavoritesService(recommendationEventService)
+    val favoritesService = FavoritesService()
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
-    val blockedService = BlockedService(recommendationEventService)
+    val blockedService = BlockedService()
     val bugReportService = BugReportService()
-    val recommendationFeedbackService = RecommendationFeedbackService(recommendationEventService)
-    val recommendationOnboardingService = RecommendationOnboardingService()
     val recommendationSignalContextService = HomeRecommendationSignalContextService(subscriptionsService, historyService, favoritesService)
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
@@ -101,20 +90,13 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
         subscriptionFeedService = subscriptionFeedService,
         subscriptionShortsFeedService = subscriptionShortsFeedService,
         historyService = historyService,
-        playlistService = playlistService,
         favoritesService = favoritesService,
         watchLaterService = watchLaterService,
         blockedService = blockedService,
-        feedbackService = recommendationFeedbackService,
-        eventService = recommendationEventService,
-        feedHistoryService = dev.typetype.server.services.RecommendationFeedHistoryService(),
         signalContextService = recommendationSignalContextService,
-        trendingService = trendingService,
-        searchService = searchService,
         streamService = streamService,
         cache = cache,
     )
-    private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies, recommendationPrivacyService)
-    val recommendationFeedHistoryService = homeRecommendationServices.feedHistoryService
+    private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
     val homeRecommendationService = homeRecommendationServices.recommendationService
 }

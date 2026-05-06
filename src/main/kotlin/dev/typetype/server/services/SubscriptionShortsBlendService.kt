@@ -6,10 +6,8 @@ import dev.typetype.server.models.VideoItem
 
 class SubscriptionShortsBlendService(
     private val trendingService: TrendingService,
-    private val signalService: SubscriptionShortsSignalService,
 ) {
     suspend fun build(
-        userId: String,
         subs: List<VideoItem>,
         serviceId: Int,
         page: Int,
@@ -19,9 +17,8 @@ class SubscriptionShortsBlendService(
             .map { it.toShortCanonicalUrl() }
             .filter { video -> subs.none { it.toShortDedupKey() == video.toShortDedupKey() } }
             .distinctBy { it.url }
-        val signals = signalService.load(userId)
-        val rankedSubs = subs.sortedByDescending { scoreShort(it, true, signals) }
-        val rankedDiscovery = discovery.sortedByDescending { scoreShort(it, false, signals) }
+        val rankedSubs = subs.sortedByDescending { scoreShort(it, true) }
+        val rankedDiscovery = discovery.sortedByDescending { scoreShort(it, false) }
         val discoveryPage = rankedDiscovery.drop(page * limit).take(limit)
         val videos = blend(rankedSubs, discoveryPage, limit)
         val hasNext = hasMoreSubs(subs, limit) || hasMoreDiscovery(rankedDiscovery, page, limit)
@@ -62,10 +59,9 @@ class SubscriptionShortsBlendService(
         return nextStart < discovery.size
     }
 
-    private fun scoreShort(video: VideoItem, isSubscription: Boolean, penaltyByVideo: Map<String, Double>): Double {
+    private fun scoreShort(video: VideoItem, isSubscription: Boolean): Double {
         val ageBoost = if (video.uploaded <= 0L) 0.0 else 1.0 / (1.0 + ((System.currentTimeMillis() - video.uploaded).coerceAtLeast(0L) / 3_600_000.0) / 24.0)
         val sourceBoost = if (isSubscription) 1.0 else 0.85
-        val penalty = penaltyByVideo[video.url] ?: 1.0
-        return (sourceBoost + ageBoost) * penalty
+        return sourceBoost + ageBoost
     }
 }

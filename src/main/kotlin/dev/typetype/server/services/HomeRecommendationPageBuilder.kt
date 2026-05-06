@@ -7,15 +7,11 @@ object HomeRecommendationPageBuilder {
         args: HomeRecommendationApiArgs,
         mode: HomeRecommendationPoolMode,
         poolResolver: HomeRecommendationPoolResolver,
-        feedHistoryService: RecommendationFeedHistoryService,
-        privacyService: RecommendationPrivacyService,
     ): HomeRecommendationsResponse {
-        val personalizationEnabled = privacyService.isPersonalizationEnabled(args.userId)
         val pool = poolResolver.resolve(
             userId = args.userId,
             serviceId = args.serviceId,
             mode = mode,
-            personalizationEnabled = personalizationEnabled,
             context = args.context,
         )
         val page = HomeRecommendationMixer.mix(
@@ -56,9 +52,6 @@ object HomeRecommendationPageBuilder {
             }
         } else {
             page
-        }
-        if (personalizationEnabled) {
-            feedHistoryService.recordShown(args.userId, finalPage.items.map { it.url })
         }
         return HomeRecommendationsResponse(
             items = finalPage.items,

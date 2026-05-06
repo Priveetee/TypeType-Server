@@ -19,13 +19,6 @@ import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
-import dev.typetype.server.db.tables.RecommendationEventsTable
-import dev.typetype.server.db.tables.RecommendationFeedbackTable
-import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
-import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
-import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
-import dev.typetype.server.db.tables.UserChannelInterestTable
-import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import kotlinx.coroutines.Dispatchers
@@ -64,13 +57,6 @@ object DatabaseFactory {
                 BlockedChannelsTable,
                 BlockedVideosTable,
                 PasswordResetTable,
-                RecommendationFeedbackTable,
-                RecommendationEventsTable,
-                RecommendationFeedHistoryTable,
-                RecommendationOnboardingStateTable,
-                RecommendationOnboardingPreferencesTable,
-                UserChannelInterestTable,
-                UserTopicInterestTable,
                 YoutubeTakeoutImportJobsTable,
                 YoutubeTakeoutPlaylistKeysTable,
                 BugReportsTable,
@@ -82,7 +68,6 @@ object DatabaseFactory {
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_subtitle_language TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS prefer_original_language BOOLEAN NOT NULL DEFAULT false")
-            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS recommendation_personalization_enabled BOOLEAN NOT NULL DEFAULT true")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS channel_avatar TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
@@ -103,8 +88,6 @@ object DatabaseFactory {
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_code TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS public_username TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
-            exec("ALTER TABLE recommendation_events ADD COLUMN IF NOT EXISTS watch_duration_ms BIGINT")
-            exec("ALTER TABLE recommendation_events ADD COLUMN IF NOT EXISTS context_key TEXT")
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             DatabaseSessionAuthMigration.apply()
