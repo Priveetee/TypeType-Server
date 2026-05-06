@@ -26,6 +26,7 @@ class AdminSettingsService {
                     allowRegistration = it[AdminSettingsTable.allowRegistration],
                     allowGuest = it[AdminSettingsTable.allowGuest],
                     forceEmailVerification = it[AdminSettingsTable.forceEmailVerification],
+                    activeSessionsEnabled = it[AdminSettingsTable.activeSessionsEnabled],
                 ).normalized()
             } ?: AdminSettingsItem()
         }
@@ -47,6 +48,7 @@ class AdminSettingsService {
                     it[allowRegistration] = settings.allowRegistration
                     it[allowGuest] = settings.allowGuest
                     it[forceEmailVerification] = settings.forceEmailVerification
+                    it[activeSessionsEnabled] = settings.activeSessionsEnabled
                 }
             } else {
                 AdminSettingsTable.insert {
@@ -59,6 +61,7 @@ class AdminSettingsService {
                     it[allowRegistration] = settings.allowRegistration
                     it[allowGuest] = settings.allowGuest
                     it[forceEmailVerification] = settings.forceEmailVerification
+                    it[activeSessionsEnabled] = settings.activeSessionsEnabled
                 }
             }
         }

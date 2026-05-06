@@ -13,5 +13,6 @@ object AdminSettingsTable : Table("admin_settings") {
     val allowRegistration = bool("allow_registration").default(true)
     val allowGuest = bool("allow_guest").default(true)
     val forceEmailVerification = bool("force_email_verification").default(false)
+    val activeSessionsEnabled = bool("active_sessions_enabled").default(false)
     override val primaryKey = PrimaryKey(id)
 }

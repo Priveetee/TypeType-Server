@@ -3,39 +3,27 @@ package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.OkHttpDownloader
-import dev.typetype.server.routes.blockedRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
-import dev.typetype.server.routes.favoritesRoutes
-import dev.typetype.server.routes.historyRoutes
-import dev.typetype.server.routes.homeRecommendationRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
-import dev.typetype.server.routes.playlistRoutes
-import dev.typetype.server.routes.profileRoutes
-import dev.typetype.server.routes.progressRoutes
 import dev.typetype.server.routes.proxyRoutes
-import dev.typetype.server.routes.restoreRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
-import dev.typetype.server.routes.searchHistoryRoutes
-import dev.typetype.server.routes.recommendationFeedbackRoutes
-import dev.typetype.server.routes.recommendationEventsRoutes
 import dev.typetype.server.routes.searchRoutes
-import dev.typetype.server.routes.settingsRoutes
 import dev.typetype.server.routes.streamRoutes
-import dev.typetype.server.routes.subscriptionFeedRoutes
-import dev.typetype.server.routes.subscriptionsRoutes
 import dev.typetype.server.routes.suggestionRoutes
+import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
-import dev.typetype.server.routes.watchLaterRoutes
+import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.userDataRoutes
+import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
@@ -73,6 +61,7 @@ fun Application.module() {
     val avatarService = AvatarService()
     val gitHubIssueService = GitHubIssueService()
     val adminSettingsService = AdminSettingsService()
+    val activeSessionService = ActiveSessionService(adminSettingsService)
     val instanceService = InstanceService(authService, adminSettingsService)
     val restoreService = PipePipeBackupImporterService()
 
@@ -112,6 +101,8 @@ fun Application.module() {
         downloaderGatewayRoutes(downloaderGatewayService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminSessionRoutes(authService, activeSessionService)
+        sessionActivityRoutes(authService, activeSessionService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService)
         rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, svc.bugReportService, restoreService) }

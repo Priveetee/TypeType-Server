@@ -13,4 +13,5 @@ data class AdminSettingsItem(
     val allowRegistration: Boolean = true,
     val allowGuest: Boolean = true,
     val forceEmailVerification: Boolean = false,
+    val activeSessionsEnabled: Boolean = false,
 )
