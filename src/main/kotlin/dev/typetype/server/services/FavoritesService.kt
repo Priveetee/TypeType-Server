@@ -11,10 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
-class FavoritesService(
-    private val eventService: RecommendationEventService? = null,
-    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
-) {
+class FavoritesService {
 
     suspend fun getAll(userId: String): List<FavoriteItem> = DatabaseFactory.query {
         FavoritesTable.selectAll()
@@ -31,17 +28,6 @@ class FavoritesService(
                 it[FavoritesTable.videoUrl] = videoUrl
                 it[favoritedAt] = now
             }
-        }
-        if (privacyService.isPersonalizationEnabled(userId)) {
-            eventService?.add(
-                userId = userId,
-                eventType = "favorite",
-                videoUrl = videoUrl,
-                uploaderUrl = null,
-                title = null,
-                watchRatio = null,
-                watchDurationMs = null,
-            )
         }
         return FavoriteItem(videoUrl = videoUrl, favoritedAt = now)
     }

@@ -20,11 +20,6 @@ class HomeRecommendationPoolBuilder {
             minThemeScore = 0.0,
             shortsOnly = shortsMode,
         )
-        val jitteredSubscriptions = if (profile.personalizationEnabled) {
-            HomeRecommendationJitter.apply(subscriptionsScored, profile.feedHistory)
-        } else {
-            subscriptionsScored
-        }
         val subscriptionUrls = subscriptionsScored.map { it.video.url }.toSet()
         val discoveryScored = scoreAndFilter(
             candidates = discoveryCandidates,
@@ -34,16 +29,11 @@ class HomeRecommendationPoolBuilder {
             minThemeScore = 0.0,
             shortsOnly = shortsMode,
         ).filterNot { scored -> scored.video.url in subscriptionUrls }
-        val jitteredDiscovery = if (profile.personalizationEnabled) {
-            HomeRecommendationJitter.apply(discoveryScored, profile.feedHistory)
-        } else {
-            discoveryScored
-        }
         return HomeRecommendationPool(
-            subscriptions = jitteredSubscriptions.map { it.video },
-            discovery = jitteredDiscovery.map { it.video },
+            subscriptions = subscriptionsScored.map { it.video },
+            discovery = discoveryScored.map { it.video },
             subscriptionChannels = profile.subscriptionChannels,
-            sourceByUrl = (jitteredSubscriptions + jitteredDiscovery).associate { it.video.url to it.source },
+            sourceByUrl = (subscriptionsScored + discoveryScored).associate { it.video.url to it.source },
             sourceWeights = HomeRecommendationPoolWeights.forMode(profile, shortsMode),
         )
     }
@@ -66,26 +56,7 @@ class HomeRecommendationPoolBuilder {
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.feedbackBlockedChannels) return@forEach
             if (!allowLive && HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) return@forEach
-            if (minThemeScore > 0.0 && profile.themeTokens.isNotEmpty()) {
-                val themeScore = HomeRecommendationThemeExtractor.computeThemeScore(video.title, video.uploaderName, profile.themeTokens)
-                if (themeScore < minThemeScore) return@forEach
-            }
-            val rawScore = scorer(video, profile) * (profile.eventPenaltyByVideo[video.url] ?: 1.0)
-            val shortAdjustedScore = if (video.isShortFormContent) {
-                rawScore * (profile.shortPenaltyByVideo[video.url] ?: 1.0)
-            } else {
-                rawScore
-            }
-            val seenAdjustedScore = if (video.isShortFormContent) {
-                shortAdjustedScore * HomeRecommendationShortsSeenMemory.penalty(profile.feedHistory[video.url])
-            } else {
-                shortAdjustedScore
-            }
-            val score = if (profile.personalizationEnabled) {
-                HomeRecommendationScoring.applyPersonalizationPenalties(video, seenAdjustedScore, profile)
-            } else {
-                seenAdjustedScore
-            }
+            val score = scorer(video, profile)
             val scored = HomeRecommendationScoredVideo(video = video, score = score, source = tagged.source)
             val current = byUrl[video.url]
             if (current == null || scored.score > current.score) byUrl[video.url] = scored

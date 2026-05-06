@@ -12,10 +12,8 @@ import java.util.UUID
 
 class RecommendationFeedbackService(
     private val eventService: RecommendationEventService,
-    private val privacyService: RecommendationPrivacyService = RecommendationPrivacyService(SettingsService()),
 ) {
     suspend fun getAll(userId: String): List<RecommendationFeedbackItem> {
-        if (!privacyService.isPersonalizationEnabled(userId)) return emptyList()
         return DatabaseFactory.query {
         RecommendationFeedbackTable.selectAll()
             .where { RecommendationFeedbackTable.userId eq userId }
@@ -26,15 +24,6 @@ class RecommendationFeedbackService(
     }
 
     suspend fun add(userId: String, feedbackType: String, videoUrl: String?, uploaderUrl: String?): RecommendationFeedbackItem {
-        if (!privacyService.isPersonalizationEnabled(userId)) {
-            return RecommendationFeedbackItem(
-                id = "disabled",
-                feedbackType = feedbackType,
-                videoUrl = videoUrl,
-                uploaderUrl = uploaderUrl,
-                createdAt = System.currentTimeMillis(),
-            )
-        }
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         DatabaseFactory.query {

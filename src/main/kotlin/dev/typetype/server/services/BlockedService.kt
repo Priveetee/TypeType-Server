@@ -15,7 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 private const val SCOPE_USER = "user"
 private const val SCOPE_GLOBAL = "global"
 
-class BlockedService(private val eventService: RecommendationEventService? = null) {
+class BlockedService {
     suspend fun getChannels(userId: String): List<BlockedItem> = DatabaseFactory.query {
         BlockedChannelsTable.selectAll()
             .where { (BlockedChannelsTable.userId eq userId) or (BlockedChannelsTable.scope eq SCOPE_GLOBAL) }
@@ -55,7 +55,6 @@ class BlockedService(private val eventService: RecommendationEventService? = nul
                 it[blockedAt] = now
             }
         }
-        eventService?.add(userId, "block_channel", null, url, name, null, null)
         return BlockedItem(url = url, name = name, thumbnailUrl = thumbnailUrl, blockedAt = now)
     }
 
@@ -69,7 +68,6 @@ class BlockedService(private val eventService: RecommendationEventService? = nul
                 it[blockedAt] = now
             }
         }
-        eventService?.add(userId, "block_video", url, null, null, null, null)
         return BlockedItem(url = url, blockedAt = now)
     }
 

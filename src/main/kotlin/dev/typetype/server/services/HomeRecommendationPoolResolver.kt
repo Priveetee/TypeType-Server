@@ -20,18 +20,17 @@ class HomeRecommendationPoolResolver(
         userId: String,
         serviceId: Int,
         mode: HomeRecommendationPoolMode,
-        personalizationEnabled: Boolean,
         context: HomeRecommendationContext,
     ): HomeRecommendationPool {
         val key = poolCache.key(
             userId = userId,
             serviceId = serviceId,
             mode = mode,
-            personalizationEnabled = personalizationEnabled,
+            personalizationEnabled = false,
         )
         val cached = poolCache.read(key)
         if (cached != null) return cached
-        val fullBuild = fullBuild(key, userId, serviceId, mode, personalizationEnabled, context)
+        val fullBuild = fullBuild(key, userId, serviceId, mode, context)
         val quickFull = withTimeoutOrNull(FULL_BUILD_BUDGET_MS) { fullBuild.await() }
         if (quickFull != null) {
             poolCache.write(key, quickFull)
@@ -39,7 +38,7 @@ class HomeRecommendationPoolResolver(
         }
         schedulePersistence(key, fullBuild)
         val fastMode = if (mode == HomeRecommendationPoolMode.SHORTS) HomeRecommendationPoolMode.SHORTS else HomeRecommendationPoolMode.FAST
-        return buildPool(userId, serviceId, fastMode, personalizationEnabled, context)
+        return buildPool(userId, serviceId, fastMode, context)
     }
 
     private fun fullBuild(
@@ -47,13 +46,12 @@ class HomeRecommendationPoolResolver(
         userId: String,
         serviceId: Int,
         mode: HomeRecommendationPoolMode,
-        personalizationEnabled: Boolean,
         context: HomeRecommendationContext,
     ): Deferred<HomeRecommendationPool> {
         state.fullBuilds[key]?.let { return it }
         val created = scope.async {
             val fullMode = if (mode == HomeRecommendationPoolMode.SHORTS) HomeRecommendationPoolMode.SHORTS else HomeRecommendationPoolMode.FULL
-            buildPool(userId, serviceId, fullMode, personalizationEnabled, context)
+            buildPool(userId, serviceId, fullMode, context)
         }
         val winner = state.fullBuilds.putIfAbsent(key, created)
         if (winner != null) {
@@ -68,29 +66,21 @@ class HomeRecommendationPoolResolver(
         userId: String,
         serviceId: Int,
         mode: HomeRecommendationPoolMode,
-        personalizationEnabled: Boolean,
         context: HomeRecommendationContext,
     ): HomeRecommendationPool = HomeRecommendationBuilder(
         subscriptionsService = dependencies.subscriptionsService,
         subscriptionFeedService = dependencies.subscriptionFeedService,
         subscriptionShortsFeedService = dependencies.subscriptionShortsFeedService,
         historyService = dependencies.historyService,
-        playlistService = dependencies.playlistService,
         favoritesService = dependencies.favoritesService,
         watchLaterService = dependencies.watchLaterService,
         blockedService = dependencies.blockedService,
-        eventService = dependencies.eventService,
-        feedbackService = dependencies.feedbackService,
-        feedHistoryService = dependencies.feedHistoryService,
-        trendingService = dependencies.trendingService,
-        searchService = dependencies.searchService,
         streamService = dependencies.streamService,
         signalContextService = dependencies.signalContextService,
     ).build(
         userId = userId,
         serviceId = serviceId,
         mode = mode,
-        personalizationEnabled = personalizationEnabled,
         context = context,
     )
 

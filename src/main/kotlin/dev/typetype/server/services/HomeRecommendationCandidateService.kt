@@ -5,13 +5,10 @@ import dev.typetype.server.models.VideoItem
 class HomeRecommendationCandidateService(
     private val subscriptionFeedService: SubscriptionFeedService,
     private val subscriptionShortsFeedService: SubscriptionShortsFeedService,
-    private val trendingService: TrendingService,
-    private val searchService: SearchService,
     private val streamService: StreamService,
     private val discoveryAssembler: HomeRecommendationDiscoveryAssembler = HomeRecommendationDiscoveryAssembler(),
     private val shortsCandidateService: HomeRecommendationShortsCandidateService = HomeRecommendationShortsCandidateService(),
 ) {
-    private val searchCandidateFetcher = HomeRecommendationSearchCandidateFetcher(searchService, trendingService)
     private val relatedCandidateService = HomeRecommendationRelatedCandidateService(streamService)
 
     suspend fun fetchCandidates(
@@ -69,18 +66,6 @@ class HomeRecommendationCandidateService(
         )
         return pages.flatten()
     }
-
-    suspend fun fetchTrendingCandidates(serviceId: Int): List<HomeRecommendationTaggedVideo> =
-        searchCandidateFetcher.fetchTrendingCandidates(serviceId)
-
-    suspend fun fetchSearchCandidates(
-        serviceId: Int,
-        queries: List<String>,
-        maxQueries: Int,
-        perQueryLimit: Int,
-        source: HomeRecommendationSourceTag,
-    ): List<HomeRecommendationTaggedVideo> =
-        searchCandidateFetcher.fetchSearchCandidates(serviceId, queries, maxQueries, perQueryLimit, source)
 
     suspend fun fetchRelatedCandidates(
         seedUrls: List<String>,
