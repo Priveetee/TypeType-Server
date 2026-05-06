@@ -86,7 +86,7 @@ class HistoryService(
                 it[channelUrl] = item.channelUrl
                 it[channelAvatar] = item.channelAvatar
                 it[duration] = item.duration
-                it[progress] = progress
+                it[HistoryTable.progress] = progress
                 it[HistoryTable.watchedAt] = watchedAt
             }
         }
