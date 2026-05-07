@@ -11,7 +11,6 @@ import dev.typetype.server.services.HomeRecommendationPoolResolver
 import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
 import dev.typetype.server.services.HomeRecommendationSessionContext
 import dev.typetype.server.services.HomeRecommendationSessionIntent
-import dev.typetype.server.services.HomeRecommendationSignalContextService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
@@ -37,7 +36,6 @@ fun homeResolverDependencies(
     favoritesService = FavoritesService(),
     watchLaterService = WatchLaterService(),
     blockedService = BlockedService(),
-    signalContextService = HomeRecommendationSignalContextService(subscriptions, HistoryService()),
     cache = cache,
 )
 

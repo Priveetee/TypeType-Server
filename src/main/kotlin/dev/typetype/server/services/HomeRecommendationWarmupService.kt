@@ -1,0 +1,86 @@
+package dev.typetype.server.services
+
+import dev.typetype.server.cache.CacheService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+class HomeRecommendationWarmupService(
+    private val recommendationService: HomeRecommendationService,
+    private val cache: CacheService,
+) : HomeRecommendationWarmup {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val activeUsers = ConcurrentHashMap<String, Long>()
+    private val warmupStartedAt = ConcurrentHashMap<String, Long>()
+    private val poolCache = HomeRecommendationPoolCache(cache)
+
+    init {
+        scope.launch { refreshLoop() }
+    }
+
+    override fun markActive(userId: String) {
+        activeUsers[userId] = System.currentTimeMillis()
+        schedule(userId)
+    }
+
+    override fun invalidateAndWarm(userId: String) {
+        activeUsers[userId] = System.currentTimeMillis()
+        scope.launch {
+            invalidate(userId)
+            schedule(userId, force = true)
+        }
+    }
+
+    private fun schedule(userId: String, force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        val previous = warmupStartedAt[userId]
+        if (!force && previous != null && now - previous < WARMUP_THROTTLE_MS) return
+        warmupStartedAt[userId] = now
+        scope.launch { warm(userId) }
+    }
+
+    private suspend fun warm(userId: String) {
+        val context = context()
+        runCatching {
+            recommendationService.getHome(userId, YOUTUBE_SERVICE_ID, WARMUP_LIMIT, HomeRecommendationCursor(), context)
+        }
+        runCatching {
+            recommendationService.getShorts(userId, YOUTUBE_SERVICE_ID, WARMUP_LIMIT, HomeRecommendationCursor(), context)
+        }
+    }
+
+    private suspend fun invalidate(userId: String) {
+        cache.delete(SubscriptionFeedCacheKeys.feed(userId))
+        cache.delete(SubscriptionFeedCacheKeys.shorts(userId))
+        poolCache.delete(userId, YOUTUBE_SERVICE_ID, HomeRecommendationPoolMode.FULL)
+        poolCache.delete(userId, YOUTUBE_SERVICE_ID, HomeRecommendationPoolMode.SHORTS)
+    }
+
+    private suspend fun refreshLoop() {
+        while (scope.isActive) {
+            delay(REFRESH_INTERVAL_MS)
+            val now = System.currentTimeMillis()
+            activeUsers.entries.removeIf { now - it.value > ACTIVE_TTL_MS }
+            activeUsers.keys.forEach { schedule(it) }
+        }
+    }
+
+    private fun context(): HomeRecommendationContext = HomeRecommendationContext(
+        serviceId = YOUTUBE_SERVICE_ID,
+        sessionContext = HomeRecommendationSessionContext(
+            intent = HomeRecommendationSessionIntent.AUTO,
+            deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
+        ),
+    )
+
+    companion object {
+        private const val WARMUP_LIMIT = 20
+        private const val WARMUP_THROTTLE_MS = 10 * 60 * 1000L
+        private const val REFRESH_INTERVAL_MS = 10 * 60 * 1000L
+        private const val ACTIVE_TTL_MS = 60 * 60 * 1000L
+    }
+}

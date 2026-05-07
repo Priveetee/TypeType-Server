@@ -10,7 +10,6 @@ class HomeRecommendationBuilder(
     private val favoritesService: FavoritesService,
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
-    private val signalContextService: HomeRecommendationSignalContextService,
     private val streamService: StreamService,
 ) {
     suspend fun build(
@@ -26,13 +25,12 @@ class HomeRecommendationBuilder(
             watchLaterService = watchLaterService,
             blockedService = blockedService,
         )
-        val profile = signalService.loadProfile(userId = userId)
+        val (profile, signalContext) = signalService.load(userId = userId)
         val candidates = HomeRecommendationCandidateService(
             subscriptionFeedService = subscriptionFeedService,
             subscriptionShortsFeedService = subscriptionShortsFeedService,
             streamService = streamService,
         )
-        val signalContext = signalContextService.load(userId)
         val candidatePool = candidates.fetchCandidates(
             userId = userId,
             serviceId = serviceId,

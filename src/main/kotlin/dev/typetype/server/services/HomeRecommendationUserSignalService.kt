@@ -1,5 +1,8 @@
 package dev.typetype.server.services
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+
 class HomeRecommendationUserSignalService(
     private val subscriptionsService: SubscriptionsService,
     private val historyService: HistoryService,
@@ -7,18 +10,26 @@ class HomeRecommendationUserSignalService(
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
 ) {
-    suspend fun loadProfile(userId: String): HomeRecommendationProfile {
-        val subscriptions = subscriptionsService.getAll(userId)
-        val favorites = favoritesService.getAll(userId)
-        val watchLater = watchLaterService.getAll(userId)
-        val historyItems = historyService.search(userId = userId, q = null, from = null, to = null, limit = 240, offset = 0).first
-        val blockedVideos = blockedService.getVideos(userId).map { it.url }.toSet()
-        val blockedChannels = blockedService.getChannels(userId).map { it.url }.toSet()
+    suspend fun load(userId: String): Pair<HomeRecommendationProfile, HomeRecommendationSignalContext> = coroutineScope {
+        val subscriptionsDeferred = async { subscriptionsService.getAll(userId) }
+        val favoritesDeferred = async { favoritesService.getAll(userId) }
+        val watchLaterDeferred = async { watchLaterService.getAll(userId) }
+        val historyDeferred = async {
+            historyService.search(userId = userId, q = null, from = null, to = null, limit = 240, offset = 0).first
+        }
+        val blockedVideosDeferred = async { blockedService.getVideos(userId).map { it.url }.toSet() }
+        val blockedChannelsDeferred = async { blockedService.getChannels(userId).map { it.url }.toSet() }
+        val subscriptions = subscriptionsDeferred.await()
+        val favorites = favoritesDeferred.await()
+        val watchLater = watchLaterDeferred.await()
+        val historyItems = historyDeferred.await()
+        val blockedVideos = blockedVideosDeferred.await()
+        val blockedChannels = blockedChannelsDeferred.await()
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLater.map { it.url }.toSet()
         val subscriptionChannels = subscriptions.map { it.channelUrl }.toSet()
-        return HomeRecommendationProfile(
+        val profile = HomeRecommendationProfile(
             seenUrls = seenUrls,
             blockedVideos = blockedVideos,
             blockedChannels = blockedChannels,
@@ -32,5 +43,11 @@ class HomeRecommendationUserSignalService(
             themeQueries = emptyList(),
             personalizationEnabled = false,
         )
+        val signalContext = HomeRecommendationSignalContext(
+            userSubscriptions = subscriptions.map { it.channelUrl },
+            historyItems = historyItems.take(60).map { it.url },
+            favoriteUrls = favorites.map { it.videoUrl },
+        )
+        profile to signalContext
     }
 }

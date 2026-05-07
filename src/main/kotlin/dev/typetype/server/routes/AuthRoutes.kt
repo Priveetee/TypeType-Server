@@ -5,6 +5,8 @@ import dev.typetype.server.models.UserProfileItem
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthCookieHelpers
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.HomeRecommendationWarmup
+import dev.typetype.server.services.NoopHomeRecommendationWarmup
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import io.ktor.http.HttpStatusCode
@@ -15,7 +17,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService) {
+fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService, warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup) {
     post("/auth/register") {
         val req = call.receive<RegisterRequest>()
         if (req.email.isBlank() || req.password.isBlank() || req.name.isBlank()) {
@@ -29,13 +31,13 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
         }
         try {
             val token = authService.register(req.email, req.password, req.name)
+            token.accessToken.warm(authService, warmupService)
             AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
             call.respond(SessionResponse(token.accessToken))
         } catch (e: Exception) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("Registration failed"))
         }
     }
-
     post("/auth/login") {
         val req = call.receive<LoginRequest>()
         val identifier = req.identifier?.trim().orEmpty().ifBlank { req.email?.trim().orEmpty() }
@@ -45,9 +47,9 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             return@post
         }
         AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
+        token.accessToken.warm(authService, warmupService)
         call.respond(SessionResponse(token.accessToken))
     }
-
     post("/auth/refresh") {
         val req = runCatching { call.receive<RefreshRequest>() }.getOrNull()
         val refreshToken = AuthCookieHelpers.extractRefreshToken(call) ?: req?.token
@@ -57,9 +59,9 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             return@post
         }
         AuthCookieHelpers.setRefreshCookie(call.response, newToken.refreshToken)
+        newToken.accessToken.warm(authService, warmupService)
         call.respond(SessionResponse(newToken.accessToken))
     }
-
     post("/auth/logout") {
         val refreshToken = AuthCookieHelpers.extractRefreshToken(call)
         authService.logout(refreshToken)
@@ -95,7 +97,9 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
     }
 
     post("/auth/guest") {
-        call.respond(AuthResponse(authService.guestLogin()))
+        val token = authService.guestLogin()
+        token.warm(authService, warmupService)
+        call.respond(AuthResponse(token))
     }
 
     post("/auth/reset-password") {
@@ -111,3 +115,6 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
         if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid or expired reset token"))
     }
 }
+
+private fun String.warm(authService: AuthService, warmupService: HomeRecommendationWarmup): Unit =
+    authService.verify(this)?.let(warmupService::markActive) ?: Unit

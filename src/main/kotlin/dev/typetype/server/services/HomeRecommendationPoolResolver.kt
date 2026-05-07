@@ -7,7 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 class HomeRecommendationPoolResolver(
     private val dependencies: HomeRecommendationPoolResolverDependencies,
@@ -31,13 +30,14 @@ class HomeRecommendationPoolResolver(
         val cached = poolCache.read(key)
         if (cached != null) return cached
         val fullBuild = fullBuild(key, userId, serviceId, mode, context)
-        val quickFull = withTimeoutOrNull(FULL_BUILD_BUDGET_MS) { fullBuild.await() }
-        if (quickFull != null) {
-            poolCache.write(key, quickFull)
-            return quickFull
-        }
         schedulePersistence(key, fullBuild)
-        val fastMode = if (mode == HomeRecommendationPoolMode.SHORTS) HomeRecommendationPoolMode.SHORTS else HomeRecommendationPoolMode.FAST
+        val stale = poolCache.readStale(key)
+        if (stale != null) return stale
+        val fastMode = if (mode == HomeRecommendationPoolMode.SHORTS) {
+            HomeRecommendationPoolMode.FAST_SHORTS
+        } else {
+            HomeRecommendationPoolMode.FAST
+        }
         return buildPool(userId, serviceId, fastMode, context)
     }
 
@@ -76,7 +76,6 @@ class HomeRecommendationPoolResolver(
         watchLaterService = dependencies.watchLaterService,
         blockedService = dependencies.blockedService,
         streamService = dependencies.streamService,
-        signalContextService = dependencies.signalContextService,
     ).build(
         userId = userId,
         serviceId = serviceId,
@@ -92,7 +91,4 @@ class HomeRecommendationPoolResolver(
         }
     }
 
-    companion object {
-        private const val FULL_BUILD_BUDGET_MS = 1_500L
-    }
 }

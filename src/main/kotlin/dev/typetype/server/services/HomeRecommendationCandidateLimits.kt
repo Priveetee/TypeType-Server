@@ -2,10 +2,10 @@ package dev.typetype.server.services
 
 object HomeRecommendationCandidateLimits {
     const val FAST_SUBSCRIPTION_PAGE_SIZE = 60
-    const val SUBSCRIPTION_SEED_LIMIT = 20
-    const val FAVORITE_SEED_LIMIT = 20
-    const val RELATED_PER_SEED_LIMIT = 18
-    const val RELATED_DISCOVERY_CAP = 80
+    const val SUBSCRIPTION_SEED_LIMIT = 8
+    const val FAVORITE_SEED_LIMIT = 6
+    const val RELATED_PER_SEED_LIMIT = 10
+    const val RELATED_DISCOVERY_CAP = 48
     const val FAST_THEME_QUERY_LIMIT = 2
     const val FULL_THEME_QUERY_LIMIT = 6
     const val SIGNAL_QUERY_LIMIT = 4

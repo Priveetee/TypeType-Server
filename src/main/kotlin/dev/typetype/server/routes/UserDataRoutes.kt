@@ -17,7 +17,7 @@ internal fun Route.userDataRoutes(
     restoreService: PipePipeBackupImporterService,
 ) {
     historyRoutes(svc.historyService, authService)
-    subscriptionsRoutes(svc.subscriptionsService, authService)
+    subscriptionsRoutes(svc.subscriptionsService, authService, svc.homeRecommendationWarmupService)
     subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
     playlistRoutes(svc.playlistService, authService)

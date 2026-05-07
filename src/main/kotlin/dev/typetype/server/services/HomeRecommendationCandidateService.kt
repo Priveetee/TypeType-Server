@@ -18,6 +18,17 @@ class HomeRecommendationCandidateService(
         mode: HomeRecommendationPoolMode,
         signalContext: HomeRecommendationSignalContext = HomeRecommendationSignalContext(),
     ): HomeRecommendationCandidatePool {
+        if (mode == HomeRecommendationPoolMode.FAST_SHORTS) {
+            val subscriptions = subscriptionShortsFeedService.getCachedFeed(
+                userId = userId,
+                page = 0,
+                limit = HomeRecommendationCandidateLimits.FAST_SUBSCRIPTION_PAGE_SIZE,
+            )
+                ?.videos
+                .orEmpty()
+                .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
+            return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = emptyList())
+        }
         if (mode == HomeRecommendationPoolMode.SHORTS) {
             if (serviceId != YOUTUBE_SERVICE_ID) {
                 return HomeRecommendationCandidatePool(subscriptions = emptyList(), discovery = emptyList())
@@ -26,6 +37,9 @@ class HomeRecommendationCandidateService(
         }
         val subscriptions = fetchSubscriptionCandidates(userId, mode)
             .map { HomeRecommendationTaggedVideo(it, HomeRecommendationSourceTag.SUBSCRIPTION) }
+        if (mode == HomeRecommendationPoolMode.FAST) {
+            return HomeRecommendationCandidatePool(subscriptions = subscriptions, discovery = emptyList())
+        }
         val subscriptionSeeds = subscriptions.map { it.video.url }
         val relatedFromSubscriptions = relatedCandidateService.fetch(
             seedUrls = subscriptionSeeds,
