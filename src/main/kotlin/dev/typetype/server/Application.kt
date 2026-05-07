@@ -99,7 +99,7 @@ fun Application.module() {
             storyboardProxyRoutes(svc.proxyService)
         }
         downloaderGatewayRoutes(downloaderGatewayService)
-        authRoutes(authService, passwordResetService, profileService, adminSettingsService)
+        authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminSessionRoutes(authService, activeSessionService)
         sessionActivityRoutes(authService, activeSessionService)

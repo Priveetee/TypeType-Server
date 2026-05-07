@@ -4,9 +4,11 @@ import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.HomeRecommendationPoolResolver
 import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
 import dev.typetype.server.services.HomeRecommendationService
+import dev.typetype.server.services.HomeRecommendationWarmupService
 
 data class HomeRecommendationServices(
     val recommendationService: HomeRecommendationService,
+    val warmupService: HomeRecommendationWarmupService,
 )
 
 fun createHomeRecommendationServices(
@@ -17,5 +19,6 @@ fun createHomeRecommendationServices(
     val recommendationService = HomeRecommendationService(
         poolResolver = HomeRecommendationPoolResolver(resolverDeps),
     )
-    return HomeRecommendationServices(recommendationService)
+    val warmupService = HomeRecommendationWarmupService(recommendationService, cache)
+    return HomeRecommendationServices(recommendationService, warmupService)
 }

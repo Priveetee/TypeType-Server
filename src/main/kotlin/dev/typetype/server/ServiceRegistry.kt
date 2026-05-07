@@ -96,4 +96,5 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     )
     private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
     val homeRecommendationService = homeRecommendationServices.recommendationService
+    val homeRecommendationWarmupService = homeRecommendationServices.warmupService
 }

@@ -113,6 +113,6 @@ class SubscriptionShortsFeedService(
     }
 
     companion object {
-        private const val FEED_TTL_SECONDS = 900L
+        private const val FEED_TTL_SECONDS = 3_600L
     }
 }

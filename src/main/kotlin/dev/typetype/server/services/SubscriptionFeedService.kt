@@ -80,7 +80,7 @@ class SubscriptionFeedService(
         Base64.getEncoder().encodeToString("""{"page":$page}""".toByteArray())
 
     companion object {
-        private const val FEED_TTL_SECONDS = 900L
+        private const val FEED_TTL_SECONDS = 3_600L
         private const val MAX_CONCURRENT_FETCHES = 20
         private const val CHANNEL_TIMEOUT_MS = 15_000L
     }

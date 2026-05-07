@@ -12,8 +12,21 @@ class HomeRecommendationPoolCache(private val cache: dev.typetype.server.cache.C
         return runCatching { CacheJson.decodeFromString<HomeRecommendationPool>(raw) }.getOrNull()
     }
 
+    suspend fun readStale(key: String): HomeRecommendationPool? {
+        val raw = runCatching { cache.get(staleKey(key)) }.getOrNull() ?: return null
+        return runCatching { CacheJson.decodeFromString<HomeRecommendationPool>(raw) }.getOrNull()
+    }
+
     suspend fun write(key: String, pool: HomeRecommendationPool) {
-        runCatching { cache.set(key, CacheJson.encodeToString(pool), CACHE_TTL_SECONDS) }
+        val raw = CacheJson.encodeToString(pool)
+        runCatching { cache.set(key, raw, CACHE_TTL_SECONDS) }
+        runCatching { cache.set(staleKey(key), raw, STALE_TTL_SECONDS) }
+    }
+
+    suspend fun delete(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode) {
+        val key = key(userId, serviceId, mode, personalizationEnabled = false)
+        runCatching { cache.delete(key) }
+        runCatching { cache.delete(staleKey(key)) }
     }
 
     fun key(userId: String, serviceId: Int, mode: HomeRecommendationPoolMode, personalizationEnabled: Boolean): String {
@@ -23,8 +36,11 @@ class HomeRecommendationPoolCache(private val cache: dev.typetype.server.cache.C
         return "recommendations:home:$hex"
     }
 
+    private fun staleKey(key: String): String = "$key:stale"
+
     companion object {
-        private const val CACHE_TTL_SECONDS = 900L
+        private const val CACHE_TTL_SECONDS = 3_600L
+        private const val STALE_TTL_SECONDS = 86_400L
         private const val CACHE_VERSION = 8
     }
 }

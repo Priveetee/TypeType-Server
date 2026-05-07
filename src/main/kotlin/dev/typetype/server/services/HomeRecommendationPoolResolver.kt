@@ -31,6 +31,8 @@ class HomeRecommendationPoolResolver(
         if (cached != null) return cached
         val fullBuild = fullBuild(key, userId, serviceId, mode, context)
         schedulePersistence(key, fullBuild)
+        val stale = poolCache.readStale(key)
+        if (stale != null) return stale
         val fastMode = if (mode == HomeRecommendationPoolMode.SHORTS) {
             HomeRecommendationPoolMode.FAST_SHORTS
         } else {
