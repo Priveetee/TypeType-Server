@@ -86,6 +86,19 @@ class WatchLaterRoutesTest {
     }
 
     @Test
+    fun `DELETE watch-later keeps decoded youtube query in url`() = withApp {
+        val videoUrl = "https://www.youtube.com/watch?v=test123"
+        service.add(
+            TEST_USER_ID,
+            WatchLaterItem(url = videoUrl, title = "Test", thumbnail = "", duration = 100L),
+        )
+        val response = client.delete("/watch-later/https://www.youtube.com/watch?v=test123") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
+    @Test
     fun `DELETE watch-later returns 404 when not found`() = withApp {
         assertEquals(HttpStatusCode.NotFound, client.delete("/watch-later/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
