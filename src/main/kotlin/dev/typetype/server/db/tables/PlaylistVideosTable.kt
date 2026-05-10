@@ -12,5 +12,9 @@ object PlaylistVideosTable : Table("playlist_videos") {
     val thumbnail = text("thumbnail")
     val duration = long("duration")
     val position = integer("position")
+    val channelName = text("channel_name").default("")
+    val channelUrl = text("channel_url").default("")
+    val channelAvatar = text("channel_avatar").default("")
+    val viewCount = long("view_count").default(0L)
     override val primaryKey = PrimaryKey(id)
 }
