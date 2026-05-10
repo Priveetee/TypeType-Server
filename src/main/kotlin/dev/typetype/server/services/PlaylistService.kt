@@ -81,6 +81,10 @@ class PlaylistService {
                 it[thumbnail] = video.thumbnail
                 it[duration] = video.duration
                 it[position] = pos
+                it[channelName] = video.channelName
+                it[channelUrl] = video.channelUrl
+                it[channelAvatar] = video.channelAvatar
+                it[viewCount] = video.viewCount
             }
         }
         return video.copy(id = videoId, position = pos)
@@ -97,5 +101,9 @@ class PlaylistService {
         thumbnail = this[PlaylistVideosTable.thumbnail],
         duration = this[PlaylistVideosTable.duration],
         position = this[PlaylistVideosTable.position],
+        channelName = this[PlaylistVideosTable.channelName],
+        channelUrl = this[PlaylistVideosTable.channelUrl],
+        channelAvatar = this[PlaylistVideosTable.channelAvatar],
+        viewCount = this[PlaylistVideosTable.viewCount],
     )
 }

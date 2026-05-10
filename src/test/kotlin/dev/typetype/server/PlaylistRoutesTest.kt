@@ -27,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class PlaylistRoutesTest {
-
     private val service = PlaylistService()
     private val auth = AuthService.fixed(TEST_USER_ID)
 
@@ -49,7 +48,7 @@ class PlaylistRoutesTest {
     }
 
     private val playlistBody = """{"name":"My Playlist","description":""}"""
-    private val videoBody = """{"url":"https://yt.com","title":"T","thumbnail":"","duration":100}"""
+    private val videoBody = """{"url":"https://yt.com","title":"T","thumbnailUrl":"thumb","duration":100,"uploaderName":"C","uploaderUrl":"https://c","uploaderAvatarUrl":"avatar","viewCount":123}"""
 
     @Test
     fun `GET playlists without token returns 401`() = withApp {
@@ -73,7 +72,6 @@ class PlaylistRoutesTest {
         assertEquals(HttpStatusCode.Created, response.status)
         assertTrue(response.bodyAsText().contains("\"name\":\"My Playlist\""))
     }
-
     @Test
     fun `GET playlists by id returns 200 when found`() = withApp {
         val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
@@ -104,11 +102,13 @@ class PlaylistRoutesTest {
     @Test
     fun `POST playlists videos returns 201`() = withApp {
         val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "My Playlist"))
-        assertEquals(HttpStatusCode.Created, client.post("/playlists/${playlist.id}/videos") {
+        val response = client.post("/playlists/${playlist.id}/videos") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(videoBody)
-        }.status)
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+        assertTrue(response.bodyAsText().contains("\"channelName\":\"C\""))
     }
 
     @Test
