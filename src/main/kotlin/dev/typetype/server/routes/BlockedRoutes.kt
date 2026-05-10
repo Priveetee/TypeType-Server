@@ -49,7 +49,7 @@ fun Route.blockedRoutes(blockedService: BlockedService, authService: AuthService
     }
     delete("/blocked/videos/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val role = authService.getUserRole(userId) ?: "user"
             val deleted = blockedService.deleteVideo(userId, videoUrl, role)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))

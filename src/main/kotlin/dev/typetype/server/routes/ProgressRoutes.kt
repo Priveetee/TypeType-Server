@@ -17,7 +17,7 @@ internal data class ProgressBody(val position: Long)
 fun Route.progressRoutes(progressService: ProgressService, authService: AuthService) {
     get("/progress/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val item = progressService.get(userId, videoUrl) ?: return@withJwtAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
             call.respond(item)
         }
@@ -32,7 +32,7 @@ fun Route.progressRoutes(progressService: ProgressService, authService: AuthServ
     }
     put("/progress/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val body = runCatching { call.receive<ProgressBody>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }

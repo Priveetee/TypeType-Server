@@ -62,7 +62,7 @@ fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthServ
     delete("/playlists/{id}/videos/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
             val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
-            val videoUrl = call.parameters.getAll("videoUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             val deleted = playlistService.removeVideo(userId, id, videoUrl)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }

@@ -5,7 +5,6 @@ import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.WatchLaterService
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.request.queryString
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -27,15 +26,8 @@ fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, authService: Au
     }
     delete("/watch-later/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
-            val pathVideoUrl = call.parameters.getAll("videoUrl")?.joinToString("/")
+            val videoUrl = call.urlTailParameter("videoUrl")
                 ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
-            val decodedPathVideoUrl = pathVideoUrl.withUrlSchemeSlashes()
-            val queryString = call.request.queryString()
-            val videoUrl = if (queryString.isBlank() || "?" in decodedPathVideoUrl) {
-                decodedPathVideoUrl
-            } else {
-                "$decodedPathVideoUrl?$queryString"
-            }
             val deleted = watchLaterService.delete(userId, videoUrl)
             if (deleted) {
                 call.respond(HttpStatusCode.NoContent)
@@ -44,10 +36,4 @@ fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, authService: Au
             }
         }
     }
-}
-
-private fun String.withUrlSchemeSlashes(): String = when {
-    startsWith("https:/") && !startsWith("https://") -> "https://" + removePrefix("https:/")
-    startsWith("http:/") && !startsWith("http://") -> "http://" + removePrefix("http:/")
-    else -> this
 }
