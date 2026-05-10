@@ -9,10 +9,6 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.calllogging.CallLogging
-import io.ktor.http.ContentType
-import io.ktor.server.plugins.compression.Compression
-import io.ktor.server.plugins.compression.excludeContentType
-import io.ktor.server.plugins.compression.gzip
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.ratelimit.RateLimit
@@ -55,14 +51,7 @@ fun Application.configurePlugins(authService: AuthService) {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
     }
-    install(Compression) {
-        gzip {
-            excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
-            excludeContentType(ContentType.Video.Any)
-            excludeContentType(ContentType.Audio.Any)
-            excludeContentType(ContentType.Application.OctetStream)
-        }
-    }
+    configureCompression()
     val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
         ?.split(",")
         ?.map { it.trim() }
