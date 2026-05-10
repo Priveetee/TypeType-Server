@@ -55,6 +55,7 @@ class ProxyRoutesTest {
             install(Compression) {
                 gzip {
                     excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
+                    excludeContentType(ContentType.Image.Any)
                     excludeContentType(ContentType.Video.Any)
                     excludeContentType(ContentType.Audio.Any)
                     excludeContentType(ContentType.Application.OctetStream)
@@ -67,6 +68,39 @@ class ProxyRoutesTest {
             header("Range", "bytes=0-2047")
         }
         assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertNull(response.headers["Content-Encoding"])
+    }
+
+    @Test
+    fun `GET proxy does not gzip image responses`() = testApplication {
+        coEvery { proxyService.pipe(any(), any()) } returns ExtractionResult.Success(
+            ProxyResponse(
+                status = 200,
+                contentType = "image/jpeg",
+                contentLength = 2048,
+                contentRange = null,
+                acceptRanges = null,
+                stream = ByteArrayInputStream(ByteArray(2048) { 1 }),
+                close = {},
+            )
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            install(Compression) {
+                gzip {
+                    excludeContentType(ContentType.parse("application/vnd.apple.mpegurl"))
+                    excludeContentType(ContentType.Image.Any)
+                    excludeContentType(ContentType.Video.Any)
+                    excludeContentType(ContentType.Audio.Any)
+                    excludeContentType(ContentType.Application.OctetStream)
+                }
+            }
+            routing { proxyRoutes(proxyService) }
+        }
+        val response = client.get("/proxy?url=https://example.com/thumb.jpg") {
+            header("Accept-Encoding", "gzip")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
         assertNull(response.headers["Content-Encoding"])
     }
 }
