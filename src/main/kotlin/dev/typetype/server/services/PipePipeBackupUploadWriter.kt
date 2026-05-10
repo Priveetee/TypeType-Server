@@ -2,11 +2,13 @@ package dev.typetype.server.services
 
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
 
 object PipePipeBackupUploadWriter {
-    fun writeWithLimit(channel: ByteReadChannel, target: Path, maxBytes: Long): Long {
+    suspend fun writeWithLimit(channel: ByteReadChannel, target: Path, maxBytes: Long): Long = withContext(Dispatchers.IO) {
         var written = 0L
         channel.toInputStream().use { input ->
             Files.newOutputStream(target).use { output ->
@@ -20,6 +22,6 @@ object PipePipeBackupUploadWriter {
                 }
             }
         }
-        return written
+        written
     }
 }
