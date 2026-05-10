@@ -27,6 +27,6 @@ class AuthAccessTokenCodec(private val jwtSecret: String) {
 
     companion object {
         private const val SESSION_ID_CLAIM = "sid"
-        const val ACCESS_TTL_MS = 15 * 60 * 1000L
+        const val ACCESS_TTL_MS = 60 * 60 * 1000L
     }
 }
