@@ -62,38 +62,27 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
             return
         }
 
-    val effectiveResponse = if (shouldProxyArtifact(path, response)) {
-        val location = headerValue(response, "Location")
-        if (location == null) {
-            response
-        } else {
-            runCatching { gateway.fetchAbsolute(location, requestHeaders) }
-                .getOrElse {
-                    call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
-                    return
-                }
-        }
-    } else {
-        response
+    val forceDownload = shouldForceArtifactDownload(path, query)
+    if (shouldProxyArtifact(path, response)) {
+        forwardDownloaderArtifactRequest(call, gateway, response, requestHeaders, forceDownload)
+        return
     }
 
-    val forceDownload = shouldForceArtifactDownload(path, query)
-
-    effectiveResponse.headers.forEach { (name, value) ->
+    response.headers.forEach { (name, value) ->
         if (shouldForwardGatewayResponseHeader(name, forceDownload)) {
             call.response.headers.append(name, value, safeOnly = false)
         }
     }
-    if (forceDownload) applyArtifactDownloadHeaders(call, effectiveResponse)
+    if (forceDownload) applyArtifactDownloadHeaders(call, response)
 
-    val status = HttpStatusCode.fromValue(effectiveResponse.status)
+    val status = HttpStatusCode.fromValue(response.status)
     val contentType = if (forceDownload) {
         ContentType.Application.OctetStream
     } else {
-        effectiveResponse.contentType?.let { runCatching { ContentType.parse(it) }.getOrNull() }
+        response.contentType?.let { runCatching { ContentType.parse(it) }.getOrNull() }
             ?: ContentType.Application.OctetStream
     }
-    call.respondBytes(effectiveResponse.body, contentType = contentType, status = status)
+    call.respondBytes(response.body, contentType = contentType, status = status)
 }
 
 private fun hasRequestBody(method: String): Boolean = method == "POST" || method == "PUT" || method == "PATCH"
