@@ -46,7 +46,7 @@ class DownloaderGatewayService(
 
     fun openFetchAbsolute(url: String, headers: Map<String, String>): Response {
         val requestBuilder = Request.Builder().url(url).method("GET", null)
-        headers["Range"]?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
+        headerValue(headers, "Range")?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
         return client.newCall(requestBuilder.build()).execute()
     }
 
@@ -62,4 +62,7 @@ class DownloaderGatewayService(
         val lower = name.lowercase()
         return lower != "host" && lower != "content-length" && lower != "connection"
     }
+
+    private fun headerValue(headers: Map<String, String>, name: String): String? =
+        headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
 }

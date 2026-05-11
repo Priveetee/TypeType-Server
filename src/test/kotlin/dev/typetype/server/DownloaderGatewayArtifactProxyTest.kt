@@ -54,7 +54,7 @@ class DownloaderGatewayArtifactProxyTest {
 
         try {
             val response = client.get("/downloader/jobs/test/artifact") {
-                header(HttpHeaders.Range, "bytes=0-2")
+                header(HttpHeaders.Range.lowercase(), "bytes=0-2")
             }
             assertEquals(HttpStatusCode.PartialContent, response.status)
             assertEquals("bytes=0-2", requestedRange.get())
