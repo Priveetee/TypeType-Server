@@ -1,6 +1,8 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.REQUEST_ID_HEADER
 import dev.typetype.server.cache.CacheJson
+import dev.typetype.server.currentRequestId
 import dev.typetype.server.models.SubtitleItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +17,7 @@ internal class YouTubeSubtitleService(private val httpClient: OkHttpClient, priv
                 val response = httpClient.newCall(
                     Request.Builder()
                         .url("$baseUrl/subtitles?videoId=$videoId")
+                        .apply { currentRequestId()?.let { header(REQUEST_ID_HEADER, it) } }
                         .build()
                 ).execute()
                 response.use { CacheJson.decodeFromString<List<SubtitleItem>>(it.body.string()) }
