@@ -89,7 +89,7 @@ class ProfileRoutesTest {
             setBody("""{"imageUrl":"https://cdn.test/avatar.gif"}""")
         }
         assertEquals(HttpStatusCode.Gone, response.status)
-        assertEquals("{\"error\":\"AVATAR_MODE_EMOJI_ONLY\"}", response.bodyAsText())
+        assertEquals("{\"error\":\"AVATAR_MODE_EMOJI_ONLY\",\"code\":\"error\",\"requestId\":null}", response.bodyAsText())
     }
 
     @Test

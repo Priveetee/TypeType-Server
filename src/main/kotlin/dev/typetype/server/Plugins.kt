@@ -14,9 +14,7 @@ import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
-import io.ktor.server.request.uri
 import io.ktor.server.response.respond
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -39,14 +37,9 @@ val USER_DATA_ZONE = RateLimitName("user-data")
 
 fun Application.configurePlugins(authService: AuthService) {
     val log = LoggerFactory.getLogger("RequestLogger")
+    installRequestObservability()
     install(CallLogging) {
-        format { call ->
-            val method = call.request.httpMethod.value
-            val path = call.request.path()
-            val status = call.response.status()?.value ?: 0
-            val displayPath = if (path.startsWith("/proxy")) "$path?url=<masked>" else call.request.uri
-            "$method $displayPath -> $status"
-        }
+        format(::requestLogLine)
     }
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
@@ -95,17 +88,17 @@ fun Application.configurePlugins(authService: AuthService) {
     install(StatusPages) {
         status(HttpStatusCode.TooManyRequests) { call, status ->
             if (!call.response.headers.contains(HttpHeaders.RetryAfter)) call.response.headers.append(HttpHeaders.RetryAfter, "60")
-            call.respond(status, ErrorResponse("Too many requests"))
+            call.respond(status, ErrorResponse("Too many requests", "rate_limited"))
         }
         exception<IllegalArgumentException> { call, cause ->
             log.warn("Bad request: ${cause.message}")
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request"))
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request", "bad_request"))
         }
         exception<Throwable> { call, cause ->
             if (cause is io.ktor.utils.io.ClosedWriteChannelException) return@exception
             if (cause is kotlinx.coroutines.CancellationException) throw cause
-            log.error("Unhandled exception on ${call.request.path()}", cause)
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse(cause.message ?: "Internal server error"))
+            log.error("Unhandled exception requestId=${call.requestId()} path=${call.request.path()}", cause)
+            call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Internal server error", "internal_error"))
         }
     }
 }

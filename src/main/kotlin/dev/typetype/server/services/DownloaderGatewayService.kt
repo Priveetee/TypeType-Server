@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.REQUEST_ID_HEADER
+import dev.typetype.server.currentRequestId
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -40,6 +42,7 @@ class DownloaderGatewayService(
 
         val requestBuilder = Request.Builder().url(url).method(method, requestBody)
         headers.forEach { (name, value) -> if (shouldForwardRequestHeader(name)) requestBuilder.addHeader(name, value) }
+        currentRequestId()?.let { requestBuilder.header(REQUEST_ID_HEADER, it) }
 
         return client.newCall(requestBuilder.build()).execute()
     }
@@ -48,6 +51,12 @@ class DownloaderGatewayService(
         val requestBuilder = Request.Builder().url(url).method("GET", null)
         headerValue(headers, "Range")?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
         return client.newCall(requestBuilder.build()).execute()
+    }
+
+    suspend fun healthCheck(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        client.newCall(Request.Builder().url(buildUrl("/health", null)).get().build())
+            .execute()
+            .use { it.isSuccessful }
     }
 
     private fun buildUrl(path: String, query: String?): String {
