@@ -29,14 +29,14 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.32")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:810a08db8efc8bf218e92019c09a83229c6abd1b")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:b7109238ab38e16272ea17d925d41a6292bce014")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("io.lettuce:lettuce-core:7.5.1.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.2.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("org.postgresql:postgresql:42.7.11")
-    implementation("org.xerial:sqlite-jdbc:3.53.0.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.1.0")
     implementation("com.password4j:password4j:1.8.4")
     implementation("com.auth0:java-jwt:4.5.2")
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
@@ -76,7 +76,7 @@ tasks.test {
 }
 
 jacoco {
-    toolVersion = "0.8.12"
+    toolVersion = "0.8.14"
 }
 
 tasks.jacocoTestReport {
