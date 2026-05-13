@@ -8,6 +8,7 @@ import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
+import dev.typetype.server.routes.internalObservabilityRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.proxyRoutes
@@ -34,6 +35,7 @@ import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
+import dev.typetype.server.services.InternalHealthService
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
@@ -72,10 +74,12 @@ fun Application.module() {
     val svc = ServiceRegistry(cache, subtitleServiceUrl)
     val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
+    val internalHealthService = InternalHealthService(cache, downloaderGatewayService, subtitleServiceUrl)
 
     configurePlugins(authService)
 
     routing {
+        internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
         rateLimit(STREAMS_ZONE) {
             streamRoutes(svc.streamService)
