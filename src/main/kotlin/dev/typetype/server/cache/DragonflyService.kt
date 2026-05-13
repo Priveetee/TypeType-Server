@@ -19,4 +19,6 @@ class DragonflyService(url: String) : CacheService {
 
     override suspend fun delete(key: String): Unit =
         async.del(key).await().let {}
+
+    suspend fun ping(): Boolean = async.ping().await() == "PONG"
 }

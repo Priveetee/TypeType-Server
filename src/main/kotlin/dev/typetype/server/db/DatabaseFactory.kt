@@ -104,4 +104,8 @@ object DatabaseFactory {
 
     suspend fun <T> query(block: () -> T): T =
         withContext(Dispatchers.IO) { transaction { block() } }
+
+    fun healthCheck(): Boolean = runCatching {
+        transaction { exec("SELECT 1") { it.next() } == true }
+    }.getOrDefault(false)
 }
