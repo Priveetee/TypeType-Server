@@ -31,14 +31,14 @@ fun Route.restoreRoutes(restoreService: PipePipeBackupImporterService, authServi
                     val part = multipart.readPart() ?: break
                     if (part is PartData.FileItem && part.name == "file") {
                         if (!PipePipeBackupValidators.isZipFilePart(part)) {
-                            part.dispose()
+                            part.release()
                             return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid backup file type"))
                         }
                         PipePipeBackupUploadWriter.writeWithLimit(part.provider(), tmp, PipePipeBackupLimits.MAX_UPLOAD_BYTES)
                         hasFile = true
                         fileCount += 1
                     }
-                    part.dispose()
+                    part.release()
                 }
                 if (fileCount > 1) {
                     return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Only one backup file is allowed"))
