@@ -5,6 +5,8 @@ plugins {
     id("jacoco")
 }
 
+apply(from = "gradle/openapi-validation.gradle.kts")
+
 group = "dev.typetype"
 version = "0.0.1"
 

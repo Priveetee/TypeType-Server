@@ -1,0 +1,57 @@
+openapi: 3.0.3
+info:
+  title: TypeType Server API
+  version: 0.1.0
+  description: Manual API contract for TypeType-Server. This file is maintained by hand and is not generated.
+servers:
+  - url: http://localhost:8080
+    description: Local server
+  - url: https://watch.eltux.fr/api
+    description: Production frontend proxy
+tags:
+  - name: health
+  - name: extraction
+  - name: downloader
+paths:
+  /health:
+    $ref: ./openapi/paths/health.yaml#/Health
+  /streams:
+    $ref: ./openapi/paths/streams.yaml#/Streams
+  /search:
+    $ref: ./openapi/paths/search.yaml#/Search
+  /channel:
+    $ref: ./openapi/paths/channel.yaml#/Channel
+  /comments:
+    $ref: ./openapi/paths/comments.yaml#/Comments
+  /comments/replies:
+    $ref: ./openapi/paths/comments.yaml#/Replies
+  /downloader/health:
+    $ref: ./openapi/paths/downloader.yaml#/Health
+  /downloader/health/deep:
+    $ref: ./openapi/paths/downloader.yaml#/DeepHealth
+  /downloader/jobs:
+    $ref: ./openapi/paths/downloader.yaml#/Jobs
+  /downloader/jobs/{id}:
+    $ref: ./openapi/paths/downloader.yaml#/Job
+  /downloader/jobs/{id}/events:
+    $ref: ./openapi/paths/downloader.yaml#/JobEvents
+  /downloader/jobs/{id}/artifact:
+    $ref: ./openapi/paths/downloader.yaml#/JobArtifact
+  /downloader/jobs/{id}/cancel:
+    $ref: ./openapi/paths/downloader.yaml#/JobCancel
+components:
+  schemas:
+    ErrorResponse:
+      $ref: ./openapi/components/common.yaml#/ErrorResponse
+    HealthResponse:
+      $ref: ./openapi/components/common.yaml#/HealthResponse
+    StreamResponse:
+      $ref: ./openapi/components/streams.yaml#/StreamResponse
+    SearchPageResponse:
+      $ref: ./openapi/components/media.yaml#/SearchPageResponse
+    ChannelResponse:
+      $ref: ./openapi/components/media.yaml#/ChannelResponse
+    CommentsPageResponse:
+      $ref: ./openapi/components/media.yaml#/CommentsPageResponse
+    DownloadJob:
+      $ref: ./openapi/components/downloader.yaml#/DownloadJob
