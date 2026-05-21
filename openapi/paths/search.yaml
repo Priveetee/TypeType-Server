@@ -1,0 +1,31 @@
+Search:
+  get:
+    tags: [extraction]
+    summary: Search videos by service
+    parameters:
+      - name: q
+        in: query
+        required: true
+        schema: { type: string }
+      - name: service
+        in: query
+        required: true
+        schema: { type: integer, enum: [0, 3, 4, 5, 6] }
+      - name: nextpage
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Search page.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/SearchPageResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError

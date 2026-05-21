@@ -1,0 +1,48 @@
+Comments:
+  get:
+    tags: [extraction]
+    summary: Get comments for a stream
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: nextpage
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Comment page.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/CommentsPageResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+Replies:
+  get:
+    tags: [extraction]
+    summary: Get replies for a comment thread
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: repliesPage
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Reply page.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/CommentsPageResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError

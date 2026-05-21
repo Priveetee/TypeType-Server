@@ -1,0 +1,27 @@
+Channel:
+  get:
+    tags: [extraction]
+    summary: Get channel metadata and videos
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: nextpage
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Channel metadata and video page.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/ChannelResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
