@@ -1,0 +1,83 @@
+CreateDownloadJobRequest:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
+    options:
+      $ref: '#/DownloadOptions'
+DownloadOptions:
+  type: object
+  properties:
+    mode: { type: string, enum: [video, audio, thumbnail] }
+    quality: { type: string }
+    format: { type: string }
+    videoItag: { type: string, nullable: true }
+    audioItag: { type: string, nullable: true }
+    height: { type: integer, nullable: true }
+    fps: { type: integer, nullable: true }
+    videoCodec: { type: string, nullable: true }
+    audioCodec: { type: string, nullable: true }
+    bitrate: { type: integer, nullable: true }
+    allowQualityFallback: { type: boolean, default: true }
+    sponsorBlock: { type: boolean, default: false }
+    sponsorBlockCategories: { type: array, items: { type: string } }
+    thumbnailOnly: { type: boolean, default: false }
+    subtitles:
+      $ref: '#/SubtitleOptions'
+SubtitleOptions:
+  type: object
+  properties:
+    enabled: { type: boolean }
+    auto: { type: boolean }
+    embed: { type: boolean }
+    languages: { type: array, items: { type: string } }
+    format: { type: string }
+ResolvedDownload:
+  type: object
+  properties:
+    videoItag: { type: string, nullable: true }
+    audioItag: { type: string, nullable: true }
+    height: { type: integer, nullable: true }
+    fps: { type: integer, nullable: true }
+    videoCodec: { type: string, nullable: true }
+    audioCodec: { type: string, nullable: true }
+    container: { type: string, nullable: true }
+    bitrate: { type: integer, nullable: true }
+    fileName: { type: string, nullable: true }
+DownloadJob:
+  type: object
+  required: [id, url, status]
+  properties:
+    id: { type: string }
+    url: { type: string }
+    status: { type: string, enum: [queued, running, done, failed] }
+    title: { type: string, nullable: true }
+    resolved:
+      $ref: '#/ResolvedDownload'
+    progressPercent: { type: integer, minimum: 0, maximum: 100, nullable: true }
+    downloadedBytes: { type: integer, format: int64, nullable: true }
+    totalBytes: { type: integer, format: int64, nullable: true }
+    speedBytesPerSecond: { type: integer, format: int64, nullable: true }
+    etaSeconds: { type: integer, nullable: true }
+    stage: { type: string, nullable: true, enum: [queued, extract, download, mux, done, failed, null] }
+    queuedAt: { type: string, format: date-time, nullable: true }
+    startedAt: { type: string, format: date-time, nullable: true }
+    finishedAt: { type: string, format: date-time, nullable: true }
+    queueWaitMs: { type: integer, format: int64, nullable: true }
+    runTimeMs: { type: integer, format: int64, nullable: true }
+    errorCode: { type: string, nullable: true }
+    error: { type: string, nullable: true }
+DownloaderHealth:
+  type: object
+  required: [status]
+  additionalProperties: true
+  properties:
+    service: { type: string }
+    status: { type: string, example: ok }
+DownloaderError:
+  type: object
+  required: [error]
+  additionalProperties: true
+  properties:
+    error: { type: string }
+    code: { type: string, nullable: true }

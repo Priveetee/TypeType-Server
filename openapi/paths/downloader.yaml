@@ -1,0 +1,108 @@
+Health:
+  get:
+    tags: [downloader]
+    summary: Downloader liveness check
+    responses:
+      '200':
+        description: Downloader is alive.
+        content:
+          application/json:
+            schema: { $ref: ../components/downloader.yaml#/DownloaderHealth }
+DeepHealth:
+  get:
+    tags: [downloader]
+    summary: Downloader dependency health check
+    responses:
+      '200':
+        description: Downloader dependencies are healthy.
+        content:
+          application/json:
+            schema: { $ref: ../components/downloader.yaml#/DownloaderHealth }
+Jobs:
+  post:
+    tags: [downloader]
+    summary: Create a download job
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/downloader.yaml#/CreateDownloadJobRequest }
+    responses:
+      '201':
+        description: Job created.
+        content:
+          application/json:
+            schema: { $ref: ../components/downloader.yaml#/DownloadJob }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+Job:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    tags: [downloader]
+    summary: Get a download job
+    responses:
+      '200':
+        description: Job status.
+        content:
+          application/json:
+            schema: { $ref: ../components/downloader.yaml#/DownloadJob }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [downloader]
+    summary: Delete a completed download job
+    responses:
+      '204': { description: Job deleted. }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+JobEvents:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    tags: [downloader]
+    summary: Stream download progress events
+    responses:
+      '200':
+        description: SSE stream with progress events whose data payload is a DownloadJob JSON object.
+        content:
+          text/event-stream:
+            schema: { type: string }
+JobArtifact:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string }
+    - name: Range
+      in: header
+      required: false
+      schema: { type: string }
+  get:
+    tags: [downloader]
+    summary: Download or redirect to a completed artifact
+    responses:
+      '200': { description: Artifact bytes. }
+      '206': { description: Partial artifact bytes. }
+      '302': { description: Redirect to public artifact storage. }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+JobCancel:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string }
+  post:
+    tags: [downloader]
+    summary: Cancel a queued or running download job
+    responses:
+      '202':
+        description: Cancellation accepted.
+        content:
+          application/json:
+            schema: { $ref: ../components/downloader.yaml#/DownloadJob }
+      '404': { $ref: ../components/common.yaml#/JsonError }
