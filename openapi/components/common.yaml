@@ -1,0 +1,24 @@
+HealthResponse:
+  type: object
+  required: [status]
+  properties:
+    status: { type: string, example: ok }
+ErrorResponse:
+  type: object
+  required: [error]
+  properties:
+    error: { type: string }
+    code: { type: string, default: error }
+    requestId: { type: string, nullable: true }
+RequestIdHeader:
+  description: Request correlation id returned by TypeType-Server.
+  schema: { type: string }
+JsonError:
+  description: Request failed.
+  headers:
+    X-Request-ID:
+      $ref: '#/RequestIdHeader'
+  content:
+    application/json:
+      schema:
+        $ref: '#/ErrorResponse'

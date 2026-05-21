@@ -1,0 +1,68 @@
+VideoStreamItem:
+  type: object
+  required: [url, mimeType, format, resolution, isVideoOnly, itag, width, height, fps, contentLength, initStart, initEnd, indexStart, indexEnd]
+  properties:
+    url: { type: string }
+    mimeType: { type: string }
+    format: { type: string }
+    resolution: { type: string }
+    bitrate: { type: integer, nullable: true }
+    codec: { type: string, nullable: true }
+    isVideoOnly: { type: boolean }
+    itag: { type: integer }
+    width: { type: integer }
+    height: { type: integer }
+    fps: { type: integer }
+    contentLength: { type: integer, format: int64 }
+    initStart: { type: integer, format: int64 }
+    initEnd: { type: integer, format: int64 }
+    indexStart: { type: integer, format: int64 }
+    indexEnd: { type: integer, format: int64 }
+AudioStreamItem:
+  type: object
+  required: [url, mimeType, format, itag, contentLength, initStart, initEnd, indexStart, indexEnd, isOriginal]
+  properties:
+    url: { type: string }
+    mimeType: { type: string }
+    format: { type: string }
+    bitrate: { type: integer, nullable: true }
+    codec: { type: string, nullable: true }
+    quality: { type: string, nullable: true }
+    itag: { type: integer }
+    contentLength: { type: integer, format: int64 }
+    initStart: { type: integer, format: int64 }
+    initEnd: { type: integer, format: int64 }
+    indexStart: { type: integer, format: int64 }
+    indexEnd: { type: integer, format: int64 }
+    audioTrackId: { type: string, nullable: true }
+    audioTrackName: { type: string, nullable: true }
+    audioLocale: { type: string, nullable: true }
+    isOriginal: { type: boolean }
+StreamResponse:
+  type: object
+  required: [id, title, uploaderName, uploaderUrl, thumbnailUrl, description, duration, viewCount, uploadDate, uploaded, streamType, videoStreams, audioStreams, videoOnlyStreams, subtitles, relatedStreams]
+  properties:
+    id: { type: string }
+    title: { type: string }
+    uploaderName: { type: string }
+    uploaderUrl: { type: string }
+    uploaderAvatarUrl: { type: string }
+    thumbnailUrl: { type: string }
+    description: { type: string }
+    duration: { type: integer, format: int64 }
+    viewCount: { type: integer, format: int64 }
+    likeCount: { type: integer, format: int64 }
+    dislikeCount: { type: integer, format: int64 }
+    uploadDate: { type: string }
+    uploaded: { type: integer, format: int64 }
+    publishedAt: { type: integer, format: int64, nullable: true }
+    streamType: { type: string }
+    isShortFormContent: { type: boolean }
+    originalAudioTrackId: { type: string, nullable: true }
+    preferredDefaultAudioTrackId: { type: string, nullable: true }
+    videoStreams: { type: array, items: { $ref: '#/VideoStreamItem' } }
+    audioStreams: { type: array, items: { $ref: '#/AudioStreamItem' } }
+    videoOnlyStreams: { type: array, items: { $ref: '#/VideoStreamItem' } }
+    subtitles: { type: array, items: { type: object }, default: [] }
+    relatedStreams: { type: array, items: { $ref: './media.yaml#/VideoItem' } }
+    sponsorBlockSegments: { type: array, items: { type: object }, default: [] }
