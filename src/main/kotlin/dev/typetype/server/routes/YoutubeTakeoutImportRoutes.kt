@@ -32,13 +32,13 @@ fun Route.youtubeTakeoutImportRoutes(
                     val part = multipart.readPart() ?: break
                     if (part is PartData.FileItem && part.name == "archive") {
                         if (!part.originalFileName.orEmpty().endsWith(".zip", true)) {
-                            part.dispose()
+                            part.release()
                             return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid archive file type"))
                         }
                         YoutubeTakeoutUploadWriter.writeWithLimit(part.provider(), tmp, maxUploadBytes)
                         hasFile = true
                     }
-                    part.dispose()
+                    part.release()
                 }
                 if (!hasFile) return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing archive part"))
                 call.respond(HttpStatusCode.Created, importService.create(userId, tmp))
