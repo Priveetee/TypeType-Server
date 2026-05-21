@@ -1,0 +1,14 @@
+Health:
+  get:
+    tags: [health]
+    summary: Server liveness check
+    responses:
+      '200':
+        description: Server is alive.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/HealthResponse
