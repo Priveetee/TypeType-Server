@@ -14,14 +14,14 @@ class CachedChannelService(
         private const val CHANNEL_CACHE_TTL_SECONDS = 1800L
     }
 
-    override suspend fun getChannel(url: String, nextpage: String?): ExtractionResult<ChannelResponse> {
-        val key = "channel:$url:${nextpage ?: "null"}"
+    override suspend fun getChannel(url: String, nextpage: String?, sort: String?): ExtractionResult<ChannelResponse> {
+        val key = "channel:$url:${nextpage ?: "null"}:${sort ?: "default"}"
         runCatching { cache.get(key) }.getOrNull()?.let { cached ->
             return runCatching { ExtractionResult.Success(CacheJson.decodeFromString<ChannelResponse>(cached)) }.getOrElse {
-                delegate.getChannel(url, nextpage)
+                delegate.getChannel(url, nextpage, sort)
             }
         }
-        val result = delegate.getChannel(url, nextpage)
+        val result = delegate.getChannel(url, nextpage, sort)
         if (result is ExtractionResult.Success) {
             runCatching { cache.set(key, CacheJson.encodeToString(ChannelResponse.serializer(), result.data), CHANNEL_CACHE_TTL_SECONDS) }
         }

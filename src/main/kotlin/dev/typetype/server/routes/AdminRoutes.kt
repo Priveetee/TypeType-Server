@@ -59,7 +59,7 @@ fun Route.adminRoutes(
         call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             if (id == adminId) {
-                adminRouteLog.warn("Admin self-suspend blocked for userId={}", adminId)
+                adminRouteLog.info("Admin self-suspend blocked for userId={}", adminId)
                 return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot suspend your own account"))
             }
             val ok = userAdminService.suspendUser(id)
@@ -71,7 +71,7 @@ fun Route.adminRoutes(
         call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             if (id == adminId) {
-                adminRouteLog.warn("Admin self-unsuspend blocked for userId={}", adminId)
+                adminRouteLog.info("Admin self-unsuspend blocked for userId={}", adminId)
                 return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot suspend your own account"))
             }
             val ok = userAdminService.unsuspendUser(id)
@@ -83,7 +83,7 @@ fun Route.adminRoutes(
         call.withAdminAuth(authService) { adminId ->
             val id = call.parameters["id"] ?: return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             if (id == adminId) {
-                adminRouteLog.warn("Admin role self-change blocked for userId={}", adminId)
+                adminRouteLog.info("Admin role self-change blocked for userId={}", adminId)
                 return@withAdminAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Cannot modify your own role"))
             }
             val body = runCatching { call.receive<RoleBody>() }.getOrElse {

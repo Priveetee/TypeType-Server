@@ -8,6 +8,7 @@ import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
 import dev.typetype.server.services.CachedNativeManifestService
+import dev.typetype.server.services.CachedPodcastService
 import dev.typetype.server.services.CachedSearchService
 import dev.typetype.server.services.CachedStreamService
 import dev.typetype.server.services.CachedSuggestionService
@@ -25,6 +26,7 @@ import dev.typetype.server.services.OkHttpProxyService
 import dev.typetype.server.services.PipePipeBulletCommentService
 import dev.typetype.server.services.PipePipeChannelService
 import dev.typetype.server.services.PipePipeCommentService
+import dev.typetype.server.services.PipePipePodcastService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
@@ -58,6 +60,7 @@ internal class ServiceRegistry(cache: DragonflyService, subtitleServiceUrl: Stri
     val commentService = CachedCommentService(PipePipeCommentService(), cache)
     val bulletCommentService = PipePipeBulletCommentService()
     val channelService = CachedChannelService(PipePipeChannelService(), cache)
+    val podcastService = CachedPodcastService(PipePipePodcastService(), cache)
     val proxyService = OkHttpProxyService(proxyHttpClient)
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = CachedManifestService(ManifestService(streamService), cache)

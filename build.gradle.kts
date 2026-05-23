@@ -31,7 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.32")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:a69bcc15d146d391a695210a52cbde7b3fff1137")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:3e06f36ec130ca452dcf107f223eedbc30a07dc2")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("io.lettuce:lettuce-core:7.5.2.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.3.0")
@@ -74,6 +74,7 @@ tasks.test {
     useJUnitPlatform {
         excludeTags("network")
     }
+    jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off")
     finalizedBy(tasks.jacocoTestReport)
 }
 

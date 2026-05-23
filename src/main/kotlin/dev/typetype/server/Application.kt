@@ -11,6 +11,7 @@ import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
+import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.searchRoutes
@@ -94,6 +95,7 @@ fun Application.module() {
         }
         rateLimit(CHANNEL_ZONE) {
             channelRoutes(svc.channelService)
+            podcastRoutes(svc.podcastService)
         }
         rateLimit(PROXY_ZONE) {
             proxyRoutes(svc.proxyService)

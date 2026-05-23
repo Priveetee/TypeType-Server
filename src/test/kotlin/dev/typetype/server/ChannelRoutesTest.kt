@@ -48,7 +48,7 @@ class ChannelRoutesTest {
 
     @Test
     fun `GET channel returns 200 on Success`() = withApp {
-        coEvery { channelService.getChannel(any(), any()) } returns
+        coEvery { channelService.getChannel(any(), any(), any()) } returns
             ExtractionResult.Success(testChannelResponse())
         val response = client.get("/channel?url=https://youtube.com/channel/test")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -56,7 +56,7 @@ class ChannelRoutesTest {
 
     @Test
     fun `GET channel returns 422 on Failure`() = withApp {
-        coEvery { channelService.getChannel(any(), any()) } returns
+        coEvery { channelService.getChannel(any(), any(), any()) } returns
             ExtractionResult.Failure("error")
         val response = client.get("/channel?url=https://youtube.com/channel/test")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
@@ -64,7 +64,7 @@ class ChannelRoutesTest {
 
     @Test
     fun `GET channel returns 400 on BadRequest`() = withApp {
-        coEvery { channelService.getChannel(any(), any()) } returns
+        coEvery { channelService.getChannel(any(), any(), any()) } returns
             ExtractionResult.BadRequest("bad")
         val response = client.get("/channel?url=https://youtube.com/channel/test")
         assertEquals(HttpStatusCode.BadRequest, response.status)

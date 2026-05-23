@@ -49,7 +49,7 @@ fun Route.restoreRoutes(restoreService: PipePipeBackupImporterService, authServi
                 val result = restoreService.restore(userId, tmp, timeMode)
                 call.respond(result)
             } catch (e: Exception) {
-                call.application.environment.log.warn("Restore backup failed", e)
+                call.application.environment.log.info("Restore backup failed", e)
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid backup archive"))
             } finally {
                 Files.deleteIfExists(tmp)

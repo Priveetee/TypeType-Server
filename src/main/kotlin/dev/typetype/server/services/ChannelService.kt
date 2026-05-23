@@ -4,5 +4,5 @@ import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
 
 interface ChannelService {
-    suspend fun getChannel(url: String, nextpage: String?): ExtractionResult<ChannelResponse>
+    suspend fun getChannel(url: String, nextpage: String?, sort: String? = null): ExtractionResult<ChannelResponse>
 }

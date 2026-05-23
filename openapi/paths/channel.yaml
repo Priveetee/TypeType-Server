@@ -11,6 +11,12 @@ Channel:
         in: query
         required: false
         schema: { type: string }
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [latest, popular, oldest]
     responses:
       '200':
         description: Channel metadata and video page.
