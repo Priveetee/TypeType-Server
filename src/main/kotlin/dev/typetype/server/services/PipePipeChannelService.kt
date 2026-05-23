@@ -5,30 +5,32 @@ import dev.typetype.server.models.ExtractionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.schabi.newpipe.extractor.InfoItem
-import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.Page
+import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class PipePipeChannelService : ChannelService {
 
-    override suspend fun getChannel(url: String, nextpage: String?): ExtractionResult<ChannelResponse> =
+    override suspend fun getChannel(url: String, nextpage: String?, sort: String?): ExtractionResult<ChannelResponse> =
         withContext(Dispatchers.IO) {
+            val normalizedSort = sort?.takeIf { it.isNotBlank() }
             val page = if (nextpage != null) {
                 runCatching { nextpage.toPage() }
                     .getOrElse { return@withContext ExtractionResult.BadRequest("Invalid nextpage cursor") }
             } else null
+            runCatching { normalizedSort.toYouTubeChannelTabSortFilter() }
+                .getOrElse { return@withContext ExtractionResult.BadRequest(it.message ?: "Invalid 'sort' parameter") }
 
             runCatching {
                 withExtractionRetry {
                     withTimeout(30_000L) {
                         if (page == null) {
-                            extractFirstPage(url)
+                            extractFirstPage(url, normalizedSort)
                         } else {
-                            extractMorePage(url, page)
+                            extractMorePage(url, page, normalizedSort)
                         }
                     }
                 }
@@ -38,75 +40,35 @@ class PipePipeChannelService : ChannelService {
             )
         }
 
-    private fun extractFirstPage(url: String): ChannelResponse {
-        if (isShortsTab(url)) {
-            val service = NewPipe.getServiceByUrl(url)
-            val channelId = shortsChannelId(url, service)
-            val extractor = service.getChannelTabExtractorFromId(channelId, ChannelTabs.SHORTS)
+    private fun extractFirstPage(url: String, sort: String?): ChannelResponse {
+        val service = NewPipe.getServiceByUrl(url)
+        val tab = url.toChannelTab(sort)
+        if (tab != null) {
+            val channelUrl = url.toBaseChannelUrl(tab)
+            val metadata = runCatching { ChannelInfo.getInfo(channelUrl) }.getOrNull()
+            val extractor = service.channelTabExtractor(channelId(channelUrl, service), tab, sort)
             extractor.fetchPage()
-            return ChannelTabInfo.getInfo(extractor).toChannelTabResponse()
+            return ChannelTabInfo.getInfo(extractor).toChannelTabResponse(metadata)
         }
         return ChannelInfo.getInfo(url).toChannelResponse()
     }
 
-    private fun extractMorePage(url: String, page: org.schabi.newpipe.extractor.Page): ChannelResponse {
+    private fun extractMorePage(url: String, page: Page, sort: String?): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
-        if (isShortsTab(url)) {
-            val channelId = shortsChannelId(url, service)
-            val extractor = service.getChannelTabExtractorFromId(channelId, ChannelTabs.SHORTS)
+        val tab = url.toChannelTab(sort)
+        if (tab != null) {
+            val extractor = service.channelTabExtractor(channelId(url.toBaseChannelUrl(tab), service), tab, sort)
             return extractor.getPage(page).toChannelTabResponse()
         }
         return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
     }
 
-    private fun isShortsTab(url: String): Boolean = url.contains("/shorts", ignoreCase = true)
-
-    private fun shortsChannelId(url: String, service: org.schabi.newpipe.extractor.StreamingService): String {
-        val baseUrl = url.substringBefore("/shorts").trimEnd('/')
-        return service.channelLHFactory.fromUrl(baseUrl).id
+    private fun String.toChannelTab(sort: String?): String? {
+        if (contains("/shorts", ignoreCase = true)) return ChannelTabs.SHORTS
+        return if (sort != null) ChannelTabs.VIDEOS else null
     }
 
-    private fun ChannelInfo.toChannelResponse(): ChannelResponse = ChannelResponse(
-        name = name ?: "",
-        description = description ?: "",
-        avatarUrl = avatarUrl ?: "",
-        bannerUrl = bannerUrl ?: "",
-        subscriberCount = subscriberCount,
-        isVerified = isVerified,
-        videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
-        nextpage = nextPage?.toCursor(),
-    )
+    private fun String.toBaseChannelUrl(tab: String): String = substringBefore("/$tab").substringBefore('?').substringBefore('#').trimEnd('/')
 
-    private fun InfoItemsPage<StreamInfoItem>.toChannelResponse(): ChannelResponse = ChannelResponse(
-        name = "",
-        description = "",
-        avatarUrl = "",
-        bannerUrl = "",
-        subscriberCount = -1L,
-        isVerified = false,
-        videos = items.map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-    )
-
-    private fun ChannelTabInfo.toChannelTabResponse(): ChannelResponse = ChannelResponse(
-        name = name ?: "",
-        description = "",
-        avatarUrl = "",
-        bannerUrl = "",
-        subscriberCount = -1L,
-        isVerified = false,
-        videos = relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-    )
-
-    private fun InfoItemsPage<InfoItem>.toChannelTabResponse(): ChannelResponse = ChannelResponse(
-        name = "",
-        description = "",
-        avatarUrl = "",
-        bannerUrl = "",
-        subscriberCount = -1L,
-        isVerified = false,
-        videos = items.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-    )
+    private fun channelId(url: String, service: StreamingService): String = service.channelLHFactory.fromUrl(url).id
 }
