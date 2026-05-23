@@ -38,6 +38,33 @@ ChannelResponse:
     isVerified: { type: boolean }
     videos: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
+PodcastItem:
+  type: object
+  required: [id, title, url, thumbnailUrl, uploaderName, streamCount, playlistType]
+  properties:
+    id: { type: string }
+    title: { type: string }
+    url: { type: string }
+    thumbnailUrl: { type: string }
+    uploaderName: { type: string }
+    streamCount: { type: integer, format: int64 }
+    playlistType: { type: string }
+PodcastPageResponse:
+  type: object
+  required: [channelName, channelUrl, podcasts, episodes, nextpage]
+  properties:
+    channelName: { type: string }
+    channelUrl: { type: string }
+    podcasts: { type: array, items: { $ref: '#/PodcastItem' } }
+    episodes: { type: array, items: { $ref: '#/VideoItem' } }
+    nextpage: { type: string, nullable: true }
+PodcastEpisodesResponse:
+  type: object
+  required: [podcast, episodes, nextpage]
+  properties:
+    podcast: { $ref: '#/PodcastItem' }
+    episodes: { type: array, items: { $ref: '#/VideoItem' } }
+    nextpage: { type: string, nullable: true }
 CommentItem:
   type: object
   required: [id, text, author, authorUrl, authorAvatarUrl, likeCount, textualLikeCount, publishedTime, isHeartedByUploader, isPinned, uploaderVerified, replyCount, repliesPage]
