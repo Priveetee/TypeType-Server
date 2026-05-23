@@ -16,14 +16,14 @@ private val log = LoggerFactory.getLogger("ExtractorLifecycle")
 internal fun CoroutineScope.launchExtractorLifecycle() {
     launch(Dispatchers.IO) {
         runCatching { StreamInfo.getInfo(WARMUP_URL) }
-            .onFailure { log.warn("Warmup extraction failed: ${it.message}") }
+            .onFailure { log.info("Warmup extraction failed: ${it.message}") }
     }
 
     launch(Dispatchers.IO) {
         while (true) {
             delay(THROTTLE_CLEANUP_INTERVAL_MS)
             runCatching { YoutubeJavaScriptPlayerManager.clearThrottlingParametersCache() }
-                .onFailure { log.warn("Throttling cache cleanup failed: ${it.message}") }
+                .onFailure { log.info("Throttling cache cleanup failed: ${it.message}") }
         }
     }
 }

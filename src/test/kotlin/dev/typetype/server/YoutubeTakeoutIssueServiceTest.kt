@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 
 class YoutubeTakeoutIssueServiceTest {
     @Test
-    fun `build aggregates duplicate warnings and errors`() {
+    fun `build aggregates duplicate issues and errors`() {
         val warnings = listOf("Unsupported CSV schema: Takeout/a.csv", "No subscription rows detected", "No subscription rows detected")
         val errors = listOf("Invalid playlist row", "Invalid playlist row", "Invalid subscription row")
         val (issues, summary) = YoutubeTakeoutIssueService.build(warnings, errors, stage = "preview")
