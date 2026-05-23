@@ -6,7 +6,7 @@ import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.ChannelService
 
 class FakeChannelService : ChannelService {
-    override suspend fun getChannel(url: String, nextpage: String?): ExtractionResult<ChannelResponse> {
+    override suspend fun getChannel(url: String, nextpage: String?, sort: String?): ExtractionResult<ChannelResponse> {
         val video = VideoItem(
             id = "id-${url.hashCode()}",
             title = "video",

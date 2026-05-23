@@ -13,8 +13,9 @@ fun Route.channelRoutes(channelService: ChannelService) {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]
+        val sort = call.request.queryParameters["sort"]?.takeIf { it.isNotBlank() }
 
-        when (val result = channelService.getChannel(url = url, nextpage = nextpage)) {
+        when (val result = channelService.getChannel(url = url, nextpage = nextpage, sort = sort)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
