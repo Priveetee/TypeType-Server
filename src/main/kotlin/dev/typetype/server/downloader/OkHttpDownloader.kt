@@ -25,22 +25,22 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
 
     override fun execute(request: ExtractorRequest): Response {
         val httpRequest = buildOkHttpRequest(request)
-        val httpResponse = client.newCall(httpRequest).execute()
+        client.newCall(httpRequest).execute().use { httpResponse ->
+            if (httpResponse.code == 429) {
+                throw ReCaptchaException("reCaptcha required", request.url())
+            }
 
-        if (httpResponse.code == 429) {
-            throw ReCaptchaException("reCaptcha required", request.url())
+            val responseBodyBytes = httpResponse.body.bytes()
+            val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
+            return Response(
+                httpResponse.code,
+                httpResponse.message,
+                httpResponse.headers.toMultimap(),
+                responseBody,
+                responseBodyBytes,
+                httpResponse.request.url.toString()
+            )
         }
-
-        val responseBodyBytes = httpResponse.body.bytes()
-        val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-        return Response(
-            httpResponse.code,
-            httpResponse.message,
-            httpResponse.headers.toMultimap(),
-            responseBody,
-            responseBodyBytes,
-            httpResponse.request.url.toString()
-        )
     }
 
     override fun executeAsync(request: ExtractorRequest, callback: AsyncCallback): CancellableCall {
@@ -50,18 +50,20 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
 
         call.enqueue(object : Callback {
             override fun onResponse(call: Call, response: okhttp3.Response) {
-                val responseBodyBytes = response.body.bytes()
-                val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-                val extractorResponse = Response(
-                    response.code,
-                    response.message,
-                    response.headers.toMultimap(),
-                    responseBody,
-                    responseBodyBytes,
-                    response.request.url.toString()
-                )
-                callback.onSuccess(extractorResponse)
-                cancellableCall.setFinished()
+                response.use { httpResponse ->
+                    val responseBodyBytes = httpResponse.body.bytes()
+                    val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
+                    val extractorResponse = Response(
+                        httpResponse.code,
+                        httpResponse.message,
+                        httpResponse.headers.toMultimap(),
+                        responseBody,
+                        responseBodyBytes,
+                        httpResponse.request.url.toString()
+                    )
+                    callback.onSuccess(extractorResponse)
+                    cancellableCall.setFinished()
+                }
             }
 
             override fun onFailure(call: Call, e: java.io.IOException) {
