@@ -30,8 +30,6 @@ class SubscriptionShortsFeedBlendTest {
         cacheService,
     )
 
-    companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
-
     @BeforeEach
     fun clean() {
         TestDatabase.truncateAll()
@@ -80,10 +78,18 @@ class SubscriptionShortsFeedBlendTest {
         duration = 20,
         viewCount = 0,
         uploadDate = "",
-        uploaded = System.currentTimeMillis(),
+        uploaded = TEST_UPLOAD_TIME,
         streamType = "video_stream",
         isShortFormContent = true,
         uploaderVerified = false,
         shortDescription = null,
     )
+
+    companion object {
+        private const val TEST_UPLOAD_TIME = 1_700_000_000_000L
+
+        @BeforeAll
+        @JvmStatic
+        fun initDb() = TestDatabase.setup()
+    }
 }
