@@ -25,19 +25,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class SettingsRoutesTest {
-
     private val service = SettingsService()
     private val auth = AuthService.fixed(TEST_USER_ID)
-
     companion object {
         @BeforeAll
         @JvmStatic
         fun initDb() { TestDatabase.setup() }
     }
-
     @BeforeEach
     fun clean() { TestDatabase.truncateAll() }
-
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
@@ -45,8 +41,11 @@ class SettingsRoutesTest {
         }
         block()
     }
-
     private val settingsBody = """{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false}"""
+    private fun assertContainsAll(body: String, values: List<String>) =
+        values.forEach { assertTrue(body.contains(it)) }
+    private fun assertContainsNone(body: String, values: List<String>) =
+        values.forEach { assertTrue(!body.contains(it)) }
 
     @Test
     fun `GET settings without token returns 401`() = withApp {
@@ -91,12 +90,8 @@ class SettingsRoutesTest {
     @Test
     fun `GET settings returns defaults for new fields when no row exists`() = withApp {
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        assertTrue(body.contains("\"subtitlesEnabled\":false"))
-        assertTrue(body.contains("\"defaultSubtitleLanguage\":\"\""))
-        assertTrue(body.contains("\"defaultAudioLanguage\":\"\""))
-        assertTrue(body.contains("\"preferOriginalLanguage\":false"))
-        assertTrue(!body.contains("recommendationPersonalizationEnabled"))
-        assertTrue(!body.contains("subscriptionSyncInterval"))
+        assertContainsAll(body, listOf("\"subtitlesEnabled\":false", "\"defaultSubtitleLanguage\":\"\"", "\"defaultAudioLanguage\":\"\"", "\"preferOriginalLanguage\":false", "\"enableHighQualityPlayback\":false"))
+        assertContainsNone(body, listOf("recommendationPersonalizationEnabled", "subscriptionSyncInterval"))
     }
 
     @Test
@@ -104,15 +99,11 @@ class SettingsRoutesTest {
         client.put("/settings") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"subtitlesEnabled":true,"defaultSubtitleLanguage":"fr","defaultAudioLanguage":"fr","preferOriginalLanguage":true,"subscriptionSyncInterval":60}""")
+            setBody("""{"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"subtitlesEnabled":true,"defaultSubtitleLanguage":"fr","defaultAudioLanguage":"fr","preferOriginalLanguage":true,"enableHighQualityPlayback":true,"subscriptionSyncInterval":60}""")
         }
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        assertTrue(body.contains("\"subtitlesEnabled\":true"))
-        assertTrue(body.contains("\"defaultSubtitleLanguage\":\"fr\""))
-        assertTrue(body.contains("\"defaultAudioLanguage\":\"fr\""))
-        assertTrue(body.contains("\"preferOriginalLanguage\":true"))
-        assertTrue(!body.contains("recommendationPersonalizationEnabled"))
-        assertTrue(!body.contains("subscriptionSyncInterval"))
+        assertContainsAll(body, listOf("\"subtitlesEnabled\":true", "\"defaultSubtitleLanguage\":\"fr\"", "\"defaultAudioLanguage\":\"fr\"", "\"preferOriginalLanguage\":true", "\"enableHighQualityPlayback\":true"))
+        assertContainsNone(body, listOf("recommendationPersonalizationEnabled", "subscriptionSyncInterval"))
     }
 
     @Test
