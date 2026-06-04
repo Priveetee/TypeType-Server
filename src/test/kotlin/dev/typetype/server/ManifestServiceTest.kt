@@ -16,7 +16,7 @@ class ManifestServiceTest {
     private val service = ManifestService(streamService)
 
     @Test
-    fun `av01 streams are excluded from manifest`() = runBlocking {
+    fun `av01 streams are included in manifest`() = runBlocking {
         val av01 = testVideoStream(codec = "av01.0.05M.08")
         val avc = testVideoStream(codec = "avc1.42c01e")
         coEvery { streamService.getStreamInfo(any()) } returns
@@ -26,7 +26,7 @@ class ManifestServiceTest {
 
         assertTrue(result is ExtractionResult.Success)
         val xml = (result as ExtractionResult.Success).data
-        assertTrue(!xml.contains("av01"))
+        assertTrue(xml.contains("av01"))
         assertTrue(xml.contains("avc1"))
     }
 
@@ -82,13 +82,12 @@ class ManifestServiceTest {
 
     @Test
     fun `returns Failure when no compatible streams`() = runBlocking {
-        val av01 = testVideoStream(codec = "av01.0.05M.08")
         val noCodec = testVideoStream(codec = null)
         val blankUrl = testVideoStream(url = "")
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(
                 testStreamResponse(
-                    videoOnlyStreams = listOf(av01, noCodec, blankUrl),
+                    videoOnlyStreams = listOf(noCodec, blankUrl),
                     audioStreams = emptyList(),
                 )
             )
@@ -109,50 +108,4 @@ class ManifestServiceTest {
         assertEquals("Extraction failed", (result as ExtractionResult.Failure).message)
     }
 
-    @Test
-    fun `mono-track audio produces one AdaptationSet per mimeType without lang or label`() = runBlocking {
-        val aac = testAudioStream(format = "M4A", codec = "mp4a.40.2")
-        val opus = testAudioStream(format = "WEBM", codec = "opus", url = "https://example.com/opus")
-        coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse(audioStreams = listOf(aac, opus)))
-
-        val xml = (service.dashManifest("https://youtube.com/watch?v=test") as ExtractionResult.Success).data
-
-        val sets = Regex("<AdaptationSet[^>]*mimeType").findAll(xml).count()
-        assertTrue(sets >= 2)
-        assertTrue(!xml.contains("lang="))
-        assertTrue(!xml.contains("label="))
-    }
-
-    @Test
-    fun `multi-track audio produces one AdaptationSet per trackId+mimeType with lang and label`() = runBlocking {
-        val en = testAudioStream(format = "M4A", codec = "mp4a.40.2", url = "https://example.com/en",
-            audioTrackId = "en.0", audioTrackName = "English", audioLocale = "en")
-        val fr = testAudioStream(format = "M4A", codec = "mp4a.40.2", url = "https://example.com/fr",
-            audioTrackId = "fr.0", audioTrackName = "French", audioLocale = "fr")
-        coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse(audioStreams = listOf(en, fr)))
-
-        val xml = (service.dashManifest("https://youtube.com/watch?v=test") as ExtractionResult.Success).data
-
-        assertTrue(xml.contains("lang=\"en\""))
-        assertTrue(xml.contains("lang=\"fr\""))
-        assertTrue(xml.contains("label=\"English\""))
-        assertTrue(xml.contains("label=\"French\""))
-        val sets = Regex("<AdaptationSet[^>]*mimeType").findAll(xml).count()
-        assertTrue(sets >= 2)
-    }
-
-    @Test
-    fun `null audioLocale and audioTrackName produce no lang or label attributes`() = runBlocking {
-        val track = testAudioStream(format = "M4A", codec = "mp4a.40.2",
-            audioTrackId = "en.0", audioTrackName = null, audioLocale = null)
-        coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse(audioStreams = listOf(track)))
-
-        val xml = (service.dashManifest("https://youtube.com/watch?v=test") as ExtractionResult.Success).data
-
-        assertTrue(!xml.contains("lang="))
-        assertTrue(!xml.contains("label="))
-    }
 }

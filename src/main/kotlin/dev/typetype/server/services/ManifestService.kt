@@ -19,9 +19,8 @@ class ManifestService(private val streamService: StreamService) {
     }
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
-        streams.filter { it.codec?.startsWith("av01") != true && it.url.isNotBlank() && !it.codec.isNullOrBlank() }
+        streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
             .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: bwFromUrl(it.url) ?: 0) }))
-
     private fun compatibleAudioStreams(streams: List<AudioStreamItem>, preferredTrackId: String?): List<AudioStreamItem> =
         streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
             .sortedWith(compareBy<AudioStreamItem> { preferredTrackId != null && it.audioTrackId != preferredTrackId }
@@ -101,6 +100,7 @@ class ManifestService(private val streamService: StreamService) {
     private fun codecFamily(codec: String): String = when {
         codec.startsWith("avc1") -> "avc"
         codec.startsWith("vp9") || codec.startsWith("vp09") -> "vp9"
+        codec.startsWith("av01") -> "av1"
         else -> "other"
     }
 
