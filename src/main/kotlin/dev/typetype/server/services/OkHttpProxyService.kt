@@ -99,7 +99,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
     companion object {
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
-        private const val PROXY_PATH = "/proxy"
+        private const val PROXY_PATH = "proxy"
         const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
