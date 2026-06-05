@@ -11,7 +11,7 @@ env:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, arko, android]
     steps:
       - uses: actions/checkout@v6
 
@@ -33,9 +33,9 @@ jobs:
 
       - name: Install PipePipeExtractor to Maven local
         if: steps.ppe-cache.outputs.cache-hit != 'true'
-        working-directory: /tmp
+        working-directory: ${{ runner.temp }}
         env:
-          GRADLE_USER_HOME: /tmp/gradle-ppe
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-ppe
         run: |
           git clone --depth 1 https://github.com/InfinityLoop1308/PipePipeExtractor.git PipePipeExtractor
           cd PipePipeExtractor
