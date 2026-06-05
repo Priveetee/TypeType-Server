@@ -32,13 +32,20 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
             validateProxyUrl(fetchUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val cleanUrl = stripTrackingParams(fetchUrl)
+                val bilibili = isBilibili(cleanUrl)
                 val builder = Request.Builder()
                     .url(cleanUrl)
                     .header("User-Agent", BROWSER_USER_AGENT)
-                if (isBilibili(cleanUrl)) builder.header("Referer", BILIBILI_REFERER)
+                if (bilibili) {
+                    builder.header("Referer", BILIBILI_REFERER)
+                    builder.header("Accept", ACCEPT_ANY)
+                    if (rangeHeader != null) builder.header("Connection", "close")
+                }
                 if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", "domand_bid=$resolvedDomandBid")
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
-                client.newCall(builder.build()).execute()
+                val request = builder.build()
+                if (bilibili && rangeHeader != null) return@withContext readBilibiliRangeWithRetry(client, request)
+                client.newCall(request).execute()
             }.fold(
                 onSuccess = { response ->
                     val body = response.body
@@ -99,6 +106,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
     companion object {
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
+        private const val ACCEPT_ANY = "*/*"
         private const val PROXY_PATH = "proxy"
         const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
