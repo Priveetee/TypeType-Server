@@ -17,6 +17,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -39,7 +40,7 @@ class ProxyRoutesTest {
 
     @Test
     fun `GET proxy does not gzip media responses`() = testApplication {
-        coEvery { proxyService.pipe(any(), any()) } returns ExtractionResult.Success(
+        coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
             ProxyResponse(
                 status = 206,
                 contentType = "audio/webm",
@@ -73,7 +74,7 @@ class ProxyRoutesTest {
 
     @Test
     fun `GET proxy does not gzip image responses`() = testApplication {
-        coEvery { proxyService.pipe(any(), any()) } returns ExtractionResult.Success(
+        coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
             ProxyResponse(
                 status = 200,
                 contentType = "image/jpeg",
@@ -102,5 +103,18 @@ class ProxyRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertNull(response.headers["Content-Encoding"])
+    }
+
+    @Test
+    fun `GET proxy forwards domand bid`() = testApplication {
+        coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
+            ProxyResponse(200, "image/jpeg", 1, null, null, ByteArrayInputStream(byteArrayOf(1)), {})
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            routing { proxyRoutes(proxyService) }
+        }
+        client.get("/proxy?url=https://example.com/thumb.jpg&domand_bid=abc123")
+        coVerify { proxyService.pipe("https://example.com/thumb.jpg", null, "abc123") }
     }
 }

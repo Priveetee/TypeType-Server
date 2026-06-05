@@ -23,15 +23,20 @@ internal fun rewriteHlsManifest(manifest: String): String =
 
 class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
 
-    override suspend fun pipe(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> =
+    override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
-            validateProxyUrl(url)?.let { return@withContext ExtractionResult.BadRequest(it) }
+            val hashIdx = url.indexOf('#')
+            val fetchUrl = if (hashIdx >= 0) url.substring(0, hashIdx) else url
+            val fragment = if (hashIdx >= 0) url.substring(hashIdx + 1) else ""
+            val resolvedDomandBid = domandBid ?: if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
+            validateProxyUrl(fetchUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
-                val cleanUrl = stripTrackingParams(url)
+                val cleanUrl = stripTrackingParams(fetchUrl)
                 val builder = Request.Builder()
                     .url(cleanUrl)
                     .header("User-Agent", BROWSER_USER_AGENT)
                 if (isBilibili(cleanUrl)) builder.header("Referer", BILIBILI_REFERER)
+                if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", "domand_bid=$resolvedDomandBid")
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 client.newCall(builder.build()).execute()
             }.fold(
@@ -47,7 +52,11 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                         val acceptRanges = response.header("Accept-Ranges")
                         val contentLength = response.header("Content-Length")?.toLongOrNull()
                         if (isHls(contentType)) {
-                            val rewritten = rewriteHlsManifest(body.string())
+                            val rewritten = if (isNicoNico(stripTrackingParams(fetchUrl))) {
+                                rewriteNicoManifest(body.string(), stripTrackingParams(fetchUrl), resolvedDomandBid, PROXY_PATH)
+                            } else {
+                                rewriteHlsManifest(body.string())
+                            }
                             response.close()
                             ExtractionResult.Success(ProxyResponse(
                                 status = statusCode,
@@ -80,11 +89,17 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
         return host.contains("bilibili") || host.contains("bilivideo") || host.endsWith("hdslb.com") || host.contains("akamaized")
     }
 
+    private fun isNicoNico(url: String): Boolean {
+        val host = runCatching { java.net.URI(url).host ?: "" }.getOrElse { "" }
+        return host.endsWith("nicovideo.jp")
+    }
+
     private fun isHls(contentType: String): Boolean =
         contentType.contains("mpegurl", ignoreCase = true)
 
     companion object {
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
+        private const val PROXY_PATH = "/proxy"
         const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }

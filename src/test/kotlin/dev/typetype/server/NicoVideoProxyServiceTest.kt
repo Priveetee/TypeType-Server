@@ -93,6 +93,14 @@ class NicoVideoProxyServiceTest {
     }
 
     @Test
+    fun `rewriteNicoManifest can use generic proxy path`() {
+        val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
+        val result = rewriteNicoManifest("#EXTM3U\nseg-001.ts", base, domandBid = "abc123", proxyPath = "/proxy")
+        val segLine = result.lines().first { it.contains("/proxy?url=") }
+        assert(segLine.contains("domand_bid=abc123")) { "Expected domand_bid in generic proxy URL: $segLine" }
+    }
+
+    @Test
     fun `rewriteNicoManifest appends domand_bid to EXT-X-KEY URI`() {
         val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
         val keyUrl = "https://delivery.domand.nicovideo.jp/hlsbid/abc/keys/video-h264-720p.key?session=xyz"

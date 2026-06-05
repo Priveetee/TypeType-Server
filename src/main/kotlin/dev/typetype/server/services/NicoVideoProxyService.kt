@@ -23,11 +23,11 @@ internal fun parseNicoCookie(fragment: String): String? {
     return cookieParam.substring(eqIdx + 1)
 }
 
-internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: String? = null): String {
+internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: String? = null, proxyPath: String = "/proxy/nicovideo"): String {
     val base = URI(baseUrl)
     val uriAttr = Regex("""URI="([^"]+)"""")
     val bidSuffix = if (domandBid != null) "&domand_bid=${URLEncoder.encode(domandBid, StandardCharsets.UTF_8)}" else ""
-    fun toProxy(url: String) = "/proxy/nicovideo?url=" + URLEncoder.encode(
+    fun toProxy(url: String) = "$proxyPath?url=" + URLEncoder.encode(
         if (url.startsWith("http")) url else base.resolve(url).toString(), StandardCharsets.UTF_8
     ) + bidSuffix
     return manifest.lines().joinToString("\n") { line ->
