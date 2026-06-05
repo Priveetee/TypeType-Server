@@ -43,7 +43,7 @@ class NicoVideoProxyServiceTest {
         """.trimIndent()
         val result = rewriteNicoManifest(manifest, base)
         val lines = result.lines()
-        val segLines = lines.filter { it.contains("/proxy/nicovideo?url=") }
+        val segLines = lines.filter { it.contains("nicovideo?url=") }
         assertEquals(2, segLines.size)
         assert(segLines[0].contains("seg-000001.ts"))
         assert(segLines[1].contains("seg-000002.ts"))
@@ -58,7 +58,7 @@ class NicoVideoProxyServiceTest {
             https://delivery.domand.nicovideo.jp/hlsbid/abc/seg-000001.ts
         """.trimIndent()
         val result = rewriteNicoManifest(manifest, base)
-        val segLine = result.lines().first { it.contains("/proxy/nicovideo?url=") }
+        val segLine = result.lines().first { it.contains("nicovideo?url=") }
         assert(segLine.contains("delivery.domand.nicovideo.jp"))
     }
 
@@ -70,7 +70,7 @@ class NicoVideoProxyServiceTest {
         val lines = result.lines()
         assert(lines[0] == "#EXTM3U")
         assert(lines[1] == "#EXT-X-VERSION:3")
-        assert(lines[2].startsWith("/proxy/nicovideo?url="))
+        assert(lines[2].startsWith("nicovideo?url="))
     }
 
     @Test
@@ -79,7 +79,7 @@ class NicoVideoProxyServiceTest {
         val manifest = "#EXTM3U\n#EXT-X-MAP:URI=\"https://asset.domand.nicovideo.jp/init01.cmfv\"\nseg-001.ts"
         val result = rewriteNicoManifest(manifest, base)
         val mapLine = result.lines().first { it.startsWith("#EXT-X-MAP") }
-        assert(mapLine.contains("/proxy/nicovideo?url=")) { "Expected proxied URI in EXT-X-MAP: $mapLine" }
+        assert(mapLine.contains("nicovideo?url=")) { "Expected proxied URI in EXT-X-MAP: $mapLine" }
         assert(mapLine.contains("asset.domand.nicovideo.jp")) { "Expected asset domain in proxied URI: $mapLine" }
     }
 
@@ -88,15 +88,15 @@ class NicoVideoProxyServiceTest {
         val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
         val manifest = "#EXTM3U\nseg-001.ts"
         val result = rewriteNicoManifest(manifest, base, domandBid = "abc123")
-        val segLine = result.lines().first { it.contains("/proxy/nicovideo?url=") }
+        val segLine = result.lines().first { it.contains("nicovideo?url=") }
         assert(segLine.contains("domand_bid=abc123")) { "Expected domand_bid in rewritten URL: $segLine" }
     }
 
     @Test
     fun `rewriteNicoManifest can use generic proxy path`() {
         val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8"
-        val result = rewriteNicoManifest("#EXTM3U\nseg-001.ts", base, domandBid = "abc123", proxyPath = "/proxy")
-        val segLine = result.lines().first { it.contains("/proxy?url=") }
+        val result = rewriteNicoManifest("#EXTM3U\nseg-001.ts", base, domandBid = "abc123", proxyPath = "proxy")
+        val segLine = result.lines().first { it.contains("proxy?url=") }
         assert(segLine.contains("domand_bid=abc123")) { "Expected domand_bid in generic proxy URL: $segLine" }
     }
 
