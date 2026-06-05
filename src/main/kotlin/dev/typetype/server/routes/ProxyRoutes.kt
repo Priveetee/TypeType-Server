@@ -18,8 +18,9 @@ fun Route.proxyRoutes(proxyService: ProxyService) {
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
         val rangeHeader = call.request.headers["Range"]
+        val domandBid = call.request.queryParameters["domand_bid"]
 
-        when (val result = proxyService.pipe(url, rangeHeader)) {
+        when (val result = proxyService.pipe(url, rangeHeader, domandBid)) {
             is ExtractionResult.Success -> {
                 val proxy = result.data
                 try {
