@@ -35,7 +35,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                 val bilibili = isBilibili(cleanUrl)
                 val builder = Request.Builder()
                     .url(cleanUrl)
-                    .header("User-Agent", BROWSER_USER_AGENT)
+                    .header("User-Agent", if (bilibili) BILIBILI_USER_AGENT else BROWSER_USER_AGENT)
                 if (bilibili) {
                     builder.header("Referer", BILIBILI_REFERER)
                     builder.header("Accept", ACCEPT_ANY)
@@ -108,6 +108,8 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
         private const val ACCEPT_ANY = "*/*"
         private const val PROXY_PATH = "proxy"
+        const val BILIBILI_USER_AGENT =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }

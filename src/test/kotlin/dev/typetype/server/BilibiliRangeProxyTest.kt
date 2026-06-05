@@ -21,7 +21,7 @@ class BilibiliRangeProxyTest {
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             calls += 1
             val request = chain.request()
-            assertEquals(OkHttpProxyService.BROWSER_USER_AGENT, request.header("User-Agent"))
+            assertEquals(OkHttpProxyService.BILIBILI_USER_AGENT, request.header("User-Agent"))
             assertEquals("https://www.bilibili.com", request.header("Referer"))
             assertEquals("*/*", request.header("Accept"))
             assertEquals("close", request.header("Connection"))
