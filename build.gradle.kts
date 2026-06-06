@@ -31,7 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.34")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:290faeb271b589740f13d24a22d775436d395b84")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:871ea2df92cb81d6bc59967531523b041a9bf462")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.3.0")
@@ -109,7 +109,7 @@ tasks.check {
 }
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(21)
     sourceSets.named("main") { kotlin.srcDir(generatedBuildInfoDir) }
 }
 

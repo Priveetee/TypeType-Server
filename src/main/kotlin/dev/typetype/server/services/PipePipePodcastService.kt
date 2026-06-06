@@ -54,7 +54,7 @@ class PipePipePodcastService : PodcastService {
         channelUrl: String,
         page: Page?,
     ): PodcastPageResponse {
-        val extractor = service.channelTabExtractor(channelUrl, channelId, ChannelTabs.PODCASTS, null)
+        val extractor = service.channelTabExtractor(channelId, ChannelTabs.PODCASTS, null)
         if (page == null) {
             extractor.fetchPage()
             return ChannelTabInfo.getInfo(extractor).toPodcastPageResponse(channelUrl)

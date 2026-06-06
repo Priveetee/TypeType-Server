@@ -11,6 +11,7 @@ class CachedStreamService(
 ) : StreamService {
 
     companion object {
+        private const val STREAM_TTL_SECONDS = 21600L
         fun cacheKey(url: String): String = "stream:$url"
     }
 
@@ -23,8 +24,7 @@ class CachedStreamService(
         }
         val result = delegate.getStreamInfo(url)
         if (result is ExtractionResult.Success) {
-            val ttl = result.data.streamCacheTtlSeconds()
-            if (ttl > 0) runCatching { cache.set(key, CacheJson.encodeToString(StreamResponse.serializer(), result.data), ttl) }
+            runCatching { cache.set(key, CacheJson.encodeToString(StreamResponse.serializer(), result.data), STREAM_TTL_SECONDS) }
         }
         return result
     }
