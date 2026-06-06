@@ -12,40 +12,12 @@ env:
 jobs:
   build:
     runs-on: [self-hosted, Linux, X64, arko, android]
-    outputs:
-      ppe-sha: ${{ steps.ppe.outputs.sha }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Get PipePipeExtractor HEAD SHA
-        id: ppe
-        run: echo "sha=$(git ls-remote https://github.com/InfinityLoop1308/PipePipeExtractor.git HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v5
-        id: ppe-cache
-        with:
-          path: ~/.m2/repository/com/github/TeamNewPipe
-          key: ppe-${{ steps.ppe.outputs.sha }}
-
-      - uses: actions/setup-java@v5
-        if: steps.ppe-cache.outputs.cache-hit != 'true'
-        with:
-          java-version: "17"
-          distribution: temurin
-
-      - name: Install PipePipeExtractor to Maven local
-        if: steps.ppe-cache.outputs.cache-hit != 'true'
-        working-directory: ${{ runner.temp }}
-        env:
-          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-ppe
-        run: |
-          git clone --depth 1 https://github.com/InfinityLoop1308/PipePipeExtractor.git PipePipeExtractor
-          cd PipePipeExtractor
-          ./gradlew :extractor:publishToMavenLocal :timeago-parser:publishToMavenLocal
-
       - uses: actions/setup-java@v5
         with:
-          java-version: "21"
+          java-version: "25"
           distribution: temurin
 
       - uses: gradle/actions/setup-gradle@v6
@@ -107,14 +79,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/cache@v5
-        with:
-          path: ~/.m2/repository/com/github/TeamNewPipe
-          key: ppe-${{ needs.build.outputs.ppe-sha }}
-
       - uses: actions/setup-java@v5
         with:
-          java-version: "21"
+          java-version: "25"
           distribution: temurin
 
       - uses: gradle/actions/setup-gradle@v6
