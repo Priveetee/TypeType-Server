@@ -4,11 +4,15 @@ import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import kotlinx.coroutines.CompletableDeferred
+import java.util.concurrent.ConcurrentHashMap
 
 class CachedStreamService(
     private val delegate: StreamService,
     private val cache: CacheService,
 ) : StreamService {
+
+    private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<StreamResponse>>>()
 
     companion object {
         fun cacheKey(url: String): String = "stream:$url"
@@ -16,17 +20,41 @@ class CachedStreamService(
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
         val key = cacheKey(url)
-        runCatching { cache.get(key) }.getOrNull()?.let { cached ->
-            return runCatching { ExtractionResult.Success(CacheJson.decodeFromString<StreamResponse>(cached)) }.getOrElse {
-                delegate.getStreamInfo(url)
-            }
+        cachedStream(key)?.let { return it }
+        val pending = CompletableDeferred<ExtractionResult<StreamResponse>>()
+        val existing = inFlight.putIfAbsent(key, pending)
+        if (existing != null) return existing.await()
+        return try {
+            val result = getCachedOrLoad(url, key)
+            pending.complete(result)
+            result
+        } catch (error: Throwable) {
+            pending.completeExceptionally(error)
+            throw error
+        } finally {
+            inFlight.remove(key, pending)
         }
+    }
+
+    private suspend fun getCachedOrLoad(url: String, key: String): ExtractionResult<StreamResponse> {
+        cachedStream(key)?.let { return it }
         val result = delegate.getStreamInfo(url)
         if (result is ExtractionResult.Success) {
             val ttl = result.data.streamCacheTtlSeconds()
-            if (ttl > 0) runCatching { cache.set(key, CacheJson.encodeToString(StreamResponse.serializer(), result.data), ttl) }
+            if (ttl > 0) {
+                runCatching {
+                    cache.set(key, CacheJson.encodeToString(StreamResponse.serializer(), result.data), ttl)
+                }
+            }
         }
         return result
     }
 
+    private suspend fun cachedStream(key: String): ExtractionResult<StreamResponse>? = runCatching { cache.get(key) }
+        .getOrNull()
+        ?.let { cached ->
+            runCatching {
+                ExtractionResult.Success(CacheJson.decodeFromString<StreamResponse>(cached))
+            }.getOrNull()
+        }
 }
