@@ -46,7 +46,7 @@ class PipePipeChannelService : ChannelService {
         if (tab != null) {
             val channelUrl = url.toBaseChannelUrl(tab)
             val metadata = runCatching { ChannelInfo.getInfo(channelUrl) }.getOrNull()
-            val extractor = service.channelTabExtractor(channelId(channelUrl, service), tab, sort)
+            val extractor = service.channelTabExtractor(url, channelId(channelUrl, service), tab, sort)
             extractor.fetchPage()
             return ChannelTabInfo.getInfo(extractor).toChannelTabResponse(metadata)
         }
@@ -57,7 +57,7 @@ class PipePipeChannelService : ChannelService {
         val service = NewPipe.getServiceByUrl(url)
         val tab = url.toChannelTab(sort)
         if (tab != null) {
-            val extractor = service.channelTabExtractor(channelId(url.toBaseChannelUrl(tab), service), tab, sort)
+            val extractor = service.channelTabExtractor(url, channelId(url.toBaseChannelUrl(tab), service), tab, sort)
             return extractor.getPage(page).toChannelTabResponse()
         }
         return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
@@ -65,6 +65,7 @@ class PipePipeChannelService : ChannelService {
 
     private fun String.toChannelTab(sort: String?): String? {
         if (contains("/shorts", ignoreCase = true)) return ChannelTabs.SHORTS
+        if (contains("/search", ignoreCase = true)) return ChannelTabs.SEARCH
         return if (sort != null) ChannelTabs.VIDEOS else null
     }
 

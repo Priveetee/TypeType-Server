@@ -13,6 +13,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -68,5 +69,15 @@ class ChannelRoutesTest {
             ExtractionResult.BadRequest("bad")
         val response = client.get("/channel?url=https://youtube.com/channel/test")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET channel keeps encoded search url`() = withApp {
+        coEvery { channelService.getChannel(any(), any(), any()) } returns
+            ExtractionResult.Success(testChannelResponse())
+        val response = client.get("/channel?url=https%3A%2F%2Fwww.youtube.com%2F%40test%2Fsearch%3Fquery%3Dtyping")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { channelService.getChannel("https://www.youtube.com/@test/search?query=typing", null, null) }
     }
 }
