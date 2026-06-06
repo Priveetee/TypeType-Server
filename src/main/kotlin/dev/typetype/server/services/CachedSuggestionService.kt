@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import kotlinx.serialization.builtins.ListSerializer
@@ -11,24 +10,14 @@ class CachedSuggestionService(
     private val cache: CacheService,
 ) : SuggestionService {
 
-    override suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> {
-        val key = "suggestions:$serviceId:$query"
-        runCatching { cache.get(key) }.getOrNull()?.let { cached ->
-            return runCatching {
-                ExtractionResult.Success(CacheJson.decodeFromString(ListSerializer(String.serializer()), cached))
-            }.getOrElse { delegate.getSuggestions(query, serviceId) }
-        }
-        val result = delegate.getSuggestions(query, serviceId)
-        if (result is ExtractionResult.Success) {
-            runCatching {
-                cache.set(key, CacheJson.encodeToString(ListSerializer(String.serializer()), result.data), SUGGESTIONS_TTL_SECONDS)
-            }
-        }
-        return result
-    }
+    private val listSerializer = ListSerializer(String.serializer())
 
-    private companion object {
-        const val SUGGESTIONS_TTL_SECONDS = 300L
-    }
+    override suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> =
+        PublicExtractionCache.getOrLoad(
+            cache = cache,
+            area = "suggestions",
+            key = PublicCacheKey.of("suggestions", serviceId.toString(), query),
+            serializer = listSerializer,
+            ttlSeconds = { PublicCachePolicy.suggestionTtl(serviceId) },
+        ) { delegate.getSuggestions(query, serviceId) }
 }
-
