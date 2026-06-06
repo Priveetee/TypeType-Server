@@ -32,6 +32,7 @@ dependencies {
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.34")
     implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:290faeb271b589740f13d24a22d775436d395b84")
+    implementation("org.json:json:20250517")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.3.0")
@@ -51,7 +52,6 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
 }
-
 val buildInfoVersion = version.toString().trim().takeUnless { it.isBlank() || it == "unspecified" } ?: "0.0.0-dev"
 val generatedBuildInfoDir = layout.buildDirectory.dir("generated/sources/buildInfo/main")
 val generateBuildInfo = tasks.register("generateBuildInfo") {
