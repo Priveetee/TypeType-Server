@@ -45,14 +45,9 @@ fun Application.configurePlugins(authService: AuthService) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
     }
     configureCompression()
-    val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
-        ?.split(",")
-        ?.map { it.trim() }
-        ?.filter { it.isNotBlank() }
-        .orEmpty()
-        .ifEmpty { error("ALLOWED_ORIGINS environment variable must be set") }
+    val allowedOrigins = allowedOriginsFromEnv(System.getenv("ALLOWED_ORIGINS"))
     install(CORS) {
-        allowOrigins { it in allowedOrigins }
+        allowOrigins { allowedOrigins.allowsCorsOrigin(it) }
         allowCredentials = true
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
