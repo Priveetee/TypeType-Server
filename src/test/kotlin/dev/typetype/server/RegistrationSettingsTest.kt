@@ -6,8 +6,10 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -65,5 +67,31 @@ class RegistrationSettingsTest {
             setBody("""{"email":"first@test.local","password":"secret","name":"First"}""")
         }
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `register status exposes bootstrap availability`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(allowRegistration = false, allowGuest = true, forceEmailVerification = false))
+        val auth = AuthService.fixed(TEST_USER_ID, hasUsers = false)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { authRoutes(auth, passwordReset, profile, adminSettings) }
+        }
+        val response = client.get("/auth/register/status")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":true}""", response.bodyAsText())
+    }
+
+    @Test
+    fun `register status closes when disabled and users exist`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(allowRegistration = false, allowGuest = true, forceEmailVerification = false))
+        val auth = AuthService.fixed(TEST_USER_ID, hasUsers = true)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { authRoutes(auth, passwordReset, profile, adminSettings) }
+        }
+        val response = client.get("/auth/register/status")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":false}""", response.bodyAsText())
     }
 }

@@ -18,26 +18,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
 fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService, warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup) {
-    post("/auth/register") {
-        val req = call.receive<RegisterRequest>()
-        if (req.email.isBlank() || req.password.isBlank() || req.name.isBlank()) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing fields"))
-            return@post
-        }
-        val registrationAllowed = adminSettingsService.get().allowRegistration || !authService.hasUsers()
-        if (!registrationAllowed) {
-            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Registration is disabled"))
-            return@post
-        }
-        try {
-            val token = authService.register(req.email, req.password, req.name)
-            token.accessToken.warm(authService, warmupService)
-            AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
-            call.respond(SessionResponse(token.accessToken))
-        } catch (e: Exception) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse("Registration failed"))
-        }
-    }
+    registerRoutes(authService, adminSettingsService, warmupService)
+
     post("/auth/login") {
         val req = call.receive<LoginRequest>()
         val identifier = req.identifier?.trim().orEmpty().ifBlank { req.email?.trim().orEmpty() }
