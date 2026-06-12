@@ -21,6 +21,8 @@ paths:
     $ref: ./openapi/paths/search.yaml#/Search
   /channel:
     $ref: ./openapi/paths/channel.yaml#/Channel
+  /channel/page:
+    $ref: ./openapi/paths/channel.yaml#/ChannelPage
   /podcasts:
     $ref: ./openapi/paths/podcasts.yaml#/Podcasts
   /podcasts/episodes:
@@ -55,6 +57,8 @@ components:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
     ChannelResponse:
       $ref: ./openapi/components/media.yaml#/ChannelResponse
+    ChannelPageRequest:
+      $ref: ./openapi/components/media.yaml#/ChannelPageRequest
     PodcastPageResponse:
       $ref: ./openapi/components/media.yaml#/PodcastPageResponse
     PodcastEpisodesResponse:

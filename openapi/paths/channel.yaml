@@ -31,3 +31,27 @@ Channel:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+ChannelPage:
+  post:
+    tags: [extraction]
+    summary: Get channel metadata and videos with pagination cursor in JSON body
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/media.yaml#/ChannelPageRequest
+    responses:
+      '200':
+        description: Channel metadata and video page.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/ChannelResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError

@@ -38,6 +38,16 @@ ChannelResponse:
     isVerified: { type: boolean }
     videos: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
+ChannelPageRequest:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
+    nextpage: { type: string, nullable: true }
+    sort:
+      type: string
+      nullable: true
+      enum: [latest, popular, oldest]
 PodcastItem:
   type: object
   required: [id, title, url, thumbnailUrl, uploaderName, streamCount, playlistType]

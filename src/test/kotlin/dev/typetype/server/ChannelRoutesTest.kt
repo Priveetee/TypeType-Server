@@ -5,7 +5,11 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.services.ChannelService
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -79,5 +83,30 @@ class ChannelRoutesTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { channelService.getChannel("https://www.youtube.com/@test/search?query=typing", null, null) }
+    }
+
+    @Test
+    fun `POST channel page accepts long nextpage in body`() = withApp {
+        val nextpage = "x".repeat(9_000)
+        coEvery { channelService.getChannel(any(), any(), any()) } returns
+            ExtractionResult.Success(testChannelResponse())
+
+        val response = client.post("/channel/page") {
+            header(HttpHeaders.ContentType, "application/json")
+            setBody("""{"url":"https://youtube.com/channel/test","nextpage":"$nextpage","sort":"latest"}""")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { channelService.getChannel("https://youtube.com/channel/test", nextpage, "latest") }
+    }
+
+    @Test
+    fun `POST channel page without url returns 400`() = withApp {
+        val response = client.post("/channel/page") {
+            header(HttpHeaders.ContentType, "application/json")
+            setBody("""{"nextpage":"cursor"}""")
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 }
