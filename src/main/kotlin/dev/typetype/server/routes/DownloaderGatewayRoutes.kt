@@ -63,6 +63,11 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
         }
 
     val forceDownload = shouldForceArtifactDownload(path, query)
+    if (isDownloaderStorageFailure(response)) {
+        call.respondDownloaderStorageFailure(response)
+        return
+    }
+
     if (shouldProxyArtifact(path, response)) {
         forwardDownloaderArtifactRequest(call, gateway, response, requestHeaders, forceDownload)
         return
