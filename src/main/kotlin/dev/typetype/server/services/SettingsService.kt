@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.models.SettingsItem
+import dev.typetype.server.models.toSponsorBlockMode
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -23,6 +24,11 @@ class SettingsService {
                 defaultAudioLanguage = it[SettingsTable.defaultAudioLanguage],
                 preferOriginalLanguage = it[SettingsTable.preferOriginalLanguage],
                 enableHighQualityPlayback = it[SettingsTable.enableHighQualityPlayback],
+                sponsorBlockMode = it[SettingsTable.sponsorBlockMode].toSponsorBlockMode(),
+                hideHomeRecommendations = it[SettingsTable.hideHomeRecommendations],
+                hideRelatedVideos = it[SettingsTable.hideRelatedVideos],
+                hideComments = it[SettingsTable.hideComments],
+                hideShorts = it[SettingsTable.hideShorts],
             )
         } ?: SettingsItem()
     }
@@ -40,6 +46,11 @@ class SettingsService {
                 it[defaultAudioLanguage] = settings.defaultAudioLanguage
                 it[preferOriginalLanguage] = settings.preferOriginalLanguage
                 it[enableHighQualityPlayback] = settings.enableHighQualityPlayback
+                it[sponsorBlockMode] = settings.sponsorBlockMode.storageValue
+                it[hideHomeRecommendations] = settings.hideHomeRecommendations
+                it[hideRelatedVideos] = settings.hideRelatedVideos
+                it[hideComments] = settings.hideComments
+                it[hideShorts] = settings.hideShorts
             }
             if (updated == 0) {
                 SettingsTable.insert {
@@ -54,6 +65,11 @@ class SettingsService {
                     it[defaultAudioLanguage] = settings.defaultAudioLanguage
                     it[preferOriginalLanguage] = settings.preferOriginalLanguage
                     it[enableHighQualityPlayback] = settings.enableHighQualityPlayback
+                    it[sponsorBlockMode] = settings.sponsorBlockMode.storageValue
+                    it[hideHomeRecommendations] = settings.hideHomeRecommendations
+                    it[hideRelatedVideos] = settings.hideRelatedVideos
+                    it[hideComments] = settings.hideComments
+                    it[hideShorts] = settings.hideShorts
                 }
             }
         }
