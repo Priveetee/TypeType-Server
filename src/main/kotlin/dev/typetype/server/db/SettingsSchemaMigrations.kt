@@ -1,0 +1,31 @@
+package dev.typetype.server.db
+
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+
+object SettingsSchemaMigrations {
+    fun apply() {
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subtitles_enabled BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_subtitle_language TEXT NOT NULL DEFAULT ''")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS prefer_original_language BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS enable_high_quality_playback BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_mode TEXT NOT NULL DEFAULT 'auto_skip'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_category_actions TEXT NOT NULL DEFAULT '{}'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_minimum_duration INTEGER NOT NULL DEFAULT 0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_show_current_segment BOOLEAN NOT NULL DEFAULT true")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_show_chapters BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_show_full_video_labels BOOLEAN NOT NULL DEFAULT true")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_manual_skip_on_full_video BOOLEAN NOT NULL DEFAULT true")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_skip_non_music_only_on_music_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_mute_instead_of_skip BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_home_recommendations BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_related_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_comments BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_shorts BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
+    }
+
+    private fun exec(sql: String) {
+        TransactionManager.current().exec(sql)
+    }
+}
