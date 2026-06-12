@@ -40,4 +40,8 @@ data class StreamResponse(
     val sponsorBlockSegments: List<SponsorBlockSegmentItem>,
     val relatedStreams: List<VideoItem>,
     val publishedAt: Long? = null,
+    val isLive: Boolean = false,
+    val isPostLive: Boolean = false,
+    val isLiveContent: Boolean = false,
+    val hasLiveManifest: Boolean = false,
 )

@@ -1,6 +1,6 @@
 VideoItem:
   type: object
-  required: [id, title, url, thumbnailUrl, uploaderName, uploaderUrl, duration, viewCount, uploadDate, streamType, isShortFormContent, uploaderVerified]
+  required: [id, title, url, thumbnailUrl, uploaderName, uploaderUrl, duration, viewCount, uploadDate, streamType, isLive, isPostLive, isLiveContent, isShortFormContent, uploaderVerified]
   properties:
     id: { type: string }
     title: { type: string }
@@ -14,6 +14,9 @@ VideoItem:
     uploadDate: { type: string }
     uploaded: { type: integer, format: int64, default: -1 }
     streamType: { type: string }
+    isLive: { type: boolean }
+    isPostLive: { type: boolean }
+    isLiveContent: { type: boolean }
     isShortFormContent: { type: boolean }
     uploaderVerified: { type: boolean }
     shortDescription: { type: string, nullable: true }

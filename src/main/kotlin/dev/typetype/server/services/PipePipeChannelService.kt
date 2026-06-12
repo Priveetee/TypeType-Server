@@ -10,7 +10,6 @@ import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
-import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
 
 class PipePipeChannelService : ChannelService {
 
@@ -62,14 +61,6 @@ class PipePipeChannelService : ChannelService {
         }
         return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
     }
-
-    private fun String.toChannelTab(sort: String?): String? {
-        if (contains("/shorts", ignoreCase = true)) return ChannelTabs.SHORTS
-        if (contains("/search", ignoreCase = true)) return ChannelTabs.SEARCH
-        return if (sort != null) ChannelTabs.VIDEOS else null
-    }
-
-    private fun String.toBaseChannelUrl(tab: String): String = substringBefore("/$tab").substringBefore('?').substringBefore('#').trimEnd('/')
 
     private fun channelId(url: String, service: StreamingService): String = service.channelLHFactory.fromUrl(url).id
 }

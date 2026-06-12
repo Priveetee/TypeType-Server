@@ -33,9 +33,21 @@ class StreamFieldsTest {
     @Test
     fun `GET streams serializes streamType`() = withApp {
         coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse().copy(streamType = "live_stream"))
+            ExtractionResult.Success(
+                testStreamResponse().copy(
+                    streamType = "live_stream",
+                    isLive = true,
+                    isLiveContent = true,
+                    hasLiveManifest = true,
+                    hlsUrl = "https://example.com/live.m3u8",
+                )
+            )
         val body = client.get("/streams?url=https://youtube.com/watch?v=test").bodyAsText()
         assertTrue(body.contains("\"streamType\":\"live_stream\""))
+        assertTrue(body.contains("\"isLive\":true"))
+        assertTrue(body.contains("\"isPostLive\":false"))
+        assertTrue(body.contains("\"isLiveContent\":true"))
+        assertTrue(body.contains("\"hasLiveManifest\":true"))
     }
 
     @Test
