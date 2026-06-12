@@ -14,4 +14,9 @@ data class SettingsItem(
     val defaultAudioLanguage: String = "",
     val preferOriginalLanguage: Boolean = false,
     val enableHighQualityPlayback: Boolean = false,
+    val sponsorBlockMode: SponsorBlockMode = SponsorBlockMode.AUTO_SKIP,
+    val hideHomeRecommendations: Boolean = false,
+    val hideRelatedVideos: Boolean = false,
+    val hideComments: Boolean = false,
+    val hideShorts: Boolean = false,
 )

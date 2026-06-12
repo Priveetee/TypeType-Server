@@ -14,5 +14,10 @@ object SettingsTable : Table("settings") {
     val defaultAudioLanguage = text("default_audio_language").default("")
     val preferOriginalLanguage = bool("prefer_original_language").default(false)
     val enableHighQualityPlayback = bool("enable_high_quality_playback").default(false)
+    val sponsorBlockMode = text("sponsor_block_mode").default("auto_skip")
+    val hideHomeRecommendations = bool("hide_home_recommendations").default(false)
+    val hideRelatedVideos = bool("hide_related_videos").default(false)
+    val hideComments = bool("hide_comments").default(false)
+    val hideShorts = bool("hide_shorts").default(false)
     override val primaryKey = PrimaryKey(userId)
 }
