@@ -36,6 +36,7 @@ internal fun List<SponsorBlockSegmentItem>.toSponsorBlockSegments(): Array<Spons
 
 internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem {
     val uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L
+    val apiStreamType = streamType.toApiStreamType("video")
     return VideoItem(
         id = url ?: "",
         title = name ?: "",
@@ -48,7 +49,10 @@ internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoIt
         viewCount = viewCount,
         uploadDate = textualUploadDate?.extractJapaneseDate() ?: "",
         uploaded = uploaded,
-        streamType = streamType?.name?.lowercase() ?: "video",
+        streamType = apiStreamType,
+        isLive = apiStreamType.isLiveStreamType(),
+        isPostLive = apiStreamType.isPostLiveStreamType(),
+        isLiveContent = apiStreamType.isLiveContentType(),
         isShortFormContent = isShortFormContent,
         uploaderVerified = isUploaderVerified,
         shortDescription = shortDescription?.takeIf { it.isNotBlank() },

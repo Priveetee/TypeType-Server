@@ -40,7 +40,7 @@ AudioStreamItem:
     isOriginal: { type: boolean }
 StreamResponse:
   type: object
-  required: [id, title, uploaderName, uploaderUrl, thumbnailUrl, description, duration, viewCount, uploadDate, uploaded, streamType, videoStreams, audioStreams, videoOnlyStreams, subtitles, relatedStreams]
+  required: [id, title, uploaderName, uploaderUrl, thumbnailUrl, description, duration, viewCount, uploadDate, uploaded, streamType, isLive, isPostLive, isLiveContent, hasLiveManifest, videoStreams, audioStreams, videoOnlyStreams, subtitles, relatedStreams]
   properties:
     id: { type: string }
     title: { type: string }
@@ -57,6 +57,10 @@ StreamResponse:
     uploaded: { type: integer, format: int64 }
     publishedAt: { type: integer, format: int64, nullable: true }
     streamType: { type: string }
+    isLive: { type: boolean }
+    isPostLive: { type: boolean }
+    isLiveContent: { type: boolean }
+    hasLiveManifest: { type: boolean }
     isShortFormContent: { type: boolean }
     originalAudioTrackId: { type: string, nullable: true }
     preferredDefaultAudioTrackId: { type: string, nullable: true }

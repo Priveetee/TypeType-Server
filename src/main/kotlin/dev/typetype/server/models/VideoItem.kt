@@ -20,4 +20,7 @@ data class VideoItem(
     val uploaderVerified: Boolean,
     val shortDescription: String?,
     val publishedAt: Long? = null,
+    val isLive: Boolean = false,
+    val isPostLive: Boolean = false,
+    val isLiveContent: Boolean = false,
 )
