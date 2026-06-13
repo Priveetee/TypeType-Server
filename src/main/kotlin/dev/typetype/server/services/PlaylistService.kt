@@ -5,7 +5,6 @@ import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -22,23 +21,27 @@ class PlaylistService {
             .where { PlaylistsTable.userId eq userId }
             .orderBy(PlaylistsTable.createdAt to SortOrder.DESC)
             .toList()
-        val videosByPlaylist = PlaylistVideosTable.selectAll()
+        val videoRows = PlaylistVideosTable.selectAll()
             .where { PlaylistVideosTable.userId eq userId }
             .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
             .toList()
+        val progressByUrl = playlistProgressByUrl(userId, videoRows.map { it[PlaylistVideosTable.url] })
+        val videosByPlaylist = videoRows
             .groupBy { it[PlaylistVideosTable.playlistId] }
         playlists.map { row ->
-            val videos = videosByPlaylist[row[PlaylistsTable.id]]?.map { it.toVideoItem() } ?: emptyList()
+            val videos = videosByPlaylist[row[PlaylistsTable.id]]?.map { it.toPlaylistVideoItem(progressByUrl) } ?: emptyList()
             PlaylistItem(id = row[PlaylistsTable.id], name = row[PlaylistsTable.name], description = row[PlaylistsTable.description], videos = videos, createdAt = row[PlaylistsTable.createdAt])
         }
     }
 
     suspend fun getById(userId: String, id: String): PlaylistItem? = DatabaseFactory.query {
         val row = PlaylistsTable.selectAll().where { (PlaylistsTable.id eq id) and (PlaylistsTable.userId eq userId) }.singleOrNull() ?: return@query null
-        val videos = PlaylistVideosTable.selectAll()
+        val videoRows = PlaylistVideosTable.selectAll()
             .where { (PlaylistVideosTable.playlistId eq id) and (PlaylistVideosTable.userId eq userId) }
             .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
-            .map { it.toVideoItem() }
+            .toList()
+        val progressByUrl = playlistProgressByUrl(userId, videoRows.map { it[PlaylistVideosTable.url] })
+        val videos = videoRows.map { it.toPlaylistVideoItem(progressByUrl) }
         PlaylistItem(id = row[PlaylistsTable.id], name = row[PlaylistsTable.name], description = row[PlaylistsTable.description], videos = videos, createdAt = row[PlaylistsTable.createdAt])
     }
 
@@ -93,17 +96,4 @@ class PlaylistService {
     suspend fun removeVideo(userId: String, playlistId: String, videoUrl: String): Boolean = DatabaseFactory.query {
         PlaylistVideosTable.deleteWhere { (PlaylistVideosTable.playlistId eq playlistId) and (PlaylistVideosTable.url eq videoUrl) and (PlaylistVideosTable.userId eq userId) } > 0
     }
-
-    private fun ResultRow.toVideoItem() = PlaylistVideoItem(
-        id = this[PlaylistVideosTable.id],
-        url = this[PlaylistVideosTable.url],
-        title = this[PlaylistVideosTable.title],
-        thumbnail = this[PlaylistVideosTable.thumbnail],
-        duration = this[PlaylistVideosTable.duration],
-        position = this[PlaylistVideosTable.position],
-        channelName = this[PlaylistVideosTable.channelName],
-        channelUrl = this[PlaylistVideosTable.channelUrl],
-        channelAvatar = this[PlaylistVideosTable.channelAvatar],
-        viewCount = this[PlaylistVideosTable.viewCount],
-    )
 }

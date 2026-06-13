@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.ProgressService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test
 class PlaylistServiceTest {
 
     private val service = PlaylistService()
+    private val progressService = ProgressService()
 
     companion object {
         @BeforeAll
@@ -58,6 +60,19 @@ class PlaylistServiceTest {
         val found = service.getById(TEST_USER_ID, playlist.id)
         assertNotNull(found)
         assertEquals(1, found?.videos?.size)
+    }
+
+    @Test
+    fun `getById enriches videos with progress`() = runBlocking {
+        val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "Test"))
+        service.addVideo(TEST_USER_ID, playlist.id, PlaylistVideoItem(url = "https://yt.com/1", title = "V1", thumbnail = "", duration = 100L))
+        progressService.upsert(TEST_USER_ID, "https://yt.com/1", 90L)
+
+        val video = service.getById(TEST_USER_ID, playlist.id)?.videos?.single()
+
+        assertEquals(90L, video?.watchPosition)
+        assertEquals(true, video?.watched)
+        assertTrue((video?.progressUpdatedAt ?: 0L) > 0L)
     }
 
     @Test

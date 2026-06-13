@@ -21,4 +21,7 @@ data class PlaylistVideoItem(
     @JsonNames("channelAvatarUrl", "uploaderAvatarUrl")
     val channelAvatar: String = "",
     val viewCount: Long = 0L,
+    val watchPosition: Long = 0L,
+    val watched: Boolean = false,
+    val progressUpdatedAt: Long = 0L,
 )
