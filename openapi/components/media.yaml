@@ -78,6 +78,24 @@ PodcastEpisodesResponse:
     podcast: { $ref: '#/PodcastItem' }
     episodes: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
+PublicPlaylistItem:
+  type: object
+  required: [id, title, url, thumbnailUrl, uploaderName, streamCount, playlistType]
+  properties:
+    id: { type: string }
+    title: { type: string }
+    url: { type: string }
+    thumbnailUrl: { type: string }
+    uploaderName: { type: string }
+    streamCount: { type: integer, format: int64 }
+    playlistType: { type: string }
+PublicPlaylistResponse:
+  type: object
+  required: [playlist, videos, nextpage]
+  properties:
+    playlist: { $ref: '#/PublicPlaylistItem' }
+    videos: { type: array, items: { $ref: '#/VideoItem' } }
+    nextpage: { type: string, nullable: true }
 CommentItem:
   type: object
   required: [id, text, author, authorUrl, authorAvatarUrl, likeCount, textualLikeCount, publishedTime, isHeartedByUploader, isPinned, uploaderVerified, replyCount, repliesPage]
