@@ -13,6 +13,7 @@ import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.proxyRoutes
+import dev.typetype.server.routes.publicPlaylistRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.streamRoutes
@@ -90,6 +91,7 @@ fun Application.module() {
             searchRoutes(svc.searchService)
             suggestionRoutes(svc.suggestionService)
             trendingRoutes(svc.trendingService)
+            publicPlaylistRoutes(svc.publicPlaylistService)
             commentRoutes(svc.commentService)
             bulletCommentRoutes(svc.bulletCommentService)
         }

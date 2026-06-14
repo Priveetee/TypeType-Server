@@ -27,6 +27,8 @@ paths:
     $ref: ./openapi/paths/podcasts.yaml#/Podcasts
   /podcasts/episodes:
     $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes
+  /playlist:
+    $ref: ./openapi/paths/playlists.yaml#/Playlist
   /comments:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
@@ -63,6 +65,10 @@ components:
       $ref: ./openapi/components/media.yaml#/PodcastPageResponse
     PodcastEpisodesResponse:
       $ref: ./openapi/components/media.yaml#/PodcastEpisodesResponse
+    PublicPlaylistResponse:
+      $ref: ./openapi/components/media.yaml#/PublicPlaylistResponse
+    PublicPlaylistItem:
+      $ref: ./openapi/components/media.yaml#/PublicPlaylistItem
     CommentsPageResponse:
       $ref: ./openapi/components/media.yaml#/CommentsPageResponse
     DownloadJob:

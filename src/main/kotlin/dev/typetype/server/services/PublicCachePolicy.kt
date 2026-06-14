@@ -36,6 +36,8 @@ internal object PublicCachePolicy {
             else -> 180L
         }
     }
+
+    fun playlistTtl(nextpage: String?): Long = if (nextpage == null) 3_600L else 1_800L
 }
 
 private fun String.serviceHint(): Int? = when {
