@@ -56,6 +56,8 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
 
     fun refreshSession(refreshToken: String): AuthSessionTokens? = sessionRefresher.refresh(refreshToken)
 
+    fun issueSession(userId: String): AuthSessionTokens? = tokenIssuer.issue(userId)
+
     fun logout(refreshToken: String?) {
         sessionRevoker.revokeByRefreshToken(refreshToken)
     }
