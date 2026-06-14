@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.ChannelPlaylistsResponse
 import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.VideoItem
@@ -37,4 +38,7 @@ class FakeChannelService : ChannelService {
             ),
         )
     }
+
+    override suspend fun getPlaylists(url: String, nextpage: String?): ExtractionResult<ChannelPlaylistsResponse> =
+        ExtractionResult.Success(ChannelPlaylistsResponse(playlists = emptyList(), nextpage = null))
 }

@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.search.filter.FilterItem
+import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class PipePipeSearchService : SearchService {
@@ -56,6 +57,7 @@ class PipePipeSearchService : SearchService {
         nextpage = nextPage?.toCursor(),
         searchSuggestion = searchSuggestion?.takeIf { it.isNotBlank() },
         isCorrectedSearch = isCorrectedSearch,
+        playlists = relatedItems.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
     )
 
     private fun InfoItemsPage<InfoItem>.toPageResponse(): SearchPageResponse = SearchPageResponse(
@@ -63,5 +65,6 @@ class PipePipeSearchService : SearchService {
         nextpage = nextPage?.toCursor(),
         searchSuggestion = null,
         isCorrectedSearch = false,
+        playlists = items.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
     )
 }

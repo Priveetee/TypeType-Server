@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.ChannelPlaylistsResponse
 import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
 
 class PipePipeChannelService : ChannelService {
 
@@ -39,6 +41,24 @@ class PipePipeChannelService : ChannelService {
             )
         }
 
+    override suspend fun getPlaylists(url: String, nextpage: String?): ExtractionResult<ChannelPlaylistsResponse> =
+        withContext(Dispatchers.IO) {
+            val page = if (nextpage != null) {
+                runCatching { nextpage.toPage() }
+                    .getOrElse { return@withContext ExtractionResult.BadRequest("Invalid nextpage cursor") }
+            } else null
+            runCatching {
+                withExtractionRetry {
+                    withTimeout(30_000L) {
+                        if (page == null) extractPlaylistFirstPage(url) else extractPlaylistMorePage(url, page)
+                    }
+                }
+            }.fold(
+                onSuccess = { ExtractionResult.Success(it) },
+                onFailure = { ExtractionResult.Failure(it.message ?: "Channel playlists extraction failed") }
+            )
+        }
+
     private fun extractFirstPage(url: String, sort: String?): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
         val tab = url.toChannelTab(sort)
@@ -60,6 +80,21 @@ class PipePipeChannelService : ChannelService {
             return extractor.getPage(page).toChannelTabResponse()
         }
         return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+    }
+
+    private fun extractPlaylistFirstPage(url: String): ChannelPlaylistsResponse {
+        val service = NewPipe.getServiceByUrl(url)
+        val channelUrl = url.toBaseChannelUrl(ChannelTabs.PLAYLISTS)
+        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), ChannelTabs.PLAYLISTS, null)
+        extractor.fetchPage()
+        return ChannelTabInfo.getInfo(extractor).toChannelPlaylistsResponse()
+    }
+
+    private fun extractPlaylistMorePage(url: String, page: Page): ChannelPlaylistsResponse {
+        val service = NewPipe.getServiceByUrl(url)
+        val channelUrl = url.toBaseChannelUrl(ChannelTabs.PLAYLISTS)
+        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), ChannelTabs.PLAYLISTS, null)
+        return extractor.getPage(page).toChannelPlaylistsResponse()
     }
 
     private fun channelId(url: String, service: StreamingService): String = service.channelLHFactory.fromUrl(url).id

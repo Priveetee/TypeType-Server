@@ -23,12 +23,13 @@ VideoItem:
     publishedAt: { type: integer, format: int64, nullable: true }
 SearchPageResponse:
   type: object
-  required: [items, nextpage, searchSuggestion, isCorrectedSearch]
+  required: [items, nextpage, searchSuggestion, isCorrectedSearch, playlists]
   properties:
     items: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
     searchSuggestion: { type: string, nullable: true }
     isCorrectedSearch: { type: boolean }
+    playlists: { type: array, items: { $ref: '#/PlaylistResultItem' }, default: [] }
 ChannelResponse:
   type: object
   required: [name, description, avatarUrl, bannerUrl, subscriberCount, isVerified, videos, nextpage]
@@ -51,6 +52,23 @@ ChannelPageRequest:
       type: string
       nullable: true
       enum: [latest, popular, oldest]
+PlaylistResultItem:
+  type: object
+  required: [id, title, url, thumbnailUrl, uploaderName, streamCount, playlistType]
+  properties:
+    id: { type: string }
+    title: { type: string }
+    url: { type: string }
+    thumbnailUrl: { type: string }
+    uploaderName: { type: string }
+    streamCount: { type: integer, format: int64 }
+    playlistType: { type: string }
+ChannelPlaylistsResponse:
+  type: object
+  required: [playlists, nextpage]
+  properties:
+    playlists: { type: array, items: { $ref: '#/PlaylistResultItem' } }
+    nextpage: { type: string, nullable: true }
 PodcastItem:
   type: object
   required: [id, title, url, thumbnailUrl, uploaderName, streamCount, playlistType]
