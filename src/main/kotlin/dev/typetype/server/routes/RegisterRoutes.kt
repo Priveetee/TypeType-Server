@@ -20,10 +20,12 @@ fun Route.registerRoutes(
 ): Unit {
     get("/auth/register/status") {
         val bootstrapAvailable = !authService.hasUsers()
+        val settings = adminSettingsService.get()
         call.respond(
             RegisterStatusResponse(
-                allowRegistration = adminSettingsService.get().allowRegistration,
+                allowRegistration = settings.allowRegistration,
                 bootstrapAvailable = bootstrapAvailable,
+                localLoginEnabled = settings.localLoginEnabled,
             )
         )
     }
@@ -34,8 +36,13 @@ fun Route.registerRoutes(
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing fields"))
             return@post
         }
+        val settings = adminSettingsService.get()
+        if (!settings.localLoginEnabled) {
+            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Local registration is disabled"))
+            return@post
+        }
         val bootstrapAvailable = !authService.hasUsers()
-        val registrationAllowed = adminSettingsService.get().allowRegistration || bootstrapAvailable
+        val registrationAllowed = settings.allowRegistration || bootstrapAvailable
         if (!registrationAllowed) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("Registration is disabled"))
             return@post

@@ -21,6 +21,10 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
     registerRoutes(authService, adminSettingsService, warmupService)
 
     post("/auth/login") {
+        if (!adminSettingsService.get().localLoginEnabled) {
+            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Local login is disabled"))
+            return@post
+        }
         val req = call.receive<LoginRequest>()
         val identifier = req.identifier?.trim().orEmpty().ifBlank { req.email?.trim().orEmpty() }
         val token = authService.login(identifier, req.password)

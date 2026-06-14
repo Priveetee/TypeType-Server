@@ -4,7 +4,7 @@ package dev.typetype.server.routes
 data class RegisterRequest(val email: String, val password: String, val name: String)
 
 @kotlinx.serialization.Serializable
-data class RegisterStatusResponse(val allowRegistration: Boolean, val bootstrapAvailable: Boolean)
+data class RegisterStatusResponse(val allowRegistration: Boolean, val bootstrapAvailable: Boolean, val localLoginEnabled: Boolean = true)
 
 @kotlinx.serialization.Serializable
 data class LoginRequest(val identifier: String? = null, val email: String? = null, val password: String)

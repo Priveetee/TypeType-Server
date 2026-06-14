@@ -1,5 +1,4 @@
 package dev.typetype.server
-
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.OkHttpDownloader
@@ -11,6 +10,7 @@ import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
+import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
@@ -38,6 +38,8 @@ import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
 import dev.typetype.server.services.InternalHealthService
+import dev.typetype.server.services.OidcAuthService
+import dev.typetype.server.services.OidcConfigLoader
 import dev.typetype.server.services.UserAdminService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
@@ -51,14 +53,13 @@ fun main(args: Array<String>) = EngineMain.main(args)
 fun Application.module() {
     NewPipe.init(OkHttpDownloader.instance())
     launchExtractorLifecycle()
-
     val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/typetype"
     val dbUser = System.getenv("DATABASE_USER") ?: "typetype"
     val dbPassword = System.getenv("DATABASE_PASSWORD") ?: "typetype"
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
-
     val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
     val authService = AuthService(jwtSecret)
+    val oidcAuthService = OidcAuthService(OidcConfigLoader.fromEnvironment(), jwtSecret, authService)
     val userAdminService = UserAdminService()
     val passwordResetService = PasswordResetService()
     val profileService = ProfileService()
@@ -66,9 +67,8 @@ fun Application.module() {
     val gitHubIssueService = GitHubIssueService()
     val adminSettingsService = AdminSettingsService()
     val activeSessionService = ActiveSessionService(adminSettingsService)
-    val instanceService = InstanceService(authService, adminSettingsService)
+    val instanceService = InstanceService(authService, adminSettingsService, oidcAuthService::publicConfig)
     val restoreService = PipePipeBackupImporterService()
-
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
     val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
@@ -77,9 +77,7 @@ fun Application.module() {
     val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
     val internalHealthService = InternalHealthService(cache, downloaderGatewayService, subtitleServiceUrl)
-
     configurePlugins(authService)
-
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
@@ -107,6 +105,7 @@ fun Application.module() {
             storyboardProxyRoutes(svc.proxyService)
         }
         downloaderGatewayRoutes(downloaderGatewayService)
+        oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminSessionRoutes(authService, activeSessionService)
