@@ -8,4 +8,5 @@ data class SearchPageResponse(
     val nextpage: String?,
     val searchSuggestion: String?,
     val isCorrectedSearch: Boolean,
+    val playlists: List<PlaylistResultItem> = emptyList(),
 )

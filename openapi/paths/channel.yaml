@@ -31,6 +31,33 @@ Channel:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+ChannelPlaylists:
+  get:
+    tags: [extraction]
+    summary: Get channel playlists
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: nextpage
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Channel playlist page.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/ChannelPlaylistsResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
 ChannelPage:
   post:
     tags: [extraction]

@@ -1,10 +1,12 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.ChannelPlaylistsResponse
 import dev.typetype.server.models.ChannelResponse
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
+import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 internal fun ChannelInfo.toChannelResponse(): ChannelResponse = ChannelResponse(
@@ -48,5 +50,15 @@ internal fun InfoItemsPage<InfoItem>.toChannelTabResponse(): ChannelResponse = C
     subscriberCount = -1L,
     isVerified = false,
     videos = items.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
+    nextpage = nextPage?.toCursor(),
+)
+
+internal fun ChannelTabInfo.toChannelPlaylistsResponse(): ChannelPlaylistsResponse = ChannelPlaylistsResponse(
+    playlists = relatedItems.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
+    nextpage = nextPage?.toCursor(),
+)
+
+internal fun InfoItemsPage<InfoItem>.toChannelPlaylistsResponse(): ChannelPlaylistsResponse = ChannelPlaylistsResponse(
+    playlists = items.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
     nextpage = nextPage?.toCursor(),
 )

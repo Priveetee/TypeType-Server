@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ChannelPageRequest
+import dev.typetype.server.models.ChannelPlaylistsResponse
 import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
@@ -39,9 +40,24 @@ fun Route.channelRoutes(channelService: ChannelService) {
             )
         )
     }
+    get("/channel/playlists") {
+        val url = call.request.queryParameters["url"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
+        val nextpage = call.request.queryParameters["nextpage"]
+
+        call.respondChannelPlaylistsResult(channelService.getPlaylists(url = url, nextpage = nextpage))
+    }
 }
 
 private suspend fun ApplicationCall.respondChannelResult(result: ExtractionResult<ChannelResponse>) {
+    when (result) {
+        is ExtractionResult.Success -> respond(result.data)
+        is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+    }
+}
+
+private suspend fun ApplicationCall.respondChannelPlaylistsResult(result: ExtractionResult<ChannelPlaylistsResponse>) {
     when (result) {
         is ExtractionResult.Success -> respond(result.data)
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
