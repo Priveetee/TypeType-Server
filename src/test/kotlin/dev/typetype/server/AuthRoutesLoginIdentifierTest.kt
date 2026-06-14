@@ -81,4 +81,20 @@ class AuthRoutesLoginIdentifierTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(true, response.bodyAsText().contains("\"accessToken\":"))
     }
+
+    @Test
+    fun `login returns forbidden when local login is disabled`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(localLoginEnabled = false))
+        val auth = AuthService("test-secret")
+        auth.register("local-disabled@test.local", "secret", "Disabled")
+        application {
+            install(ContentNegotiation) { json() }
+            routing { authRoutes(auth, passwordReset, profile, adminSettings) }
+        }
+        val response = client.post("/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"identifier":"local-disabled@test.local","password":"secret"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
 }

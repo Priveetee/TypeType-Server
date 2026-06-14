@@ -79,7 +79,7 @@ class RegistrationSettingsTest {
         }
         val response = client.get("/auth/register/status")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":true}""", response.bodyAsText())
+        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":true,"localLoginEnabled":true}""", response.bodyAsText())
     }
 
     @Test
@@ -92,6 +92,21 @@ class RegistrationSettingsTest {
         }
         val response = client.get("/auth/register/status")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":false}""", response.bodyAsText())
+        assertEquals("""{"allowRegistration":false,"bootstrapAvailable":false,"localLoginEnabled":true}""", response.bodyAsText())
+    }
+
+    @Test
+    fun `register forbidden when local login is disabled`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(localLoginEnabled = false))
+        val auth = AuthService.fixed(TEST_USER_ID, hasUsers = false)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { authRoutes(auth, passwordReset, profile, adminSettings) }
+        }
+        val response = client.post("/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"first@test.local","password":"secret","name":"First"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 }

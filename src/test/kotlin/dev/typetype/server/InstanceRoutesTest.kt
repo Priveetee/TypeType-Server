@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.AdminSettingsItem
+import dev.typetype.server.models.OidcPublicConfig
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.services.AdminSettingsService
@@ -37,7 +38,6 @@ class InstanceRoutesTest {
     private val adminSettings = AdminSettingsService()
     private val passwordReset = PasswordResetService()
     private val profile = ProfileService()
-
     companion object {
         @BeforeAll
         @JvmStatic
@@ -66,6 +66,8 @@ class InstanceRoutesTest {
         assertEquals(1, root["apiVersion"]?.jsonPrimitive?.int)
         assertEquals(true, root["registrationAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["guestAllowed"]?.jsonPrimitive?.boolean)
+        assertEquals(true, root["localLoginEnabled"]?.jsonPrimitive?.boolean)
+        assertEquals(false, root["oidcEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(listOf(0, 3, 4, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
         assertEquals(null, root["logoUrl"]?.jsonPrimitive?.contentOrNull)
         assertEquals(null, root["bannerUrl"]?.jsonPrimitive?.contentOrNull)
@@ -83,10 +85,12 @@ class InstanceRoutesTest {
                 minAndroidClientVersion = "0.1.0",
                 allowRegistration = false,
                 allowGuest = false,
+                localLoginEnabled = false,
+                oidcAutoRedirect = true,
             )
         )
         val auth = AuthService.fixed(TEST_USER_ID, hasUsers = true)
-        val instanceService = InstanceService(auth, adminSettings)
+        val instanceService = InstanceService(auth, adminSettings) { OidcPublicConfig(enabled = true, providerName = "Keycloak") }
         application {
             install(ContentNegotiation) { json() }
             routing {
@@ -103,6 +107,10 @@ class InstanceRoutesTest {
         assertEquals("0.1.0", root["minClientVersion"]?.jsonObject?.get("android")?.jsonPrimitive?.contentOrNull)
         assertEquals(false, root["registrationAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["guestAllowed"]?.jsonPrimitive?.boolean)
+        assertEquals(false, root["localLoginEnabled"]?.jsonPrimitive?.boolean)
+        assertEquals(true, root["oidcEnabled"]?.jsonPrimitive?.boolean)
+        assertEquals("Keycloak", root["oidcProviderName"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(true, root["oidcAutoRedirect"]?.jsonPrimitive?.boolean)
         val register = client.post("/auth/register") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"new@test.local","password":"secret","name":"New"}""")
