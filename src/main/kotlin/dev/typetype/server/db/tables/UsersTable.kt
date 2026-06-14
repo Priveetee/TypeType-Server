@@ -13,6 +13,8 @@ object UsersTable : Table("users") {
     val avatarCode = text("avatar_code").nullable()
     val publicUsername = text("public_username").nullable().uniqueIndex()
     val bio = text("bio").nullable()
+    val oidcIssuer = text("oidc_issuer").nullable()
+    val oidcSubject = text("oidc_subject").nullable()
     val verified = bool("verified").default(false)
     val suspended = bool("suspended").default(false)
     val createdAt = long("created_at")

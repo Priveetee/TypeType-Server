@@ -91,6 +91,7 @@ object DatabaseFactory {
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             DatabaseSessionAuthMigration.apply()
+            DatabaseOidcMigration.apply()
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")
             DatabasePrimaryKeyMigrations.apply()
             DatabaseIndexMigrations.apply()

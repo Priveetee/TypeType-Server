@@ -14,4 +14,6 @@ data class AdminSettingsItem(
     val allowGuest: Boolean = true,
     val forceEmailVerification: Boolean = false,
     val activeSessionsEnabled: Boolean = false,
+    val localLoginEnabled: Boolean = true,
+    val oidcAutoRedirect: Boolean = false,
 )

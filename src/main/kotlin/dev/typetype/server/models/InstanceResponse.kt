@@ -14,4 +14,8 @@ data class InstanceResponse(
     val minClientVersion: InstanceMinClientVersion = InstanceMinClientVersion(),
     val logoUrl: String? = null,
     val bannerUrl: String? = null,
+    val localLoginEnabled: Boolean = true,
+    val oidcEnabled: Boolean = false,
+    val oidcProviderName: String? = null,
+    val oidcAutoRedirect: Boolean = false,
 )

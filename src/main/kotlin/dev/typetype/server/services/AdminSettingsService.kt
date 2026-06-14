@@ -27,6 +27,8 @@ class AdminSettingsService {
                     allowGuest = it[AdminSettingsTable.allowGuest],
                     forceEmailVerification = it[AdminSettingsTable.forceEmailVerification],
                     activeSessionsEnabled = it[AdminSettingsTable.activeSessionsEnabled],
+                    localLoginEnabled = it[AdminSettingsTable.localLoginEnabled],
+                    oidcAutoRedirect = it[AdminSettingsTable.oidcAutoRedirect],
                 ).normalized()
             } ?: AdminSettingsItem()
         }
@@ -49,6 +51,8 @@ class AdminSettingsService {
                     it[allowGuest] = settings.allowGuest
                     it[forceEmailVerification] = settings.forceEmailVerification
                     it[activeSessionsEnabled] = settings.activeSessionsEnabled
+                    it[localLoginEnabled] = settings.localLoginEnabled
+                    it[oidcAutoRedirect] = settings.oidcAutoRedirect
                 }
             } else {
                 AdminSettingsTable.insert {
@@ -62,6 +66,8 @@ class AdminSettingsService {
                     it[allowGuest] = settings.allowGuest
                     it[forceEmailVerification] = settings.forceEmailVerification
                     it[activeSessionsEnabled] = settings.activeSessionsEnabled
+                    it[localLoginEnabled] = settings.localLoginEnabled
+                    it[oidcAutoRedirect] = settings.oidcAutoRedirect
                 }
             }
         }
