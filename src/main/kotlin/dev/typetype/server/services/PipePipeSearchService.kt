@@ -6,12 +6,8 @@ import dev.typetype.server.models.SearchPageResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.schabi.newpipe.extractor.InfoItem
-import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.search.SearchInfo
-import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class PipePipeSearchService : SearchService {
 
@@ -48,10 +44,11 @@ class PipePipeSearchService : SearchService {
                             selectedContentFilter.ifEmpty { null },
                             selectedSortFilter.ifEmpty { null },
                         )
+                        val contentKind = contentFilter.toSearchContentKind(selectedContentFilter)
                         if (page == null) {
-                            SearchInfo.getInfo(service, queryHandler).toPageResponse()
+                            SearchInfo.getInfo(service, queryHandler).toSearchPageResponse().filteredBy(contentKind)
                         } else {
-                            SearchInfo.getMoreItems(service, queryHandler, page).toPageResponse()
+                            SearchInfo.getMoreItems(service, queryHandler, page).toSearchPageResponse().filteredBy(contentKind)
                         }
                     }
                 }
@@ -78,22 +75,6 @@ class PipePipeSearchService : SearchService {
                 onFailure = { ExtractionResult.Failure(it.message ?: "Search filters failed") },
             )
         }
-
-    private fun SearchInfo.toPageResponse(): SearchPageResponse = SearchPageResponse(
-        items = relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-        searchSuggestion = searchSuggestion?.takeIf { it.isNotBlank() },
-        isCorrectedSearch = isCorrectedSearch,
-        playlists = relatedItems.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
-    )
-
-    private fun InfoItemsPage<InfoItem>.toPageResponse(): SearchPageResponse = SearchPageResponse(
-        items = items.filterIsInstance<StreamInfoItem>().map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-        searchSuggestion = null,
-        isCorrectedSearch = false,
-        playlists = items.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
-    )
 
     private companion object {
         const val YOUTUBE_SERVICE_ID = 0

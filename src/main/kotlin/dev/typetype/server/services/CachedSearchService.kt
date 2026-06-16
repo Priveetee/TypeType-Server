@@ -19,7 +19,7 @@ class CachedSearchService(
     ): ExtractionResult<SearchPageResponse> = PublicExtractionCache.getOrLoad(
         cache = cache,
         area = "search",
-        key = PublicCacheKey.of("search", serviceId.toString(), query, nextpage, contentFilter, sortFilter),
+        key = PublicCacheKey.of("search-v2", serviceId.toString(), query, nextpage, contentFilter, sortFilter),
         serializer = SearchPageResponse.serializer(),
         ttlSeconds = { PublicCachePolicy.searchTtl(serviceId, nextpage) },
     ) { delegate.search(query, serviceId, nextpage, contentFilter, sortFilter) }
