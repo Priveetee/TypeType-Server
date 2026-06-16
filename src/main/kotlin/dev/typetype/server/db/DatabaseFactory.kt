@@ -78,6 +78,8 @@ object DatabaseFactory {
             exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS channel_url TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS channel_avatar TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS view_count BIGINT NOT NULL DEFAULT 0")
+            exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS added_at BIGINT NOT NULL DEFAULT 0")
+            exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS published_at BIGINT NOT NULL DEFAULT -1")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")

@@ -16,5 +16,7 @@ object PlaylistVideosTable : Table("playlist_videos") {
     val channelUrl = text("channel_url").default("")
     val channelAvatar = text("channel_avatar").default("")
     val viewCount = long("view_count").default(0L)
+    val addedAt = long("added_at").default(0L)
+    val publishedAt = long("published_at").default(-1L)
     override val primaryKey = PrimaryKey(id)
 }
