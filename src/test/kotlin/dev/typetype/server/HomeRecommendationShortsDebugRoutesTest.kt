@@ -52,7 +52,7 @@ class HomeRecommendationShortsDebugRoutesTest {
         TestDatabase.truncateAll()
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
-        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(listOf(video("s1", 40, true), video("s2", 55, true)))
     }
 

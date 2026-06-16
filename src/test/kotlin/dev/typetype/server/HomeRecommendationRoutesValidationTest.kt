@@ -51,7 +51,7 @@ class HomeRecommendationRoutesValidationTest {
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
-        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

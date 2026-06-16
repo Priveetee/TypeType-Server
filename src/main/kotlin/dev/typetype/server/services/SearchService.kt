@@ -1,8 +1,10 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SearchFiltersResponse
 import dev.typetype.server.models.SearchPageResponse
 
 interface SearchService {
-    suspend fun search(query: String, serviceId: Int, nextpage: String? = null): ExtractionResult<SearchPageResponse>
+    suspend fun search(query: String, serviceId: Int, nextpage: String? = null, contentFilter: String? = null, sortFilter: String? = null): ExtractionResult<SearchPageResponse>
+    suspend fun filters(serviceId: Int): ExtractionResult<SearchFiltersResponse>
 }

@@ -15,6 +15,14 @@ Search:
         in: query
         required: false
         schema: { type: string }
+      - name: contentFilter
+        in: query
+        required: false
+        schema: { type: string }
+      - name: sortFilter
+        in: query
+        required: false
+        schema: { type: string }
     responses:
       '200':
         description: Search page.
@@ -25,6 +33,29 @@ Search:
           application/json:
             schema:
               $ref: ../components/media.yaml#/SearchPageResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+SearchFilters:
+  get:
+    tags: [extraction]
+    summary: Get search filters by service
+    parameters:
+      - name: service
+        in: query
+        required: true
+        schema: { type: integer, enum: [0, 3, 4, 5, 6] }
+    responses:
+      '200':
+        description: Search filter capabilities.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/SearchFiltersResponse
       '400':
         $ref: ../components/common.yaml#/JsonError
       '422':

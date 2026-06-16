@@ -19,6 +19,8 @@ paths:
     $ref: ./openapi/paths/streams.yaml#/Streams
   /search:
     $ref: ./openapi/paths/search.yaml#/Search
+  /search/filters:
+    $ref: ./openapi/paths/search.yaml#/SearchFilters
   /channel:
     $ref: ./openapi/paths/channel.yaml#/Channel
   /channel/page:
@@ -59,6 +61,10 @@ components:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     SearchPageResponse:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
+    SearchFilterOption:
+      $ref: ./openapi/components/media.yaml#/SearchFilterOption
+    SearchFiltersResponse:
+      $ref: ./openapi/components/media.yaml#/SearchFiltersResponse
     ChannelResponse:
       $ref: ./openapi/components/media.yaml#/ChannelResponse
     ChannelPageRequest:
