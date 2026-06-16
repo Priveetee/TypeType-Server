@@ -9,4 +9,5 @@ data class SearchPageResponse(
     val searchSuggestion: String?,
     val isCorrectedSearch: Boolean,
     val playlists: List<PlaylistResultItem> = emptyList(),
+    val channels: List<ChannelResultItem> = emptyList(),
 )

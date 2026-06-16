@@ -65,6 +65,8 @@ components:
       $ref: ./openapi/components/media.yaml#/SearchFilterOption
     SearchFiltersResponse:
       $ref: ./openapi/components/media.yaml#/SearchFiltersResponse
+    ChannelResultItem:
+      $ref: ./openapi/components/media.yaml#/ChannelResultItem
     ChannelResponse:
       $ref: ./openapi/components/media.yaml#/ChannelResponse
     ChannelPageRequest:

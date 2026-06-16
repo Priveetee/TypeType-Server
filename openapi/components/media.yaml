@@ -23,13 +23,26 @@ VideoItem:
     publishedAt: { type: integer, format: int64, nullable: true }
 SearchPageResponse:
   type: object
-  required: [items, nextpage, searchSuggestion, isCorrectedSearch, playlists]
+  required: [items, nextpage, searchSuggestion, isCorrectedSearch, playlists, channels]
   properties:
     items: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
     searchSuggestion: { type: string, nullable: true }
     isCorrectedSearch: { type: boolean }
     playlists: { type: array, items: { $ref: '#/PlaylistResultItem' }, default: [] }
+    channels: { type: array, items: { $ref: '#/ChannelResultItem' }, default: [] }
+ChannelResultItem:
+  type: object
+  required: [id, name, url, thumbnailUrl, description, subscriberCount, streamCount, isVerified]
+  properties:
+    id: { type: string }
+    name: { type: string }
+    url: { type: string }
+    thumbnailUrl: { type: string }
+    description: { type: string }
+    subscriberCount: { type: integer, format: int64 }
+    streamCount: { type: integer, format: int64 }
+    isVerified: { type: boolean }
 SearchFilterOption:
   type: object
   required: [value, label]
