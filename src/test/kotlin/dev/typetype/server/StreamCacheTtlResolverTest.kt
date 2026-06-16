@@ -14,6 +14,11 @@ class StreamCacheTtlResolverTest {
     }
 
     @Test
+    fun `stream ttl is short when dislike count is unavailable`() {
+        assertEquals(300L, response("https://example.com/video.mp4", dislikeCount = -1L).streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
     fun `bilibili stream ttl follows signed deadline`() {
         val url = "https://upos-hz-mirrorakam.akamaized.net/video.m4s?deadline=10000&upsig=x"
         assertEquals(1_700L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
@@ -31,7 +36,7 @@ class StreamCacheTtlResolverTest {
         assertEquals(0L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
     }
 
-    private fun response(url: String): StreamResponse = StreamResponse(
+    private fun response(url: String, dislikeCount: Long = 0L): StreamResponse = StreamResponse(
         id = "id",
         title = "title",
         uploaderName = "uploader",
@@ -42,7 +47,7 @@ class StreamCacheTtlResolverTest {
         duration = 1L,
         viewCount = 0L,
         likeCount = 0L,
-        dislikeCount = 0L,
+        dislikeCount = dislikeCount,
         uploadDate = "",
         uploaded = -1L,
         uploaderSubscriberCount = 0L,

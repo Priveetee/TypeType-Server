@@ -30,6 +30,18 @@ SearchPageResponse:
     searchSuggestion: { type: string, nullable: true }
     isCorrectedSearch: { type: boolean }
     playlists: { type: array, items: { $ref: '#/PlaylistResultItem' }, default: [] }
+SearchFilterOption:
+  type: object
+  required: [value, label]
+  properties:
+    value: { type: string }
+    label: { type: string }
+SearchFiltersResponse:
+  type: object
+  required: [contentFilters, sortFilters]
+  properties:
+    contentFilters: { type: array, items: { $ref: '#/SearchFilterOption' } }
+    sortFilters: { type: array, items: { $ref: '#/SearchFilterOption' } }
 ChannelResponse:
   type: object
   required: [name, description, avatarUrl, bannerUrl, subscriberCount, isVerified, videos, nextpage]

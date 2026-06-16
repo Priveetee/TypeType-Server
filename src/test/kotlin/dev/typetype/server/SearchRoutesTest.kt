@@ -52,7 +52,7 @@ class SearchRoutesTest {
 
     @Test
     fun `GET search returns 200 on Success`() = withApp {
-        coEvery { searchService.search(any(), any(), any()) } returns
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns
             ExtractionResult.Success(SearchPageResponse(items = emptyList(), nextpage = null, searchSuggestion = null, isCorrectedSearch = false))
         val response = client.get("/search?q=test&service=0")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -60,7 +60,7 @@ class SearchRoutesTest {
 
     @Test
     fun `GET search returns playlist results`() = withApp {
-        coEvery { searchService.search(any(), any(), any()) } returns ExtractionResult.Success(
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns ExtractionResult.Success(
             SearchPageResponse(
                 items = emptyList(),
                 nextpage = null,
@@ -90,7 +90,7 @@ class SearchRoutesTest {
 
     @Test
     fun `GET search returns 422 on Failure`() = withApp {
-        coEvery { searchService.search(any(), any(), any()) } returns
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns
             ExtractionResult.Failure("error")
         val response = client.get("/search?q=test&service=0")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
@@ -98,7 +98,7 @@ class SearchRoutesTest {
 
     @Test
     fun `GET search returns 400 on BadRequest`() = withApp {
-        coEvery { searchService.search(any(), any(), any()) } returns
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns
             ExtractionResult.BadRequest("bad")
         val response = client.get("/search?q=test&service=0")
         assertEquals(HttpStatusCode.BadRequest, response.status)

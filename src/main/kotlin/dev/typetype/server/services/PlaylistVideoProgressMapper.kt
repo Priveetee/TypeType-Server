@@ -40,6 +40,8 @@ internal fun ResultRow.toPlaylistVideoItem(progressByUrl: Map<String, ProgressIt
         channelUrl = this[PlaylistVideosTable.channelUrl],
         channelAvatar = this[PlaylistVideosTable.channelAvatar],
         viewCount = this[PlaylistVideosTable.viewCount],
+        addedAt = this[PlaylistVideosTable.addedAt],
+        publishedAt = this[PlaylistVideosTable.publishedAt],
         watchPosition = watchPosition,
         watched = duration > 0L && watchPosition * 10L >= duration * 9L,
         progressUpdatedAt = progress?.updatedAt ?: 0L,

@@ -2,6 +2,8 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.PlaylistItem
+import dev.typetype.server.models.PlaylistReorderRequest
+import dev.typetype.server.models.PlaylistReorderResult
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PlaylistService
@@ -57,6 +59,19 @@ fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthServ
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
             call.respond(HttpStatusCode.Created, playlistService.addVideo(userId, id, video))
+        }
+    }
+    put("/playlists/{id}/reorder") {
+        call.withJwtAuth(authService) { userId ->
+            val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            val body = runCatching { call.receive<PlaylistReorderRequest>() }.getOrElse {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            }
+            when (val result = playlistService.reorder(userId, id, body.order)) {
+                PlaylistReorderResult.Success -> call.respond(HttpStatusCode.NoContent)
+                PlaylistReorderResult.NotFound -> call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
+                is PlaylistReorderResult.InvalidOrder -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            }
         }
     }
     delete("/playlists/{id}/videos/{videoUrl...}") {
