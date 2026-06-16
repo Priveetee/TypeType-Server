@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.db.tables.SettingsTable
+import dev.typetype.server.models.CaptionStylesItem
 import dev.typetype.server.models.DEFAULT_SPONSOR_BLOCK_CATEGORY_ACTIONS
 import dev.typetype.server.models.SettingsItem
 import dev.typetype.server.models.SponsorBlockMode
@@ -13,6 +14,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 
 private val SPONSOR_BLOCK_CATEGORY_ACTIONS_SERIALIZER = MapSerializer(String.serializer(), SponsorBlockMode.serializer())
+private val CAPTION_STYLES_SERIALIZER = CaptionStylesItem.serializer()
 
 internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultService = this[SettingsTable.defaultService],
@@ -24,6 +26,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     subtitlesEnabled = this[SettingsTable.subtitlesEnabled],
     defaultSubtitleLanguage = this[SettingsTable.defaultSubtitleLanguage],
     defaultAudioLanguage = this[SettingsTable.defaultAudioLanguage],
+    captionStyles = decodeCaptionStyles(this[SettingsTable.captionStyles]),
     preferOriginalLanguage = this[SettingsTable.preferOriginalLanguage],
     enableHighQualityPlayback = this[SettingsTable.enableHighQualityPlayback],
     sponsorBlockMode = this[SettingsTable.sponsorBlockMode].toSponsorBlockMode(),
@@ -51,6 +54,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.subtitlesEnabled] = settings.subtitlesEnabled
     this[SettingsTable.defaultSubtitleLanguage] = settings.defaultSubtitleLanguage
     this[SettingsTable.defaultAudioLanguage] = settings.defaultAudioLanguage
+    this[SettingsTable.captionStyles] = encodeCaptionStyles(settings.captionStyles)
     this[SettingsTable.preferOriginalLanguage] = settings.preferOriginalLanguage
     this[SettingsTable.enableHighQualityPlayback] = settings.enableHighQualityPlayback
     this[SettingsTable.sponsorBlockMode] = settings.sponsorBlockMode.storageValue
@@ -81,3 +85,10 @@ private fun decodeSponsorBlockCategoryActions(raw: String): Map<String, SponsorB
 
 private fun encodeSponsorBlockCategoryActions(actions: Map<String, SponsorBlockMode>): String =
     CacheJson.encodeToString(SPONSOR_BLOCK_CATEGORY_ACTIONS_SERIALIZER, actions)
+
+private fun decodeCaptionStyles(raw: String): CaptionStylesItem =
+    runCatching { CacheJson.decodeFromString(CAPTION_STYLES_SERIALIZER, raw) }
+        .getOrDefault(CaptionStylesItem())
+
+private fun encodeCaptionStyles(styles: CaptionStylesItem): String =
+    CacheJson.encodeToString(CAPTION_STYLES_SERIALIZER, styles)

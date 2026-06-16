@@ -13,6 +13,7 @@ object SettingsTable : Table("settings") {
     val subtitlesEnabled = bool("subtitles_enabled").default(false)
     val defaultSubtitleLanguage = text("default_subtitle_language").default("")
     val defaultAudioLanguage = text("default_audio_language").default("")
+    val captionStyles = text("caption_styles").default("{}")
     val preferOriginalLanguage = bool("prefer_original_language").default(false)
     val enableHighQualityPlayback = bool("enable_high_quality_playback").default(false)
     val sponsorBlockMode = text("sponsor_block_mode").default("auto_skip")

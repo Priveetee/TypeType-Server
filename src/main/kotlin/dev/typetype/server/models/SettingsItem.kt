@@ -13,6 +13,7 @@ data class SettingsItem(
     val subtitlesEnabled: Boolean = false,
     val defaultSubtitleLanguage: String = "",
     val defaultAudioLanguage: String = "",
+    val captionStyles: CaptionStylesItem = CaptionStylesItem(),
     val preferOriginalLanguage: Boolean = false,
     val enableHighQualityPlayback: Boolean = false,
     val sponsorBlockMode: SponsorBlockMode = SponsorBlockMode.AUTO_SKIP,
