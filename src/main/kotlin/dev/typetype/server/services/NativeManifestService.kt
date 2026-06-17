@@ -13,6 +13,13 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 class NativeManifestService {
 
     suspend fun nativeManifest(videoUrl: String): ExtractionResult<String> =
+        if (isYoutubeUrl(videoUrl)) {
+            YoutubeSessionTokenScope.withoutCredentials { nativeManifestWithoutCredentials(videoUrl) }
+        } else {
+            nativeManifestWithoutCredentials(videoUrl)
+        }
+
+    private suspend fun nativeManifestWithoutCredentials(videoUrl: String): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
             runCatching {
                 withExtractionRetry {
