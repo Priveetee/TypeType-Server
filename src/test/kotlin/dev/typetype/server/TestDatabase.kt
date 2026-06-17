@@ -18,6 +18,8 @@ import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
+import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
+import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.services.AdminSettingsService
@@ -98,6 +100,8 @@ object TestDatabase {
         BlockedVideosTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()
         YoutubeTakeoutPlaylistKeysTable.deleteAll()
+        YoutubeSessionPairingsTable.deleteAll()
+        YoutubeSessionsTable.deleteAll()
         BugReportsTable.deleteAll()
         NotificationStatesTable.deleteAll()
         AdminSettingsService.clearCache()
