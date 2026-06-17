@@ -21,6 +21,8 @@ import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
+import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
+import dev.typetype.server.db.tables.YoutubeSessionsTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -59,6 +61,8 @@ object DatabaseFactory {
                 PasswordResetTable,
                 YoutubeTakeoutImportJobsTable,
                 YoutubeTakeoutPlaylistKeysTable,
+                YoutubeSessionsTable,
+                YoutubeSessionPairingsTable,
                 BugReportsTable,
                 NotificationStatesTable,
             )
