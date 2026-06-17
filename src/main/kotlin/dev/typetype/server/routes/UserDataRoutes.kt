@@ -28,6 +28,7 @@ internal fun Route.userDataRoutes(
     searchHistoryRoutes(svc.searchHistoryService, authService)
     blockedRoutes(svc.blockedService, authService)
     notificationsRoutes(svc.notificationsService, authService)
+    youtubeSessionRoutes(svc.youtubeSessionService, authService)
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, authService)
     bugReportRoutes(bugReportService, authService)
