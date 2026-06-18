@@ -1,0 +1,109 @@
+BrowserStart:
+  post:
+    tags: [youtube-session]
+    summary: Start a temporary remote Chromium login session
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              returnTo:
+                type: string
+                nullable: true
+                maxLength: 2048
+    responses:
+      '201':
+        description: Remote browser session created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, wsUrl, expiresAt]
+              properties:
+                sessionId: { type: string }
+                wsUrl: { type: string }
+                expiresAt: { type: integer, format: int64 }
+      '401': { $ref: '#/components/responses/JsonError' }
+      '403': { $ref: '#/components/responses/JsonError' }
+      '409': { $ref: '#/components/responses/JsonError' }
+      '429': { $ref: '#/components/responses/JsonError' }
+      '503': { $ref: '#/components/responses/JsonError' }
+BrowserSession:
+  parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema: { type: string }
+  get:
+    tags: [youtube-session]
+    summary: WebSocket endpoint for remote browser frames and input
+    parameters:
+      - name: token
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '101': { description: WebSocket upgrade accepted. }
+      '401': { $ref: '#/components/responses/JsonError' }
+  delete:
+    tags: [youtube-session]
+    summary: Cancel a temporary remote browser login session
+    responses:
+      '204': { description: Remote browser session cancelled. }
+      '401': { $ref: '#/components/responses/JsonError' }
+      '404': { $ref: '#/components/responses/JsonError' }
+InternalBrowserComplete:
+  post:
+    tags: [youtube-session]
+    summary: Internal callback used by TypeType-Token after capture
+    parameters:
+      - name: X-Internal-Token
+        in: header
+        required: true
+        schema: { type: string }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [sessionId, tokenSessionId, status, cookies, poToken, capturedAt]
+            properties:
+              sessionId: { type: string }
+              tokenSessionId: { type: string }
+              status:
+                type: string
+                enum: [completed]
+              cookies: { type: string }
+              poToken: { type: string }
+              capturedAt: { type: integer, format: int64 }
+    responses:
+      '204': { description: YouTube credentials stored. }
+      '400': { $ref: '#/components/responses/JsonError' }
+      '401': { $ref: '#/components/responses/JsonError' }
+      '404': { $ref: '#/components/responses/JsonError' }
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string, default: error }
+        requestId: { type: string, nullable: true }
+  headers:
+    RequestIdHeader:
+      description: Request correlation id returned by TypeType-Server.
+      schema: { type: string }
+  responses:
+    JsonError:
+      description: Request failed.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestIdHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

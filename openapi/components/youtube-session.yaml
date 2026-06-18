@@ -1,0 +1,26 @@
+YoutubeRemoteBrowserStartRequest:
+  type: object
+  properties:
+    returnTo:
+      type: string
+      nullable: true
+      maxLength: 2048
+YoutubeRemoteBrowserStartResponse:
+  type: object
+  required: [sessionId, wsUrl, expiresAt]
+  properties:
+    sessionId: { type: string }
+    wsUrl: { type: string }
+    expiresAt: { type: integer, format: int64 }
+YoutubeRemoteBrowserCompleteRequest:
+  type: object
+  required: [sessionId, tokenSessionId, status, cookies, poToken, capturedAt]
+  properties:
+    sessionId: { type: string }
+    tokenSessionId: { type: string }
+    status:
+      type: string
+      enum: [completed]
+    cookies: { type: string }
+    poToken: { type: string }
+    capturedAt: { type: integer, format: int64 }
