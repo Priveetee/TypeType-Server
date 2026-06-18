@@ -1,15 +1,13 @@
 plugins {
-    kotlin("jvm") version "2.3.21"
-    kotlin("plugin.serialization") version "2.3.21"
+    kotlin("jvm") version "2.4.0"
+    kotlin("plugin.serialization") version "2.4.0"
     id("io.ktor.plugin") version "3.5.0"
     id("jacoco")
 }
 
 apply(from = "gradle/openapi-validation.gradle.kts")
-
 group = "dev.typetype"
 version = "0.0.1"
-
 application {
     mainClass.set("dev.typetype.server.ApplicationKt")
 }
@@ -27,11 +25,12 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("io.ktor:ktor-server-cors-jvm")
     implementation("io.ktor:ktor-server-compression-jvm")
+    implementation("io.ktor:ktor-server-websockets-jvm")
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.34")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:3c8feae0548ba7e30bce92f881a1924121c3dc83")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:2a4a333c0e64a96343d35981fd5e75fd122526c2")
     implementation("org.json:json:20250517")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")

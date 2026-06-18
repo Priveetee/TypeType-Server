@@ -27,6 +27,21 @@ class YoutubeSessionService(
         )
     }
 
+    suspend fun completeRemote(userId: String, rawCookies: String, rawPoToken: String): YoutubeSessionCompleteResult {
+        val cookies = YoutubeSessionCookieNormalizer.normalize(rawCookies)
+            ?: return YoutubeSessionCompleteResult.InvalidCredentials
+        val poToken = rawPoToken.trim()
+        if (!YoutubeSessionCredentialValidator.isValid(cookies, poToken)) {
+            return YoutubeSessionCompleteResult.InvalidCredentials
+        }
+        store.completeForUser(
+            userId = userId,
+            encryptedCookies = crypto.encrypt(cookies),
+            encryptedPoToken = crypto.encrypt(poToken),
+        )
+        return YoutubeSessionCompleteResult.Completed
+    }
+
     suspend fun status(userId: String): YoutubeSessionStatusResponse = store.status(userId)
 
     suspend fun delete(userId: String): Boolean = store.delete(userId)

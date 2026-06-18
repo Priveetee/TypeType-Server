@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -52,8 +53,21 @@ class HlsManifestService(
         return fetchAndRewrite(manifestUrl)
     }
 
+    suspend fun hlsManifestFromStreamInfo(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
+        val manifestUrl = when (val resolved = resolveHlsUrl(result)) {
+            is ExtractionResult.Success -> resolved.data
+            is ExtractionResult.BadRequest -> return resolved
+            is ExtractionResult.Failure -> return resolved
+        }
+        return fetchAndRewrite(manifestUrl)
+    }
+
     private suspend fun resolveHlsUrl(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
+        return resolveHlsUrl(result)
+    }
+
+    private fun resolveHlsUrl(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
         if (result is ExtractionResult.BadRequest) return result
         if (result !is ExtractionResult.Success) return ExtractionResult.Failure("No HLS stream available for this video")
         val hls = result.data.hlsUrl

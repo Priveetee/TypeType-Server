@@ -16,6 +16,7 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import io.ktor.server.websocket.WebSockets
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
@@ -43,6 +44,12 @@ fun Application.configurePlugins(authService: AuthService) {
     }
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
+    }
+    install(WebSockets) {
+        pingPeriodMillis = 15_000
+        timeoutMillis = 30_000
+        maxFrameSize = 16L * 1024
+        masking = false
     }
     configureCompression()
     val allowedOrigins = allowedOriginsFromEnv(System.getenv("ALLOWED_ORIGINS"))

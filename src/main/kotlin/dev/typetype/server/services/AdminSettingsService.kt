@@ -29,6 +29,7 @@ class AdminSettingsService {
                     activeSessionsEnabled = it[AdminSettingsTable.activeSessionsEnabled],
                     localLoginEnabled = it[AdminSettingsTable.localLoginEnabled],
                     oidcAutoRedirect = it[AdminSettingsTable.oidcAutoRedirect],
+                    youtubeRemoteLoginEnabled = it[AdminSettingsTable.youtubeRemoteLoginEnabled],
                 ).normalized()
             } ?: AdminSettingsItem()
         }
@@ -53,6 +54,7 @@ class AdminSettingsService {
                     it[activeSessionsEnabled] = settings.activeSessionsEnabled
                     it[localLoginEnabled] = settings.localLoginEnabled
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
+                    it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                 }
             } else {
                 AdminSettingsTable.insert {
@@ -68,6 +70,7 @@ class AdminSettingsService {
                     it[activeSessionsEnabled] = settings.activeSessionsEnabled
                     it[localLoginEnabled] = settings.localLoginEnabled
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
+                    it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                 }
             }
         }

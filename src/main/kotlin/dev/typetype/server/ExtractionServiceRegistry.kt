@@ -28,6 +28,7 @@ import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
+import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
@@ -37,6 +38,7 @@ import dev.typetype.server.services.YoutubeScopedStreamService
 import dev.typetype.server.services.YoutubeScopedSuggestionService
 import dev.typetype.server.services.YoutubeScopedTrendingService
 import dev.typetype.server.services.YoutubeSessionCrypto
+import dev.typetype.server.services.YoutubeSessionHlsManifestService
 import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStreamService
 import okhttp3.OkHttpClient
@@ -59,7 +61,8 @@ internal class ExtractionServiceRegistry(
         BilibiliRelatedService(),
     )
     val youtubeSessionService = YoutubeSessionService(YoutubeSessionCrypto.fromSecret(youtubeSessionEncryptionKey))
-    val youtubeSessionStreamService = YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache)
+    private val hlsTokenService = SignedHlsManifestTokenService(youtubeSessionEncryptionKey)
+    val youtubeSessionStreamService = YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache, hlsTokenService)
     val streamService = CachedStreamService(YoutubeScopedStreamService(pipePipeStreamService), cache)
     val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
     val trendingService = CachedTrendingService(
@@ -79,5 +82,11 @@ internal class ExtractionServiceRegistry(
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
+    val youtubeSessionHlsManifestService = YoutubeSessionHlsManifestService(
+        youtubeSessionService,
+        youtubeSessionStreamService,
+        hlsManifestService,
+        hlsTokenService,
+    )
     val suggestionService = CachedSuggestionService(YoutubeScopedSuggestionService(PipePipeSuggestionService()), cache)
 }

@@ -85,15 +85,22 @@ class ProgressRoutesTest {
     }
 
     @Test
-    fun `PUT progress keeps previous value when payload resets to zero`() = withApp {
+    fun `PUT progress replaces previous value with lower value and zero`() = withApp {
         service.upsert(TEST_USER_ID, "https://yt.com/v?v=test", 12000L)
-        val response = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
+        val lowerResponse = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"position":1234}""")
+        }
+        assertEquals(HttpStatusCode.OK, lowerResponse.status)
+        assertTrue(lowerResponse.bodyAsText().contains("\"position\":1234"))
+        val zeroResponse = client.put("/progress/https%3A%2F%2Fyt.com%2Fv%3Fv%3Dtest") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""{"position":0}""")
         }
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"position\":12000"))
+        assertEquals(HttpStatusCode.OK, zeroResponse.status)
+        assertTrue(zeroResponse.bodyAsText().contains("\"position\":0"))
     }
 
     @Test

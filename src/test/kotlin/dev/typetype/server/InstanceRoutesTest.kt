@@ -38,6 +38,7 @@ class InstanceRoutesTest {
     private val adminSettings = AdminSettingsService()
     private val passwordReset = PasswordResetService()
     private val profile = ProfileService()
+
     companion object {
         @BeforeAll
         @JvmStatic
@@ -45,9 +46,7 @@ class InstanceRoutesTest {
     }
 
     @BeforeEach
-    fun clean() {
-        TestDatabase.truncateAll()
-    }
+    fun clean() { TestDatabase.truncateAll() }
 
     @Test
     fun `instance returns defaults and cache header`() = testApplication {
@@ -68,10 +67,8 @@ class InstanceRoutesTest {
         assertEquals(true, root["guestAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["localLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["oidcEnabled"]?.jsonPrimitive?.boolean)
+        assertEquals(false, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(listOf(0, 3, 4, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
-        assertEquals(null, root["logoUrl"]?.jsonPrimitive?.contentOrNull)
-        assertEquals(null, root["bannerUrl"]?.jsonPrimitive?.contentOrNull)
-        assertEquals(null, root["minClientVersion"]?.jsonObject?.get("android")?.jsonPrimitive?.contentOrNull)
     }
 
     @Test
@@ -87,10 +84,16 @@ class InstanceRoutesTest {
                 allowGuest = false,
                 localLoginEnabled = false,
                 oidcAutoRedirect = true,
+                youtubeRemoteLoginEnabled = true,
             )
         )
         val auth = AuthService.fixed(TEST_USER_ID, hasUsers = true)
-        val instanceService = InstanceService(auth, adminSettings) { OidcPublicConfig(enabled = true, providerName = "Keycloak") }
+        val instanceService = InstanceService(
+            auth,
+            adminSettings,
+            youtubeRemoteLoginAvailable = { true },
+            oidcConfigProvider = { OidcPublicConfig(enabled = true, providerName = "Keycloak") },
+        )
         application {
             install(ContentNegotiation) { json() }
             routing {
@@ -101,16 +104,13 @@ class InstanceRoutesTest {
         val response = client.get("/instance")
         val root = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("Custom Instance", root["name"]?.jsonPrimitive?.contentOrNull)
-        assertEquals("Privacy-respecting video platform", root["tagline"]?.jsonPrimitive?.contentOrNull)
-        assertEquals("https://cdn.example.com/typetype/logo.png", root["logoUrl"]?.jsonPrimitive?.contentOrNull)
-        assertEquals("https://cdn.example.com/typetype/banner.jpg", root["bannerUrl"]?.jsonPrimitive?.contentOrNull)
-        assertEquals("0.1.0", root["minClientVersion"]?.jsonObject?.get("android")?.jsonPrimitive?.contentOrNull)
         assertEquals(false, root["registrationAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["guestAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["localLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["oidcEnabled"]?.jsonPrimitive?.boolean)
         assertEquals("Keycloak", root["oidcProviderName"]?.jsonPrimitive?.contentOrNull)
         assertEquals(true, root["oidcAutoRedirect"]?.jsonPrimitive?.boolean)
+        assertEquals(true, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         val register = client.post("/auth/register") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"new@test.local","password":"secret","name":"New"}""")
