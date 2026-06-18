@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.StreamService
@@ -44,7 +45,10 @@ class StreamRoutesYoutubeSessionTest {
         )
         application {
             testRoutes { _, _ ->
-                ExtractionResult.Success(testStreamResponse(videoOnlyStreams = emptyList(), audioStreams = emptyList()).copy(hlsUrl = "https://manifest.googlevideo.com/hls.m3u8"))
+                ExtractionResult.Success(
+                    testStreamResponse(videoOnlyStreams = emptyList(), audioStreams = emptyList())
+                        .copy(hlsUrl = "/streams/hls-manifest?token=signed-hls")
+                )
             }
         }
         val response = client.get("/streams?url=https://youtube.com/watch?v=test") {
@@ -53,7 +57,10 @@ class StreamRoutesYoutubeSessionTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
         val body = response.bodyAsText()
-        assertTrue(body.contains("\"hlsUrl\":\"https://manifest.googlevideo.com/hls.m3u8\""))
+        assertTrue(body.contains("\"hlsUrl\":\"/streams/hls-manifest?token=signed-hls\""))
+        assertTrue(response.headers.getAll(HttpHeaders.SetCookie).orEmpty().any {
+            it.startsWith("${SignedHlsManifestCookie.name("https://youtube.com/watch?v=test")}=signed-hls")
+        })
         assertTrue(body.contains("\"videoOnlyStreams\":["))
         assertTrue(body.contains("\"audioStreams\":["))
     }

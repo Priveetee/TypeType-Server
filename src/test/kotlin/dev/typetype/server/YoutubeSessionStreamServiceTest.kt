@@ -3,6 +3,8 @@ package dev.typetype.server
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.YoutubeSessionCompleteRequest
+import dev.typetype.server.services.SignedHlsManifestTokenResult
+import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YoutubeSessionCompleteResult
 import dev.typetype.server.services.YoutubeSessionCrypto
@@ -17,6 +19,10 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class YoutubeSessionStreamServiceTest {
+    private val tokenService = SignedHlsManifestTokenService(
+        "test-youtube-session-key-32-bytes",
+        nowMillis = { 1_000L },
+    )
     private val youtubeSessionService = YoutubeSessionService(
         YoutubeSessionCrypto.fromSecret("test-youtube-session-key-32-bytes")
     )
@@ -32,7 +38,7 @@ class YoutubeSessionStreamServiceTest {
 
     @Test
     fun `non YouTube url does not use authenticated extraction`() = runBlocking {
-        val service = YoutubeSessionStreamService(failingStreamService(), youtubeSessionService, FakeCacheService())
+        val service = testService(failingStreamService())
         assertNull(service.getStreamInfo(TEST_USER_ID, "https://example.com/watch?v=test"))
     }
 
@@ -43,6 +49,7 @@ class YoutubeSessionStreamServiceTest {
             failingStreamService("No suitable stream"),
             youtubeSessionService,
             FakeCacheService(),
+            tokenService,
         )
         val result = service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test")
         assertTrue(result is ExtractionResult.BadRequest)
@@ -59,10 +66,31 @@ class YoutubeSessionStreamServiceTest {
                 return ExtractionResult.Success(testStreamResponse())
             }
         }
-        val service = YoutubeSessionStreamService(stream, youtubeSessionService, FakeCacheService())
+        val service = testService(stream)
         assertTrue(service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test") is ExtractionResult.Success)
         assertTrue(service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test") is ExtractionResult.Success)
         assertEquals(1, calls)
+    }
+
+    @Test
+    fun `successful authenticated extraction signs hls url`() = runBlocking {
+        connectYoutubeSession()
+        val stream = object : StreamService {
+            override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
+                ExtractionResult.Success(
+                    testStreamResponse().copy(
+                        hlsUrl = "https://manifest.googlevideo.com/api/manifest/hls_variant/file/index.m3u8"
+                    )
+                )
+        }
+        val result = testService(stream).getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test")
+        assertTrue(result is ExtractionResult.Success)
+        val hlsUrl = (result as ExtractionResult.Success).data.hlsUrl
+        assertTrue(hlsUrl.startsWith("/streams/hls-manifest?token="))
+        val token = hlsUrl.substringAfter("token=")
+        val verified = tokenService.verify(token)
+        assertTrue(verified is SignedHlsManifestTokenResult.Valid)
+        assertEquals("https://youtube.com/watch?v=test", (verified as SignedHlsManifestTokenResult.Valid).token.videoUrl)
     }
 
     private suspend fun connectYoutubeSession() {
@@ -81,4 +109,7 @@ class YoutubeSessionStreamServiceTest {
         override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
             ExtractionResult.Failure(message)
     }
+
+    private fun testService(stream: StreamService): YoutubeSessionStreamService =
+        YoutubeSessionStreamService(stream, youtubeSessionService, FakeCacheService(), tokenService)
 }
