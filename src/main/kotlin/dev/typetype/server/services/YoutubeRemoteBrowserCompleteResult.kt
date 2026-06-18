@@ -6,4 +6,5 @@ sealed interface YoutubeRemoteBrowserCompleteResult {
     data object NotFound : YoutubeRemoteBrowserCompleteResult
     data object InvalidPayload : YoutubeRemoteBrowserCompleteResult
     data object InvalidCredentials : YoutubeRemoteBrowserCompleteResult
+    data object Unavailable : YoutubeRemoteBrowserCompleteResult
 }

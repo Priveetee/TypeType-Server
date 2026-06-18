@@ -47,8 +47,10 @@ import java.util.concurrent.TimeUnit
 internal class ExtractionServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
-    youtubeSessionEncryptionKey: String,
+    youtubeSessionEncryptionKey: String?,
 ) {
+    private val youtubeSessionSecret = youtubeSessionEncryptionKey?.trim()
+        ?.takeIf { it.length >= MIN_YOUTUBE_SESSION_SECRET_LENGTH }
     val httpClient = OkHttpClient()
     val proxyHttpClient: OkHttpClient = httpClient.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -60,9 +62,11 @@ internal class ExtractionServiceRegistry(
         YouTubeSubtitleService(httpClient, subtitleServiceUrl),
         BilibiliRelatedService(),
     )
-    val youtubeSessionService = YoutubeSessionService(YoutubeSessionCrypto.fromSecret(youtubeSessionEncryptionKey))
-    private val hlsTokenService = SignedHlsManifestTokenService(youtubeSessionEncryptionKey)
-    val youtubeSessionStreamService = YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache, hlsTokenService)
+    val youtubeSessionService = YoutubeSessionService(youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret))
+    private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
+    val youtubeSessionStreamService = hlsTokenService?.let {
+        YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache, it)
+    }
     val streamService = CachedStreamService(YoutubeScopedStreamService(pipePipeStreamService), cache)
     val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
     val trendingService = CachedTrendingService(
@@ -82,11 +86,14 @@ internal class ExtractionServiceRegistry(
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
-    val youtubeSessionHlsManifestService = YoutubeSessionHlsManifestService(
-        youtubeSessionService,
-        youtubeSessionStreamService,
-        hlsManifestService,
-        hlsTokenService,
-    )
+    val youtubeSessionHlsManifestService = hlsTokenService?.let { tokenService ->
+        youtubeSessionStreamService?.let {
+            YoutubeSessionHlsManifestService(youtubeSessionService, it, hlsManifestService, tokenService)
+        }
+    }
     val suggestionService = CachedSuggestionService(YoutubeScopedSuggestionService(PipePipeSuggestionService()), cache)
+
+    private companion object {
+        const val MIN_YOUTUBE_SESSION_SECRET_LENGTH = 32
+    }
 }

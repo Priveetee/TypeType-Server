@@ -16,10 +16,22 @@ import io.ktor.server.routing.post
 fun Route.youtubeSessionRoutes(youtubeSessionService: YoutubeSessionService, authService: AuthService): Unit {
     post("/youtube-session/pairing") {
         call.withJwtAuth(authService) { userId ->
+            if (!youtubeSessionService.isConfigured) {
+                return@withJwtAuth call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    ErrorResponse("YouTube Session is unavailable", "youtube_session_unavailable"),
+                )
+            }
             call.respond(HttpStatusCode.Created, youtubeSessionService.createPairing(userId))
         }
     }
     post("/youtube-session/complete") {
+        if (!youtubeSessionService.isConfigured) {
+            return@post call.respond(
+                HttpStatusCode.ServiceUnavailable,
+                ErrorResponse("YouTube Session is unavailable", "youtube_session_unavailable"),
+            )
+        }
         val request = runCatching { call.receive<YoutubeSessionCompleteRequest>() }.getOrElse {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
         }
@@ -33,6 +45,9 @@ fun Route.youtubeSessionRoutes(youtubeSessionService: YoutubeSessionService, aut
             }
             YoutubeSessionCompleteResult.InvalidCredentials -> {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube credentials", "youtube_credentials_invalid"))
+            }
+            YoutubeSessionCompleteResult.Unavailable -> {
+                call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("YouTube Session is unavailable", "youtube_session_unavailable"))
             }
         }
     }

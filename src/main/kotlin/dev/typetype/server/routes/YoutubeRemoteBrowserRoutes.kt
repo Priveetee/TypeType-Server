@@ -64,6 +64,7 @@ private suspend fun ApplicationCall.respondCompletion(service: YoutubeRemoteBrow
         YoutubeRemoteBrowserCompleteResult.NotFound -> respond(HttpStatusCode.NotFound, ErrorResponse("Remote login session not found", "youtube_remote_login_not_found"))
         YoutubeRemoteBrowserCompleteResult.InvalidPayload -> respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid remote login payload", "youtube_remote_login_invalid_payload"))
         YoutubeRemoteBrowserCompleteResult.InvalidCredentials -> respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube credentials", "youtube_credentials_invalid"))
+        YoutubeRemoteBrowserCompleteResult.Unavailable -> respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("YouTube Session is unavailable", "youtube_session_unavailable"))
     }
 }
 

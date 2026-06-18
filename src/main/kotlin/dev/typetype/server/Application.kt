@@ -45,20 +45,19 @@ fun Application.module() {
     val adminSettingsService = AdminSettingsService()
     val activeSessionService = ActiveSessionService(adminSettingsService)
     val restoreService = PipePipeBackupImporterService()
+    val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
+    val youtubeSessionEncryptionKey = System.getenv("YOUTUBE_SESSION_ENCRYPTION_KEY")
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
+    val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
+    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val instanceService = InstanceService(
         authService,
         adminSettingsService,
-        youtubeRemoteLoginAvailable = { youtubeRemoteBrowserConfig.isConfigured },
+        youtubeRemoteLoginAvailable = { youtubeRemoteBrowserConfig.isConfigured && svc.youtubeSessionService.isConfigured },
         oidcConfigProvider = oidcAuthService::publicConfig,
     )
-    val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
-    val youtubeSessionEncryptionKey = System.getenv("YOUTUBE_SESSION_ENCRYPTION_KEY")
-        ?: error("YOUTUBE_SESSION_ENCRYPTION_KEY is required")
-    val cache = DragonflyService(cacheUrl)
-    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
     val youtubeRemoteBrowserService = YoutubeRemoteBrowserService(
         youtubeRemoteBrowserConfig,
         adminSettingsService,

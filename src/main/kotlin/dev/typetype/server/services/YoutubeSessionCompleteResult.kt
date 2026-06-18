@@ -5,4 +5,5 @@ sealed interface YoutubeSessionCompleteResult {
     data object InvalidCode : YoutubeSessionCompleteResult
     data object ExpiredCode : YoutubeSessionCompleteResult
     data object InvalidCredentials : YoutubeSessionCompleteResult
+    data object Unavailable : YoutubeSessionCompleteResult
 }

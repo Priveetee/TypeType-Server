@@ -22,7 +22,7 @@ import dev.typetype.server.services.YoutubeTakeoutFactory
 internal class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
-    youtubeSessionEncryptionKey: String,
+    youtubeSessionEncryptionKey: String?,
 ) {
     init {
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))

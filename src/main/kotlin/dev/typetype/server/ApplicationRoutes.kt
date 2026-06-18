@@ -66,7 +66,13 @@ internal fun Application.installApplicationRoutes(
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
         rateLimit(STREAMS_ZONE) {
-            streamRoutes(svc.streamService, authService, svc.youtubeSessionStreamService::getStreamInfo)
+            streamRoutes(
+                svc.streamService,
+                authService,
+                svc.youtubeSessionStreamService?.let { service ->
+                    { userId, url -> service.getStreamInfo(userId, url) }
+                },
+            )
             manifestRoutes(
                 svc.manifestService,
                 svc.nativeManifestService,
