@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YOUTUBE_SESSION_RECONNECT_ERROR
 import io.ktor.http.HttpStatusCode
@@ -42,6 +43,10 @@ fun Route.streamRoutes(
                     HttpHeaders.CacheControl,
                     if (usedYoutubeSession) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
                 )
+                if (usedYoutubeSession) {
+                    SignedHlsManifestCookie.tokenFromPath(result.data.hlsUrl)
+                        ?.let { SignedHlsManifestCookie.append(call.response, url, it) }
+                }
                 call.respond(result.data)
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, result.toErrorResponse())

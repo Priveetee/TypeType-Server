@@ -44,6 +44,7 @@ internal class ServiceRegistry(
     val manifestService = extraction.manifestService
     val nativeManifestService = extraction.nativeManifestService
     val hlsManifestService = extraction.hlsManifestService
+    val youtubeSessionHlsManifestService = extraction.youtubeSessionHlsManifestService
     val suggestionService = extraction.suggestionService
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()

@@ -67,7 +67,13 @@ internal fun Application.installApplicationRoutes(
         publicMetadataRoutes(instanceService::getInstance)
         rateLimit(STREAMS_ZONE) {
             streamRoutes(svc.streamService, authService, svc.youtubeSessionStreamService::getStreamInfo)
-            manifestRoutes(svc.manifestService, svc.nativeManifestService, svc.hlsManifestService)
+            manifestRoutes(
+                svc.manifestService,
+                svc.nativeManifestService,
+                svc.hlsManifestService,
+                svc.youtubeSessionHlsManifestService,
+                authService,
+            )
         }
         rateLimit(EXTRACTION_ZONE) {
             searchRoutes(svc.searchService)
