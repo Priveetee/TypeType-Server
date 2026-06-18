@@ -45,6 +45,11 @@ class YoutubeSessionStore(
         YoutubeSessionsTable.deleteWhere { YoutubeSessionsTable.userId eq userId } > 0
     }
 
+    suspend fun completeForUser(userId: String, encryptedCookies: String, encryptedPoToken: String): Unit =
+        DatabaseFactory.query {
+            upsertSession(userId, encryptedCookies, encryptedPoToken, nowMillis())
+        }
+
     suspend fun connectedEncrypted(userId: String): Pair<String, String>? = DatabaseFactory.query {
         YoutubeSessionsTable.selectAll()
             .where { YoutubeSessionsTable.userId eq userId }
