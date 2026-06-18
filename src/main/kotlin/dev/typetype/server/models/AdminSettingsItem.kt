@@ -16,4 +16,5 @@ data class AdminSettingsItem(
     val activeSessionsEnabled: Boolean = false,
     val localLoginEnabled: Boolean = true,
     val oidcAutoRedirect: Boolean = false,
+    val youtubeRemoteLoginEnabled: Boolean = false,
 )

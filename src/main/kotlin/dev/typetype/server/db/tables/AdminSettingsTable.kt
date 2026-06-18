@@ -16,5 +16,6 @@ object AdminSettingsTable : Table("admin_settings") {
     val activeSessionsEnabled = bool("active_sessions_enabled").default(false)
     val localLoginEnabled = bool("local_login_enabled").default(true)
     val oidcAutoRedirect = bool("oidc_auto_redirect").default(false)
+    val youtubeRemoteLoginEnabled = bool("youtube_remote_login_enabled").default(false)
     override val primaryKey = PrimaryKey(id)
 }

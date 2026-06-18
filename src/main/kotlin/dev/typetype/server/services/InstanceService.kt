@@ -11,6 +11,7 @@ class InstanceService(
     private val authService: AuthService,
     private val adminSettingsService: AdminSettingsService,
     private val oidcConfigProvider: () -> OidcPublicConfig = { OidcPublicConfig(enabled = false) },
+    private val youtubeRemoteLoginAvailable: () -> Boolean = { false },
 ) {
 
     suspend fun getInstance(): InstanceResponse {
@@ -31,6 +32,7 @@ class InstanceService(
             oidcEnabled = oidc.enabled,
             oidcProviderName = oidc.providerName,
             oidcAutoRedirect = oidc.enabled && settings.oidcAutoRedirect,
+            youtubeRemoteLoginEnabled = settings.youtubeRemoteLoginEnabled && youtubeRemoteLoginAvailable(),
         )
     }
 
