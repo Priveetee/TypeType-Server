@@ -55,7 +55,11 @@ fun Route.manifestRoutes(
 
     get("/streams/hls-manifest") {
         val token = call.request.queryParameters["token"]
-        if (token != null && youtubeSessionHlsManifestService != null) {
+        if (token != null) {
+            if (youtubeSessionHlsManifestService == null) {
+                call.respondYoutubeSessionUnavailable(noStore = true)
+                return@get
+            }
             call.respondHlsResult(youtubeSessionHlsManifestService.hlsManifest(token), noStore = true)
             return@get
         }
@@ -92,4 +96,12 @@ private suspend fun ApplicationCall.respondHlsResult(
         is ExtractionResult.Failure ->
             respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
     }
+}
+
+private suspend fun ApplicationCall.respondYoutubeSessionUnavailable(noStore: Boolean): Unit {
+    if (noStore) response.headers.append(HttpHeaders.CacheControl, "no-store")
+    respond(
+        HttpStatusCode.ServiceUnavailable,
+        ErrorResponse("YouTube Session is unavailable", "youtube_session_unavailable"),
+    )
 }

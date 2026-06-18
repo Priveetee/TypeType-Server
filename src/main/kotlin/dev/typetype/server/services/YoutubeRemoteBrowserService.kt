@@ -18,6 +18,9 @@ class YoutubeRemoteBrowserService(
         if (!adminSettingsService.get().youtubeRemoteLoginEnabled) {
             return YoutubeRemoteBrowserStartResult.Disabled
         }
+        if (!youtubeSessionService.isConfigured) {
+            return YoutubeRemoteBrowserStartResult.Misconfigured
+        }
         val internalToken = config.internalToken ?: return YoutubeRemoteBrowserStartResult.Misconfigured
         return when (val reserved = sessions.reserve(userId, config)) {
             YoutubeRemoteBrowserReserveResult.AlreadyActive -> YoutubeRemoteBrowserStartResult.AlreadyActive
@@ -39,11 +42,15 @@ class YoutubeRemoteBrowserService(
     ): YoutubeRemoteBrowserCompleteResult {
         if (!isInternalAuthorized(internalToken)) return YoutubeRemoteBrowserCompleteResult.Unauthorized
         if (request.status != "completed") return YoutubeRemoteBrowserCompleteResult.InvalidPayload
+        if (!youtubeSessionService.isConfigured) return YoutubeRemoteBrowserCompleteResult.Unavailable
         val session = sessions.complete(request.sessionId, request.tokenSessionId)
             ?: return YoutubeRemoteBrowserCompleteResult.NotFound
         return when (youtubeSessionService.completeRemote(session.userId, request.cookies, request.poToken)) {
             YoutubeSessionCompleteResult.Completed -> YoutubeRemoteBrowserCompleteResult.Completed
-            else -> YoutubeRemoteBrowserCompleteResult.InvalidCredentials
+            YoutubeSessionCompleteResult.InvalidCode,
+            YoutubeSessionCompleteResult.ExpiredCode,
+            YoutubeSessionCompleteResult.InvalidCredentials -> YoutubeRemoteBrowserCompleteResult.InvalidCredentials
+            YoutubeSessionCompleteResult.Unavailable -> YoutubeRemoteBrowserCompleteResult.Unavailable
         }
     }
 

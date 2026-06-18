@@ -26,6 +26,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ManifestHlsAuthRoutesTest {
@@ -75,7 +76,18 @@ class ManifestHlsAuthRoutesTest {
         assertEquals("#EXTM3U", response.bodyAsText())
     }
 
-    private fun ApplicationTestBuilder.installRoutes(): Unit {
+    @Test
+    fun `GET streams hls-manifest rejects signed token when YouTube Session is unavailable`() = testApplication {
+        installRoutes(youtubeSessionHlsManifestService = null)
+        val response = client.get("/streams/hls-manifest?token=signed")
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+        assertTrue(response.bodyAsText().contains("\"code\":\"youtube_session_unavailable\""))
+    }
+
+    private fun ApplicationTestBuilder.installRoutes(
+        youtubeSessionHlsManifestService: YoutubeSessionHlsManifestService? = this@ManifestHlsAuthRoutesTest.youtubeSessionHlsManifestService,
+    ): Unit {
         application {
             install(ContentNegotiation) { json() }
             routing {

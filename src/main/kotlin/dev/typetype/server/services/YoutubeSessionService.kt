@@ -5,14 +5,17 @@ import dev.typetype.server.models.YoutubeSessionPairingResponse
 import dev.typetype.server.models.YoutubeSessionStatusResponse
 
 class YoutubeSessionService(
-    private val crypto: YoutubeSessionCrypto,
+    private val crypto: YoutubeSessionCrypto?,
     private val pairingStore: YoutubeSessionPairingStore = YoutubeSessionPairingStore(),
     private val store: YoutubeSessionStore = YoutubeSessionStore(),
 ) {
+    val isConfigured: Boolean = crypto != null
+
     suspend fun createPairing(userId: String): YoutubeSessionPairingResponse =
         pairingStore.create(userId)
 
     suspend fun complete(request: YoutubeSessionCompleteRequest): YoutubeSessionCompleteResult {
+        val crypto = crypto ?: return YoutubeSessionCompleteResult.Unavailable
         val code = request.code.trim().uppercase()
         val cookies = YoutubeSessionCookieNormalizer.normalize(request.cookies)
             ?: return YoutubeSessionCompleteResult.InvalidCredentials
@@ -28,6 +31,7 @@ class YoutubeSessionService(
     }
 
     suspend fun completeRemote(userId: String, rawCookies: String, rawPoToken: String): YoutubeSessionCompleteResult {
+        val crypto = crypto ?: return YoutubeSessionCompleteResult.Unavailable
         val cookies = YoutubeSessionCookieNormalizer.normalize(rawCookies)
             ?: return YoutubeSessionCompleteResult.InvalidCredentials
         val poToken = rawPoToken.trim()
@@ -42,11 +46,13 @@ class YoutubeSessionService(
         return YoutubeSessionCompleteResult.Completed
     }
 
-    suspend fun status(userId: String): YoutubeSessionStatusResponse = store.status(userId)
+    suspend fun status(userId: String): YoutubeSessionStatusResponse =
+        if (isConfigured) store.status(userId) else YoutubeSessionStatusResponse(YoutubeSessionStatus.Disconnected.value, 0, 0)
 
     suspend fun delete(userId: String): Boolean = store.delete(userId)
 
     suspend fun connectedCredentials(userId: String): YoutubeSessionCredentials? {
+        val crypto = crypto ?: return null
         val encrypted = store.connectedEncrypted(userId) ?: return null
         val credentials = runCatching {
             YoutubeSessionCredentials(
