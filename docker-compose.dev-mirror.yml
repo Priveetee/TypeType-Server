@@ -56,7 +56,7 @@ services:
       typetype-token: { condition: service_started }
     restart: unless-stopped
   typetype-token:
-    image: ghcr.io/priveetee/typetype-token:latest
+    image: ghcr.io/priveetee/typetype-token-beta:beta
     pull_policy: always
     ports: ["28081:8081"]
     init: true
