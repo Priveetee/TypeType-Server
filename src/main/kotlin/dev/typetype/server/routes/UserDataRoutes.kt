@@ -21,6 +21,7 @@ internal fun Route.userDataRoutes(
     subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
     playlistRoutes(svc.playlistService, authService)
+    savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
     watchLaterRoutes(svc.watchLaterService, authService)
     progressRoutes(svc.progressService, authService)
     favoritesRoutes(svc.favoritesService, authService)

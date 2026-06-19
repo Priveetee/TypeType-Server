@@ -12,6 +12,8 @@ object DatabaseIndexMigrations {
         exec("CREATE INDEX IF NOT EXISTS idx_watch_later_user_added_at ON watch_later (user_id, added_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_search_history_user_searched_at ON search_history (user_id, searched_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_playlists_user_created_at ON playlists (user_id, created_at DESC)")
+        exec("CREATE INDEX IF NOT EXISTS idx_saved_playlists_user_saved_at ON saved_playlists (user_id, saved_at DESC)")
+        exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_playlists_user_url ON saved_playlists (user_id, url)")
         exec("CREATE INDEX IF NOT EXISTS idx_history_title_trgm ON history USING gin (lower(title) gin_trgm_ops)")
         exec("CREATE INDEX IF NOT EXISTS idx_history_channel_name_trgm ON history USING gin (lower(channel_name) gin_trgm_ops)")
     }
