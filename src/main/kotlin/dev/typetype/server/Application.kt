@@ -17,6 +17,7 @@ import dev.typetype.server.services.InternalHealthService
 import dev.typetype.server.services.OidcAuthService
 import dev.typetype.server.services.OidcConfigLoader
 import dev.typetype.server.services.OkHttpYoutubeRemoteBrowserClient
+import dev.typetype.server.services.SecretConfigReader
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserConfig
 import dev.typetype.server.services.YoutubeRemoteBrowserService
@@ -47,7 +48,7 @@ fun Application.module() {
     val activeSessionService = ActiveSessionService(adminSettingsService)
     val restoreService = PipePipeBackupImporterService()
     val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
-    val youtubeSessionEncryptionKey = System.getenv("YOUTUBE_SESSION_ENCRYPTION_KEY")
+    val youtubeSessionEncryptionKey = SecretConfigReader.read("YOUTUBE_SESSION_ENCRYPTION_KEY")
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
