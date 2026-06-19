@@ -1,0 +1,51 @@
+InstanceMinClientVersion:
+  type: object
+  required: [android]
+  properties:
+    android:
+      type: string
+      nullable: true
+InstanceResponse:
+  type: object
+  required:
+    - name
+    - version
+    - apiVersion
+    - registrationAllowed
+    - guestAllowed
+    - supportedServices
+    - minClientVersion
+    - localLoginEnabled
+    - oidcEnabled
+    - oidcAutoRedirect
+    - youtubeRemoteLoginEnabled
+    - youtubeRemoteLoginReady
+  properties:
+    name: { type: string, example: TypeType }
+    tagline: { type: string, nullable: true }
+    version: { type: string, example: 0.0.1 }
+    apiVersion: { type: integer, example: 1 }
+    registrationAllowed: { type: boolean }
+    guestAllowed: { type: boolean }
+    supportedServices:
+      type: array
+      items: { type: integer }
+      example: [0, 3, 4, 5, 6]
+    minClientVersion:
+      $ref: '#/InstanceMinClientVersion'
+    logoUrl: { type: string, nullable: true }
+    bannerUrl: { type: string, nullable: true }
+    localLoginEnabled: { type: boolean }
+    oidcEnabled: { type: boolean }
+    oidcProviderName: { type: string, nullable: true }
+    oidcAutoRedirect: { type: boolean }
+    youtubeRemoteLoginEnabled:
+      type: boolean
+      description: True only when the admin setting is enabled and remote login is ready.
+    youtubeRemoteLoginReady:
+      type: boolean
+      description: Non-secret readiness state for YouTube remote login.
+    youtubeRemoteLoginUnavailableReason:
+      type: string
+      nullable: true
+      enum: [disabled, not_configured, token_unreachable]
