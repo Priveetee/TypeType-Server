@@ -12,8 +12,8 @@ object YoutubeTakeoutHistoryParser {
         DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm:ss z", Locale.FRENCH),
         DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm:ss z", Locale.ENGLISH),
     )
-    private val rowRegex = Regex("""(?:Vous avez regardé|You watched)\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>(?:<a href=\"([^\"]+)\">([\s\S]*?)</a><br>)?([\s\S]*?)<br>""")
-    private val urlRegex = Regex("""https://www\.youtube\.com/watch\?v=[A-Za-z0-9_-]{6,}""")
+    private val rowRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.watchedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>(?:<a href=\"([^\"]+)\">([\s\S]*?)</a><br>)?([\s\S]*?)<br>""", RegexOption.IGNORE_CASE)
+    private val urlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val tagRegex = Regex("<[^>]+>")
     private val spacesRegex = Regex("\\s+")
 
