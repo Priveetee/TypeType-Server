@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.HistoryTable
+import dev.typetype.server.db.tables.ProgressTable
 import dev.typetype.server.models.HistoryItem
 import org.jetbrains.exposed.v1.core.LowerCase
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -12,9 +13,9 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
@@ -65,9 +66,21 @@ class HistoryService {
 
     suspend fun dedupKeys(userId: String): Set<Pair<String, Long>> = DatabaseFactory.query { HistoryTable.selectAll().where { HistoryTable.userId eq userId }.map { it[HistoryTable.url] to it[HistoryTable.watchedAt] }.toSet() }
 
-    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query { HistoryTable.deleteWhere { HistoryTable.id eq id and (HistoryTable.userId eq userId) } > 0 }
+    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query {
+        val url = HistoryTable.selectAll()
+            .where { (HistoryTable.id eq id) and (HistoryTable.userId eq userId) }
+            .singleOrNull()
+            ?.get(HistoryTable.url)
+            ?: return@query false
+        val deleted = HistoryTable.deleteWhere { (HistoryTable.id eq id) and (HistoryTable.userId eq userId) } > 0
+        if (deleted) deleteProgress(userId, url)
+        deleted
+    }
 
-    suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query { HistoryTable.deleteWhere { HistoryTable.userId eq userId } }
+    suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query {
+        HistoryTable.deleteWhere { HistoryTable.userId eq userId }
+        deleteAllProgress(userId)
+    }
 
     private suspend fun insert(userId: String, item: HistoryItem, watchedAt: Long): HistoryItem {
         val id = UUID.randomUUID().toString()
@@ -88,5 +101,13 @@ class HistoryService {
             }
         }
         return item.copy(id = id, progress = progress, watchedAt = watchedAt)
+    }
+
+    private fun deleteProgress(userId: String, videoUrl: String) {
+        ProgressTable.deleteWhere { (ProgressTable.userId eq userId) and (ProgressTable.videoUrl eq videoUrl) }
+    }
+
+    private fun deleteAllProgress(userId: String) {
+        ProgressTable.deleteWhere { ProgressTable.userId eq userId }
     }
 }

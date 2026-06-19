@@ -26,6 +26,7 @@ object SettingsTable : Table("settings") {
     val sponsorBlockSkipNonMusicOnlyOnMusicVideos = bool("sponsor_block_skip_non_music_only_on_music_videos").default(false)
     val sponsorBlockMuteInsteadOfSkip = bool("sponsor_block_mute_instead_of_skip").default(false)
     val hideHomeRecommendations = bool("hide_home_recommendations").default(false)
+    val hideContinueWatching = bool("hide_continue_watching").default(false)
     val hideRelatedVideos = bool("hide_related_videos").default(false)
     val hideComments = bool("hide_comments").default(false)
     val hideShorts = bool("hide_shorts").default(false)

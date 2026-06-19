@@ -139,6 +139,24 @@ PublicPlaylistResponse:
     playlist: { $ref: '#/PublicPlaylistItem' }
     videos: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
+SavedPlaylistItem:
+  type: object
+  required: [id, publicPlaylistId, url, title, thumbnailUrl, uploaderName, streamCount, playlistType, savedAt]
+  properties:
+    id: { type: string }
+    publicPlaylistId: { type: string }
+    url: { type: string }
+    title: { type: string }
+    thumbnailUrl: { type: string }
+    uploaderName: { type: string }
+    streamCount: { type: integer, format: int64 }
+    playlistType: { type: string }
+    savedAt: { type: integer, format: int64 }
+SavedPlaylistRequest:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
 CommentItem:
   type: object
   required: [id, text, author, authorUrl, authorAvatarUrl, likeCount, textualLikeCount, publishedTime, isHeartedByUploader, isPinned, uploaderVerified, replyCount, repliesPage]

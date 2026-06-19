@@ -39,6 +39,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     sponsorBlockSkipNonMusicOnlyOnMusicVideos = this[SettingsTable.sponsorBlockSkipNonMusicOnlyOnMusicVideos],
     sponsorBlockMuteInsteadOfSkip = this[SettingsTable.sponsorBlockMuteInsteadOfSkip],
     hideHomeRecommendations = this[SettingsTable.hideHomeRecommendations],
+    hideContinueWatching = this[SettingsTable.hideContinueWatching],
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
@@ -67,6 +68,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.sponsorBlockSkipNonMusicOnlyOnMusicVideos] = settings.sponsorBlockSkipNonMusicOnlyOnMusicVideos
     this[SettingsTable.sponsorBlockMuteInsteadOfSkip] = settings.sponsorBlockMuteInsteadOfSkip
     this[SettingsTable.hideHomeRecommendations] = settings.hideHomeRecommendations
+    this[SettingsTable.hideContinueWatching] = settings.hideContinueWatching
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts

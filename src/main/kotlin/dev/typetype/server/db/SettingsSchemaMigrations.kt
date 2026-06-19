@@ -19,6 +19,7 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_skip_non_music_only_on_music_videos BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS sponsor_block_mute_instead_of_skip BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_home_recommendations BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_continue_watching BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_related_videos BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_comments BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_shorts BOOLEAN NOT NULL DEFAULT false")

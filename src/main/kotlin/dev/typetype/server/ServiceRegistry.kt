@@ -8,6 +8,7 @@ import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
+import dev.typetype.server.services.SavedPlaylistService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.HomeRecommendationPoolResolverDependencies
@@ -57,6 +58,7 @@ internal class ServiceRegistry(
     )
     val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
+    val savedPlaylistService = SavedPlaylistService()
     val watchLaterService = WatchLaterService()
     val progressService = ProgressService()
     val favoritesService = FavoritesService()

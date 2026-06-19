@@ -11,6 +11,7 @@ import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
+import dev.typetype.server.db.tables.SavedPlaylistsTable
 import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
@@ -85,6 +86,7 @@ object TestDatabase {
     fun truncateAll() = transaction {
         PlaylistVideosTable.deleteAll()
         PlaylistsTable.deleteAll()
+        SavedPlaylistsTable.deleteAll()
         HistoryTable.deleteAll()
         FavoritesTable.deleteAll()
         SettingsTable.deleteAll()
