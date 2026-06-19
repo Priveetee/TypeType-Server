@@ -25,7 +25,7 @@ data class YoutubeRemoteBrowserConfig(
             YoutubeRemoteBrowserConfig(
                 serviceUrl = envText("YOUTUBE_REMOTE_LOGIN_SERVICE_URL") ?: tokenServiceUrl,
                 callbackBaseUrl = envText("YOUTUBE_REMOTE_LOGIN_CALLBACK_BASE_URL") ?: "http://localhost:8080",
-                internalToken = envText("YOUTUBE_REMOTE_LOGIN_INTERNAL_TOKEN"),
+                internalToken = SecretConfigReader.read("YOUTUBE_REMOTE_LOGIN_INTERNAL_TOKEN"),
                 ttlMs = envLong("YOUTUBE_REMOTE_LOGIN_TTL_MS", DEFAULT_TTL_MS).coerceIn(60_000L, 10 * 60_000L),
                 maxGlobalSessions = envInt("YOUTUBE_REMOTE_LOGIN_MAX_SESSIONS", DEFAULT_MAX_GLOBAL_SESSIONS).coerceIn(1, 8),
                 maxFrameBytes = envInt("YOUTUBE_REMOTE_LOGIN_MAX_FRAME_BYTES", DEFAULT_MAX_FRAME_BYTES).coerceIn(64 * 1024, 2 * 1024 * 1024),
