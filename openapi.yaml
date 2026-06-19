@@ -10,12 +10,15 @@ servers:
     description: Production frontend proxy
 tags:
   - name: health
+  - name: metadata
   - name: extraction
   - name: downloader
   - name: youtube-session
 paths:
   /health:
     $ref: ./openapi/paths/health.yaml#/Health
+  /instance:
+    $ref: ./openapi/paths/metadata.yaml#/Instance
   /streams:
     $ref: ./openapi/paths/streams.yaml#/Streams
   /search:
@@ -66,6 +69,10 @@ components:
       $ref: ./openapi/components/common.yaml#/ErrorResponse
     HealthResponse:
       $ref: ./openapi/components/common.yaml#/HealthResponse
+    InstanceMinClientVersion:
+      $ref: ./openapi/components/instance.yaml#/InstanceMinClientVersion
+    InstanceResponse:
+      $ref: ./openapi/components/instance.yaml#/InstanceResponse
     StreamResponse:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     SearchPageResponse:

@@ -1,0 +1,17 @@
+Instance:
+  get:
+    tags: [metadata]
+    summary: Public instance metadata
+    responses:
+      '200':
+        description: Instance metadata and public capability flags.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+          Cache-Control:
+            description: Public cache policy for instance metadata.
+            schema: { type: string, example: public, max-age=300 }
+        content:
+          application/json:
+            schema:
+              $ref: ../components/instance.yaml#/InstanceResponse
