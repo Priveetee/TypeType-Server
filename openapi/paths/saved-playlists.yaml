@@ -1,0 +1,59 @@
+SavedPlaylists:
+  get:
+    tags: [user-data]
+    summary: List public playlists saved by the current user
+    responses:
+      '200':
+        description: Saved public playlists sorted by savedAt descending.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../components/media.yaml#/SavedPlaylistItem
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+  post:
+    tags: [user-data]
+    summary: Save a public YouTube playlist to the current user's library
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/media.yaml#/SavedPlaylistRequest
+    responses:
+      '201':
+        description: Public playlist saved. Duplicate URLs update metadata without creating another row.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/SavedPlaylistItem
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+SavedPlaylist:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string }
+  delete:
+    tags: [user-data]
+    summary: Remove a saved public playlist from the current user's library
+    responses:
+      '204':
+        description: Saved playlist removed.
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError

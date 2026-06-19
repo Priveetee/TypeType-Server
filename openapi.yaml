@@ -14,6 +14,7 @@ tags:
   - name: extraction
   - name: downloader
   - name: youtube-session
+  - name: user-data
 paths:
   /health:
     $ref: ./openapi/paths/health.yaml#/Health
@@ -37,6 +38,10 @@ paths:
     $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes
   /playlist:
     $ref: ./openapi/paths/playlists.yaml#/Playlist
+  /saved-playlists:
+    $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists
+  /saved-playlists/{id}:
+    $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist
   /comments:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
@@ -99,6 +104,10 @@ components:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistResponse
     PublicPlaylistItem:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistItem
+    SavedPlaylistItem:
+      $ref: ./openapi/components/media.yaml#/SavedPlaylistItem
+    SavedPlaylistRequest:
+      $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest
     CommentsPageResponse:
       $ref: ./openapi/components/media.yaml#/CommentsPageResponse
     DownloadJob:
