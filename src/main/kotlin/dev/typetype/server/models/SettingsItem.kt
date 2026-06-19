@@ -26,6 +26,7 @@ data class SettingsItem(
     val sponsorBlockSkipNonMusicOnlyOnMusicVideos: Boolean = false,
     val sponsorBlockMuteInsteadOfSkip: Boolean = false,
     val hideHomeRecommendations: Boolean = false,
+    val hideContinueWatching: Boolean = false,
     val hideRelatedVideos: Boolean = false,
     val hideComments: Boolean = false,
     val hideShorts: Boolean = false,
