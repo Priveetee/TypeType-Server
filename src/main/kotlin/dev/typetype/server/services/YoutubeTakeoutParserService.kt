@@ -25,25 +25,27 @@ class YoutubeTakeoutParserService {
                 null
             }
         }
-        val playlistItems = mutableMapOf<String, MutableList<PlaylistVideoItem>>()
+        val rawPlaylistItems = mutableMapOf<String, MutableList<PlaylistVideoItem>>()
         scan.playlistItemsRows.forEach { row ->
             val parsed = runCatching { YoutubeTakeoutRowParser.parsePlaylistItem(scan.playlistItemsHeader, row) }.getOrNull()
             if (parsed == null) {
                 errors += "Invalid playlist item row"
             } else {
-                playlistItems.getOrPut(parsed.first) { mutableListOf() }.add(parsed.second)
+                rawPlaylistItems.getOrPut(parsed.first) { mutableListOf() }.add(parsed.second)
             }
         }
+        val dedupedPlaylists = dedupPlaylists(playlists)
+        val playlistItems = YoutubeTakeoutPlaylistKeyResolver.resolveAll(rawPlaylistItems, dedupedPlaylists)
         val history = parseHistory(zipPath, warnings)
         val watchLater = playlistItems.filterKeys { isWatchLaterPlaylistKey(it) }.values.flatten()
         val favorites = playlistItems.filterKeys { isLikedPlaylistKey(it) }.values.flatten().map { it.url }
         val activitySignals = YoutubeTakeoutActivitySignalService.parse(zipPath)
         val mergedSubscriptions = dedupSubscriptions(subscriptions + activitySignals.first)
         val mergedFavorites = (favorites + activitySignals.second).distinct()
-        if (subscriptions.isEmpty()) warnings += "No subscription rows detected"
+        if (mergedSubscriptions.isEmpty()) warnings += "No subscription rows detected"
         return YoutubeTakeoutParsedData(
             subscriptions = mergedSubscriptions,
-            playlists = dedupPlaylists(playlists),
+            playlists = dedupedPlaylists,
             playlistItems = dedupPlaylistItems(playlistItems),
             favorites = mergedFavorites,
             watchLater = watchLater.distinctBy { it.url },
@@ -79,13 +81,7 @@ class YoutubeTakeoutParserService {
         }
     }
 
-    private fun isLikedPlaylistKey(value: String): Boolean {
-        val key = value.lowercase()
-        return key == "liked videos" || key == "videos que j aime" || key == "vid eos que j aime" || key == "j aime"
-    }
+    private fun isLikedPlaylistKey(value: String): Boolean = YoutubeTakeoutSystemPlaylist.isLiked(value)
 
-    private fun isWatchLaterPlaylistKey(value: String): Boolean {
-        val key = value.lowercase()
-        return key == "watch later" || key == "a regarder plus tard"
-    }
+    private fun isWatchLaterPlaylistKey(value: String): Boolean = YoutubeTakeoutSystemPlaylist.isWatchLater(value)
 }
