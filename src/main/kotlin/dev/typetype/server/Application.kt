@@ -20,6 +20,7 @@ import dev.typetype.server.services.OkHttpYoutubeRemoteBrowserClient
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserConfig
 import dev.typetype.server.services.YoutubeRemoteBrowserService
+import dev.typetype.server.services.YoutubeRemoteLoginReadinessService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
 import org.schabi.newpipe.extractor.NewPipe
@@ -52,10 +53,14 @@ fun Application.module() {
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
     val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
+    val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
+        youtubeRemoteBrowserConfig,
+        svc.youtubeSessionService,
+    )
     val instanceService = InstanceService(
         authService,
         adminSettingsService,
-        youtubeRemoteLoginAvailable = { youtubeRemoteBrowserConfig.isConfigured && svc.youtubeSessionService.isConfigured },
+        youtubeRemoteLoginStatusProvider = youtubeRemoteLoginReadinessService::status,
         oidcConfigProvider = oidcAuthService::publicConfig,
     )
     val youtubeRemoteBrowserService = YoutubeRemoteBrowserService(

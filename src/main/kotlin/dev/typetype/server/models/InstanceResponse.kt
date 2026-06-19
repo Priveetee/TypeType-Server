@@ -19,4 +19,6 @@ data class InstanceResponse(
     val oidcProviderName: String? = null,
     val oidcAutoRedirect: Boolean = false,
     val youtubeRemoteLoginEnabled: Boolean = false,
+    val youtubeRemoteLoginReady: Boolean = false,
+    val youtubeRemoteLoginUnavailableReason: String? = null,
 )

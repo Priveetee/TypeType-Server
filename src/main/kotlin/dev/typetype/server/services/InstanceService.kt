@@ -6,17 +6,26 @@ import dev.typetype.server.INSTANCE_API_VERSION
 import dev.typetype.server.models.InstanceMinClientVersion
 import dev.typetype.server.models.InstanceResponse
 import dev.typetype.server.models.OidcPublicConfig
+import dev.typetype.server.models.YoutubeRemoteLoginStatus
 
 class InstanceService(
     private val authService: AuthService,
     private val adminSettingsService: AdminSettingsService,
     private val oidcConfigProvider: () -> OidcPublicConfig = { OidcPublicConfig(enabled = false) },
     private val youtubeRemoteLoginAvailable: () -> Boolean = { false },
+    private val youtubeRemoteLoginStatusProvider: suspend (Boolean) -> YoutubeRemoteLoginStatus = { enabled ->
+        when {
+            !enabled -> YoutubeRemoteLoginStatus.Disabled
+            youtubeRemoteLoginAvailable() -> YoutubeRemoteLoginStatus.Ready
+            else -> YoutubeRemoteLoginStatus.NotConfigured
+        }
+    },
 ) {
 
     suspend fun getInstance(): InstanceResponse {
         val settings = adminSettingsService.get()
         val oidc = oidcConfigProvider()
+        val youtubeRemoteLoginStatus = youtubeRemoteLoginStatusProvider(settings.youtubeRemoteLoginEnabled)
         return InstanceResponse(
             name = settings.name.normalizeName(),
             tagline = settings.tagline.normalizeOptionalText(),
@@ -32,7 +41,9 @@ class InstanceService(
             oidcEnabled = oidc.enabled,
             oidcProviderName = oidc.providerName,
             oidcAutoRedirect = oidc.enabled && settings.oidcAutoRedirect,
-            youtubeRemoteLoginEnabled = settings.youtubeRemoteLoginEnabled && youtubeRemoteLoginAvailable(),
+            youtubeRemoteLoginEnabled = youtubeRemoteLoginStatus.ready,
+            youtubeRemoteLoginReady = youtubeRemoteLoginStatus.ready,
+            youtubeRemoteLoginUnavailableReason = youtubeRemoteLoginStatus.unavailableReason,
         )
     }
 
