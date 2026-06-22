@@ -64,6 +64,19 @@ class AllowedChannelsRoutesTest {
     }
 
     @Test
+    fun `POST allowed channel is idempotent for same user and url`() = withApp {
+        repeat(2) {
+            client.post("/allowed/channels") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody("""{"url":"https://youtube.com/@greatscott","name":"GreatScott!"}""")
+            }
+        }
+        val list = client.get("/allowed/channels") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        assertEquals(1, list.split("https://youtube.com/@greatscott").size - 1)
+    }
+
+    @Test
     fun `DELETE allowed channel removes item`() = withApp {
         service.addChannel(TEST_USER_ID, "https://youtube.com/@greatscott")
         val response = client.delete("/allowed/channels/https%3A%2F%2Fyoutube.com%2F%40greatscott") {

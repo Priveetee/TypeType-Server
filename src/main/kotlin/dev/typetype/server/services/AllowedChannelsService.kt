@@ -55,6 +55,12 @@ class AllowedChannelsService {
         val now = System.currentTimeMillis()
         val normalizedUrl = normalizeChannelKey(url)
         DatabaseFactory.query {
+            val scopeClause = if (global) {
+                AllowedChannelsTable.scope eq SCOPE_GLOBAL
+            } else {
+                (AllowedChannelsTable.scope eq SCOPE_USER) and (AllowedChannelsTable.userId eq userId)
+            }
+            AllowedChannelsTable.deleteWhere { (channelUrl eq normalizedUrl) and scopeClause }
             AllowedChannelsTable.insert {
                 it[AllowedChannelsTable.userId] = userId
                 it[AllowedChannelsTable.scope] = if (global) SCOPE_GLOBAL else SCOPE_USER
