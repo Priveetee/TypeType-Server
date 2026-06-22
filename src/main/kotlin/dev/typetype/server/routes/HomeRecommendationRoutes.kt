@@ -42,7 +42,8 @@ fun Route.homeRecommendationRoutes(
                     HttpStatusCode.BadRequest,
                     ErrorResponse("Invalid 'cursor' parameter"),
                 )
-            val profile = accessControlService?.profileFor(userId) ?: dev.typetype.server.services.AccessControlProfile.unrestricted
+            val profile = accessControlService?.profileFor(userId, authService.getUserRole(userId))
+                ?: dev.typetype.server.services.AccessControlProfile.unrestricted
             val response = recommendationService.getHome(
                     userId = userId,
                     serviceId = serviceId,

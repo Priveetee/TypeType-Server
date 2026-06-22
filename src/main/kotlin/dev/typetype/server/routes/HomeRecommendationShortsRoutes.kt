@@ -43,7 +43,8 @@ fun Route.homeRecommendationShortsRoutes(
                     HttpStatusCode.BadRequest,
                     ErrorResponse("Invalid 'cursor' parameter"),
                 )
-            val profile = accessControlService?.profileFor(userId) ?: dev.typetype.server.services.AccessControlProfile.unrestricted
+            val profile = accessControlService?.profileFor(userId, authService.getUserRole(userId))
+                ?: dev.typetype.server.services.AccessControlProfile.unrestricted
             val response = recommendationService.getShorts(
                     userId = userId,
                     serviceId = serviceId,

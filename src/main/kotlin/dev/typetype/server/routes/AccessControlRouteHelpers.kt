@@ -34,6 +34,7 @@ internal suspend fun ApplicationCall.accessProfileOrRespond(
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
         return null
     }
-    val profile = accessControlService?.profileFor(userId) ?: AccessControlProfile.unrestricted
+    val profile = accessControlService?.profileFor(userId, authService.getUserRole(userId))
+        ?: AccessControlProfile.unrestricted
     return AccessRouteProfile(userId = userId, profile = profile)
 }
