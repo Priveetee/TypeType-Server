@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.adminSessionRoutes
+import dev.typetype.server.routes.adminUserAccessModeRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
@@ -103,6 +104,7 @@ internal fun Application.installApplicationRoutes(
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminUserAccessModeRoutes(authService, userAdminService)
         adminSessionRoutes(authService, activeSessionService)
         sessionActivityRoutes(authService, activeSessionService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
