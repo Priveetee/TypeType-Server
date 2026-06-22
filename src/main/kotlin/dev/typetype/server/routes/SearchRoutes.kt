@@ -2,14 +2,21 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.VALID_SERVICE_IDS
+import dev.typetype.server.services.filterAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
-fun Route.searchRoutes(searchService: SearchService) {
+fun Route.searchRoutes(
+    searchService: SearchService,
+    authService: AuthService? = null,
+    accessControlService: AccessControlService? = null,
+) {
     get("/search/filters") {
         val serviceId = call.request.queryParameters["service"]?.toIntOrNull()
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing or invalid 'service' parameter"))
@@ -32,8 +39,9 @@ fun Route.searchRoutes(searchService: SearchService) {
         val contentFilter = call.request.queryParameters["contentFilter"]
         val sortFilter = call.request.queryParameters["sortFilter"]
 
+        val profile = call.accessProfileOrRespond(authService, accessControlService)?.profile ?: return@get
         when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = nextpage, contentFilter = contentFilter, sortFilter = sortFilter)) {
-            is ExtractionResult.Success -> call.respond(result.data)
+            is ExtractionResult.Success -> call.respond(result.data.filterAllowed(profile))
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
         }
