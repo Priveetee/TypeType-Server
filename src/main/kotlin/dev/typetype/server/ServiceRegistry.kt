@@ -1,5 +1,8 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AllowedChannelsService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
@@ -24,6 +27,7 @@ internal class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
+    adminSettingsService: AdminSettingsService,
 ) {
     init {
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
@@ -64,6 +68,8 @@ internal class ServiceRegistry(
     val favoritesService = FavoritesService()
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
+    val allowedChannelsService = AllowedChannelsService()
+    val accessControlService = AccessControlService(settingsService, allowedChannelsService, adminSettingsService)
     val blockedService = BlockedService()
     val bugReportService = BugReportService()
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
