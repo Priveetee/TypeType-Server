@@ -40,6 +40,16 @@ AllowedChannelItem:
     thumbnailUrl: { type: string, nullable: true }
     allowedAt: { type: integer, format: int64, default: 0 }
     global: { type: boolean, nullable: true }
+AllowedPlaylistItem:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
+    title: { type: string, nullable: true }
+    thumbnailUrl: { type: string, nullable: true }
+    uploaderName: { type: string, nullable: true }
+    allowedAt: { type: integer, format: int64, default: 0 }
+    global: { type: boolean, nullable: true }
 AdminSettingsItem:
   type: object
   properties:

@@ -1,0 +1,92 @@
+AdminUsersSearch:
+  get:
+    tags: [user-data]
+    summary: Search users for admin allow-list management
+    parameters:
+      - { name: q, in: query, required: true, schema: { type: string } }
+      - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50 } }
+    responses:
+      '200': { description: Matching users }
+      '400': { description: Invalid limit }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+AdminUserAllowList:
+  get:
+    tags: [user-data]
+    summary: Get effective admin allow-list view for a user
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    responses:
+      '200': { description: User allow-list view }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: User not found }
+AdminUserAllowedChannels:
+  post:
+    tags: [user-data]
+    summary: Add a user-specific allowed channel
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: ../components/access-control.yaml#/AllowedChannelItem } } }
+    responses:
+      '201': { description: Created allowed channel }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: User not found }
+AdminUserAllowedChannel:
+  delete:
+    tags: [user-data]
+    summary: Delete a user-specific allowed channel
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: channelUrl, in: path, required: true, schema: { type: string } }
+    responses:
+      '204': { description: Deleted }
+      '404': { description: User or channel not found }
+AdminAllowedPlaylists:
+  get:
+    tags: [user-data]
+    summary: List global allowed playlists
+    responses:
+      '200': { description: Global allowed playlists }
+  post:
+    tags: [user-data]
+    summary: Add a global allowed playlist
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: ../components/access-control.yaml#/AllowedPlaylistItem } } }
+    responses:
+      '201': { description: Created allowed playlist }
+AdminAllowedPlaylist:
+  delete:
+    tags: [user-data]
+    summary: Delete a global allowed playlist
+    parameters:
+      - { name: playlistUrl, in: path, required: true, schema: { type: string } }
+    responses:
+      '204': { description: Deleted }
+      '404': { description: Playlist not found }
+AdminUserAllowedPlaylists:
+  post:
+    tags: [user-data]
+    summary: Add a user-specific allowed playlist
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: ../components/access-control.yaml#/AllowedPlaylistItem } } }
+    responses:
+      '201': { description: Created allowed playlist }
+      '404': { description: User not found }
+AdminUserAllowedPlaylist:
+  delete:
+    tags: [user-data]
+    summary: Delete a user-specific allowed playlist
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: playlistUrl, in: path, required: true, schema: { type: string } }
+    responses:
+      '204': { description: Deleted }
+      '404': { description: User or playlist not found }

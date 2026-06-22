@@ -18,34 +18,31 @@ tags:
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
-  /streams:
-    $ref: ./openapi/paths/streams.yaml#/Streams
-  /search:
-    $ref: ./openapi/paths/search.yaml#/Search
-  /search/filters:
-    $ref: ./openapi/paths/search.yaml#/SearchFilters
-  /channel:
-    $ref: ./openapi/paths/channel.yaml#/Channel
-  /channel/page:
-    $ref: ./openapi/paths/channel.yaml#/ChannelPage
-  /channel/playlists:
-    $ref: ./openapi/paths/channel.yaml#/ChannelPlaylists
-  /podcasts:
-    $ref: ./openapi/paths/podcasts.yaml#/Podcasts
-  /podcasts/episodes:
-    $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes
-  /playlist:
-    $ref: ./openapi/paths/playlists.yaml#/Playlist
-  /saved-playlists:
-    $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists
-  /saved-playlists/{id}:
-    $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist
+  /streams: { $ref: ./openapi/paths/streams.yaml#/Streams }
+  /search: { $ref: ./openapi/paths/search.yaml#/Search }
+  /search/filters: { $ref: ./openapi/paths/search.yaml#/SearchFilters }
+  /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
+  /channel/page: { $ref: ./openapi/paths/channel.yaml#/ChannelPage }
+  /channel/playlists: { $ref: ./openapi/paths/channel.yaml#/ChannelPlaylists }
+  /podcasts: { $ref: ./openapi/paths/podcasts.yaml#/Podcasts }
+  /podcasts/episodes: { $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes }
+  /playlist: { $ref: ./openapi/paths/playlists.yaml#/Playlist }
+  /saved-playlists: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists }
+  /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
   /admin/users: { $ref: ./openapi/paths/admin-users.yaml#/AdminUsers }
   /admin/users/{id}/access-mode: { $ref: ./openapi/paths/admin-users.yaml#/AdminUserAccessMode }
+  /admin/users/search: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUsersSearch }
+  /admin/users/{id}/allow-list: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowList }
+  /admin/users/{id}/allowed/channels: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowedChannels }
+  /admin/users/{id}/allowed/channels/{channelUrl}: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowedChannel }
+  /admin/allowed/playlists: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminAllowedPlaylists }
+  /admin/allowed/playlists/{playlistUrl}: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminAllowedPlaylist }
+  /admin/users/{id}/allowed/playlists: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowedPlaylists }
+  /admin/users/{id}/allowed/playlists/{playlistUrl}: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowedPlaylist }
   /comments:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
