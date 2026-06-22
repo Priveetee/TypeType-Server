@@ -42,6 +42,10 @@ paths:
     $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists
   /saved-playlists/{id}:
     $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist
+  /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
+  /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
+  /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
+  /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
   /comments:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
@@ -104,17 +108,13 @@ components:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistResponse
     PublicPlaylistItem:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistItem
-    SavedPlaylistItem:
-      $ref: ./openapi/components/media.yaml#/SavedPlaylistItem
-    SavedPlaylistRequest:
-      $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest
-    CommentsPageResponse:
-      $ref: ./openapi/components/media.yaml#/CommentsPageResponse
-    DownloadJob:
-      $ref: ./openapi/components/downloader.yaml#/DownloadJob
-    YoutubeRemoteBrowserStartRequest:
-      $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserStartRequest
-    YoutubeRemoteBrowserStartResponse:
-      $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserStartResponse
-    YoutubeRemoteBrowserCompleteRequest:
-      $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserCompleteRequest
+    SavedPlaylistItem: { $ref: ./openapi/components/media.yaml#/SavedPlaylistItem }
+    SavedPlaylistRequest: { $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest }
+    SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
+    AdminSettingsItem: { $ref: ./openapi/components/access-control.yaml#/AdminSettingsItem }
+    AllowedChannelItem: { $ref: ./openapi/components/access-control.yaml#/AllowedChannelItem }
+    CommentsPageResponse: { $ref: ./openapi/components/media.yaml#/CommentsPageResponse }
+    DownloadJob: { $ref: ./openapi/components/downloader.yaml#/DownloadJob }
+    YoutubeRemoteBrowserStartRequest: { $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserStartRequest }
+    YoutubeRemoteBrowserStartResponse: { $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserStartResponse }
+    YoutubeRemoteBrowserCompleteRequest: { $ref: ./openapi/components/youtube-session.yaml#/YoutubeRemoteBrowserCompleteRequest }

@@ -1,0 +1,98 @@
+Settings:
+  get:
+    tags: [user-data]
+    summary: Get current user settings
+    responses:
+      '200':
+        description: Current settings
+        content:
+          application/json:
+            schema: { $ref: ../components/access-control.yaml#/SettingsItem }
+      '401': { description: Missing or invalid token }
+  put:
+    tags: [user-data]
+    summary: Replace current user settings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/access-control.yaml#/SettingsItem }
+    responses:
+      '200':
+        description: Saved settings
+        content:
+          application/json:
+            schema: { $ref: ../components/access-control.yaml#/SettingsItem }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+AllowedChannels:
+  get:
+    tags: [user-data]
+    summary: List channels allowed for the current user
+    responses:
+      '200':
+        description: Allowed channels
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/access-control.yaml#/AllowedChannelItem }
+      '401': { description: Missing or invalid token }
+  post:
+    tags: [user-data]
+    summary: Add an allowed channel
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/access-control.yaml#/AllowedChannelItem }
+    responses:
+      '201':
+        description: Created allowed channel
+        content:
+          application/json:
+            schema: { $ref: ../components/access-control.yaml#/AllowedChannelItem }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+AllowedChannel:
+  delete:
+    tags: [user-data]
+    summary: Delete an allowed channel by URL
+    parameters:
+      - name: channelUrl
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '204': { description: Deleted }
+      '401': { description: Missing or invalid token }
+      '404': { description: Not found }
+AdminSettings:
+  get:
+    tags: [user-data]
+    summary: Get instance admin settings
+    responses:
+      '200':
+        description: Admin settings
+        content:
+          application/json:
+            schema: { $ref: ../components/access-control.yaml#/AdminSettingsItem }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+  put:
+    tags: [user-data]
+    summary: Replace instance admin settings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/access-control.yaml#/AdminSettingsItem }
+    responses:
+      '200':
+        description: Saved admin settings
+        content:
+          application/json:
+            schema: { $ref: ../components/access-control.yaml#/AdminSettingsItem }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
