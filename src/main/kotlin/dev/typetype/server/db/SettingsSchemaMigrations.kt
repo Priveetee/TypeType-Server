@@ -25,6 +25,7 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_shorts BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_landing_page TEXT NOT NULL DEFAULT 'home'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
     }
 
     private fun exec(sql: String) {

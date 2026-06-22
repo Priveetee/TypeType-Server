@@ -30,5 +30,6 @@ object SettingsTable : Table("settings") {
     val hideRelatedVideos = bool("hide_related_videos").default(false)
     val hideComments = bool("hide_comments").default(false)
     val hideShorts = bool("hide_shorts").default(false)
+    val accessMode = text("access_mode").default("unrestricted")
     override val primaryKey = PrimaryKey(userId)
 }
