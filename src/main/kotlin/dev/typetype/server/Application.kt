@@ -52,7 +52,7 @@ fun Application.module() {
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
-    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
+    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey, adminSettingsService)
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,

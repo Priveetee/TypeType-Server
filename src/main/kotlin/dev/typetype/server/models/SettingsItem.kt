@@ -30,4 +30,5 @@ data class SettingsItem(
     val hideRelatedVideos: Boolean = false,
     val hideComments: Boolean = false,
     val hideShorts: Boolean = false,
+    val accessMode: String = "unrestricted",
 )

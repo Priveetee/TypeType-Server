@@ -1,6 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.AllowedChannelsTable
+import dev.typetype.server.db.tables.AllowedPlaylistsTable
 import dev.typetype.server.db.tables.BlockedChannelsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
@@ -98,6 +100,8 @@ object TestDatabase {
         PasswordResetTable.deleteAll()
         UsersTable.deleteAll()
         AdminSettingsTable.deleteAll()
+        AllowedChannelsTable.deleteAll()
+        AllowedPlaylistsTable.deleteAll()
         BlockedChannelsTable.deleteAll()
         BlockedVideosTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()

@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.adminBugReportRoutes
+import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
@@ -67,9 +68,10 @@ internal fun Application.installApplicationRoutes(
         publicMetadataRoutes(instanceService::getInstance)
         rateLimit(STREAMS_ZONE) {
             streamRoutes(
-                svc.streamService,
-                authService,
-                svc.youtubeSessionStreamService?.let { service ->
+                streamService = svc.streamService,
+                authService = authService,
+                accessControlService = svc.accessControlService,
+                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
                     { userId, url -> service.getStreamInfo(userId, url) }
                 },
             )
@@ -82,15 +84,15 @@ internal fun Application.installApplicationRoutes(
             )
         }
         rateLimit(EXTRACTION_ZONE) {
-            searchRoutes(svc.searchService)
+            searchRoutes(svc.searchService, authService, svc.accessControlService)
             suggestionRoutes(svc.suggestionService)
-            trendingRoutes(svc.trendingService)
-            publicPlaylistRoutes(svc.publicPlaylistService)
+            trendingRoutes(svc.trendingService, authService, svc.accessControlService)
+            publicPlaylistRoutes(svc.publicPlaylistService, authService, svc.accessControlService)
             commentRoutes(svc.commentService)
             bulletCommentRoutes(svc.bulletCommentService)
         }
         rateLimit(CHANNEL_ZONE) {
-            channelRoutes(svc.channelService)
+            channelRoutes(svc.channelService, authService, svc.accessControlService)
             podcastRoutes(svc.podcastService)
         }
         rateLimit(PROXY_ZONE) {
@@ -102,6 +104,7 @@ internal fun Application.installApplicationRoutes(
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminAllowListRoutes(authService, userAdminService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
         adminSessionRoutes(authService, activeSessionService)
         sessionActivityRoutes(authService, activeSessionService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)

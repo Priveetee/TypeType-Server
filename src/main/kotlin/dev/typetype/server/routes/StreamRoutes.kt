@@ -3,10 +3,12 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YOUTUBE_SESSION_RECONNECT_ERROR
+import dev.typetype.server.services.filterAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.server.response.respond
@@ -20,13 +22,15 @@ fun Route.streamRoutes(
     streamService: StreamService,
     authService: AuthService? = null,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    accessControlService: AccessControlService? = null,
 ): Unit {
     get("/streams") {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
+        val access = call.accessProfileOrRespond(authService, accessControlService) ?: return@get
         val publicResult = streamService.getStreamInfo(url)
-        val userId = authService?.let { call.optionalJwtUserId(it) }
+        val userId = access.userId
         val sessionResult = if (
             userId != null &&
             youtubeSessionStreamInfo != null &&
@@ -37,17 +41,22 @@ fun Route.streamRoutes(
             null
         }
         val usedYoutubeSession = sessionResult != null
+        val accessProfile = access.profile
         when (val result = publicResult.resolveWith(sessionResult)) {
             is ExtractionResult.Success -> {
+                if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
+                    return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                }
+                val data = result.data.filterAllowed(accessProfile)
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
-                    if (usedYoutubeSession) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
+                    if (usedYoutubeSession || accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
                 )
                 if (usedYoutubeSession) {
-                    SignedHlsManifestCookie.tokenFromPath(result.data.hlsUrl)
+                    SignedHlsManifestCookie.tokenFromPath(data.hlsUrl)
                         ?.let { SignedHlsManifestCookie.append(call.response, url, it) }
                 }
-                call.respond(result.data)
+                call.respond(data)
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, result.toErrorResponse())
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))

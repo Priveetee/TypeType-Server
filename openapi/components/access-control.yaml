@@ -1,0 +1,71 @@
+SettingsItem:
+  type: object
+  properties:
+    defaultService: { type: integer, default: 0 }
+    defaultQuality: { type: string, default: 1080p }
+    defaultLandingPage: { type: string, default: home }
+    autoplay: { type: boolean, default: true }
+    volume: { type: number, format: double, default: 1.0 }
+    muted: { type: boolean, default: false }
+    subtitlesEnabled: { type: boolean, default: false }
+    defaultSubtitleLanguage: { type: string, default: "" }
+    defaultAudioLanguage: { type: string, default: "" }
+    captionStyles: { type: object, additionalProperties: true }
+    preferOriginalLanguage: { type: boolean, default: false }
+    enableHighQualityPlayback: { type: boolean, default: false }
+    sponsorBlockMode: { type: string, default: auto_skip }
+    sponsorBlockCategoryActions: { type: object, additionalProperties: { type: string } }
+    sponsorBlockMinimumDuration: { type: integer, default: 0 }
+    sponsorBlockShowCurrentSegment: { type: boolean, default: true }
+    sponsorBlockShowChapters: { type: boolean, default: false }
+    sponsorBlockShowFullVideoLabels: { type: boolean, default: true }
+    sponsorBlockManualSkipOnFullVideo: { type: boolean, default: true }
+    sponsorBlockSkipNonMusicOnlyOnMusicVideos: { type: boolean, default: false }
+    sponsorBlockMuteInsteadOfSkip: { type: boolean, default: false }
+    hideHomeRecommendations: { type: boolean, default: false }
+    hideContinueWatching: { type: boolean, default: false }
+    hideRelatedVideos: { type: boolean, default: false }
+    hideComments: { type: boolean, default: false }
+    hideShorts: { type: boolean, default: false }
+    accessMode:
+      type: string
+      enum: [unrestricted, allow_list]
+      default: unrestricted
+AllowedChannelItem:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
+    name: { type: string, nullable: true }
+    thumbnailUrl: { type: string, nullable: true }
+    allowedAt: { type: integer, format: int64, default: 0 }
+    global: { type: boolean, nullable: true }
+AllowedPlaylistItem:
+  type: object
+  required: [url]
+  properties:
+    url: { type: string }
+    title: { type: string, nullable: true }
+    thumbnailUrl: { type: string, nullable: true }
+    uploaderName: { type: string, nullable: true }
+    allowedAt: { type: integer, format: int64, default: 0 }
+    global: { type: boolean, nullable: true }
+AdminSettingsItem:
+  type: object
+  properties:
+    name: { type: string }
+    tagline: { type: string, nullable: true }
+    logoUrl: { type: string, nullable: true }
+    bannerUrl: { type: string, nullable: true }
+    minAndroidClientVersion: { type: string, nullable: true }
+    allowRegistration: { type: boolean, default: true }
+    allowGuest: { type: boolean, default: true }
+    forceEmailVerification: { type: boolean, default: false }
+    activeSessionsEnabled: { type: boolean, default: false }
+    localLoginEnabled: { type: boolean, default: true }
+    oidcAutoRedirect: { type: boolean, default: false }
+    youtubeRemoteLoginEnabled: { type: boolean, default: false }
+    accessMode:
+      type: string
+      enum: [unrestricted, allow_list]
+      default: unrestricted

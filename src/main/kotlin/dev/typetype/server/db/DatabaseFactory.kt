@@ -18,6 +18,7 @@ import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
+import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
@@ -31,7 +32,6 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 object DatabaseFactory {
-
     fun init(url: String, user: String, password: String) {
         val dbPassword = password
         val config = HikariConfig().apply {
@@ -57,6 +57,8 @@ object DatabaseFactory {
                 SavedPlaylistsTable,
                 FavoritesTable,
                 SettingsTable,
+                AllowedChannelsTable,
+                dev.typetype.server.db.tables.AllowedPlaylistsTable,
                 SearchHistoryTable,
                 BlockedChannelsTable,
                 BlockedVideosTable,
@@ -88,6 +90,9 @@ object DatabaseFactory {
             exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS published_at BIGINT NOT NULL DEFAULT -1")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS caption_styles TEXT NOT NULL DEFAULT '{}'")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed BOOLEAN NOT NULL DEFAULT false")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
             exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
@@ -108,10 +113,7 @@ object DatabaseFactory {
             DatabaseSubscriptionsCanonicalMigration.apply()
         }
     }
-
-    suspend fun <T> query(block: () -> T): T =
-        withContext(Dispatchers.IO) { transaction { block() } }
-
+    suspend fun <T> query(block: () -> T): T = withContext(Dispatchers.IO) { transaction { block() } }
     fun healthCheck(): Boolean = runCatching {
         transaction { exec("SELECT 1") { it.next() } == true }
     }.getOrDefault(false)

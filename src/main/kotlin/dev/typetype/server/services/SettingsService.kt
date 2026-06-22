@@ -29,4 +29,15 @@ class SettingsService {
         }
         return saved
     }
+
+    suspend fun getAccessModePolicy(userId: String): AccessModePolicy = DatabaseFactory.query {
+        SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()?.let {
+            AccessModePolicy(
+                accessMode = it[SettingsTable.accessMode].toAccessMode(),
+                adminManaged = it[SettingsTable.accessModeAdminManaged],
+            )
+        } ?: AccessModePolicy(ACCESS_MODE_UNRESTRICTED, adminManaged = false)
+    }
 }
+
+data class AccessModePolicy(val accessMode: String, val adminManaged: Boolean)

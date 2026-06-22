@@ -30,6 +30,7 @@ class AdminSettingsService {
                     localLoginEnabled = it[AdminSettingsTable.localLoginEnabled],
                     oidcAutoRedirect = it[AdminSettingsTable.oidcAutoRedirect],
                     youtubeRemoteLoginEnabled = it[AdminSettingsTable.youtubeRemoteLoginEnabled],
+                    accessMode = it[AdminSettingsTable.accessMode].toAccessMode(),
                 ).normalized()
             } ?: AdminSettingsItem()
         }
@@ -55,6 +56,7 @@ class AdminSettingsService {
                     it[localLoginEnabled] = settings.localLoginEnabled
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
+                    it[accessMode] = settings.accessMode.toAccessMode()
                 }
             } else {
                 AdminSettingsTable.insert {
@@ -71,6 +73,7 @@ class AdminSettingsService {
                     it[localLoginEnabled] = settings.localLoginEnabled
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
+                    it[accessMode] = settings.accessMode.toAccessMode()
                 }
             }
         }
@@ -84,6 +87,7 @@ class AdminSettingsService {
         logoUrl = logoUrl.normalizeOptionalText(),
         bannerUrl = bannerUrl.normalizeOptionalText(),
         minAndroidClientVersion = minAndroidClientVersion.normalizeOptionalText(),
+        accessMode = accessMode.toAccessMode(),
     )
 
     private fun String?.normalizeOptionalText(): String? = this?.trim()?.takeIf { it.isNotEmpty() }

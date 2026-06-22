@@ -15,5 +15,6 @@ data class AdminUserItem(
     val avatarCode: String? = null,
     val suspended: Boolean,
     val verified: Boolean,
+    val accessMode: String,
     val createdAt: Long,
 )

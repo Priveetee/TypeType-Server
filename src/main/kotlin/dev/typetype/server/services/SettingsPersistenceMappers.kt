@@ -43,6 +43,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
+    accessMode = this[SettingsTable.accessMode].toAccessMode(),
 )
 
 internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
@@ -72,10 +73,13 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
+    this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
+    this[SettingsTable.accessModeAdminManaged] = false
 }
 
 internal fun SettingsItem.normalized(): SettingsItem = copy(
     defaultLandingPage = defaultLandingPage.ifBlank { "home" },
+    accessMode = accessMode.toAccessMode(),
     sponsorBlockCategoryActions = sponsorBlockCategoryActions.withDefaultSponsorBlockCategoryActions(),
     sponsorBlockMinimumDuration = sponsorBlockMinimumDuration.coerceAtLeast(0),
 )
