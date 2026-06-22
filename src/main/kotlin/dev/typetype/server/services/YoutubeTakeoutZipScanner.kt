@@ -3,7 +3,6 @@ package dev.typetype.server.services
 import java.io.InputStreamReader
 import java.io.BufferedReader
 import java.nio.file.Path
-import java.text.Normalizer
 import java.util.zip.ZipFile
 
 object YoutubeTakeoutZipScanner {
@@ -25,18 +24,17 @@ object YoutubeTakeoutZipScanner {
                     val reader = BufferedReader(InputStreamReader(input))
                     val (header, rows) = YoutubeTakeoutCsvReader.parse(reader)
                     if (header.isEmpty()) return@use
-                    val normalized = header.map { normalize(it) }
                     when {
-                        isSubscriptionsHeader(normalized) -> {
+                        isSubscriptionsEntry(entry.name, header, rows) -> {
                             if (subscriptionsHeader.isEmpty()) subscriptionsHeader = header
                             subscriptionsRows += rows
                         }
-                        isPlaylistsHeader(normalized) -> {
+                        isPlaylistsHeader(entry.name, header, rows) -> {
                             if (playlistsHeader.isEmpty()) playlistsHeader = header
                             playlistsRows += rows
                         }
-                        isPlaylistItemsEntry(name, normalized) -> {
-                            val sourceKey = extractPlaylistSourceKey(entry.name)
+                        isPlaylistItemsEntry(name, header, rows) -> {
+                            val sourceKey = extractPlaylistSourceKey(entry.name, header)
                             if (sourceKey == null) {
                                 if (playlistItemsHeader.isEmpty()) playlistItemsHeader = header
                                 playlistItemsRows += rows
@@ -61,39 +59,47 @@ object YoutubeTakeoutZipScanner {
         )
     }
 
-    private fun isSubscriptionsHeader(header: List<String>): Boolean =
-        header.any { it == "channel id" || it == "id des chaines" } &&
-            header.any { it == "channel url" || it == "url des chaines" }
-
-    private fun isPlaylistsHeader(header: List<String>): Boolean =
-        header.any { it == "playlist id" || it == "id de la playlist" } &&
-            header.any { it.contains("playlist") && (it.contains("title") || it.contains("titre")) }
-
-    private fun isPlaylistItemsEntry(path: String, header: List<String>): Boolean {
-        if ("/playlists/" !in path) return false
-        if (path.endsWith("/playlists.csv")) return false
-        return header.any { it == "video id" || it == "id video" }
+    private fun isSubscriptionsEntry(path: String, header: List<String>, rows: List<List<String>>): Boolean {
+        val hasId = header.any(YoutubeTakeoutSchemaHints::isChannelIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeChannelId)
+        val hasUrl = header.any(YoutubeTakeoutSchemaHints::isChannelUrlHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::containsChannelUrl)
+        val hasTitle = header.any(YoutubeTakeoutSchemaHints::isChannelTitleHeader)
+        return hasId && (hasUrl || (hasTitle && isSubscriptionPath(path)))
     }
 
-    private fun extractPlaylistSourceKey(path: String): String? {
+    private fun isPlaylistsHeader(path: String, header: List<String>, rows: List<List<String>>): Boolean {
+        val hasId = header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikePlaylistId)
+        val hasTitle = header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
+        return hasId && hasTitle && isMainPlaylistsFile(path)
+    }
+
+    private fun isPlaylistItemsEntry(path: String, header: List<String>, rows: List<List<String>>): Boolean {
+        if ((!isPlaylistPath(path) && !isPlaylistItemsFile(path)) || isMainPlaylistsFile(path)) return false
+        return header.any(YoutubeTakeoutSchemaHints::isVideoIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeVideoId)
+    }
+
+    private fun extractPlaylistSourceKey(path: String, header: List<String>): String? {
+        if (header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) || header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)) return null
         val fileName = path.substringAfterLast('/').substringBeforeLast('.')
-        val normalized = normalize(fileName)
-        return when {
-            normalized == "watch later" -> "Watch later"
-            normalized == "a regarder plus tard" -> "Watch later"
-            normalized == "liked videos" -> "Liked videos"
-            normalized.startsWith("videos de ") -> fileName.substring(10)
-            normalized.startsWith("video de ") -> fileName.substring(9)
-            normalized.startsWith("videos from ") -> fileName.substring(12)
-            normalized.startsWith("videos que j aime") -> "Liked videos"
-            normalized.startsWith("videos liked") -> "Liked videos"
-            else -> null
-        }
+        return YoutubeTakeoutSystemPlaylist.canonicalKey(fileName) ?: fileName
     }
 
-    private fun normalize(value: String): String = Normalizer
-        .normalize(value.lowercase(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
-        .replace(Regex("[^a-z0-9]+"), " ")
-        .trim()
+    private fun isSubscriptionPath(path: String): Boolean {
+        val normalized = YoutubeTakeoutSchemaHints.normalize(path)
+        return SUBSCRIPTION_PATH_MARKERS.any { it in normalized }
+    }
+
+    private fun isPlaylistPath(path: String): Boolean = YoutubeTakeoutSchemaHints.isPlaylistText(path)
+
+    private fun isPlaylistItemsFile(path: String): Boolean =
+        path.substringAfterLast('/').substringBeforeLast('.').let { YoutubeTakeoutSchemaHints.normalize(it) == "playlist items" }
+
+    private fun isMainPlaylistsFile(path: String): Boolean =
+        path.substringAfterLast('/').substringBeforeLast('.').let { fileName ->
+            val normalized = YoutubeTakeoutSchemaHints.normalize(fileName)
+            normalized == "playlists" || normalized == "oynatma listeleri"
+        }
+
+    private fun List<List<String>>.hasValue(predicate: (String) -> Boolean): Boolean = any { row -> row.any(predicate) }
+
+    private val SUBSCRIPTION_PATH_MARKERS = setOf("subscriptions", "abonnements", "suscripciones", "inscricoes", "abos", "abonelikler")
 }

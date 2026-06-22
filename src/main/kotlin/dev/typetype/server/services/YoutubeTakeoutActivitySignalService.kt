@@ -5,9 +5,9 @@ import java.nio.file.Path
 import java.util.zip.ZipFile
 
 object YoutubeTakeoutActivitySignalService {
-    private val subscribedRegex = Regex("""(?:Vous vous êtes abonné à|You subscribed to)\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>""")
-    private val likedRegex = Regex("""(?:Vous avez aimé|You liked)\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>""")
-    private val watchUrlRegex = Regex("""https?://www\.youtube\.com/watch\?v=[A-Za-z0-9_-]{6,}""")
+    private val subscribedRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.subscribedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>""", RegexOption.IGNORE_CASE)
+    private val likedRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.likedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>""", RegexOption.IGNORE_CASE)
+    private val watchUrlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val channelUrlRegex = Regex("""https?://www\.youtube\.com/(?:channel/[A-Za-z0-9_-]+|@[A-Za-z0-9._-]+)""")
     private val spacesRegex = Regex("""\s+""")
 

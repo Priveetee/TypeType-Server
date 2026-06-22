@@ -22,6 +22,50 @@ class YoutubeTakeoutParserServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse detects subscriptions without channel url`() {
+        val zip = Files.createTempFile("yt-takeout-subscriptions-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("Takeout/YouTube and YouTube Music/subscriptions/subscriptions.csv"))
+            out.write("channel id,channel title\nUC1,Linus Tech Tips\n".toByteArray())
+            out.closeEntry()
+        }
+
+        val parsed = YoutubeTakeoutParserService().parse(zip)
+
+        assertEquals(1, parsed.subscriptions.size)
+        assertEquals("https://www.youtube.com/channel/UC1", parsed.subscriptions.first().channelUrl)
+        assertEquals("Linus Tech Tips", parsed.subscriptions.first().name)
+        Files.deleteIfExists(zip)
+    }
+
+    @Test
+    fun `parse detects localized french takeout csv files`() {
+        val zip = Files.createTempFile("yt-takeout-french-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/abonnements/abonnements.csv"))
+            out.write("ID des chaînes,URL des chaînes,Titres des chaînes\nUC1,https://www.youtube.com/channel/UC1,Channel\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/playlists/playlists.csv"))
+            out.write("ID de la playlist,Titre (d'origine) de la playlist\nPL1,a\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/playlists/Vidéos de a.csv"))
+            out.write("ID vidéo,Code temporel de création de la vidéo de la playlist\nabc123,2026-01-01T00:00:00+00:00\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/playlists/Vidéos de Watch later.csv"))
+            out.write("ID vidéo,Code temporel de création de la vidéo de la playlist\nwatch456,2026-01-01T00:00:00+00:00\n".toByteArray())
+            out.closeEntry()
+        }
+
+        val parsed = YoutubeTakeoutParserService().parse(zip)
+
+        assertEquals(1, parsed.subscriptions.size)
+        assertEquals(1, parsed.playlists.size)
+        assertEquals(1, parsed.playlistItems["a"]?.size)
+        assertEquals(1, parsed.watchLater.size)
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(): Path {
         val zip = Files.createTempFile("yt-takeout-parser-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->
