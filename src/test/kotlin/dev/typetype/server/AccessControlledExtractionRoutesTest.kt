@@ -13,6 +13,7 @@ import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AllowedChannelsService
+import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PublicPlaylistService
 import dev.typetype.server.services.SearchService
@@ -40,8 +41,9 @@ import org.junit.jupiter.api.Test
 class AccessControlledExtractionRoutesTest {
     private val settings = SettingsService()
     private val allowed = AllowedChannelsService()
+    private val allowedPlaylists = AllowedPlaylistsService()
     private val adminSettings = AdminSettingsService()
-    private val access = AccessControlService(settings, allowed, adminSettings)
+    private val access = AccessControlService(settings, allowed, allowedPlaylists, adminSettings)
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val search: SearchService = mockk()
     private val playlist: PublicPlaylistService = mockk()

@@ -1,7 +1,9 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
+import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.BugReportService
@@ -69,7 +71,9 @@ internal class ServiceRegistry(
     val settingsService = SettingsService()
     val searchHistoryService = SearchHistoryService()
     val allowedChannelsService = AllowedChannelsService()
-    val accessControlService = AccessControlService(settingsService, allowedChannelsService, adminSettingsService)
+    val allowedPlaylistsService = AllowedPlaylistsService()
+    val adminUserLookupService = AdminUserLookupService()
+    val accessControlService = AccessControlService(settingsService, allowedChannelsService, allowedPlaylistsService, adminSettingsService)
     val blockedService = BlockedService()
     val bugReportService = BugReportService()
     val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)

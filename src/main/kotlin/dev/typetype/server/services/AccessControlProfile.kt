@@ -1,10 +1,12 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.AllowedChannelItem
+import dev.typetype.server.models.AllowedPlaylistItem
 
 data class AccessControlProfile(
     val enabled: Boolean,
     val channels: List<AllowedChannelItem> = emptyList(),
+    val playlists: List<AllowedPlaylistItem> = emptyList(),
 ) {
     fun allowsChannel(url: String, name: String? = null): Boolean {
         if (!enabled) return true
@@ -19,6 +21,12 @@ data class AccessControlProfile(
         if (!enabled) return true
         if (url.isBlank() && name.isBlank()) return false
         return allowsChannel(url, name)
+    }
+
+    fun allowsPlaylist(url: String): Boolean {
+        if (!enabled) return true
+        val normalizedUrl = normalizePlaylistKey(url)
+        return playlists.any { normalizePlaylistKey(it.url) == normalizedUrl }
     }
 
     companion object {

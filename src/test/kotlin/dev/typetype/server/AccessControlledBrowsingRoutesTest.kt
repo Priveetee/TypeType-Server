@@ -9,6 +9,7 @@ import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AllowedChannelsService
+import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.SettingsService
@@ -35,8 +36,9 @@ import org.junit.jupiter.api.Test
 class AccessControlledBrowsingRoutesTest {
     private val settings = SettingsService()
     private val allowed = AllowedChannelsService()
+    private val playlists = AllowedPlaylistsService()
     private val adminSettings = AdminSettingsService()
-    private val access = AccessControlService(settings, allowed, adminSettings)
+    private val access = AccessControlService(settings, allowed, playlists, adminSettings)
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val trending: TrendingService = mockk()
     private val channel: ChannelService = mockk()

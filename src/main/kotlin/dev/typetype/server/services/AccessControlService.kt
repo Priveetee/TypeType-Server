@@ -3,6 +3,7 @@ package dev.typetype.server.services
 class AccessControlService(
     private val settingsService: SettingsService,
     private val allowedChannelsService: AllowedChannelsService,
+    private val allowedPlaylistsService: AllowedPlaylistsService,
     private val adminSettingsService: AdminSettingsService,
 ) {
     suspend fun profileFor(userId: String?): AccessControlProfile {
@@ -19,6 +20,11 @@ class AccessControlService(
             allowedChannelsService.getGlobalChannels()
         } else {
             allowedChannelsService.getChannels(userId)
+        },
+        playlists = if (userId == null) {
+            allowedPlaylistsService.getGlobalPlaylists()
+        } else {
+            allowedPlaylistsService.getPlaylists(userId)
         },
     )
 }

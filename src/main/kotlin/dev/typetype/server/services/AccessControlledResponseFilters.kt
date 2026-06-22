@@ -10,7 +10,7 @@ import dev.typetype.server.models.StreamResponse
 internal fun SearchPageResponse.filterAllowed(profile: AccessControlProfile): SearchPageResponse = copy(
     items = items.filterAllowed(profile),
     channels = channels.filter { profile.allowsChannel(url = it.url, name = it.name) },
-    playlists = playlists.filter { profile.allowsChannel(url = "", name = it.uploaderName) },
+    playlists = playlists.filter { profile.allowsPlaylist(it.url) || profile.allowsChannel(url = "", name = it.uploaderName) },
 )
 
 internal fun StreamResponse.filterAllowed(profile: AccessControlProfile): StreamResponse = copy(
@@ -18,7 +18,7 @@ internal fun StreamResponse.filterAllowed(profile: AccessControlProfile): Stream
 )
 
 internal fun PublicPlaylistResponse.filterAllowed(profile: AccessControlProfile): PublicPlaylistResponse = copy(
-    videos = videos.filterAllowed(profile),
+    videos = if (profile.allowsPlaylist(playlist.url)) videos else videos.filterAllowed(profile),
 )
 
 internal fun ChannelResponse.filterAllowed(profile: AccessControlProfile): ChannelResponse = copy(
@@ -26,7 +26,7 @@ internal fun ChannelResponse.filterAllowed(profile: AccessControlProfile): Chann
 )
 
 internal fun ChannelPlaylistsResponse.filterAllowed(profile: AccessControlProfile): ChannelPlaylistsResponse = copy(
-    playlists = playlists.filter { profile.allowsChannel(url = "", name = it.uploaderName) },
+    playlists = playlists.filter { profile.allowsPlaylist(it.url) || profile.allowsChannel(url = "", name = it.uploaderName) },
 )
 
 internal fun HomeRecommendationsResponse.filterAllowed(profile: AccessControlProfile): HomeRecommendationsResponse = copy(
