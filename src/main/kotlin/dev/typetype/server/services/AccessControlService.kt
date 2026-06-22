@@ -10,9 +10,15 @@ class AccessControlService(
         if (role == "admin") return AccessControlProfile.unrestricted
         val globalAllowList = adminSettingsService.get().accessMode.toAccessMode() == ACCESS_MODE_ALLOW_LIST
         if (userId == null) return if (globalAllowList) allowListProfile(null) else AccessControlProfile.unrestricted
-        val userAccessMode = settingsService.get(userId).accessMode.toAccessMode()
-        if (userAccessMode == ACCESS_MODE_UNRESTRICTED) return AccessControlProfile.unrestricted
-        return allowListProfile(userId)
+        val policy = settingsService.getAccessModePolicy(userId)
+        if (globalAllowList) {
+            return if (policy.adminManaged && policy.accessMode == ACCESS_MODE_UNRESTRICTED) {
+                AccessControlProfile.unrestricted
+            } else {
+                allowListProfile(userId)
+            }
+        }
+        return if (policy.accessMode == ACCESS_MODE_ALLOW_LIST) allowListProfile(userId) else AccessControlProfile.unrestricted
     }
 
     private suspend fun allowListProfile(userId: String?): AccessControlProfile = AccessControlProfile(

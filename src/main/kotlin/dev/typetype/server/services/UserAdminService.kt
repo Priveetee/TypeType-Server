@@ -42,11 +42,13 @@ class UserAdminService {
         val saved = accessMode.toAccessMode()
         val updated = SettingsTable.update({ SettingsTable.userId eq userId }) {
             it[SettingsTable.accessMode] = saved
+            it[SettingsTable.accessModeAdminManaged] = true
         }
         if (updated == 0) {
             SettingsTable.insert {
                 it[SettingsTable.userId] = userId
                 it[SettingsTable.accessMode] = saved
+                it[SettingsTable.accessModeAdminManaged] = true
             }
         }
         AdminUserAccessModeResult.Updated(saved)

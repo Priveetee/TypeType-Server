@@ -91,6 +91,7 @@ object DatabaseFactory {
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS caption_styles TEXT NOT NULL DEFAULT '{}'")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
+            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed BOOLEAN NOT NULL DEFAULT false")
             exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
@@ -112,8 +113,7 @@ object DatabaseFactory {
             DatabaseSubscriptionsCanonicalMigration.apply()
         }
     }
-    suspend fun <T> query(block: () -> T): T =
-        withContext(Dispatchers.IO) { transaction { block() } }
+    suspend fun <T> query(block: () -> T): T = withContext(Dispatchers.IO) { transaction { block() } }
     fun healthCheck(): Boolean = runCatching {
         transaction { exec("SELECT 1") { it.next() } == true }
     }.getOrDefault(false)
