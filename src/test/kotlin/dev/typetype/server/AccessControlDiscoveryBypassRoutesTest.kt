@@ -14,6 +14,7 @@ import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.SettingsService
+import dev.typetype.server.services.UserAdminService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -42,6 +43,7 @@ class AccessControlDiscoveryBypassRoutesTest {
     private val playlists = AllowedPlaylistsService()
     private val adminSettings = AdminSettingsService()
     private val access = AccessControlService(settings, channels, playlists, adminSettings)
+    private val users = UserAdminService()
     private val search: SearchService = mockk()
 
     companion object { @BeforeAll @JvmStatic fun initDb() { TestDatabase.setup() } }
@@ -61,9 +63,20 @@ class AccessControlDiscoveryBypassRoutesTest {
     }
 
     @Test
-    fun `unrestricted user bypasses global allow list discovery filtering`() = withApp(AuthService.fixed(UNRESTRICTED_USER_ID)) {
+    fun `normal unrestricted user remains filtered by global allow list`() = withApp(AuthService.fixed(UNRESTRICTED_USER_ID)) {
         enableGlobalAllowList()
+        assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
+        settings.upsert(UNRESTRICTED_USER_ID, SettingsItem(accessMode = "unrestricted"))
+        assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
+    }
+
+    @Test
+    fun `admin managed unrestricted user bypasses global allow list discovery filtering`() = withApp(AuthService.fixed(UNRESTRICTED_USER_ID)) {
+        enableGlobalAllowList()
+        users.setAccessMode(UNRESTRICTED_USER_ID, "unrestricted")
         assertTrue(searchBodyWithAuth().contains("ElectroBOOM"))
+        settings.upsert(UNRESTRICTED_USER_ID, SettingsItem(accessMode = "unrestricted"))
+        assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
     }
 
     @Test

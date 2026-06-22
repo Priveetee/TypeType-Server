@@ -67,6 +67,7 @@ class AdminUserAccessModeRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"accessMode\":\"allow_list\""))
         assertEquals("allow_list", settings.get(FAMILY_USER_ID).accessMode)
+        assertTrue(settings.getAccessModePolicy(FAMILY_USER_ID).adminManaged)
     }
 
     @Test
