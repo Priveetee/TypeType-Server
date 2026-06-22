@@ -64,7 +64,7 @@ class AllowedChannelsService {
                 it[allowedAt] = now
             }
         }
-        return AllowedChannelItem(url = normalizedUrl, name = name, thumbnailUrl = thumbnailUrl, allowedAt = now)
+        return AllowedChannelItem(url = normalizedUrl, name = name, thumbnailUrl = thumbnailUrl, allowedAt = now, global = global)
     }
 
     suspend fun deleteChannel(userId: String, url: String, role: String): Boolean = DatabaseFactory.query {
