@@ -1,0 +1,80 @@
+AdminUsers:
+  get:
+    tags: [user-data]
+    summary: List users for admin management
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 200 }
+    responses:
+      '200':
+        description: Users list or page
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: array
+                  items: { $ref: '#/AdminUserItem' }
+                - $ref: '#/AdminUsersPageItem'
+      '400': { description: Invalid pagination }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+AdminUserAccessMode:
+  put:
+    tags: [user-data]
+    summary: Update a user's family allow-list access mode
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/AccessModeRequest' }
+    responses:
+      '200':
+        description: Updated access mode
+        content:
+          application/json:
+            schema: { $ref: '#/AccessModeRequest' }
+      '400': { description: Invalid request body or accessMode }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: User not found }
+AdminUserItem:
+  type: object
+  properties:
+    id: { type: string }
+    email: { type: string }
+    name: { type: string }
+    role: { type: string }
+    publicUsername: { type: string, nullable: true }
+    bio: { type: string, nullable: true }
+    avatarUrl: { type: string, nullable: true }
+    avatarType: { type: string, nullable: true }
+    avatarCode: { type: string, nullable: true }
+    suspended: { type: boolean }
+    verified: { type: boolean }
+    accessMode: { type: string, enum: [unrestricted, allow_list] }
+    createdAt: { type: integer, format: int64 }
+AdminUsersPageItem:
+  type: object
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/AdminUserItem' }
+    page: { type: integer }
+    limit: { type: integer }
+    total: { type: integer, format: int64 }
+AccessModeRequest:
+  type: object
+  required: [accessMode]
+  properties:
+    accessMode: { type: string, enum: [unrestricted, allow_list] }

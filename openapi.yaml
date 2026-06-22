@@ -16,10 +16,8 @@ tags:
   - name: youtube-session
   - name: user-data
 paths:
-  /health:
-    $ref: ./openapi/paths/health.yaml#/Health
-  /instance:
-    $ref: ./openapi/paths/metadata.yaml#/Instance
+  /health: { $ref: ./openapi/paths/health.yaml#/Health }
+  /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
   /streams:
     $ref: ./openapi/paths/streams.yaml#/Streams
   /search:
@@ -46,6 +44,8 @@ paths:
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
+  /admin/users: { $ref: ./openapi/paths/admin-users.yaml#/AdminUsers }
+  /admin/users/{id}/access-mode: { $ref: ./openapi/paths/admin-users.yaml#/AdminUserAccessMode }
   /comments:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
