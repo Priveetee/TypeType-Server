@@ -7,6 +7,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlProfile
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.filterAllowed
@@ -22,13 +23,14 @@ fun Route.channelRoutes(
     channelService: ChannelService,
     authService: AuthService? = null,
     accessControlService: AccessControlService? = null,
+    adminSettingsService: AdminSettingsService? = null,
 ) {
     get("/channel") {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]
         val sort = call.request.queryParameters["sort"]?.takeIf { it.isNotBlank() }
-        val profile = call.accessProfileOrRespond(authService, accessControlService)?.profile ?: return@get
+        val profile = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)?.profile ?: return@get
 
         when (val result = channelService.getChannel(url = url, nextpage = nextpage, sort = sort)) {
             is ExtractionResult.Success -> {
@@ -45,7 +47,7 @@ fun Route.channelRoutes(
         val request = call.receive<ChannelPageRequest>()
         val url = request.url?.takeIf { it.isNotBlank() }
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
-        val profile = call.accessProfileOrRespond(authService, accessControlService)?.profile ?: return@post
+        val profile = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)?.profile ?: return@post
 
         call.respondChannelResult(
             channelService.getChannel(
@@ -61,7 +63,7 @@ fun Route.channelRoutes(
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]
-        val profile = call.accessProfileOrRespond(authService, accessControlService)?.profile ?: return@get
+        val profile = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)?.profile ?: return@get
         if (!profile.allowsChannel(url)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
         }

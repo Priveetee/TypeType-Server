@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.AccessControlProfile
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.models.ErrorResponse
 import io.ktor.http.HttpStatusCode
@@ -16,14 +17,39 @@ internal data class AccessRouteProfile(
 internal suspend fun ApplicationCall.accessProfileOrRespond(
     authService: AuthService?,
     accessControlService: AccessControlService?,
+    adminSettingsService: AdminSettingsService? = null,
 ): AccessRouteProfile? {
+    val access = publicAccessOrRespond(authService, adminSettingsService) ?: return null
+    val userId = access.userId
+    if (userId == null) {
+        val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
+        return AccessRouteProfile(userId = null, profile = profile)
+    }
+    val profile = accessControlService?.profileFor(userId, authService?.getUserRole(userId))
+        ?: AccessControlProfile.unrestricted
+    return AccessRouteProfile(userId = userId, profile = profile)
+}
+
+internal suspend fun ApplicationCall.requirePublicAccessOrRespond(
+    authService: AuthService?,
+    adminSettingsService: AdminSettingsService?,
+): Boolean = publicAccessOrRespond(authService, adminSettingsService) != null
+
+private suspend fun ApplicationCall.publicAccessOrRespond(
+    authService: AuthService?,
+    adminSettingsService: AdminSettingsService?,
+): PublicAccess? {
+    val allowGuest = adminSettingsService?.get()?.allowGuest ?: true
     if (authService == null) {
-        return AccessRouteProfile(userId = null, profile = AccessControlProfile.unrestricted)
+        if (allowGuest) return PublicAccess(userId = null)
+        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
+        return null
     }
     val authHeader = request.headers["Authorization"]
     if (authHeader == null) {
-        val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
-        return AccessRouteProfile(userId = null, profile = profile)
+        if (allowGuest) return PublicAccess(userId = null)
+        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
+        return null
     }
     if (!authHeader.startsWith("Bearer ")) {
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
@@ -34,7 +60,11 @@ internal suspend fun ApplicationCall.accessProfileOrRespond(
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
         return null
     }
-    val profile = accessControlService?.profileFor(userId, authService.getUserRole(userId))
-        ?: AccessControlProfile.unrestricted
-    return AccessRouteProfile(userId = userId, profile = profile)
+    if (!allowGuest && userId.startsWith("guest:")) {
+        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
+        return null
+    }
+    return PublicAccess(userId = userId)
 }
+
+private data class PublicAccess(val userId: String?)

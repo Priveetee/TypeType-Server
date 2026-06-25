@@ -2,14 +2,21 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BulletCommentService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
-fun Route.bulletCommentRoutes(bulletCommentService: BulletCommentService) {
+fun Route.bulletCommentRoutes(
+    bulletCommentService: BulletCommentService,
+    authService: AuthService? = null,
+    adminSettingsService: AdminSettingsService? = null,
+) {
     get("/bullet-comments") {
+        if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]

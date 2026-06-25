@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.CachedManifestService
 import dev.typetype.server.services.CachedNativeManifestService
@@ -24,8 +25,10 @@ fun Route.manifestRoutes(
     hlsManifestService: HlsManifestService,
     youtubeSessionHlsManifestService: YoutubeSessionHlsManifestService? = null,
     authService: AuthService? = null,
+    adminSettingsService: AdminSettingsService? = null,
 ) {
     get("/streams/manifest") {
+        if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
@@ -40,6 +43,7 @@ fun Route.manifestRoutes(
     }
 
     get("/streams/native-manifest") {
+        if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
@@ -72,6 +76,8 @@ fun Route.manifestRoutes(
             call.respondHlsResult(youtubeSessionHlsManifestService.hlsManifest(cookieToken, url), noStore = true)
             return@get
         }
+
+        if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
 
         val userId = authService?.let { call.optionalJwtUserId(it) }
         if (userId != null && youtubeSessionHlsManifestService != null && !isManifestUrl(url)) {

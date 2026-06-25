@@ -83,6 +83,10 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
     }
 
     post("/auth/guest") {
+        if (!adminSettingsService.get().allowGuest) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Guest access is disabled"))
+            return@post
+        }
         val token = authService.guestLogin()
         token.warm(authService, warmupService)
         call.respond(AuthResponse(token))

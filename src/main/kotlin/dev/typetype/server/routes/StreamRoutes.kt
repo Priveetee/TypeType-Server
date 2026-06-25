@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.StreamService
@@ -23,12 +24,13 @@ fun Route.streamRoutes(
     authService: AuthService? = null,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     accessControlService: AccessControlService? = null,
+    adminSettingsService: AdminSettingsService? = null,
 ): Unit {
     get("/streams") {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
-        val access = call.accessProfileOrRespond(authService, accessControlService) ?: return@get
+        val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
         val publicResult = streamService.getStreamInfo(url)
         val userId = access.userId
         val sessionResult = if (

@@ -74,6 +74,7 @@ internal fun Application.installApplicationRoutes(
                 youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
                     { userId, url -> service.getStreamInfo(userId, url) }
                 },
+                adminSettingsService = adminSettingsService,
             )
             manifestRoutes(
                 svc.manifestService,
@@ -81,19 +82,20 @@ internal fun Application.installApplicationRoutes(
                 svc.hlsManifestService,
                 svc.youtubeSessionHlsManifestService,
                 authService,
+                adminSettingsService,
             )
         }
         rateLimit(EXTRACTION_ZONE) {
-            searchRoutes(svc.searchService, authService, svc.accessControlService)
-            suggestionRoutes(svc.suggestionService)
-            trendingRoutes(svc.trendingService, authService, svc.accessControlService)
-            publicPlaylistRoutes(svc.publicPlaylistService, authService, svc.accessControlService)
-            commentRoutes(svc.commentService)
-            bulletCommentRoutes(svc.bulletCommentService)
+            searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService)
+            suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
+            trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)
+            publicPlaylistRoutes(svc.publicPlaylistService, authService, svc.accessControlService, adminSettingsService)
+            commentRoutes(svc.commentService, authService, adminSettingsService)
+            bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
         }
         rateLimit(CHANNEL_ZONE) {
-            channelRoutes(svc.channelService, authService, svc.accessControlService)
-            podcastRoutes(svc.podcastService)
+            channelRoutes(svc.channelService, authService, svc.accessControlService, adminSettingsService)
+            podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
         rateLimit(PROXY_ZONE) {
             proxyRoutes(svc.proxyService)
