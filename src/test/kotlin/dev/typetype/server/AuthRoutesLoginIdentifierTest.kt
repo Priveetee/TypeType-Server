@@ -1,6 +1,5 @@
 package dev.typetype.server
 
-import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.models.AdminSettingsItem
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.services.AdminSettingsService
@@ -18,9 +17,6 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -48,18 +44,14 @@ class AuthRoutesLoginIdentifierTest {
         val auth = AuthService("test-secret")
         val registerSession = auth.register("identifier@test.local", "secret", "Identifier")
         val userId = auth.verify(registerSession.accessToken) ?: error("missing user id")
-        transaction {
-            UsersTable.update({ UsersTable.id eq userId }) {
-                it[publicUsername] = "InfinityLoop1308"
-            }
-        }
+        profile.updateProfile(userId = userId, publicUsername = "InfinityLoop1308", bio = null)
         application {
             install(ContentNegotiation) { json() }
             routing { authRoutes(auth, passwordReset, profile, adminSettings) }
         }
         val response = client.post("/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"identifier":"InfinityLoop1308","password":"secret"}""")
+            setBody("""{"identifier":"infinityloop1308","password":"secret"}""")
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(true, response.bodyAsText().contains("\"accessToken\":"))
@@ -80,6 +72,24 @@ class AuthRoutesLoginIdentifierTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(true, response.bodyAsText().contains("\"accessToken\":"))
+    }
+
+    @Test
+    fun `login with public username returns unauthorized for wrong password`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(allowRegistration = true, allowGuest = true, forceEmailVerification = false))
+        val auth = AuthService("test-secret")
+        val registerSession = auth.register("wrong-password@test.local", "secret", "Wrong Password")
+        val userId = auth.verify(registerSession.accessToken) ?: error("missing user id")
+        profile.updateProfile(userId = userId, publicUsername = "WrongPassword", bio = null)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { authRoutes(auth, passwordReset, profile, adminSettings) }
+        }
+        val response = client.post("/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"identifier":"WrongPassword","password":"bad"}""")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test

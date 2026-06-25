@@ -5,7 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.password4j.Password
 import dev.typetype.server.db.tables.UsersTable
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -43,8 +43,17 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
     }
 
     fun login(identifier: String, password: String): AuthSessionTokens? {
+        val normalizedIdentifier = identifier.trim().lowercase()
+        if (normalizedIdentifier.isBlank()) return null
         val user = transaction {
-            UsersTable.selectAll().where { (UsersTable.email eq identifier) or (UsersTable.publicUsername eq identifier) }.singleOrNull()
+            val query = UsersTable.selectAll().where {
+                if (normalizedIdentifier.contains("@")) {
+                    UsersTable.email.lowerCase() eq normalizedIdentifier
+                } else {
+                    UsersTable.publicUsername.lowerCase() eq normalizedIdentifier
+                }
+            }
+            query.singleOrNull()
         } ?: return null
 
         val hashed = user[UsersTable.passwordHash]
