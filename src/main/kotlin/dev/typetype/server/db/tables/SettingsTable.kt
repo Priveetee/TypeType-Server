@@ -32,5 +32,6 @@ object SettingsTable : Table("settings") {
     val hideShorts = bool("hide_shorts").default(false)
     val accessMode = text("access_mode").default("unrestricted")
     val accessModeAdminManaged = bool("access_mode_admin_managed").default(false)
+    val accessModeAdminManagedAt = long("access_mode_admin_managed_at").default(0)
     override val primaryKey = PrimaryKey(userId)
 }

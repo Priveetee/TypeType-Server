@@ -35,6 +35,7 @@ paths:
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
   /admin/users: { $ref: ./openapi/paths/admin-users.yaml#/AdminUsers }
   /admin/users/{id}/access-mode: { $ref: ./openapi/paths/admin-users.yaml#/AdminUserAccessMode }
+  /admin/users/managed-access: { $ref: ./openapi/paths/admin-managed-access.yaml#/AdminManagedAccessUsers }
   /admin/users/search: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUsersSearch }
   /admin/users/{id}/allow-list: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowList }
   /admin/users/{id}/allowed/channels: { $ref: ./openapi/paths/admin-allow-list.yaml#/AdminUserAllowedChannels }

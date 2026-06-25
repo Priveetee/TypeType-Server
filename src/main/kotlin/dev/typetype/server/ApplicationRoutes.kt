@@ -104,7 +104,7 @@ internal fun Application.installApplicationRoutes(
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
-        adminAllowListRoutes(authService, userAdminService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
+        adminAllowListRoutes(authService, userAdminService, svc.adminManagedAccessService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
         adminSessionRoutes(authService, activeSessionService)
         sessionActivityRoutes(authService, activeSessionService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)

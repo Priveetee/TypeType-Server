@@ -90,8 +90,6 @@ object DatabaseFactory {
             exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS published_at BIGINT NOT NULL DEFAULT -1")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS caption_styles TEXT NOT NULL DEFAULT '{}'")
-            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
-            exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed BOOLEAN NOT NULL DEFAULT false")
             exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")

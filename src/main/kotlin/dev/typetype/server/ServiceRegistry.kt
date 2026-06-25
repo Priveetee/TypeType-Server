@@ -1,6 +1,7 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminManagedAccessService
 import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
 import dev.typetype.server.services.AllowedPlaylistsService
@@ -72,6 +73,7 @@ internal class ServiceRegistry(
     val searchHistoryService = SearchHistoryService()
     val allowedChannelsService = AllowedChannelsService()
     val allowedPlaylistsService = AllowedPlaylistsService()
+    val adminManagedAccessService = AdminManagedAccessService()
     val adminUserLookupService = AdminUserLookupService()
     val accessControlService = AccessControlService(settingsService, allowedChannelsService, allowedPlaylistsService, adminSettingsService)
     val blockedService = BlockedService()

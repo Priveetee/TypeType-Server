@@ -75,6 +75,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideShorts] = settings.hideShorts
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
     this[SettingsTable.accessModeAdminManaged] = false
+    this[SettingsTable.accessModeAdminManagedAt] = 0
 }
 
 internal fun SettingsItem.normalized(): SettingsItem = copy(
