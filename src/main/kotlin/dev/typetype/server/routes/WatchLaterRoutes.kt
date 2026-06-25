@@ -16,7 +16,7 @@ import io.ktor.server.routing.post
 fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/watch-later") {
         call.withJwtAuth(authService) { userId ->
-            metadataRepairService?.repairUserLists(userId)
+            metadataRepairService?.repairWatchLater(userId)
             call.respond(watchLaterService.getAll(userId))
         }
     }

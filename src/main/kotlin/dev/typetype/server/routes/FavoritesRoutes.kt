@@ -14,7 +14,7 @@ import io.ktor.server.routing.post
 fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/favorites") {
         call.withJwtAuth(authService) { userId ->
-            metadataRepairService?.repairUserLists(userId)
+            metadataRepairService?.repairFavorites(userId)
             call.respond(favoritesService.getAll(userId))
         }
     }

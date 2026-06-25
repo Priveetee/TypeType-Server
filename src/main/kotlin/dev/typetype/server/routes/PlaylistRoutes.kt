@@ -20,7 +20,7 @@ import io.ktor.server.routing.put
 fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/playlists") {
         call.withJwtAuth(authService) { userId ->
-            metadataRepairService?.repairUserLists(userId)
+            metadataRepairService?.repairPlaylists(userId)
             call.respond(playlistService.getAll(userId))
         }
     }
@@ -35,7 +35,7 @@ fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthServ
     get("/playlists/{id}") {
         call.withJwtAuth(authService) { userId ->
             val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
-            metadataRepairService?.repairUserLists(userId)
+            metadataRepairService?.repairPlaylists(userId)
             val playlist = playlistService.getById(userId, id) ?: return@withJwtAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
             call.respond(playlist)
         }
