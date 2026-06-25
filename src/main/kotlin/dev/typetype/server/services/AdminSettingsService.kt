@@ -11,7 +11,9 @@ import org.jetbrains.exposed.v1.jdbc.update
 
 private const val SETTINGS_ROW_ID = 1
 
-class AdminSettingsService {
+class AdminSettingsService(
+    private val defaultSettings: () -> AdminSettingsItem = ::defaultAdminSettingsFromEnvironment,
+) {
 
     suspend fun get(): AdminSettingsItem {
         cachedSettings?.let { return it }
@@ -32,7 +34,7 @@ class AdminSettingsService {
                     youtubeRemoteLoginEnabled = it[AdminSettingsTable.youtubeRemoteLoginEnabled],
                     accessMode = it[AdminSettingsTable.accessMode].toAccessMode(),
                 ).normalized()
-            } ?: AdminSettingsItem()
+            } ?: defaultSettings().normalized()
         }
         cachedSettings = settings
         return settings
@@ -100,4 +102,12 @@ class AdminSettingsService {
             cachedSettings = null
         }
     }
+}
+
+private fun defaultAdminSettingsFromEnvironment(): AdminSettingsItem = AdminSettingsItem(
+    youtubeRemoteLoginEnabled = envFlag("YOUTUBE_REMOTE_LOGIN_ENABLED"),
+)
+
+private fun envFlag(name: String): Boolean = System.getenv(name)?.trim()?.lowercase().let {
+    it == "1" || it == "true"
 }

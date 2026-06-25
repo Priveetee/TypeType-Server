@@ -23,6 +23,7 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -68,6 +69,19 @@ class AdminSettingsAccessModeRoutesTest {
         putSettings("bad")
         val body = client.get("/admin/settings") { authHeader() }.bodyAsText()
         assertTrue(body.contains("\"accessMode\":\"unrestricted\""))
+    }
+
+    @Test
+    fun `admin settings responses are not cacheable`() = withApp {
+        putSettings("unrestricted")
+        val getResponse = client.get("/admin/settings") { authHeader() }
+        assertEquals("no-store, no-cache, must-revalidate, max-age=0", getResponse.headers[HttpHeaders.CacheControl])
+        val putResponse = client.put("/admin/settings") {
+            authHeader()
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"TypeType","youtubeRemoteLoginEnabled":true}""")
+        }
+        assertEquals("no-store, no-cache, must-revalidate, max-age=0", putResponse.headers[HttpHeaders.CacheControl])
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

@@ -104,7 +104,7 @@ fun Route.adminRoutes(
 
     get("/admin/settings") {
         call.withAdminAuth(authService) { _ ->
-            call.respond(adminSettingsService.get())
+            call.respondNoStore(adminSettingsService.get())
         }
     }
 
@@ -113,7 +113,7 @@ fun Route.adminRoutes(
             val body = runCatching { call.receive<AdminSettingsItem>() }.getOrElse {
                 return@withAdminAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            call.respond(adminSettingsService.upsert(body))
+            call.respondNoStore(adminSettingsService.upsert(body))
         }
     }
 }

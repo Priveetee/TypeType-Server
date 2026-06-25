@@ -58,7 +58,7 @@ class InstanceRoutesTest {
         }
         val response = client.get("/instance")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("public, max-age=300", response.headers[HttpHeaders.CacheControl])
+        assertEquals("no-store, no-cache, must-revalidate, max-age=0", response.headers[HttpHeaders.CacheControl])
         val root = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("TypeType", root["name"]?.jsonPrimitive?.contentOrNull)
         assertEquals(BuildInfo.VERSION, root["version"]?.jsonPrimitive?.contentOrNull)
