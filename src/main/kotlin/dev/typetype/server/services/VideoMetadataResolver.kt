@@ -56,6 +56,8 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         channelName = channelName,
         channelUrl = channelUrl,
         channelAvatar = channelAvatar,
+        viewCount = viewCount,
+        publishedAt = publishedAt,
     )
 
     private fun dev.typetype.server.models.StreamResponse.toMetadata(url: String): VideoMetadataItem = VideoMetadataItem(

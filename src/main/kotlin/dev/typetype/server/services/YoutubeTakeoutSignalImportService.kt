@@ -31,7 +31,7 @@ class YoutubeTakeoutSignalImportService(
         val existing = watchLaterService.getAll(userId).map { it.url }.toMutableSet()
         videos.forEach { video ->
             if (video.url in existing) skipped += 1 else {
-                watchLaterService.add(userId, WatchLaterItem(url = video.url, title = video.title, thumbnail = video.thumbnail, duration = video.duration))
+                watchLaterService.add(userId, video.toWatchLaterItem())
                 imported += 1
                 existing += video.url
             }
@@ -53,4 +53,16 @@ class YoutubeTakeoutSignalImportService(
         val imported = historyService.addImportedBatch(userId, toInsert)
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)
     }
+
+    private fun PlaylistVideoItem.toWatchLaterItem(): WatchLaterItem = WatchLaterItem(
+        url = url,
+        title = title,
+        thumbnail = thumbnail,
+        duration = duration,
+        channelName = channelName,
+        channelUrl = channelUrl,
+        channelAvatar = channelAvatar,
+        viewCount = viewCount,
+        publishedAt = publishedAt,
+    )
 }

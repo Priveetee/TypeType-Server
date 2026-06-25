@@ -35,6 +35,8 @@ class FavoritesService {
                 it[channelName] = item.channelName
                 it[channelUrl] = item.channelUrl
                 it[channelAvatar] = item.channelAvatar
+                it[viewCount] = item.viewCount
+                it[publishedAt] = item.publishedAt
             }
         }
         return item.copy(favoritedAt = now)
@@ -53,5 +55,7 @@ class FavoritesService {
         channelName = this[FavoritesTable.channelName],
         channelUrl = this[FavoritesTable.channelUrl],
         channelAvatar = this[FavoritesTable.channelAvatar],
+        viewCount = this[FavoritesTable.viewCount],
+        publishedAt = this[FavoritesTable.publishedAt],
     )
 }

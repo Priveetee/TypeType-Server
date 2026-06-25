@@ -39,7 +39,7 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private suspend fun watchLaterCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         WatchLaterTable.selectAll()
             .where { WatchLaterTable.userId eq userId }
-            .filter { shouldRepair(it[WatchLaterTable.title], it[WatchLaterTable.thumbnail], it[WatchLaterTable.duration], "", "") }
+            .filter { shouldRepair(it[WatchLaterTable.title], it[WatchLaterTable.thumbnail], it[WatchLaterTable.duration], it[WatchLaterTable.channelName], it[WatchLaterTable.channelUrl]) }
             .map { it[WatchLaterTable.url] }
             .distinct()
     }
@@ -68,6 +68,8 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         (WatchLaterTable.userId eq userId) and (WatchLaterTable.url eq item.url)
     }) {
         it[title] = item.title; it[thumbnail] = item.thumbnail; it[duration] = item.duration
+        it[channelName] = item.channelName; it[channelUrl] = item.channelUrl; it[channelAvatar] = item.channelAvatar
+        it[viewCount] = item.viewCount; it[publishedAt] = item.publishedAt
     }
 
     private fun updateFavorites(userId: String, item: VideoMetadataItem): Int = FavoritesTable.update({
@@ -75,6 +77,7 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     }) {
         it[title] = item.title; it[thumbnail] = item.thumbnail; it[duration] = item.duration
         it[channelName] = item.channelName; it[channelUrl] = item.channelUrl; it[channelAvatar] = item.channelAvatar
+        it[viewCount] = item.viewCount; it[publishedAt] = item.publishedAt
     }
 
     private companion object {

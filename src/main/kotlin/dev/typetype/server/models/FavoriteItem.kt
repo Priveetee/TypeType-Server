@@ -12,4 +12,6 @@ data class FavoriteItem(
     val channelName: String = "",
     val channelUrl: String = "",
     val channelAvatar: String = "",
+    val viewCount: Long = 0L,
+    val publishedAt: Long = -1L,
 )

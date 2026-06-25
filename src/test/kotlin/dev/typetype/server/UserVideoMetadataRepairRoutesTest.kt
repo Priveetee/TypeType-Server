@@ -69,7 +69,11 @@ class UserVideoMetadataRepairRoutesTest {
         assertTrue(playlistBody.contains("Resolved abc123"))
         assertTrue(watchLaterBody.contains("Resolved abc123"))
         assertTrue(favoritesBody.contains("Resolved abc123"))
+        assertTrue(watchLaterBody.contains("\"channelName\":\"Channel\""))
+        assertTrue(watchLaterBody.contains("\"viewCount\":10"))
         assertTrue(favoritesBody.contains("\"thumbnail\":\"https://thumb.test/abc123.jpg\""))
+        assertTrue(favoritesBody.contains("\"viewCount\":10"))
+        assertTrue(favoritesBody.contains("\"publishedAt\":1"))
     }
 
     private fun fallbackVideo(url: String): PlaylistVideoItem = PlaylistVideoItem(

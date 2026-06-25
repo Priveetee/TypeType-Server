@@ -30,6 +30,11 @@ class WatchLaterService {
                 it[thumbnail] = item.thumbnail
                 it[duration] = item.duration
                 it[addedAt] = now
+                it[channelName] = item.channelName
+                it[channelUrl] = item.channelUrl
+                it[channelAvatar] = item.channelAvatar
+                it[viewCount] = item.viewCount
+                it[publishedAt] = item.publishedAt
             }
         }
         return item.copy(addedAt = now)
@@ -45,5 +50,10 @@ class WatchLaterService {
         thumbnail = this[WatchLaterTable.thumbnail],
         duration = this[WatchLaterTable.duration],
         addedAt = this[WatchLaterTable.addedAt],
+        channelName = this[WatchLaterTable.channelName],
+        channelUrl = this[WatchLaterTable.channelUrl],
+        channelAvatar = this[WatchLaterTable.channelAvatar],
+        viewCount = this[WatchLaterTable.viewCount],
+        publishedAt = this[WatchLaterTable.publishedAt],
     )
 }

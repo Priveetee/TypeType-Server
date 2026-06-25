@@ -110,6 +110,7 @@ object DatabaseFactory {
             DatabaseIndexMigrations.apply()
             DatabaseSubscriptionsCanonicalMigration.apply()
             DatabaseImportedMediaRepairMigration.apply()
+            DatabaseCollectionMetadataMigration.apply()
         }
     }
     suspend fun <T> query(block: () -> T): T = withContext(Dispatchers.IO) { transaction { block() } }
