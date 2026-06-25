@@ -30,6 +30,11 @@ class SettingsService {
         return saved
     }
 
+    suspend fun isWatchHistoryDisabled(userId: String): Boolean = DatabaseFactory.query {
+        SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()
+            ?.get(SettingsTable.disableWatchHistory) ?: false
+    }
+
     suspend fun getAccessModePolicy(userId: String): AccessModePolicy = DatabaseFactory.query {
         SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()?.let {
             AccessModePolicy(

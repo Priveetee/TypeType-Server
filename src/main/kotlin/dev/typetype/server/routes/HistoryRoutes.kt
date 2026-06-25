@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.HistoryItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.HistoryService
+import dev.typetype.server.services.SettingsService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -14,7 +15,7 @@ import io.ktor.server.routing.post
 
 private const val MAX_HISTORY_LIMIT = 1000
 
-fun Route.historyRoutes(historyService: HistoryService, authService: AuthService) {
+fun Route.historyRoutes(historyService: HistoryService, authService: AuthService, settingsService: SettingsService? = null) {
     get("/history") {
         call.withJwtAuth(authService) { userId ->
             val q = call.request.queryParameters["q"]
@@ -51,6 +52,9 @@ fun Route.historyRoutes(historyService: HistoryService, authService: AuthService
         call.withJwtAuth(authService) { userId ->
             val item = runCatching { call.receive<HistoryItem>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            }
+            if (settingsService?.isWatchHistoryDisabled(userId) == true) {
+                return@withJwtAuth call.respond(HttpStatusCode.Created, item)
             }
             call.respond(HttpStatusCode.Created, historyService.add(userId, item))
         }

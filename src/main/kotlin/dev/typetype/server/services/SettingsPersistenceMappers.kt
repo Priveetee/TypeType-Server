@@ -43,6 +43,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
+    disableWatchHistory = this[SettingsTable.disableWatchHistory],
     accessMode = this[SettingsTable.accessMode].toAccessMode(),
 )
 
@@ -73,6 +74,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
+    this[SettingsTable.disableWatchHistory] = settings.disableWatchHistory
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
