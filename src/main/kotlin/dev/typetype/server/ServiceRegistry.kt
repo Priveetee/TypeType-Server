@@ -24,6 +24,8 @@ import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
+import dev.typetype.server.services.UserVideoMetadataRepairService
+import dev.typetype.server.services.VideoMetadataResolver
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutFactory
 internal class ServiceRegistry(
@@ -65,6 +67,7 @@ internal class ServiceRegistry(
     )
     val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
+    val videoMetadataRepairService = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
     val savedPlaylistService = SavedPlaylistService()
     val watchLaterService = WatchLaterService()
     val progressService = ProgressService()
@@ -78,7 +81,7 @@ internal class ServiceRegistry(
     val accessControlService = AccessControlService(settingsService, allowedChannelsService, allowedPlaylistsService, adminSettingsService)
     val blockedService = BlockedService()
     val bugReportService = BugReportService()
-    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
+    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService, streamService)
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
         subscriptionsService = subscriptionsService,
         subscriptionFeedService = subscriptionFeedService,

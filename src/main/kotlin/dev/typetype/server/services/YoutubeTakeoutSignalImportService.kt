@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.HistoryItem
+import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.models.YoutubeTakeoutImportStats
@@ -10,15 +11,15 @@ class YoutubeTakeoutSignalImportService(
     private val watchLaterService: WatchLaterService,
     private val historyService: HistoryService,
 ) {
-    suspend fun importFavorites(userId: String, urls: List<String>): YoutubeTakeoutImportStats {
+    suspend fun importFavorites(userId: String, items: List<FavoriteItem>): YoutubeTakeoutImportStats {
         var imported = 0
         var skipped = 0
         val existing = favoritesService.getAll(userId).map { it.videoUrl }.toMutableSet()
-        urls.forEach { url ->
-            if (url in existing) skipped += 1 else {
-                favoritesService.add(userId, url)
+        items.forEach { item ->
+            if (item.videoUrl in existing) skipped += 1 else {
+                favoritesService.add(userId, item)
                 imported += 1
-                existing += url
+                existing += item.videoUrl
             }
         }
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)

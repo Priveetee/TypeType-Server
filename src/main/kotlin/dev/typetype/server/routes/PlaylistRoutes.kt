@@ -7,6 +7,7 @@ import dev.typetype.server.models.PlaylistReorderResult
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.UserVideoMetadataRepairService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -16,9 +17,12 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 
-fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthService) {
+fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/playlists") {
-        call.withJwtAuth(authService) { userId -> call.respond(playlistService.getAll(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            metadataRepairService?.repairUserLists(userId)
+            call.respond(playlistService.getAll(userId))
+        }
     }
     post("/playlists") {
         call.withJwtAuth(authService) { userId ->
@@ -31,6 +35,7 @@ fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthServ
     get("/playlists/{id}") {
         call.withJwtAuth(authService) { userId ->
             val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            metadataRepairService?.repairUserLists(userId)
             val playlist = playlistService.getById(userId, id) ?: return@withJwtAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
             call.respond(playlist)
         }

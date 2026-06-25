@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.FavoritesService
+import dev.typetype.server.services.UserVideoMetadataRepairService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -10,9 +11,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthService) {
+fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/favorites") {
-        call.withJwtAuth(authService) { userId -> call.respond(favoritesService.getAll(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            metadataRepairService?.repairUserLists(userId)
+            call.respond(favoritesService.getAll(userId))
+        }
     }
     post("/favorites/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
