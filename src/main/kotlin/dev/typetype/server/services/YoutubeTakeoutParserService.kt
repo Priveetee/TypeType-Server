@@ -25,18 +25,22 @@ class YoutubeTakeoutParserService {
                 null
             }
         }
+        val history = parseHistory(zipPath, warnings)
+        val historyByVideoId = history.mapNotNull { item ->
+            YoutubeTakeoutTypeTypeMapper.videoId(item.url)?.let { it to item }
+        }.toMap()
         val rawPlaylistItems = mutableMapOf<String, MutableList<PlaylistVideoItem>>()
         scan.playlistItemsRows.forEach { row ->
             val parsed = runCatching { YoutubeTakeoutRowParser.parsePlaylistItem(scan.playlistItemsHeader, row) }.getOrNull()
             if (parsed == null) {
                 errors += "Invalid playlist item row"
             } else {
-                rawPlaylistItems.getOrPut(parsed.first) { mutableListOf() }.add(parsed.second)
+                rawPlaylistItems.getOrPut(parsed.first) { mutableListOf() }
+                    .add(YoutubeTakeoutTypeTypeMapper.playlistVideo(parsed.second, historyByVideoId))
             }
         }
         val dedupedPlaylists = dedupPlaylists(playlists)
         val playlistItems = YoutubeTakeoutPlaylistKeyResolver.resolveAll(rawPlaylistItems, dedupedPlaylists)
-        val history = parseHistory(zipPath, warnings)
         val watchLater = playlistItems.filterKeys { isWatchLaterPlaylistKey(it) }.values.flatten()
         val favorites = playlistItems.filterKeys { isLikedPlaylistKey(it) }.values.flatten().map { it.url }
         val activitySignals = YoutubeTakeoutActivitySignalService.parse(zipPath)

@@ -1,7 +1,6 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.PlaylistItem
-import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.YoutubeTakeoutCategoryCounts
 import dev.typetype.server.models.YoutubeTakeoutCommitPlan
@@ -77,7 +76,7 @@ class YoutubeTakeoutImporterService(
                 val existingUrls = existingPlaylistVideos[playlist.name.lowercase()].orEmpty().toMutableSet()
                 videos.forEach { video ->
                     if (video.url in existingUrls) itemSkipped += 1 else {
-                        playlistService.addVideo(userId, playlist.id, PlaylistVideoItem(url = video.url, title = video.title, thumbnail = video.thumbnail, duration = video.duration))
+                        playlistService.addVideo(userId, playlist.id, video)
                         itemImported += 1
                         existingUrls += video.url
                     }
