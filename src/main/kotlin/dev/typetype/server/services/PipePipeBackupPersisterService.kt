@@ -47,8 +47,10 @@ class PipePipeBackupPersisterService {
 
     private fun insertHistory(userId: String, items: List<PipePipeBackupHistoryItem>, avatarsByChannel: Map<String, String>): Int =
         items.sumOf { item ->
+            val title = item.title.ifBlank { YoutubeTypeTypeMapper.titleForUrl(item.url) }
+            val thumbnail = item.thumbnail.ifBlank { YoutubeTypeTypeMapper.thumbnailForUrl(item.url) }
             HistoryTable.insertIgnore {
-                it[id] = UUID.randomUUID().toString(); it[HistoryTable.userId] = userId; it[url] = item.url; it[title] = item.title; it[thumbnail] = item.thumbnail
+                it[id] = UUID.randomUUID().toString(); it[HistoryTable.userId] = userId; it[url] = item.url; it[HistoryTable.title] = title; it[HistoryTable.thumbnail] = thumbnail
                 it[channelName] = item.uploader; it[channelUrl] = item.uploaderUrl; it[channelAvatar] = avatarsByChannel[item.uploaderUrl] ?: ""; it[duration] = item.duration; it[progress] = 0L; it[watchedAt] = item.watchedAt
             }.insertedCount
         }
@@ -70,9 +72,11 @@ class PipePipeBackupPersisterService {
                 it[id] = playlistId; it[PlaylistsTable.userId] = userId; it[name] = item.name; it[description] = ""; it[createdAt] = System.currentTimeMillis()
             }.insertedCount
             item.videos.forEachIndexed { index, video ->
+                val title = video.title.ifBlank { YoutubeTypeTypeMapper.titleForUrl(video.url) }
+                val thumbnail = video.thumbnail.ifBlank { YoutubeTypeTypeMapper.thumbnailForUrl(video.url) }
                 videos += PlaylistVideosTable.insertIgnore {
                     it[id] = UUID.randomUUID().toString(); it[PlaylistVideosTable.playlistId] = playlistId; it[PlaylistVideosTable.userId] = userId
-                    it[url] = video.url; it[title] = video.title; it[thumbnail] = video.thumbnail; it[duration] = video.duration; it[position] = index
+                    it[url] = video.url; it[PlaylistVideosTable.title] = title; it[PlaylistVideosTable.thumbnail] = thumbnail; it[duration] = video.duration; it[position] = index
                 }.insertedCount
             }
         }

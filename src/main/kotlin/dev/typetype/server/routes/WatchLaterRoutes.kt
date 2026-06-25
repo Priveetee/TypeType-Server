@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.UserVideoMetadataRepairService
 import dev.typetype.server.services.WatchLaterService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -12,9 +13,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, authService: AuthService) {
+fun Route.watchLaterRoutes(watchLaterService: WatchLaterService, authService: AuthService, metadataRepairService: UserVideoMetadataRepairService? = null) {
     get("/watch-later") {
-        call.withJwtAuth(authService) { userId -> call.respond(watchLaterService.getAll(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            metadataRepairService?.repairWatchLater(userId)
+            call.respond(watchLaterService.getAll(userId))
+        }
     }
     post("/watch-later") {
         call.withJwtAuth(authService) { userId ->

@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.models.AllowedPlaylistItem
 import dev.typetype.server.routes.adminAllowListRoutes
+import dev.typetype.server.services.AdminManagedAccessService
 import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
 import dev.typetype.server.services.AllowedPlaylistsService
@@ -39,6 +40,7 @@ private const val GRANULAR_USER_ID = "granular-user"
 class AdminGranularAllowListRoutesTest {
     private val users = UserAdminService()
     private val lookup = AdminUserLookupService()
+    private val managed = AdminManagedAccessService()
     private val channels = AllowedChannelsService()
     private val playlists = AllowedPlaylistsService()
     private val settings = SettingsService()
@@ -99,7 +101,7 @@ class AdminGranularAllowListRoutesTest {
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
-        application { install(ContentNegotiation) { json() }; routing { adminAllowListRoutes(auth, users, lookup, channels, playlists) } }
+        application { install(ContentNegotiation) { json() }; routing { adminAllowListRoutes(auth, users, managed, lookup, channels, playlists) } }
         block()
     }
 

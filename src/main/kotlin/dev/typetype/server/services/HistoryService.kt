@@ -41,7 +41,8 @@ class HistoryService {
     suspend fun addImportedBatch(userId: String, items: List<HistoryItem>): Int {
         if (items.isEmpty()) return 0
         val now = System.currentTimeMillis()
-        val rows = items.map { item ->
+        val rows = items.map { rawItem ->
+            val item = YoutubeTypeTypeMapper.historyItem(rawItem)
             val watchedAt = item.watchedAt.takeIf { it > 0 } ?: now
             Triple(UUID.randomUUID().toString(), item, watchedAt)
         }
@@ -84,23 +85,24 @@ class HistoryService {
 
     private suspend fun insert(userId: String, item: HistoryItem, watchedAt: Long): HistoryItem {
         val id = UUID.randomUUID().toString()
-        val progress = DatabaseFactory.query { maxOf(item.progress, HistoryProgressMapper.savedProgressSeconds(userId, item.url) ?: 0L) }
+        val mapped = YoutubeTypeTypeMapper.historyItem(item)
+        val progress = DatabaseFactory.query { maxOf(mapped.progress, HistoryProgressMapper.savedProgressSeconds(userId, mapped.url) ?: 0L) }
         DatabaseFactory.query {
             HistoryTable.insert {
                 it[HistoryTable.id] = id
                 it[HistoryTable.userId] = userId
-                it[url] = item.url
-                it[title] = item.title
-                it[thumbnail] = item.thumbnail
-                it[channelName] = item.channelName
-                it[channelUrl] = item.channelUrl
-                it[channelAvatar] = item.channelAvatar
-                it[duration] = item.duration
+                it[url] = mapped.url
+                it[title] = mapped.title
+                it[thumbnail] = mapped.thumbnail
+                it[channelName] = mapped.channelName
+                it[channelUrl] = mapped.channelUrl
+                it[channelAvatar] = mapped.channelAvatar
+                it[duration] = mapped.duration
                 it[HistoryTable.progress] = progress
                 it[HistoryTable.watchedAt] = watchedAt
             }
         }
-        return item.copy(id = id, progress = progress, watchedAt = watchedAt)
+        return mapped.copy(id = id, progress = progress, watchedAt = watchedAt)
     }
 
     private fun deleteProgress(userId: String, videoUrl: String) {

@@ -40,15 +40,18 @@ class UserAdminService {
             return@transaction AdminUserAccessModeResult.UserNotFound
         }
         val saved = accessMode.toAccessMode()
+        val managedAt = System.currentTimeMillis()
         val updated = SettingsTable.update({ SettingsTable.userId eq userId }) {
             it[SettingsTable.accessMode] = saved
             it[SettingsTable.accessModeAdminManaged] = true
+            it[SettingsTable.accessModeAdminManagedAt] = managedAt
         }
         if (updated == 0) {
             SettingsTable.insert {
                 it[SettingsTable.userId] = userId
                 it[SettingsTable.accessMode] = saved
                 it[SettingsTable.accessModeAdminManaged] = true
+                it[SettingsTable.accessModeAdminManagedAt] = managedAt
             }
         }
         AdminUserAccessModeResult.Updated(saved)

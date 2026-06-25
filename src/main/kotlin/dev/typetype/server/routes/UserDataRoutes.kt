@@ -16,15 +16,15 @@ internal fun Route.userDataRoutes(
     bugReportService: BugReportService,
     restoreService: PipePipeBackupImporterService,
 ) {
-    historyRoutes(svc.historyService, authService)
+    historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionsRoutes(svc.subscriptionsService, authService, svc.homeRecommendationWarmupService)
     subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
-    playlistRoutes(svc.playlistService, authService)
+    playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)
     savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
-    watchLaterRoutes(svc.watchLaterService, authService)
-    progressRoutes(svc.progressService, authService)
-    favoritesRoutes(svc.favoritesService, authService)
+    watchLaterRoutes(svc.watchLaterService, authService, svc.videoMetadataRepairService)
+    progressRoutes(svc.progressService, authService, svc.settingsService)
+    favoritesRoutes(svc.favoritesService, authService, svc.videoMetadataRepairService)
     settingsRoutes(svc.settingsService, authService)
     searchHistoryRoutes(svc.searchHistoryService, authService)
     allowedChannelsRoutes(svc.allowedChannelsService, authService)

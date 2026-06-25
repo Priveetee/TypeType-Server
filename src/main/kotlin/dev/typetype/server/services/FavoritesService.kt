@@ -20,16 +20,26 @@ class FavoritesService {
             .map { it.toItem() }
     }
 
-    suspend fun add(userId: String, videoUrl: String): FavoriteItem {
+    suspend fun add(userId: String, videoUrl: String): FavoriteItem = add(userId, FavoriteItem(videoUrl = videoUrl))
+
+    suspend fun add(userId: String, item: FavoriteItem): FavoriteItem {
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
             FavoritesTable.insert {
                 it[FavoritesTable.userId] = userId
-                it[FavoritesTable.videoUrl] = videoUrl
+                it[videoUrl] = item.videoUrl
                 it[favoritedAt] = now
+                it[title] = item.title
+                it[thumbnail] = item.thumbnail
+                it[duration] = item.duration
+                it[channelName] = item.channelName
+                it[channelUrl] = item.channelUrl
+                it[channelAvatar] = item.channelAvatar
+                it[viewCount] = item.viewCount
+                it[publishedAt] = item.publishedAt
             }
         }
-        return FavoriteItem(videoUrl = videoUrl, favoritedAt = now)
+        return item.copy(favoritedAt = now)
     }
 
     suspend fun delete(userId: String, videoUrl: String): Boolean = DatabaseFactory.query {
@@ -39,5 +49,13 @@ class FavoritesService {
     private fun ResultRow.toItem() = FavoriteItem(
         videoUrl = this[FavoritesTable.videoUrl],
         favoritedAt = this[FavoritesTable.favoritedAt],
+        title = this[FavoritesTable.title],
+        thumbnail = this[FavoritesTable.thumbnail],
+        duration = this[FavoritesTable.duration],
+        channelName = this[FavoritesTable.channelName],
+        channelUrl = this[FavoritesTable.channelUrl],
+        channelAvatar = this[FavoritesTable.channelAvatar],
+        viewCount = this[FavoritesTable.viewCount],
+        publishedAt = this[FavoritesTable.publishedAt],
     )
 }

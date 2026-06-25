@@ -1,0 +1,39 @@
+AdminManagedAccessUsers:
+  get:
+    tags: [user-data]
+    summary: List users whose access mode was explicitly managed by admin
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: page
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Admin-managed access users
+        content:
+          application/json:
+            schema: { $ref: '#/AdminManagedAccessUsersResponse' }
+      '400': { description: Invalid limit or page }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+AdminManagedAccessUsersResponse:
+  type: object
+  required: [items, nextpage]
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/AdminManagedAccessUserItem' }
+    nextpage: { type: string, nullable: true }
+AdminManagedAccessUserItem:
+  type: object
+  required: [id, email, name, accessMode, adminManagedAccessMode]
+  properties:
+    id: { type: string }
+    email: { type: string }
+    name: { type: string }
+    accessMode: { type: string, enum: [unrestricted, allow_list] }
+    adminManagedAccessMode: { type: boolean }
