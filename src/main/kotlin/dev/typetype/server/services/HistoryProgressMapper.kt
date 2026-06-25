@@ -13,7 +13,7 @@ internal object HistoryProgressMapper {
     fun toHistoryItems(userId: String, rows: List<ResultRow>): List<HistoryItem> {
         val items = rows.map { it.toHistoryItem() }
         val savedProgress = savedProgressSeconds(userId, items.map { it.url })
-        return items.map { it.withSavedProgress(savedProgress[it.url]) }
+        return items.map { YoutubeTypeTypeMapper.historyItem(it).withSavedProgress(savedProgress[it.url]) }
     }
 
     fun savedProgressSeconds(userId: String, videoUrl: String): Long? = savedProgressSeconds(userId, listOf(videoUrl))[videoUrl]
