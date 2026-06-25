@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.db.DatabaseImportedMediaRepairMigration
+import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
@@ -35,6 +36,7 @@ class DatabaseImportedMediaRepairMigrationTest {
             insertHistory(id = "h2", title = "Known", thumbnail = "thumb", channelAvatar = "avatar")
             insertPlaylistVideo()
             insertWatchLater()
+            insertFavorite()
 
             DatabaseImportedMediaRepairMigration.apply()
 
@@ -42,6 +44,7 @@ class DatabaseImportedMediaRepairMigrationTest {
             val subscription = SubscriptionsTable.selectAll().where { SubscriptionsTable.userId eq TEST_USER_ID }.single()
             val playlistVideo = PlaylistVideosTable.selectAll().single()
             val watchLater = WatchLaterTable.selectAll().single()
+            val favorite = FavoritesTable.selectAll().single()
             assertEquals("YouTube video abc123", history[HistoryTable.title])
             assertEquals("https://i.ytimg.com/vi/abc123/hqdefault.jpg", history[HistoryTable.thumbnail])
             assertEquals("avatar", history[HistoryTable.channelAvatar])
@@ -50,6 +53,8 @@ class DatabaseImportedMediaRepairMigrationTest {
             assertEquals("https://i.ytimg.com/vi/pl4567/hqdefault.jpg", playlistVideo[PlaylistVideosTable.thumbnail])
             assertEquals("YouTube video wl7890", watchLater[WatchLaterTable.title])
             assertEquals("https://i.ytimg.com/vi/wl7890/hqdefault.jpg", watchLater[WatchLaterTable.thumbnail])
+            assertEquals("YouTube video abc123", favorite[FavoritesTable.title])
+            assertEquals("https://i.ytimg.com/vi/abc123/hqdefault.jpg", favorite[FavoritesTable.thumbnail])
         }
     }
 
@@ -80,6 +85,12 @@ class DatabaseImportedMediaRepairMigrationTest {
     private fun insertWatchLater() {
         WatchLaterTable.insert {
             it[userId] = TEST_USER_ID; it[url] = "https://www.youtube.com/shorts/wl7890"; it[title] = ""; it[thumbnail] = ""; it[duration] = 0L; it[addedAt] = 1L
+        }
+    }
+
+    private fun insertFavorite() {
+        FavoritesTable.insert {
+            it[userId] = TEST_USER_ID; it[videoUrl] = "https://www.youtube.com/watch?v=abc123"; it[favoritedAt] = 1L
         }
     }
 }
