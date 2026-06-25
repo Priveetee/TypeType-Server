@@ -62,6 +62,8 @@ class YoutubeTakeoutParserServiceTest {
         assertEquals(1, parsed.subscriptions.size)
         assertEquals(1, parsed.playlists.size)
         assertEquals(1, parsed.playlistItems["a"]?.size)
+        assertEquals("YouTube video abc123", parsed.playlistItems["a"]?.first()?.title)
+        assertEquals("https://i.ytimg.com/vi/abc123/hqdefault.jpg", parsed.playlistItems["a"]?.first()?.thumbnail)
         assertEquals(1, parsed.watchLater.size)
         Files.deleteIfExists(zip)
     }
