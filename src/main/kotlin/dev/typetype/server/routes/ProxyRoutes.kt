@@ -28,8 +28,9 @@ fun Route.proxyRoutes(proxyService: ProxyService) {
                     val contentType = ContentType.parse(proxy.contentType)
                     proxy.contentRange?.let { call.response.headers.append("Content-Range", it) }
                     proxy.acceptRanges?.let { call.response.headers.append("Accept-Ranges", it) }
+                    proxy.cacheControl?.let { call.response.headers.append("Cache-Control", it, safeOnly = false) }
                     call.respondOutputStream(contentType, status, proxy.contentLength) {
-                        withContext(Dispatchers.IO) { proxy.stream.copyTo(this@respondOutputStream) }
+                        withContext(Dispatchers.IO) { proxy.stream.copyTo(this@respondOutputStream, PROXY_COPY_BUFFER_SIZE) }
                     }
                 } finally {
                     proxy.close()
@@ -42,3 +43,5 @@ fun Route.proxyRoutes(proxyService: ProxyService) {
         }
     }
 }
+
+private const val PROXY_COPY_BUFFER_SIZE = 64 * 1024

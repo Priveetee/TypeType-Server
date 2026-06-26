@@ -1,13 +1,16 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
 
 internal fun isManifestUrl(url: String): Boolean {
     if (!url.startsWith("http")) return false
@@ -38,7 +41,10 @@ private fun toHlsProxyUrl(url: String): String {
 class HlsManifestService(
     private val streamService: StreamService,
     private val httpClient: OkHttpClient,
+    cache: CacheService? = null,
 ) {
+    private val manifestCache = cache?.let(::HlsManifestCache)
+    private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<String>>>()
 
     suspend fun hlsManifest(url: String): ExtractionResult<String> {
         val manifestUrl = if (isManifestUrl(url)) {
@@ -50,7 +56,7 @@ class HlsManifestService(
                 is ExtractionResult.Failure -> return resolved
             }
         }
-        return fetchAndRewrite(manifestUrl)
+        return cachedOrFetch(manifestUrl)
     }
 
     suspend fun hlsManifestFromStreamInfo(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
@@ -59,7 +65,30 @@ class HlsManifestService(
             is ExtractionResult.BadRequest -> return resolved
             is ExtractionResult.Failure -> return resolved
         }
-        return fetchAndRewrite(manifestUrl)
+        return cachedOrFetch(manifestUrl)
+    }
+
+    private suspend fun cachedOrFetch(manifestUrl: String): ExtractionResult<String> {
+        manifestCache?.get(manifestUrl)?.let { return ExtractionResult.Success(it) }
+        val pending = CompletableDeferred<ExtractionResult<String>>()
+        val existing = inFlight.putIfAbsent(manifestUrl, pending)
+        if (existing != null) return existing.await()
+        return try {
+            manifestCache?.get(manifestUrl)?.let {
+                val result = ExtractionResult.Success(it)
+                pending.complete(result)
+                return result
+            }
+            val result = fetchAndRewrite(manifestUrl)
+            if (result is ExtractionResult.Success) manifestCache?.set(manifestUrl, result.data)
+            pending.complete(result)
+            result
+        } catch (error: Throwable) {
+            pending.completeExceptionally(error)
+            throw error
+        } finally {
+            inFlight.remove(manifestUrl, pending)
+        }
     }
 
     private suspend fun resolveHlsUrl(videoUrl: String): ExtractionResult<String> {

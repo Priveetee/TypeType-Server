@@ -10,4 +10,5 @@ class ProxyResponse(
     val acceptRanges: String?,
     val stream: InputStream,
     val close: () -> Unit,
+    val cacheControl: String? = null,
 )

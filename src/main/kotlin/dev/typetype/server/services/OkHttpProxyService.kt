@@ -57,6 +57,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                         val contentType = response.header("Content-Type") ?: "application/octet-stream"
                         val contentRange = response.header("Content-Range")
                         val acceptRanges = response.header("Accept-Ranges")
+                        val cacheControl = response.header("Cache-Control")
                         val contentLength = response.header("Content-Length")?.toLongOrNull()
                         if (isHls(contentType)) {
                             val rewritten = if (isNicoNico(stripTrackingParams(fetchUrl))) {
@@ -71,6 +72,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                                 contentLength = null,
                                 contentRange = null,
                                 acceptRanges = null,
+                                cacheControl = cacheControl,
                                 stream = ByteArrayInputStream(rewritten.toByteArray(StandardCharsets.UTF_8)),
                                 close = {},
                             ))
@@ -81,6 +83,7 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                                 contentLength = contentLength,
                                 contentRange = contentRange,
                                 acceptRanges = acceptRanges,
+                                cacheControl = cacheControl,
                                 stream = body.byteStream(),
                                 close = response::close,
                             ))

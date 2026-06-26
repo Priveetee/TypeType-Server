@@ -41,6 +41,8 @@ import dev.typetype.server.services.YoutubeSessionCrypto
 import dev.typetype.server.services.YoutubeSessionHlsManifestService
 import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStreamService
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -53,6 +55,8 @@ internal class ExtractionServiceRegistry(
         ?.takeIf { it.length >= MIN_YOUTUBE_SESSION_SECRET_LENGTH }
     val httpClient = OkHttpClient()
     val proxyHttpClient: OkHttpClient = httpClient.newBuilder()
+        .dispatcher(proxyDispatcher())
+        .connectionPool(ConnectionPool(64, 5, TimeUnit.MINUTES))
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -85,7 +89,7 @@ internal class ExtractionServiceRegistry(
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
-    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient)
+    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient, cache)
     val youtubeSessionHlsManifestService = hlsTokenService?.let { tokenService ->
         youtubeSessionStreamService?.let {
             YoutubeSessionHlsManifestService(youtubeSessionService, it, hlsManifestService, tokenService)
@@ -95,5 +99,10 @@ internal class ExtractionServiceRegistry(
 
     private companion object {
         const val MIN_YOUTUBE_SESSION_SECRET_LENGTH = 32
+
+        fun proxyDispatcher(): Dispatcher = Dispatcher().apply {
+            maxRequests = 256
+            maxRequestsPerHost = 64
+        }
     }
 }
