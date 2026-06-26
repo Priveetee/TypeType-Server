@@ -14,10 +14,11 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 class SubscriptionsService {
 
     suspend fun getAll(userId: String): List<SubscriptionItem> = DatabaseFactory.query {
-        SubscriptionsTable.selectAll()
+        val items = SubscriptionsTable.selectAll()
             .where { SubscriptionsTable.userId eq userId }
             .orderBy(SubscriptionsTable.subscribedAt to SortOrder.DESC)
             .map { it.toItem() }
+        SubscriptionAvatarRepairer.repair(userId = userId, items = items)
     }
 
     suspend fun add(userId: String, item: SubscriptionItem): SubscriptionItem {
