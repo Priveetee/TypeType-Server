@@ -5,6 +5,7 @@ import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.services.SubscriptionAvatarRepairer
 import dev.typetype.server.services.SubscriptionsService
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -59,6 +60,18 @@ class SubscriptionsAvatarRepairServiceTest {
 
         assertEquals(25, first.count { it.avatarUrl.isNotBlank() })
         assertEquals(26, second.count { it.avatarUrl.isNotBlank() })
+    }
+
+    @Test
+    fun `avatar repair scans past unrepairable empty subscriptions`() = runTest {
+        addWatchLater(channelUrl = WATCH_CHANNEL_URL, avatarUrl = WATCH_AVATAR_URL)
+        val items = (0 until 25).map { index ->
+            SubscriptionItem(channelUrl = "https://www.youtube.com/channel/UCEmpty$index", name = "Channel", avatarUrl = "")
+        } + SubscriptionItem(channelUrl = WATCH_CHANNEL_URL, name = "Channel", avatarUrl = "")
+
+        val repaired = DatabaseFactory.query { SubscriptionAvatarRepairer.repair(userId = TEST_USER_ID, items = items) }
+
+        assertEquals(WATCH_AVATAR_URL, repaired.last().avatarUrl)
     }
 
     private suspend fun addSubscription(channelUrl: String): Unit {

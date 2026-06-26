@@ -19,11 +19,13 @@ import org.jetbrains.exposed.v1.jdbc.update
 object SubscriptionAvatarRepairer {
     fun repair(userId: String, items: List<SubscriptionItem>): List<SubscriptionItem> {
         val candidateUrls = items.filter { it.avatarUrl.isBlank() }
-            .take(MAX_AVATAR_REPAIR_PER_REQUEST)
             .map { it.channelUrl }
             .distinct()
         if (candidateUrls.isEmpty()) return items
         val avatars = knownAvatars(userId = userId, channelUrls = candidateUrls)
+            .entries
+            .take(MAX_AVATAR_REPAIR_PER_REQUEST)
+            .associate { it.toPair() }
         if (avatars.isEmpty()) return items
         avatars.forEach { (channelUrl, avatarUrl) -> updateAvatar(userId, channelUrl, avatarUrl) }
         return items.map { item -> avatars[item.channelUrl]?.let { item.copy(avatarUrl = it) } ?: item }
