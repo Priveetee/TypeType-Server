@@ -6,6 +6,9 @@ import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.like
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 
@@ -30,31 +33,48 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
 
     private suspend fun playlistCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         PlaylistVideosTable.selectAll()
-            .where { PlaylistVideosTable.userId eq userId }
-            .filter { shouldRepair(it[PlaylistVideosTable.title], it[PlaylistVideosTable.thumbnail], it[PlaylistVideosTable.duration], it[PlaylistVideosTable.channelName], it[PlaylistVideosTable.channelUrl]) }
+            .where { (PlaylistVideosTable.userId eq userId) and playlistNeedsRepair() }
+            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[PlaylistVideosTable.url] }
             .distinct()
     }
 
     private suspend fun watchLaterCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         WatchLaterTable.selectAll()
-            .where { WatchLaterTable.userId eq userId }
-            .filter { shouldRepair(it[WatchLaterTable.title], it[WatchLaterTable.thumbnail], it[WatchLaterTable.duration], it[WatchLaterTable.channelName], it[WatchLaterTable.channelUrl]) }
+            .where { (WatchLaterTable.userId eq userId) and watchLaterNeedsRepair() }
+            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[WatchLaterTable.url] }
             .distinct()
     }
 
     private suspend fun favoriteCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         FavoritesTable.selectAll()
-            .where { FavoritesTable.userId eq userId }
-            .filter { shouldRepair(it[FavoritesTable.title], it[FavoritesTable.thumbnail], it[FavoritesTable.duration], it[FavoritesTable.channelName], it[FavoritesTable.channelUrl]) }
+            .where { (FavoritesTable.userId eq userId) and favoriteNeedsRepair() }
+            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[FavoritesTable.videoUrl] }
             .distinct()
     }
 
-    private fun shouldRepair(title: String, thumbnail: String, duration: Long, channelName: String, channelUrl: String): Boolean =
-        title.startsWith(FALLBACK_TITLE_PREFIX) || thumbnail.startsWith(YOUTUBE_THUMB_PREFIX) ||
-            duration <= 0L || channelName.isBlank() || channelUrl.isBlank()
+    private fun playlistNeedsRepair() =
+        (PlaylistVideosTable.title like FALLBACK_TITLE_PATTERN) or
+            (PlaylistVideosTable.thumbnail like YOUTUBE_THUMB_PATTERN) or
+            (PlaylistVideosTable.duration lessEq 0L) or
+            (PlaylistVideosTable.channelName eq "") or
+            (PlaylistVideosTable.channelUrl eq "")
+
+    private fun watchLaterNeedsRepair() =
+        (WatchLaterTable.title like FALLBACK_TITLE_PATTERN) or
+            (WatchLaterTable.thumbnail like YOUTUBE_THUMB_PATTERN) or
+            (WatchLaterTable.duration lessEq 0L) or
+            (WatchLaterTable.channelName eq "") or
+            (WatchLaterTable.channelUrl eq "")
+
+    private fun favoriteNeedsRepair() =
+        (FavoritesTable.title like FALLBACK_TITLE_PATTERN) or
+            (FavoritesTable.thumbnail like YOUTUBE_THUMB_PATTERN) or
+            (FavoritesTable.duration lessEq 0L) or
+            (FavoritesTable.channelName eq "") or
+            (FavoritesTable.channelUrl eq "")
 
     private fun updatePlaylistVideos(userId: String, item: VideoMetadataItem): Int = PlaylistVideosTable.update({
         (PlaylistVideosTable.userId eq userId) and (PlaylistVideosTable.url eq item.url)
@@ -81,8 +101,8 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     }
 
     private companion object {
-        const val FALLBACK_TITLE_PREFIX = "YouTube video "
-        const val YOUTUBE_THUMB_PREFIX = "https://i.ytimg.com/vi/"
+        const val FALLBACK_TITLE_PATTERN = "YouTube video %"
+        const val YOUTUBE_THUMB_PATTERN = "https://i.ytimg.com/vi/%"
         const val MAX_REPAIR_PER_REQUEST = 25
     }
 }
