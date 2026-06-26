@@ -25,6 +25,10 @@ internal suspend fun ApplicationCall.accessProfileOrRespond(
         val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
         return AccessRouteProfile(userId = null, profile = profile)
     }
+    if (userId.startsWith("guest:")) {
+        val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
+        return AccessRouteProfile(userId = userId, profile = profile)
+    }
     val profile = accessControlService?.profileFor(userId, authService?.getUserRole(userId))
         ?: AccessControlProfile.unrestricted
     return AccessRouteProfile(userId = userId, profile = profile)

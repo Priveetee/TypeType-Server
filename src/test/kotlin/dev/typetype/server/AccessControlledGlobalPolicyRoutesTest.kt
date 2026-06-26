@@ -13,7 +13,9 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PublicPlaylistService
 import dev.typetype.server.services.SettingsService
 import io.ktor.client.request.get
+import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -54,6 +56,23 @@ class AccessControlledGlobalPolicyRoutesTest {
         )
         application { install(ContentNegotiation) { json() }; routing { publicPlaylistRoutes(playlist, auth, access) } }
         val body = client.get("/playlist?url=https://youtube.com/playlist?list=x").bodyAsText()
+        assertTrue(body.contains("\"title\":\"Allowed\""))
+        assertFalse(body.contains("\"title\":\"Blocked\""))
+    }
+
+    @Test
+    fun `global allow list filters guest token routes to global allowed channels`() = testApplication {
+        val guestAuth = AuthService("guest-global-policy-test")
+        val guestToken = guestAuth.guestLogin()
+        adminSettings.upsert(AdminSettingsItem(accessMode = "allow_list", allowGuest = true))
+        allowed.addChannel(TEST_USER_ID, "https://youtube.com/@allowed", "Allowed", global = true)
+        coEvery { playlist.getPlaylist(any(), any()) } returns ExtractionResult.Success(
+            PublicPlaylistResponse(publicPlaylist(), listOf(video("Allowed", "https://youtube.com/@allowed"), video("Blocked", "https://youtube.com/@blocked")), null)
+        )
+        application { install(ContentNegotiation) { json() }; routing { publicPlaylistRoutes(playlist, guestAuth, access) } }
+        val body = client.get("/playlist?url=https://youtube.com/playlist?list=x") {
+            headers.append(HttpHeaders.Authorization, "Bearer $guestToken")
+        }.bodyAsText()
         assertTrue(body.contains("\"title\":\"Allowed\""))
         assertFalse(body.contains("\"title\":\"Blocked\""))
     }
