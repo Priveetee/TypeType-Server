@@ -19,7 +19,7 @@ class ManifestService(private val streamService: StreamService) {
     }
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
-        streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
+        streams.filter(::isDashManifestVideoStream)
             .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: bwFromUrl(it.url) ?: 0) }))
     private fun compatibleAudioStreams(streams: List<AudioStreamItem>, preferredTrackId: String?): List<AudioStreamItem> =
         streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }

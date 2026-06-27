@@ -16,7 +16,7 @@ class ManifestServiceTest {
     private val service = ManifestService(streamService)
 
     @Test
-    fun `av01 streams are included in manifest`() = runBlocking {
+    fun `av01 streams are excluded from manifest`() = runBlocking {
         val av01 = testVideoStream(codec = "av01.0.05M.08")
         val avc = testVideoStream(codec = "avc1.42c01e")
         coEvery { streamService.getStreamInfo(any()) } returns
@@ -26,7 +26,7 @@ class ManifestServiceTest {
 
         assertTrue(result is ExtractionResult.Success)
         val xml = (result as ExtractionResult.Success).data
-        assertTrue(xml.contains("av01"))
+        assertTrue(!xml.contains("av01"))
         assertTrue(xml.contains("avc1"))
     }
 
@@ -57,7 +57,7 @@ class ManifestServiceTest {
     }
 
     @Test
-    fun `avc1 streams appear before vp9 streams`() = runBlocking {
+    fun `vp9 streams are excluded from manifest`() = runBlocking {
         val vp9 = testVideoStream(codec = "vp9", url = "https://example.com/vp9")
         val avc = testVideoStream(codec = "avc1.42c01e", url = "https://example.com/avc")
         coEvery { streamService.getStreamInfo(any()) } returns
@@ -66,7 +66,8 @@ class ManifestServiceTest {
         val result = service.dashManifest("https://youtube.com/watch?v=test")
 
         val xml = (result as ExtractionResult.Success).data
-        assertTrue(xml.indexOf("avc") < xml.indexOf("vp9"))
+        assertTrue(xml.contains("avc1"))
+        assertTrue(!xml.contains("vp9"))
     }
 
     @Test
