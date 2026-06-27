@@ -23,7 +23,7 @@ class FavoritesService {
     suspend fun add(userId: String, videoUrl: String): FavoriteItem = add(userId, FavoriteItem(videoUrl = videoUrl))
 
     suspend fun add(userId: String, item: FavoriteItem): FavoriteItem {
-        val now = System.currentTimeMillis()
+        val now = item.favoritedAt.takeIf { it > 0L } ?: System.currentTimeMillis()
         DatabaseFactory.query {
             FavoritesTable.insert {
                 it[FavoritesTable.userId] = userId

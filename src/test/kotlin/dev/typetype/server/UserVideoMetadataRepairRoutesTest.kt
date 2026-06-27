@@ -62,7 +62,7 @@ class UserVideoMetadataRepairRoutesTest {
             }
         }
 
-        val playlistBody = client.get("/playlists") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        val playlistBody = client.get("/playlists/${playlist.id}") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         val watchLaterBody = client.get("/watch-later") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         val favoritesBody = client.get("/favorites") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
 

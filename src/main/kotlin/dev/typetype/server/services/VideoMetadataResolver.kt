@@ -15,10 +15,10 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         return items.mapValues { (_, videos) -> videos.map { video -> metadata[video.url]?.toPlaylistVideo(video) ?: video } }
     }
 
-    suspend fun enrichFavorites(urls: List<String>): List<FavoriteItem> {
-        val distinct = urls.distinct()
-        val metadata = resolve(distinct)
-        return distinct.map { url -> metadata[url]?.toFavorite(url) ?: FavoriteItem(videoUrl = url, title = YoutubeTypeTypeMapper.titleForUrl(url)) }
+    suspend fun enrichFavorites(items: List<FavoriteItem>): List<FavoriteItem> {
+        val distinct = items.distinctBy { it.videoUrl }
+        val metadata = resolve(distinct.map { it.videoUrl })
+        return distinct.map { item -> metadata[item.videoUrl]?.toFavorite(item) ?: item.withYoutubeFallbackTitle() }
     }
 
     suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> {
@@ -48,8 +48,9 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         publishedAt = publishedAt.takeIf { it > 0L } ?: video.publishedAt,
     )
 
-    private fun VideoMetadataItem.toFavorite(url: String): FavoriteItem = FavoriteItem(
-        videoUrl = url,
+    private fun VideoMetadataItem.toFavorite(item: FavoriteItem): FavoriteItem = FavoriteItem(
+        videoUrl = item.videoUrl,
+        favoritedAt = item.favoritedAt,
         title = title,
         thumbnail = thumbnail,
         duration = duration,

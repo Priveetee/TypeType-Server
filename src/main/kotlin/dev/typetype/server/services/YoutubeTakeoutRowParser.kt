@@ -48,7 +48,17 @@ object YoutubeTakeoutRowParser {
         val thumbnail = values.pickExact("thumbnail") ?: ""
         val duration = values.pickExact("duration")?.toLongOrNull() ?: 0L
         val position = values.pickExact("position")?.toIntOrNull() ?: 0
-        return playlistKey to PlaylistVideoItem(url = videoUrl, title = title, thumbnail = thumbnail, duration = duration, position = position)
+        val addedAt = values.pickHeader(YoutubeTakeoutSchemaHints::isPlaylistItemAddedAtHeader)
+            ?.let { YoutubeTakeoutDateParser.parseEpochMillis(it) }
+            ?: 0L
+        return playlistKey to PlaylistVideoItem(
+            url = videoUrl,
+            title = title,
+            thumbnail = thumbnail,
+            duration = duration,
+            position = position,
+            addedAt = addedAt,
+        )
     }
 
     private fun Map<String, String>.pickExact(vararg keys: String): String? {

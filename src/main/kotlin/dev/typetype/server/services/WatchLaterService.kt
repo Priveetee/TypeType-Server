@@ -21,7 +21,7 @@ class WatchLaterService {
     }
 
     suspend fun add(userId: String, item: WatchLaterItem): WatchLaterItem {
-        val now = System.currentTimeMillis()
+        val now = item.addedAt.takeIf { it > 0L } ?: System.currentTimeMillis()
         DatabaseFactory.query {
             WatchLaterTable.insert {
                 it[WatchLaterTable.userId] = userId
