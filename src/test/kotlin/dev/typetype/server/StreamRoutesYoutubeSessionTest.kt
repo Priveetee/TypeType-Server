@@ -35,7 +35,7 @@ class StreamRoutesYoutubeSessionTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
-        coVerify(exactly = 1) { streamService.getStreamInfo(any()) }
+        coVerify(exactly = 0) { streamService.getStreamInfo(any()) }
     }
 
     @Test
@@ -63,6 +63,7 @@ class StreamRoutesYoutubeSessionTest {
         })
         assertTrue(body.contains("\"videoOnlyStreams\":["))
         assertTrue(body.contains("\"audioStreams\":["))
+        coVerify(exactly = 1) { streamService.getStreamInfo(any()) }
     }
 
     @Test

@@ -31,17 +31,16 @@ fun Route.streamRoutes(
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
 
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
-        val publicResult = streamService.getStreamInfo(url)
         val userId = access.userId
         val sessionResult = if (
             userId != null &&
-            youtubeSessionStreamInfo != null &&
-            publicResult.shouldTryYoutubeSession()
+            youtubeSessionStreamInfo != null
         ) {
             youtubeSessionStreamInfo(userId, url)
         } else {
             null
         }
+        val publicResult = if (sessionResult.hasPlayableStreams()) null else streamService.getStreamInfo(url)
         val usedYoutubeSession = sessionResult != null
         val accessProfile = access.profile
         when (val result = publicResult.resolveWith(sessionResult)) {
@@ -66,30 +65,30 @@ fun Route.streamRoutes(
     }
 }
 
-private fun ExtractionResult<StreamResponse>.shouldTryYoutubeSession(): Boolean = when (this) {
-    is ExtractionResult.Success -> data.hlsUrl.isBlank()
-    is ExtractionResult.BadRequest -> true
-    is ExtractionResult.Failure -> true
-}
-
-private fun ExtractionResult<StreamResponse>.resolveWith(
+private fun ExtractionResult<StreamResponse>?.resolveWith(
     sessionResult: ExtractionResult<StreamResponse>?,
 ): ExtractionResult<StreamResponse> {
+    if (this == null && sessionResult != null) return sessionResult
+    if (this == null) return ExtractionResult.Failure("Stream extraction failed")
     if (sessionResult == null) return this
     if (this is ExtractionResult.Success && sessionResult is ExtractionResult.Success) {
-        return ExtractionResult.Success(data.mergeWithSession(sessionResult.data))
+        return ExtractionResult.Success(sessionResult.data.mergeWithPublic(data))
     }
     if (this is ExtractionResult.Success) return this
     return sessionResult
 }
 
-private fun StreamResponse.mergeWithSession(session: StreamResponse): StreamResponse {
-    val base = if (session.playableStreamCount() > playableStreamCount()) session else this
-    return base.copy(
-        hlsUrl = base.hlsUrl.ifBlank { session.hlsUrl.ifBlank { hlsUrl } },
-        dashMpdUrl = base.dashMpdUrl.ifBlank { session.dashMpdUrl.ifBlank { dashMpdUrl } },
+private fun StreamResponse.mergeWithPublic(public: StreamResponse): StreamResponse =
+    copy(
+        hlsUrl = hlsUrl.ifBlank { public.hlsUrl },
+        dashMpdUrl = dashMpdUrl.ifBlank { public.dashMpdUrl },
+        videoStreams = videoStreams.ifEmpty { public.videoStreams },
+        videoOnlyStreams = videoOnlyStreams.ifEmpty { public.videoOnlyStreams },
+        audioStreams = audioStreams.ifEmpty { public.audioStreams },
     )
-}
+
+private fun ExtractionResult<StreamResponse>?.hasPlayableStreams(): Boolean =
+    this is ExtractionResult.Success && data.playableStreamCount() > 0
 
 private fun StreamResponse.playableStreamCount(): Int =
     videoStreams.size + videoOnlyStreams.size + audioStreams.size
