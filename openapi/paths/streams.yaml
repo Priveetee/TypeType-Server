@@ -21,3 +21,77 @@ Streams:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+AudioOnly:
+  get:
+    tags: [extraction]
+    summary: Resolve a progressive audio-only media source
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: preferOriginal
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+      - name: preferredLocale
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Backend-owned progressive audio-only source.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/AudioOnlyStreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+AudioOnlySource:
+  get:
+    tags: [extraction]
+    summary: Stream a signed audio-only media source
+    parameters:
+      - name: token
+        in: query
+        required: true
+        schema: { type: string }
+      - name: Range
+        in: header
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Audio media response.
+        content:
+          audio/mp4:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+      '206':
+        description: Partial audio media response.
+        headers:
+          Content-Range:
+            schema: { type: string }
+          Accept-Ranges:
+            schema: { type: string }
+        content:
+          audio/mp4:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError

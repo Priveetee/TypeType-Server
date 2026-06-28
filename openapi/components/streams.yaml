@@ -38,6 +38,16 @@ AudioStreamItem:
     audioTrackName: { type: string, nullable: true }
     audioLocale: { type: string, nullable: true }
     isOriginal: { type: boolean }
+AudioOnlyStreamResponse:
+  type: object
+  required: [src, mimeType]
+  properties:
+    src: { type: string }
+    mimeType: { type: string }
+    codec: { type: string, nullable: true }
+    bitrate: { type: integer, nullable: true }
+    contentLength: { type: integer, format: int64, nullable: true }
+    duration: { type: integer, format: int64, nullable: true }
 StreamResponse:
   type: object
   required: [id, title, uploaderName, uploaderUrl, thumbnailUrl, description, duration, viewCount, uploadDate, uploaded, streamType, isLive, isPostLive, isLiveContent, hasLiveManifest, videoStreams, audioStreams, videoOnlyStreams, subtitles, relatedStreams]

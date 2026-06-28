@@ -19,6 +19,8 @@ paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
   /streams: { $ref: ./openapi/paths/streams.yaml#/Streams }
+  /streams/audio-only: { $ref: ./openapi/paths/streams.yaml#/AudioOnly }
+  /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
   /search: { $ref: ./openapi/paths/search.yaml#/Search }
   /search/filters: { $ref: ./openapi/paths/search.yaml#/SearchFilters }
   /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
@@ -82,6 +84,8 @@ components:
       $ref: ./openapi/components/instance.yaml#/InstanceResponse
     StreamResponse:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
+    AudioOnlyStreamResponse:
+      $ref: ./openapi/components/streams.yaml#/AudioOnlyStreamResponse
     SearchPageResponse:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
     SearchFilterOption:
