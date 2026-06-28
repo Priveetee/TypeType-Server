@@ -59,6 +59,33 @@ class AudioOnlySourceRoutesTest {
     }
 
     @Test
+    fun `GET audio-only source without Range requests initial partial media`() = testApplication {
+        val selected = testAudioStream(url = "https://example.googlevideo.com/audio-en", audioLocale = "en")
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(selected))
+        )
+        coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
+            ProxyResponse(
+                status = 206,
+                contentType = "audio/mp4",
+                contentLength = 4,
+                contentRange = "bytes 0-3/5000000",
+                acceptRanges = "bytes",
+                stream = ByteArrayInputStream(byteArrayOf(5, 6, 7, 8)),
+                close = {},
+            )
+        )
+        installSourceApp()
+        val token = tokenService.createToken(null, "https://youtube.com/watch?v=test", false, "en")
+
+        val response = client.get("/streams/audio-only/source?token=$token")
+
+        assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertEquals("bytes 0-3/5000000", response.headers[HttpHeaders.ContentRange])
+        coVerify { proxyService.pipe("https://example.googlevideo.com/audio-en", "bytes=0-1048575", null) }
+    }
+
+    @Test
     fun `GET audio-only source rejects invalid token`() = testApplication {
         installSourceApp()
 
