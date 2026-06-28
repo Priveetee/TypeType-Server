@@ -67,7 +67,7 @@ fun Route.audioOnlySourceRoutes(
         val resolver = AudioOnlyStreamResolver(streamService, youtubeSessionStreamInfo)
         when (val result = resolver.resolve(token.videoUrl, token.userId, token.preferOriginal, token.preferredLocale)) {
             is ExtractionResult.Success -> call.respondProxyResult(
-                proxyService.pipe(result.data.stream.url, call.request.headers[HttpHeaders.Range], null)
+                proxyService.pipe(result.data.stream.url, audioOnlyRangeHeader(call.request.headers[HttpHeaders.Range]), null)
             )
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
@@ -95,4 +95,9 @@ private fun AudioOnlyStreamSelection.toResponse(
 
 private fun String?.toBooleanParam(): Boolean = equals("true", ignoreCase = true)
 
+private fun audioOnlyRangeHeader(rangeHeader: String?): String =
+    rangeHeader ?: "bytes=0-${INITIAL_AUDIO_ONLY_BYTES - 1}"
+
 private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+
+private const val INITIAL_AUDIO_ONLY_BYTES = 1024 * 1024
