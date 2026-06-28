@@ -6,6 +6,7 @@ import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
 import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
@@ -32,6 +33,7 @@ internal class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
+    jwtSecret: String,
     adminSettingsService: AdminSettingsService,
 ) {
     init {
@@ -55,6 +57,7 @@ internal class ServiceRegistry(
     val nativeManifestService = extraction.nativeManifestService
     val hlsManifestService = extraction.hlsManifestService
     val youtubeSessionHlsManifestService = extraction.youtubeSessionHlsManifestService
+    val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()

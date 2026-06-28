@@ -4,6 +4,8 @@ import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.adminSessionRoutes
+import dev.typetype.server.routes.audioOnlyContractRoutes
+import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
@@ -76,6 +78,16 @@ internal fun Application.installApplicationRoutes(
                 },
                 adminSettingsService = adminSettingsService,
             )
+            audioOnlyContractRoutes(
+                streamService = svc.streamService,
+                tokenService = svc.audioOnlyMediaTokenService,
+                authService = authService,
+                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
+                    { userId, url -> service.getStreamInfo(userId, url) }
+                },
+                accessControlService = svc.accessControlService,
+                adminSettingsService = adminSettingsService,
+            )
             manifestRoutes(
                 svc.manifestService,
                 svc.nativeManifestService,
@@ -99,6 +111,14 @@ internal fun Application.installApplicationRoutes(
         }
         rateLimit(PROXY_ZONE) {
             proxyRoutes(svc.proxyService)
+            audioOnlySourceRoutes(
+                streamService = svc.streamService,
+                proxyService = svc.proxyService,
+                tokenService = svc.audioOnlyMediaTokenService,
+                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
+                    { userId, url -> service.getStreamInfo(userId, url) }
+                },
+            )
             nicoVideoProxyRoutes(svc.nicoVideoProxyService)
         }
         rateLimit(PROXY_STORYBOARD_ZONE) { storyboardProxyRoutes(svc.proxyService) }
