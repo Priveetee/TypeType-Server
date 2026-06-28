@@ -15,6 +15,7 @@ import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.SavedPlaylistService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
@@ -40,7 +41,13 @@ internal class ServiceRegistry(
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
     }
 
-    private val extraction = ExtractionServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
+    val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
+    private val extraction = ExtractionServiceRegistry(
+        cache,
+        subtitleServiceUrl,
+        youtubeSessionEncryptionKey,
+        publicHlsManifestTokenService::createPath,
+    )
     val youtubeSessionService = extraction.youtubeSessionService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val streamService = extraction.streamService

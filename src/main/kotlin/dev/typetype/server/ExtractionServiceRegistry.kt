@@ -50,6 +50,7 @@ internal class ExtractionServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
+    hlsManifestUrlSigner: ((String) -> String)? = null,
 ) {
     private val youtubeSessionSecret = youtubeSessionEncryptionKey?.trim()
         ?.takeIf { it.length >= MIN_YOUTUBE_SESSION_SECRET_LENGTH }
@@ -89,7 +90,7 @@ internal class ExtractionServiceRegistry(
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
-    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient, cache)
+    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient, cache, hlsManifestUrlSigner)
     val youtubeSessionHlsManifestService = hlsTokenService?.let { tokenService ->
         youtubeSessionStreamService?.let {
             YoutubeSessionHlsManifestService(youtubeSessionService, it, hlsManifestService, tokenService)

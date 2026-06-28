@@ -77,6 +77,7 @@ internal fun Application.installApplicationRoutes(
                     { userId, url -> service.getStreamInfo(userId, url) }
                 },
                 adminSettingsService = adminSettingsService,
+                publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             )
             audioOnlyContractRoutes(
                 streamService = svc.streamService,
@@ -95,6 +96,7 @@ internal fun Application.installApplicationRoutes(
                 svc.youtubeSessionHlsManifestService,
                 authService,
                 adminSettingsService,
+                svc.publicHlsManifestTokenService,
             )
         }
         rateLimit(EXTRACTION_ZONE) {

@@ -6,6 +6,7 @@ import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YOUTUBE_SESSION_RECONNECT_ERROR
@@ -25,6 +26,7 @@ fun Route.streamRoutes(
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
+    publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
 ): Unit {
     get("/streams") {
         val url = call.request.queryParameters["url"]
@@ -48,7 +50,9 @@ fun Route.streamRoutes(
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
-                val data = result.data.filterAllowed(accessProfile)
+                val data = result.data
+                    .filterAllowed(accessProfile)
+                    .withSignedPublicHlsUrl(userId != null && !access.allowGuest, publicHlsManifestTokenService)
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
                     if (usedYoutubeSession || accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
@@ -92,6 +96,15 @@ private fun ExtractionResult<StreamResponse>?.hasPlayableStreams(): Boolean =
 
 private fun StreamResponse.playableStreamCount(): Int =
     videoStreams.size + videoOnlyStreams.size + audioStreams.size
+
+private fun StreamResponse.withSignedPublicHlsUrl(
+    shouldSign: Boolean,
+    tokenService: PublicHlsManifestTokenService?,
+): StreamResponse {
+    if (!shouldSign || tokenService == null || hlsUrl.isBlank()) return this
+    if (hlsUrl.startsWith("/streams/hls-manifest?token=")) return this
+    return copy(hlsUrl = tokenService.createPath(hlsUrl))
+}
 
 private fun ExtractionResult.BadRequest.toErrorResponse(): ErrorResponse =
     if (message == YOUTUBE_SESSION_RECONNECT_ERROR) {

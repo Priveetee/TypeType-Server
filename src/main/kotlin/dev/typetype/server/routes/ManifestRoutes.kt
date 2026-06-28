@@ -7,6 +7,7 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.CachedManifestService
 import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.HlsManifestService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.YoutubeSessionHlsManifestService
 import dev.typetype.server.services.isManifestUrl
@@ -26,6 +27,7 @@ fun Route.manifestRoutes(
     youtubeSessionHlsManifestService: YoutubeSessionHlsManifestService? = null,
     authService: AuthService? = null,
     adminSettingsService: AdminSettingsService? = null,
+    publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
 ) {
     get("/streams/manifest") {
         if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
@@ -60,6 +62,11 @@ fun Route.manifestRoutes(
     get("/streams/hls-manifest") {
         val token = call.request.queryParameters["token"]
         if (token != null) {
+            val publicResult = publicHlsManifestTokenService?.resolvePublicHlsManifest(token, hlsManifestService)
+            if (publicResult != null) {
+                call.respondHlsResult(publicResult, noStore = true)
+                return@get
+            }
             if (youtubeSessionHlsManifestService == null) {
                 call.respondYoutubeSessionUnavailable(noStore = true)
                 return@get
