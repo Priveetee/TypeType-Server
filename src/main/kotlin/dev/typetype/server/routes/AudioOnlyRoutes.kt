@@ -95,8 +95,14 @@ private fun AudioOnlyStreamSelection.toResponse(
 
 private fun String?.toBooleanParam(): Boolean = equals("true", ignoreCase = true)
 
-private fun audioOnlyRangeHeader(rangeHeader: String?): String =
-    rangeHeader ?: "bytes=0-${INITIAL_AUDIO_ONLY_BYTES - 1}"
+private fun audioOnlyRangeHeader(rangeHeader: String?): String {
+    val range = rangeHeader ?: return initialAudioRange(0)
+    val openStart = Regex("^bytes=(\\d+)-$").matchEntire(range.trim())?.groupValues?.get(1)?.toLongOrNull()
+    return if (openStart == null) range else initialAudioRange(openStart)
+}
+
+private fun initialAudioRange(start: Long): String =
+    "bytes=$start-${start + INITIAL_AUDIO_ONLY_BYTES - 1}"
 
 private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
