@@ -46,6 +46,7 @@ class ManifestHlsPublicTokenRoutesTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(body.contains("hls-manifest?token="))
+        assertEquals(2, Regex("hls-manifest\\?token=").findAll(body).count())
         assertTrue(body.contains("../proxy?url="))
         assertFalse(body.contains("hls-manifest?url="))
     }
@@ -79,8 +80,9 @@ class ManifestHlsPublicTokenRoutesTest {
     private companion object {
         const val MANIFEST_URL = "https://manifest.googlevideo.com/api/manifest/hls/test"
         const val CHILD_URL = "https://manifest.googlevideo.com/api/manifest/hls/child"
+        const val IFRAME_CHILD_URL = "https://manifest.googlevideo.com/api/manifest/hls/iframe-child"
         const val SEGMENT_URL = "https://rr1---sn.googlevideo.com/videoplayback?id=1"
-        val MANIFEST = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n$CHILD_URL\n$SEGMENT_URL"
+        val MANIFEST = "#EXTM3U\n#EXT-X-I-FRAME-STREAM-INF:URI=\"$IFRAME_CHILD_URL\"\n#EXT-X-STREAM-INF:BANDWIDTH=1\n$CHILD_URL\n$SEGMENT_URL"
     }
 }
 
