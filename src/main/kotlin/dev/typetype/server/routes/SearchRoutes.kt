@@ -5,8 +5,11 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.BlockedContentProfile
+import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.SearchService
 import dev.typetype.server.services.VALID_SERVICE_IDS
+import dev.typetype.server.services.filterBlocked
 import dev.typetype.server.services.filterAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -18,6 +21,7 @@ fun Route.searchRoutes(
     authService: AuthService? = null,
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
+    blockedService: BlockedService? = null,
 ) {
     get("/search/filters") {
         if (!call.requirePublicAccessOrRespond(authService, adminSettingsService)) return@get
@@ -42,9 +46,10 @@ fun Route.searchRoutes(
         val contentFilter = call.request.queryParameters["contentFilter"]
         val sortFilter = call.request.queryParameters["sortFilter"]
 
-        val profile = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)?.profile ?: return@get
+        val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
+        val blocked = access.userId?.let { blockedService?.profileFor(it) } ?: BlockedContentProfile.empty
         when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = nextpage, contentFilter = contentFilter, sortFilter = sortFilter)) {
-            is ExtractionResult.Success -> call.respond(result.data.filterAllowed(profile))
+            is ExtractionResult.Success -> call.respond(result.data.filterAllowed(access.profile).filterBlocked(blocked))
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
         }

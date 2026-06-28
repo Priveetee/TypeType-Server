@@ -28,7 +28,8 @@ fun Route.blockedRoutes(blockedService: BlockedService, authService: AuthService
     }
     delete("/blocked/channels/{channelUrl...}") {
         call.withJwtAuth(authService) { userId ->
-            val channelUrl = call.parameters.getAll("channelUrl")?.joinToString("/") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
+            val channelUrl = call.urlTailParameter("channelUrl")
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
             val role = authService.getUserRole(userId) ?: "user"
             val deleted = blockedService.deleteChannel(userId, channelUrl, role)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))

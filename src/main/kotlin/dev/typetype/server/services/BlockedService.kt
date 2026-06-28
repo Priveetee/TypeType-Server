@@ -16,6 +16,11 @@ private const val SCOPE_USER = "user"
 private const val SCOPE_GLOBAL = "global"
 
 class BlockedService {
+    suspend fun profileFor(userId: String): BlockedContentProfile = BlockedContentProfile(
+        videos = getVideos(userId),
+        channels = getChannels(userId),
+    )
+
     suspend fun getChannels(userId: String): List<BlockedItem> = DatabaseFactory.query {
         BlockedChannelsTable.selectAll()
             .where { (BlockedChannelsTable.userId eq userId) or (BlockedChannelsTable.scope eq SCOPE_GLOBAL) }

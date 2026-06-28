@@ -86,7 +86,7 @@ internal fun Application.installApplicationRoutes(
             )
         }
         rateLimit(EXTRACTION_ZONE) {
-            searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService)
+            searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
             trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)
             publicPlaylistRoutes(svc.publicPlaylistService, authService, svc.accessControlService, adminSettingsService)
