@@ -40,6 +40,7 @@ class ManifestServiceTest {
 
         val xml = (result as ExtractionResult.Success).data
         assertTrue(xml.contains("SegmentBase"))
+        assertTrue(xml.contains("<Representation id=\"v-137\""))
         assertTrue(xml.contains("indexRange=\"221-893\""))
     }
 

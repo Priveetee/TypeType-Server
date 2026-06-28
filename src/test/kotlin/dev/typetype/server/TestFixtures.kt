@@ -17,6 +17,7 @@ fun testVideoStream(
     indexEnd: Long = 893,
     initStart: Long = 0,
     initEnd: Long = 220,
+    itag: Int = 137,
 ): VideoStreamItem = VideoStreamItem(
     url = url,
     mimeType = "video/mp4",
@@ -25,7 +26,7 @@ fun testVideoStream(
     bitrate = bitrate,
     codec = codec,
     isVideoOnly = true,
-    itag = 137,
+    itag = itag,
     width = width,
     height = height,
     fps = 30,
@@ -49,6 +50,7 @@ fun testAudioStream(
     audioTrackName: String? = null,
     audioLocale: String? = null,
     isOriginal: Boolean = false,
+    itag: Int = 140,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -56,7 +58,7 @@ fun testAudioStream(
     bitrate = bitrate,
     codec = codec,
     quality = "medium",
-    itag = 140,
+    itag = itag,
     contentLength = 5_000_000,
     initStart = initStart,
     initEnd = initEnd,

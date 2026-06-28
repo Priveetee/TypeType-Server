@@ -59,7 +59,7 @@ internal object NativeManifestBuilder {
         val width = s.getWidth().takeIf { it > 0 }
         val height = s.getHeight().takeIf { it > 0 }
         val sizeAttr = if (width != null && height != null) " width=\"$width\" height=\"$height\"" else ""
-        sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.getCodec() ?: ""}\">")
+        sb.appendLine("      <Representation id=\"${s.manifestRepresentationId(i)}\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.getCodec() ?: ""}\">")
         if (s.deliveryMethod == DeliveryMethod.DASH) {
             runCatching {
                 YoutubeOtfDashManifestCreator.fromOtfStreamingUrl(s.getContent() ?: "", itagItem, duration)
@@ -88,7 +88,7 @@ internal object NativeManifestBuilder {
     private fun appendAudioRepresentation(sb: StringBuilder, s: AudioStream, i: Int, duration: Long) {
         val itagItem = s.getItagItem() ?: return
         val bandwidth = ((s.averageBitrate.takeIf { it > 0 } ?: 128) * 1000).coerceAtLeast(1)
-        sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"$bandwidth\" codecs=\"${s.getCodec() ?: ""}\">")
+        sb.appendLine("      <Representation id=\"${s.manifestRepresentationId(i)}\" bandwidth=\"$bandwidth\" codecs=\"${s.getCodec() ?: ""}\">")
         runCatching {
             YoutubeProgressiveDashManifestCreator.fromProgressiveStreamingUrl(s.getContent() ?: "", itagItem, duration)
         }.onSuccess { manifest ->

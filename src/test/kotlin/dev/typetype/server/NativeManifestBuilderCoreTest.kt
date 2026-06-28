@@ -14,6 +14,7 @@ class NativeManifestBuilderCoreTest {
     fun `build includes progressive video representation with segment base`() {
         val video = mockk<VideoStream>()
         every { video.getCodec() } returns "avc1.640028"
+        every { video.getItag() } returns 137
         every { video.getItagItem() } returns mockk(relaxed = true)
         every { video.getBitrate() } returns 1200000
         every { video.getWidth() } returns 1920
@@ -29,7 +30,7 @@ class NativeManifestBuilderCoreTest {
 
         assertTrue(manifest.contains("mediaPresentationDuration=\"PT300S\""))
         assertTrue(manifest.contains("<AdaptationSet mimeType=\"video/mp4\""))
-        assertTrue(manifest.contains("<Representation id=\"v-0\""))
+        assertTrue(manifest.contains("<Representation id=\"v-137\""))
         assertTrue(manifest.contains("<BaseURL>../proxy?url="))
         assertTrue(manifest.contains("<SegmentBase indexRange=\"221-893\""))
         assertTrue(manifest.contains("<Initialization range=\"0-220\""))
@@ -39,6 +40,7 @@ class NativeManifestBuilderCoreTest {
     fun `build omits segment base when index range is missing`() {
         val video = mockk<VideoStream>()
         every { video.getCodec() } returns "vp09.00.51.08"
+        every { video.getItag() } returns 248
         every { video.getItagItem() } returns mockk(relaxed = true)
         every { video.getBitrate() } returns 800000
         every { video.getWidth() } returns 1280
@@ -53,7 +55,7 @@ class NativeManifestBuilderCoreTest {
         val manifest = NativeManifestBuilder.build(videos = listOf(video), audios = emptyList(), duration = 120, preferredAudioTrackId = null)
 
         assertTrue(manifest.contains("<AdaptationSet mimeType=\"video/webm\""))
-        assertTrue(manifest.contains("<Representation id=\"v-0\""))
+        assertTrue(manifest.contains("<Representation id=\"v-248\""))
         assertFalse(manifest.contains("<SegmentBase indexRange="))
     }
 }
