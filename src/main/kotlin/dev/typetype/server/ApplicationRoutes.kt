@@ -4,8 +4,6 @@ import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRoutes
 import dev.typetype.server.routes.adminSessionRoutes
-import dev.typetype.server.routes.audioOnlyContractRoutes
-import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
@@ -13,17 +11,12 @@ import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
-import dev.typetype.server.routes.manifestRoutes
-import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
-import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
-import dev.typetype.server.routes.storyboardProxyRoutes
-import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
@@ -68,37 +61,7 @@ internal fun Application.installApplicationRoutes(
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
-        rateLimit(STREAMS_ZONE) {
-            streamRoutes(
-                streamService = svc.streamService,
-                authService = authService,
-                accessControlService = svc.accessControlService,
-                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                    { userId, url -> service.getStreamInfo(userId, url) }
-                },
-                adminSettingsService = adminSettingsService,
-                publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
-            )
-            audioOnlyContractRoutes(
-                streamService = svc.streamService,
-                tokenService = svc.audioOnlyMediaTokenService,
-                authService = authService,
-                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                    { userId, url -> service.getStreamInfo(userId, url) }
-                },
-                accessControlService = svc.accessControlService,
-                adminSettingsService = adminSettingsService,
-            )
-            manifestRoutes(
-                svc.manifestService,
-                svc.nativeManifestService,
-                svc.hlsManifestService,
-                svc.youtubeSessionHlsManifestService,
-                authService,
-                adminSettingsService,
-                svc.publicHlsManifestTokenService,
-            )
-        }
+        installStreamRoutes(svc, authService, adminSettingsService)
         rateLimit(EXTRACTION_ZONE) {
             searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
@@ -111,19 +74,7 @@ internal fun Application.installApplicationRoutes(
             channelRoutes(svc.channelService, authService, svc.accessControlService, adminSettingsService)
             podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
-        rateLimit(PROXY_ZONE) {
-            proxyRoutes(svc.proxyService)
-            audioOnlySourceRoutes(
-                streamService = svc.streamService,
-                proxyService = svc.proxyService,
-                tokenService = svc.audioOnlyMediaTokenService,
-                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                    { userId, url -> service.getStreamInfo(userId, url) }
-                },
-            )
-            nicoVideoProxyRoutes(svc.nicoVideoProxyService)
-        }
-        rateLimit(PROXY_STORYBOARD_ZONE) { storyboardProxyRoutes(svc.proxyService) }
+        installProxyRoutes(svc)
         downloaderGatewayRoutes(downloaderGatewayService)
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)

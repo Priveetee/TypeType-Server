@@ -1,6 +1,5 @@
 package dev.typetype.server.routes
 
-import dev.typetype.server.models.AudioOnlyStreamResponse
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
@@ -9,8 +8,8 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenResult
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AudioOnlyStreamResolver
-import dev.typetype.server.services.AudioOnlyStreamSelection
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpHeaders
@@ -18,8 +17,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 fun Route.audioOnlyContractRoutes(
     streamService: StreamService,
@@ -28,6 +25,7 @@ fun Route.audioOnlyContractRoutes(
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
+    publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
 ) {
     get("/streams/audio-only") {
         val url = call.request.queryParameters["url"]
@@ -42,7 +40,18 @@ fun Route.audioOnlyContractRoutes(
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
                 call.response.headers.append(HttpHeaders.CacheControl, "no-store")
-                call.respond(result.data.toResponse(tokenService, access.userId, url, preferOriginal, preferredLocale))
+                when (val response = result.data.toResponse(
+                    tokenService,
+                    publicHlsManifestTokenService,
+                    access.userId,
+                    url,
+                    preferOriginal,
+                    preferredLocale,
+                )) {
+                    is ExtractionResult.Success -> call.respond(response.data)
+                    is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(response.message))
+                    is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(response.message))
+                }
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
@@ -65,7 +74,13 @@ fun Route.audioOnlySourceRoutes(
             AudioOnlyMediaTokenResult.Invalid -> return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid audio-only token"))
         }
         val resolver = AudioOnlyStreamResolver(streamService, youtubeSessionStreamInfo)
-        when (val result = resolver.resolve(token.videoUrl, token.userId, token.preferOriginal, token.preferredLocale)) {
+        when (val result = resolver.resolve(
+            token.videoUrl,
+            token.userId,
+            token.preferOriginal,
+            token.preferredLocale,
+            allowHls = false,
+        )) {
             is ExtractionResult.Success -> call.respondProxyResult(
                 proxyService.pipe(result.data.stream.url, call.request.headers.audioOnlyRangeHeader(), null)
                     .ensureProgressiveAudio()
@@ -75,25 +90,4 @@ fun Route.audioOnlySourceRoutes(
         }
     }
 }
-
-private fun AudioOnlyStreamSelection.toResponse(
-    tokenService: AudioOnlyMediaTokenService,
-    userId: String?,
-    url: String,
-    preferOriginal: Boolean,
-    preferredLocale: String?,
-): AudioOnlyStreamResponse {
-    val token = tokenService.createToken(userId, url, preferOriginal, preferredLocale)
-    return AudioOnlyStreamResponse(
-        src = "/streams/audio-only/source?token=${encode(token)}",
-        mimeType = stream.mimeType,
-        codec = stream.codec,
-        bitrate = stream.bitrate,
-        contentLength = stream.contentLength.takeIf { it > 0 },
-        duration = response.duration.takeIf { it > 0 },
-    )
-}
-
 private fun String?.toBooleanParam(): Boolean = equals("true", ignoreCase = true)
-
-private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)

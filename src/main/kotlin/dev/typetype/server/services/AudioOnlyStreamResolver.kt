@@ -12,6 +12,7 @@ class AudioOnlyStreamResolver(
         userId: String?,
         preferOriginal: Boolean,
         preferredLocale: String?,
+        allowHls: Boolean = true,
     ): ExtractionResult<AudioOnlyStreamSelection> {
         val sessionResult = if (userId != null && youtubeSessionStreamInfo != null) {
             youtubeSessionStreamInfo.invoke(userId, url)
@@ -20,7 +21,7 @@ class AudioOnlyStreamResolver(
         }
         val publicResult = if (sessionResult.hasAudioStreams()) null else streamService.getStreamInfo(url)
         return when (val result = publicResult.resolveWith(sessionResult)) {
-            is ExtractionResult.Success -> select(result.data, preferOriginal, preferredLocale)
+            is ExtractionResult.Success -> select(result.data, preferOriginal, preferredLocale, allowHls)
             is ExtractionResult.BadRequest -> result
             is ExtractionResult.Failure -> result
         }
@@ -30,10 +31,15 @@ class AudioOnlyStreamResolver(
         response: StreamResponse,
         preferOriginal: Boolean,
         preferredLocale: String?,
+        allowHls: Boolean,
     ): ExtractionResult<AudioOnlyStreamSelection> {
-        val stream = AudioOnlyStreamSelector.select(response, preferOriginal, preferredLocale)
+        val progressive = AudioOnlyStreamSelector.selectProgressive(response, preferOriginal, preferredLocale)
+        if (progressive != null) {
+            return ExtractionResult.Success(AudioOnlyStreamSelection(response, progressive, AudioOnlyStreamKind.Progressive))
+        }
+        val hls = (if (allowHls) AudioOnlyStreamSelector.selectHls(response, preferOriginal, preferredLocale) else null)
             ?: return ExtractionResult.Failure("No audio-only stream is available")
-        return ExtractionResult.Success(AudioOnlyStreamSelection(response, stream))
+        return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
     }
 
     private fun ExtractionResult<StreamResponse>?.resolveWith(
