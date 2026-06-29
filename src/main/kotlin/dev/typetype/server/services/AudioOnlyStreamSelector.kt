@@ -6,7 +6,7 @@ import dev.typetype.server.models.StreamResponse
 object AudioOnlyStreamSelector {
     fun select(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): AudioStreamItem? =
         response.audioStreams
-            .filter { it.url.isNotBlank() && browserSafeRank(it) != null }
+            .filter { it.url.isNotBlank() && !isManifestUrl(it.url) && browserSafeRank(it) != null }
             .minWithOrNull(compareBy<AudioStreamItem> { preferenceRank(it, preferOriginal, preferredLocale, response) }
                 .thenBy { browserSafeRank(it) ?: Int.MAX_VALUE }
                 .thenByDescending { it.bitrate ?: 0 })
