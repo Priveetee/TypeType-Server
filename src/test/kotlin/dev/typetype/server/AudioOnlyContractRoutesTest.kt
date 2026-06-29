@@ -45,8 +45,9 @@ class AudioOnlyContractRoutesTest {
     fun `GET audio-only returns signed backend source and selected metadata`() = testApplication {
         val english = testAudioStream(audioLocale = "en", bitrate = 128, itag = 140)
         val original = testAudioStream(audioLocale = "ja", audioTrackName = "Original", bitrate = 160, itag = 141)
+        val hls = testAudioStream(url = "https://manifest.googlevideo.com/api/manifest/hls/test", bitrate = 256)
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
-            testStreamResponse(audioStreams = listOf(english, original))
+            testStreamResponse(audioStreams = listOf(hls, english, original))
         )
         installContractApp()
 
@@ -56,6 +57,7 @@ class AudioOnlyContractRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(body.contains("\"src\":\"/streams/audio-only/source?token="))
         assertFalse(body.contains("googlevideo"))
+        assertTrue(body.contains("\"kind\":\"progressive\""))
         assertTrue(body.contains("\"mimeType\":\"audio/mp4\""))
         assertTrue(body.contains("\"bitrate\":160"))
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
