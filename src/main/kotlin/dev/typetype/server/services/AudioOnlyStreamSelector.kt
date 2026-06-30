@@ -4,16 +4,20 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 
 object AudioOnlyStreamSelector {
-    fun selectProgressive(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): AudioStreamItem? =
+    fun progressiveCandidates(
+        response: StreamResponse,
+        preferOriginal: Boolean,
+        preferredLocale: String?,
+    ): List<AudioStreamItem> =
         response.audioStreams
             .filter { it.url.isNotBlank() && !isManifestUrl(it.url) && browserSafeRank(it) != null }
-            .minWithOrNull(defaultComparator(response, preferOriginal, preferredLocale)
+            .sortedWith(defaultComparator(response, preferOriginal, preferredLocale)
                 .thenBy { browserSafeRank(it) ?: Int.MAX_VALUE })
 
-    fun selectHls(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): AudioStreamItem? =
+    fun hlsCandidates(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): List<AudioStreamItem> =
         response.audioStreams
             .filter { it.url.isNotBlank() && isManifestUrl(it.url) }
-            .minWithOrNull(defaultComparator(response, preferOriginal, preferredLocale))
+            .sortedWith(defaultComparator(response, preferOriginal, preferredLocale))
 
     private fun defaultComparator(
         response: StreamResponse,

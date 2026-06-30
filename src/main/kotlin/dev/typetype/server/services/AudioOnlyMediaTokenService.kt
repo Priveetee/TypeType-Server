@@ -12,7 +12,14 @@ class AudioOnlyMediaTokenService(
     private val key = MessageDigest.getInstance("SHA-256")
         .digest("typetype.audio-only.$secret".toByteArray(Charsets.UTF_8))
 
-    fun createToken(userId: String?, videoUrl: String, preferOriginal: Boolean, preferredLocale: String?): String {
+    fun createToken(
+        userId: String?,
+        videoUrl: String,
+        preferOriginal: Boolean,
+        preferredLocale: String?,
+        selectedItag: Int,
+        selectedAudioTrackId: String?,
+    ): String {
         val expiresAt = nowMillis() + TTL_SECONDS * 1000L
         val payload = listOf(
             VERSION,
@@ -20,6 +27,8 @@ class AudioOnlyMediaTokenService(
             encode(videoUrl),
             preferOriginal.toString(),
             encode(preferredLocale.orEmpty()),
+            selectedItag.toString(),
+            encode(selectedAudioTrackId.orEmpty()),
             expiresAt.toString(),
         ).joinToString(".")
         return "$payload.${signature(payload)}"
@@ -31,14 +40,16 @@ class AudioOnlyMediaTokenService(
         if (parts.size != PART_COUNT || parts[0] != VERSION) return AudioOnlyMediaTokenResult.Invalid
         val payload = parts.take(PART_COUNT - 1).joinToString(".")
         if (!sameSignature(parts.last(), signature(payload))) return AudioOnlyMediaTokenResult.Invalid
-        val expiresAt = parts[5].toLongOrNull() ?: return AudioOnlyMediaTokenResult.Invalid
+        val expiresAt = parts[7].toLongOrNull() ?: return AudioOnlyMediaTokenResult.Invalid
         if (expiresAt <= nowMillis()) return AudioOnlyMediaTokenResult.Expired
         val userId = decode(parts[1])?.ifBlank { null }
         val videoUrl = decode(parts[2]) ?: return AudioOnlyMediaTokenResult.Invalid
         val preferOriginal = parts[3].toBooleanStrictOrNull() ?: return AudioOnlyMediaTokenResult.Invalid
         val preferredLocale = decode(parts[4])?.ifBlank { null }
+        val selectedItag = parts[5].toIntOrNull() ?: return AudioOnlyMediaTokenResult.Invalid
+        val selectedAudioTrackId = decode(parts[6])?.ifBlank { null }
         return AudioOnlyMediaTokenResult.Valid(
-            AudioOnlyMediaToken(userId, videoUrl, preferOriginal, preferredLocale, expiresAt)
+            AudioOnlyMediaToken(userId, videoUrl, preferOriginal, preferredLocale, selectedItag, selectedAudioTrackId, expiresAt)
         )
     }
 
@@ -62,8 +73,8 @@ class AudioOnlyMediaTokenService(
 
     companion object {
         const val TTL_SECONDS = 900L
-        private const val VERSION = "v1"
-        private const val PART_COUNT = 7
+        private const val VERSION = "v2"
+        private const val PART_COUNT = 9
         private const val MAX_TOKEN_LENGTH = 4096
         private const val HMAC_ALGORITHM = "HmacSHA256"
         private val encoder = Base64.getUrlEncoder().withoutPadding()

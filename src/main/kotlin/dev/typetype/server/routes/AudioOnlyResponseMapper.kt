@@ -17,7 +17,7 @@ internal fun AudioOnlyStreamSelection.toResponse(
     preferOriginal: Boolean,
     preferredLocale: String?,
 ): ExtractionResult<AudioOnlyStreamResponse> {
-    val token = tokenService.createToken(userId, url, preferOriginal, preferredLocale)
+    val token = tokenService.createToken(userId, url, preferOriginal, preferredLocale, stream.itag, stream.audioTrackId)
     val src = when (kind) {
         AudioOnlyStreamKind.Progressive -> "/streams/audio-only/source?token=${encode(token)}"
         AudioOnlyStreamKind.Hls -> hlsTokenService?.createPath(stream.url)

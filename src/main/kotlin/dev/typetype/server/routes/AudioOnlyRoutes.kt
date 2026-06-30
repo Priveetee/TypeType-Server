@@ -26,6 +26,7 @@ fun Route.audioOnlyContractRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
+    proxyService: ProxyService? = null,
 ) {
     get("/streams/audio-only") {
         val url = call.request.queryParameters["url"]
@@ -34,7 +35,13 @@ fun Route.audioOnlyContractRoutes(
         val preferOriginal = call.request.queryParameters["preferOriginal"].toBooleanParam()
         val preferredLocale = call.request.queryParameters["preferredLocale"]?.takeIf { it.isNotBlank() }
         val resolver = AudioOnlyStreamResolver(streamService, youtubeSessionStreamInfo)
-        when (val result = resolver.resolve(url, access.userId, preferOriginal, preferredLocale)) {
+        when (val result = resolver.resolve(
+            url,
+            access.userId,
+            preferOriginal,
+            preferredLocale,
+            progressivePlayable = { stream -> proxyService?.isPlayableProgressiveAudio(stream) ?: true },
+        )) {
             is ExtractionResult.Success -> {
                 if (!access.profile.allowsUploader(result.data.response.uploaderUrl, result.data.response.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
@@ -80,6 +87,8 @@ fun Route.audioOnlySourceRoutes(
             token.preferOriginal,
             token.preferredLocale,
             allowHls = false,
+            selectedItag = token.selectedItag,
+            selectedAudioTrackId = token.selectedAudioTrackId,
         )) {
             is ExtractionResult.Success -> call.respondProxyResult(
                 proxyService.pipe(result.data.stream.url, call.request.headers.audioOnlyRangeHeader(), null)

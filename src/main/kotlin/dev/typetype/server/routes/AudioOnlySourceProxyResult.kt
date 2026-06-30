@@ -11,6 +11,8 @@ internal fun Headers.audioOnlyRangeHeader(): String {
     return if (openStart == null) range else initialAudioRange(openStart)
 }
 
+internal fun audioOnlyProbeRangeHeader(): String = initialAudioRange(0)
+
 internal fun ExtractionResult<ProxyResponse>.ensureProgressiveAudio(): ExtractionResult<ProxyResponse> =
     when (this) {
         is ExtractionResult.Success -> {

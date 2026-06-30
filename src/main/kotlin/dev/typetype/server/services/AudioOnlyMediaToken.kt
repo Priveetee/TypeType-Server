@@ -5,6 +5,8 @@ data class AudioOnlyMediaToken(
     val videoUrl: String,
     val preferOriginal: Boolean,
     val preferredLocale: String?,
+    val selectedItag: Int,
+    val selectedAudioTrackId: String?,
     val expiresAt: Long,
 )
 

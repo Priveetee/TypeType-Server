@@ -13,6 +13,9 @@ class AudioOnlyStreamResolver(
         preferOriginal: Boolean,
         preferredLocale: String?,
         allowHls: Boolean = true,
+        selectedItag: Int? = null,
+        selectedAudioTrackId: String? = null,
+        progressivePlayable: suspend (dev.typetype.server.models.AudioStreamItem) -> Boolean = { true },
     ): ExtractionResult<AudioOnlyStreamSelection> {
         val sessionResult = if (userId != null && youtubeSessionStreamInfo != null) {
             youtubeSessionStreamInfo.invoke(userId, url)
@@ -21,26 +24,48 @@ class AudioOnlyStreamResolver(
         }
         val publicResult = if (sessionResult.hasAudioStreams()) null else streamService.getStreamInfo(url)
         return when (val result = publicResult.resolveWith(sessionResult)) {
-            is ExtractionResult.Success -> select(result.data, preferOriginal, preferredLocale, allowHls)
+            is ExtractionResult.Success -> select(
+                result.data,
+                preferOriginal,
+                preferredLocale,
+                allowHls,
+                selectedItag,
+                selectedAudioTrackId,
+                progressivePlayable,
+            )
             is ExtractionResult.BadRequest -> result
             is ExtractionResult.Failure -> result
         }
     }
 
-    private fun select(
+    private suspend fun select(
         response: StreamResponse,
         preferOriginal: Boolean,
         preferredLocale: String?,
         allowHls: Boolean,
+        selectedItag: Int?,
+        selectedAudioTrackId: String?,
+        progressivePlayable: suspend (dev.typetype.server.models.AudioStreamItem) -> Boolean,
     ): ExtractionResult<AudioOnlyStreamSelection> {
-        val progressive = AudioOnlyStreamSelector.selectProgressive(response, preferOriginal, preferredLocale)
-        if (progressive != null) {
-            return ExtractionResult.Success(AudioOnlyStreamSelection(response, progressive, AudioOnlyStreamKind.Progressive))
+        val progressives = AudioOnlyStreamSelector.progressiveCandidates(response, preferOriginal, preferredLocale)
+            .filter { selectedItag == null || it.matchesSelected(selectedItag, selectedAudioTrackId) }
+        for (progressive in progressives) {
+            if (progressivePlayable(progressive)) {
+                return ExtractionResult.Success(AudioOnlyStreamSelection(response, progressive, AudioOnlyStreamKind.Progressive))
+            }
         }
-        val hls = (if (allowHls) AudioOnlyStreamSelector.selectHls(response, preferOriginal, preferredLocale) else null)
+        if (selectedItag != null) return ExtractionResult.Failure("No audio-only stream is available")
+        val hls = (if (allowHls) hlsCandidate(response, preferOriginal, preferredLocale) else null)
             ?: return ExtractionResult.Failure("No audio-only stream is available")
         return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
     }
+
+    private fun hlsCandidate(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?) =
+        AudioOnlyStreamSelector.hlsCandidates(response, preferOriginal, preferredLocale).firstOrNull()
+            ?: response.hlsUrl.takeIf { it.isNotBlank() }?.let { hlsFallbackStream(it) }
+
+    private fun dev.typetype.server.models.AudioStreamItem.matchesSelected(itag: Int, trackId: String?): Boolean =
+        this.itag == itag && this.audioTrackId == trackId
 
     private fun ExtractionResult<StreamResponse>?.resolveWith(
         sessionResult: ExtractionResult<StreamResponse>?,

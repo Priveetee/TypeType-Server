@@ -38,6 +38,7 @@ internal fun Route.installStreamRoutes(
             accessControlService = svc.accessControlService,
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
+            proxyService = svc.proxyService,
         )
         manifestRoutes(
             svc.manifestService,
