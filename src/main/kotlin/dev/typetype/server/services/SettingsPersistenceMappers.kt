@@ -21,6 +21,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultQuality = this[SettingsTable.defaultQuality],
     defaultLandingPage = this[SettingsTable.defaultLandingPage],
     autoplay = this[SettingsTable.autoplay],
+    skipPlaylistAutoplayScreen = this[SettingsTable.skipPlaylistAutoplayScreen],
     volume = this[SettingsTable.volume],
     muted = this[SettingsTable.muted],
     subtitlesEnabled = this[SettingsTable.subtitlesEnabled],
@@ -52,6 +53,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.defaultQuality] = settings.defaultQuality
     this[SettingsTable.defaultLandingPage] = settings.defaultLandingPage
     this[SettingsTable.autoplay] = settings.autoplay
+    this[SettingsTable.skipPlaylistAutoplayScreen] = settings.skipPlaylistAutoplayScreen
     this[SettingsTable.volume] = settings.volume
     this[SettingsTable.muted] = settings.muted
     this[SettingsTable.subtitlesEnabled] = settings.subtitlesEnabled

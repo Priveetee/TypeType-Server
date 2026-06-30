@@ -8,6 +8,7 @@ data class SettingsItem(
     val defaultQuality: String = "1080p",
     val defaultLandingPage: String = "home",
     val autoplay: Boolean = true,
+    val skipPlaylistAutoplayScreen: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
     val subtitlesEnabled: Boolean = false,

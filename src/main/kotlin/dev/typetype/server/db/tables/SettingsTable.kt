@@ -8,6 +8,7 @@ object SettingsTable : Table("settings") {
     val defaultQuality = text("default_quality").default("1080p")
     val defaultLandingPage = text("default_landing_page").default("home")
     val autoplay = bool("autoplay").default(true)
+    val skipPlaylistAutoplayScreen = bool("skip_playlist_autoplay_screen").default(false)
     val volume = double("volume").default(1.0)
     val muted = bool("muted").default(false)
     val subtitlesEnabled = bool("subtitles_enabled").default(false)
