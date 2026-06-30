@@ -45,7 +45,7 @@ class AudioOnlySourceOpenRangeRoutesTest {
             )
         )
         installSourceApp()
-        val token = tokenService.createToken(null, "https://youtube.com/watch?v=test", false, "en")
+        val token = tokenService.createToken(null, "https://youtube.com/watch?v=test", false, "en", 140, null)
 
         val response = client.get("/streams/audio-only/source?token=$token") {
             header(HttpHeaders.Range, "bytes=0-")

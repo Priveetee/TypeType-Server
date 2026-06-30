@@ -74,6 +74,7 @@ fun testStreamResponse(
     videoOnlyStreams: List<VideoStreamItem> = listOf(testVideoStream()),
     audioStreams: List<AudioStreamItem> = listOf(testAudioStream()),
     duration: Long = 300,
+    hlsUrl: String = "",
     dashMpdUrl: String = "",
 ): StreamResponse = StreamResponse(
     id = "test-id",
@@ -104,7 +105,7 @@ fun testStreamResponse(
     requiresMembership = false,
     startPosition = 0L,
     streamSegments = emptyList(),
-    hlsUrl = "",
+    hlsUrl = hlsUrl,
     dashMpdUrl = dashMpdUrl,
     videoStreams = emptyList(),
     audioStreams = audioStreams,
