@@ -30,7 +30,7 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.37")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:0c86ecf7d7dc4b44a7652eab04b0a7083e8d0909")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:97481db5a74d2aeda78fa3a4891b5b550a5210f3")
     implementation("org.json:json:20260522")
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
@@ -71,9 +71,14 @@ val generateBuildInfo = tasks.register("generateBuildInfo") {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("network")
+        // network-tagged tests are off by default. Flip on for the live SABR probe:
+        //   ./gradlew test --tests SabrProbeTest -Dsabr.probe=true
+        if (System.getProperty("sabr.probe") != "true") excludeTags("network")
     }
     jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off")
+    // Forward the gradle-level -Dsabr.probe=true to the test JVM so @EnabledIfSystemProperty can gate
+    // the live SABR probe (SabrProbeTest). Default "false" keeps the probe skipped in normal runs.
+    systemProperty("sabr.probe", System.getProperty("sabr.probe", "false"))
     finalizedBy(tasks.jacocoTestReport)
 }
 
