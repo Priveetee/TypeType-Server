@@ -7,7 +7,10 @@ import org.schabi.newpipe.extractor.downloader.CancellableCall
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request as ExtractorRequest
 import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.localization.Localization
+import java.io.FilterInputStream
 import java.util.concurrent.TimeUnit
 import okhttp3.Call
 import okhttp3.Request
@@ -73,6 +76,40 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         })
 
         return cancellableCall
+    }
+
+    override fun postStreaming(
+        url: String,
+        headers: MutableMap<String, MutableList<String>>?,
+        dataToSend: ByteArray?,
+        localization: Localization?,
+    ): StreamingResponse {
+        val request = ExtractorRequest.newBuilder()
+            .post(url, dataToSend)
+            .headers(headers)
+            .localization(localization)
+            .build()
+        val httpRequest = buildOkHttpRequest(request)
+        val httpResponse = client.newCall(httpRequest).execute()
+        if (httpResponse.code == 429) {
+            httpResponse.close()
+            throw ReCaptchaException("reCaptcha required", url)
+        }
+        val body = httpResponse.body
+        val stream = object : FilterInputStream(body.byteStream()) {
+            override fun close() {
+                try {
+                    super.close()
+                } finally {
+                    httpResponse.close()
+                }
+            }
+        }
+        return StreamingResponse(
+            httpResponse.code,
+            httpResponse.headers.toMultimap(),
+            stream,
+        )
     }
 
     private fun buildOkHttpRequest(request: ExtractorRequest): Request {
