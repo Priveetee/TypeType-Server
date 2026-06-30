@@ -39,6 +39,11 @@ class CachedStreamServiceTest {
     }
 
     @Test
+    fun `stream cache key is versioned`() {
+        assertEquals("stream:v3:$REQUEST_URL", CachedStreamService.cacheKey(REQUEST_URL))
+    }
+
+    @Test
     fun `concurrent delegate failures are shared and not cached`() = runBlocking {
         val delegate = CountingStreamService(ExtractionResult.Failure("blocked"))
         val cache = RecordingCacheService()

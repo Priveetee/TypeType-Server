@@ -15,7 +15,7 @@ class CachedStreamService(
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<StreamResponse>>>()
 
     companion object {
-        fun cacheKey(url: String): String = "stream:$url"
+        fun cacheKey(url: String): String = "stream:v3:$url"
     }
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {

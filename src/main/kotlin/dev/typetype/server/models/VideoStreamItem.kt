@@ -20,4 +20,6 @@ data class VideoStreamItem(
     val initEnd: Long,
     val indexStart: Long,
     val indexEnd: Long,
+    val deliveryMethod: String = "progressive",
+    val manifestUrl: String? = null,
 )

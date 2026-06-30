@@ -56,8 +56,8 @@ class YoutubeSessionStreamService(
         url: String,
     ): ExtractionResult<StreamResponse> = PublicExtractionCache.getOrLoad(
         cache = cache,
-        area = "stream-auth",
-        key = PublicCacheKey.of("stream-auth", credentials.userId, credentials.fingerprint, url),
+        area = "stream-auth-v3",
+        key = PublicCacheKey.of("stream-auth-v3", credentials.userId, credentials.fingerprint, url),
         serializer = StreamResponse.serializer(),
         ttlSeconds = { minOf(it.streamCacheTtlSeconds(), AUTHENTICATED_STREAM_MAX_TTL_SECONDS) },
     ) {

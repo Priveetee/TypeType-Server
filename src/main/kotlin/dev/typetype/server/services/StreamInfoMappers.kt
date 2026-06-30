@@ -44,20 +44,21 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse {
         streamSegments = runCatching { streamSegments.map { it.toStreamSegmentItem() } }.getOrElse { emptyList() },
         hlsUrl = liveMetadata.hlsUrl,
         dashMpdUrl = liveMetadata.dashMpdUrl,
-        videoStreams = videoStreams.map { it.toVideoStreamItem(false) },
-        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem() }.getOrNull() },
+        videoStreams = videoStreams.map { it.toVideoStreamItem(id, false) },
+        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem(id) }.getOrNull() },
         originalAudioTrackId = null,
         preferredDefaultAudioTrackId = null,
-        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(true) },
+        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(id, true) },
         subtitles = subtitles.mapNotNull { runCatching { it.toSubtitleItem() }.getOrNull() },
         previewFrames = previewFrames.mapNotNull { runCatching { it.toPreviewFrameItem() }.getOrNull() },
         sponsorBlockSegments = runCatching { getSponsorBlockSegments().map { it.toSegmentItem() } }.getOrElse { emptyList() },
         relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { runCatching { it.toVideoItem() }.getOrNull() },
     )
 }
-internal fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamItem =
-    VideoStreamItem(
-        url = getContent() ?: "",
+internal fun VideoStream.toVideoStreamItem(videoId: String, isVideoOnly: Boolean): VideoStreamItem {
+    val method = deliveryMethodName()
+    return VideoStreamItem(
+        url = playableUrl(method),
         mimeType = getFormat()?.getMimeType() ?: "",
         format = getFormat()?.name ?: "",
         resolution = getResolution(),
@@ -73,26 +74,56 @@ internal fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamIte
         initEnd = getInitEnd().toLong(),
         indexStart = getIndexStart().toLong(),
         indexEnd = getIndexEnd().toLong(),
+        deliveryMethod = method,
+        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId" else null,
     )
+}
 
-internal fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
-    url = getContent() ?: "",
-    mimeType = getFormat()?.getMimeType() ?: "",
-    format = getFormat()?.name ?: "",
-    bitrate = averageBitrate.takeIf { it > 0 },
-    codec = getCodec()?.takeIf { it.isNotBlank() },
-    quality = getQuality(),
-    itag = getItag(),
-    contentLength = getItagItem()?.getContentLength() ?: 0L,
-    initStart = getInitStart().toLong(),
-    initEnd = getInitEnd().toLong(),
-    indexStart = getIndexStart().toLong(),
-    indexEnd = getIndexEnd().toLong(),
-    audioTrackId = getAudioTrackId(),
-    audioTrackName = getAudioTrackName(),
-    audioLocale = getAudioLocale(),
-    isOriginal = false,
-)
+internal fun AudioStream.toAudioStreamItem(videoId: String): AudioStreamItem {
+    val method = deliveryMethodName()
+    return AudioStreamItem(
+        url = playableUrl(method),
+        mimeType = getFormat()?.getMimeType() ?: "",
+        format = getFormat()?.name ?: "",
+        bitrate = averageBitrate.takeIf { it > 0 },
+        codec = getCodec()?.takeIf { it.isNotBlank() },
+        quality = getQuality(),
+        itag = getItag(),
+        contentLength = getItagItem()?.getContentLength() ?: 0L,
+        initStart = getInitStart().toLong(),
+        initEnd = getInitEnd().toLong(),
+        indexStart = getIndexStart().toLong(),
+        indexEnd = getIndexEnd().toLong(),
+        audioTrackId = getAudioTrackId(),
+        audioTrackName = getAudioTrackName(),
+        audioLocale = getAudioLocale(),
+        isOriginal = false,
+        deliveryMethod = method,
+        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId" else null,
+    )
+}
+
+private fun VideoStream.deliveryMethodName(): String = when (getDeliveryMethod().name) {
+    "PROGRESSIVE_HTTP" -> "progressive"
+    "DASH" -> "dash"
+    "HLS" -> "hls"
+    "SABR" -> "sabr"
+    else -> "progressive"
+}
+
+private fun AudioStream.deliveryMethodName(): String = when (getDeliveryMethod().name) {
+    "PROGRESSIVE_HTTP" -> "progressive"
+    "DASH" -> "dash"
+    "HLS" -> "hls"
+    "SABR" -> "sabr"
+    else -> "progressive"
+}
+
+private fun VideoStream.playableUrl(method: String): String =
+    if (method == "sabr" || !isUrl) "" else getContent().orEmpty()
+
+private fun AudioStream.playableUrl(method: String): String =
+    if (method == "sabr" || !isUrl) "" else getContent().orEmpty()
 
 internal fun SubtitlesStream.toSubtitleItem(): SubtitleItem = SubtitleItem(
     url = getContent() ?: "",

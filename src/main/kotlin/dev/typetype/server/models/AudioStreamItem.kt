@@ -20,4 +20,6 @@ data class AudioStreamItem(
     val audioTrackName: String?,
     val audioLocale: String?,
     val isOriginal: Boolean,
+    val deliveryMethod: String = "progressive",
+    val manifestUrl: String? = null,
 )
