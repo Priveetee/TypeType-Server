@@ -19,6 +19,11 @@ object AudioOnlyStreamSelector {
             .filter { it.url.isNotBlank() && isManifestUrl(it.url) }
             .sortedWith(defaultComparator(response, preferOriginal, preferredLocale))
 
+    fun sabrCandidates(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): List<AudioStreamItem> =
+        response.audioStreams
+            .filter { it.deliveryMethod == "sabr" && !it.manifestUrl.isNullOrBlank() && isSabrDashSafeAudio(it) }
+            .sortedWith(defaultComparator(response, preferOriginal, preferredLocale))
+
     private fun defaultComparator(
         response: StreamResponse,
         preferOriginal: Boolean,
@@ -46,6 +51,12 @@ object AudioOnlyStreamSelector {
         if (mime == "audio/mp4" && (codec.isBlank() || codec.startsWith("mp4a"))) return 0
         if (mime == "audio/webm" && (codec.isBlank() || codec.startsWith("opus"))) return 1
         return null
+    }
+
+    private fun isSabrDashSafeAudio(stream: AudioStreamItem): Boolean {
+        val mime = stream.mimeType.lowercase().substringBefore(";").trim()
+        val codec = stream.codec?.lowercase().orEmpty()
+        return mime == "audio/mp4" && (codec.isBlank() || codec.startsWith("mp4a"))
     }
 
     private fun matchesLocale(stream: AudioStreamItem, preferredLocale: String): Boolean {

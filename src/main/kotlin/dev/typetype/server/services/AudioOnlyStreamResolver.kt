@@ -13,6 +13,7 @@ class AudioOnlyStreamResolver(
         preferOriginal: Boolean,
         preferredLocale: String?,
         allowHls: Boolean = true,
+        allowSabr: Boolean = true,
         selectedItag: Int? = null,
         selectedAudioTrackId: String? = null,
         progressivePlayable: suspend (dev.typetype.server.models.AudioStreamItem) -> Boolean = { true },
@@ -29,6 +30,7 @@ class AudioOnlyStreamResolver(
                 preferOriginal,
                 preferredLocale,
                 allowHls,
+                allowSabr,
                 selectedItag,
                 selectedAudioTrackId,
                 progressivePlayable,
@@ -43,6 +45,7 @@ class AudioOnlyStreamResolver(
         preferOriginal: Boolean,
         preferredLocale: String?,
         allowHls: Boolean,
+        allowSabr: Boolean,
         selectedItag: Int?,
         selectedAudioTrackId: String?,
         progressivePlayable: suspend (dev.typetype.server.models.AudioStreamItem) -> Boolean,
@@ -56,13 +59,18 @@ class AudioOnlyStreamResolver(
         }
         if (selectedItag != null) return ExtractionResult.Failure("No audio-only stream is available")
         val hls = (if (allowHls) hlsCandidate(response, preferOriginal, preferredLocale) else null)
+        if (hls != null) return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
+        val sabr = (if (allowSabr) sabrCandidate(response, preferOriginal, preferredLocale) else null)
             ?: return ExtractionResult.Failure("No audio-only stream is available")
-        return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
+        return ExtractionResult.Success(AudioOnlyStreamSelection(response, sabr, AudioOnlyStreamKind.SabrHls))
     }
 
     private fun hlsCandidate(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?) =
         AudioOnlyStreamSelector.hlsCandidates(response, preferOriginal, preferredLocale).firstOrNull()
             ?: response.hlsUrl.takeIf { it.isNotBlank() }?.let { hlsFallbackStream(it) }
+
+    private fun sabrCandidate(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?) =
+        AudioOnlyStreamSelector.sabrCandidates(response, preferOriginal, preferredLocale).firstOrNull()
 
     private fun dev.typetype.server.models.AudioStreamItem.matchesSelected(itag: Int, trackId: String?): Boolean =
         this.itag == itag && this.audioTrackId == trackId

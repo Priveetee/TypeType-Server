@@ -22,11 +22,19 @@ internal fun AudioOnlyStreamSelection.toResponse(
         AudioOnlyStreamKind.Progressive -> "/streams/audio-only/source?token=${encode(token)}"
         AudioOnlyStreamKind.Hls -> hlsTokenService?.createPath(stream.url)
             ?: return ExtractionResult.Failure("No audio-only stream is available")
+        AudioOnlyStreamKind.Dash -> stream.manifestUrl?.let { audioOnlyDashManifest(it) }
+            ?: return ExtractionResult.Failure("No audio-only stream is available")
+        AudioOnlyStreamKind.SabrHls -> stream.manifestUrl?.let { audioOnlySabrHlsManifest(it) }
+            ?: return ExtractionResult.Failure("No audio-only stream is available")
     }
     return ExtractionResult.Success(AudioOnlyStreamResponse(
         src = src,
         kind = kind.apiValue,
-        mimeType = if (kind == AudioOnlyStreamKind.Hls) HLS_MIME_TYPE else stream.mimeType,
+        mimeType = when (kind) {
+            AudioOnlyStreamKind.Hls, AudioOnlyStreamKind.SabrHls -> HLS_MIME_TYPE
+            AudioOnlyStreamKind.Dash -> DASH_MIME_TYPE
+            AudioOnlyStreamKind.Progressive -> stream.mimeType
+        },
         codec = stream.codec,
         bitrate = stream.bitrate,
         contentLength = stream.contentLength.takeIf { kind == AudioOnlyStreamKind.Progressive && it > 0 },
@@ -36,4 +44,11 @@ internal fun AudioOnlyStreamSelection.toResponse(
 
 private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
+private fun audioOnlyDashManifest(manifestUrl: String): String =
+    manifestUrl + if (manifestUrl.contains("?")) "&audioOnly=true" else "?audioOnly=true"
+
+private fun audioOnlySabrHlsManifest(manifestUrl: String): String =
+    manifestUrl + if (manifestUrl.contains("?")) "&audioOnly=true&format=hls" else "?audioOnly=true&format=hls"
+
 private const val HLS_MIME_TYPE = "application/vnd.apple.mpegurl"
+private const val DASH_MIME_TYPE = "application/dash+xml"

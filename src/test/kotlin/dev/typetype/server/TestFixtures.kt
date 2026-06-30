@@ -51,6 +51,8 @@ fun testAudioStream(
     audioLocale: String? = null,
     isOriginal: Boolean = false,
     itag: Int = 140,
+    deliveryMethod: String = "progressive",
+    manifestUrl: String? = null,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -68,6 +70,8 @@ fun testAudioStream(
     audioTrackName = audioTrackName,
     audioLocale = audioLocale,
     isOriginal = isOriginal,
+    deliveryMethod = deliveryMethod,
+    manifestUrl = manifestUrl,
 )
 
 fun testStreamResponse(

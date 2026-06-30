@@ -87,6 +87,7 @@ fun Route.audioOnlySourceRoutes(
             token.preferOriginal,
             token.preferredLocale,
             allowHls = false,
+            allowSabr = false,
             selectedItag = token.selectedItag,
             selectedAudioTrackId = token.selectedAudioTrackId,
         )) {

@@ -51,6 +51,37 @@ class AudioOnlyProgressiveContractRoutesTest {
     }
 
     @Test
+    fun `GET audio-only returns SABR audio-only HLS manifest when only SABR audio is available`() = testApplication {
+        val opusSabrAudio = testAudioStream(
+            url = "",
+            codec = "opus",
+            bitrate = 160,
+            deliveryMethod = "sabr",
+            manifestUrl = "/sabr/manifest/test-id",
+        ).copy(mimeType = "audio/webm", format = "WebM Opus", itag = 251)
+        val sabrAudio = testAudioStream(
+            url = "",
+            bitrate = 128,
+            deliveryMethod = "sabr",
+            manifestUrl = "/sabr/manifest/test-id",
+        )
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(opusSabrAudio, sabrAudio))
+        )
+        installContractApp()
+
+        val response = client.get("/streams/audio-only?url=https://youtube.com/watch?v=test")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"src\":\"/sabr/manifest/test-id?audioOnly=true&format=hls\""))
+        assertTrue(body.contains("\"kind\":\"hls\""))
+        assertTrue(body.contains("\"mimeType\":\"application/vnd.apple.mpegurl\""))
+        assertTrue(body.contains("\"bitrate\":128"))
+        assertFalse(body.contains("\"codec\":\"opus\""))
+    }
+
+    @Test
     fun `GET audio-only source rejects HLS upstream response`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(testStreamResponse())
         coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
