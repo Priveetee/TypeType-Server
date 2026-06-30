@@ -15,6 +15,7 @@ import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
+import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.suggestionRoutes
@@ -75,6 +76,9 @@ internal fun Application.installApplicationRoutes(
             podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
         installProxyRoutes(svc)
+        rateLimit(PROXY_ZONE) {
+            sabrRoutes(svc.sabrSessionStore, svc.streamService, authService, svc.accessControlService)
+        }
         downloaderGatewayRoutes(downloaderGatewayService)
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)

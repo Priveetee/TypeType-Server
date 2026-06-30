@@ -66,6 +66,7 @@ internal class ServiceRegistry(
     val youtubeSessionHlsManifestService = extraction.youtubeSessionHlsManifestService
     val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
+    val sabrSessionStore = extraction.sabrSessionStore
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)

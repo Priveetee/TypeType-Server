@@ -28,6 +28,7 @@ import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
+import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubeScopedChannelService
@@ -97,6 +98,7 @@ internal class ExtractionServiceRegistry(
         }
     }
     val suggestionService = CachedSuggestionService(YoutubeScopedSuggestionService(PipePipeSuggestionService()), cache)
+    val sabrSessionStore = SabrSessionStore(subtitleServiceUrl)
 
     private companion object {
         const val MIN_YOUTUBE_SESSION_SECRET_LENGTH = 32
