@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.4.0"
     kotlin("plugin.serialization") version "2.4.0"
-    id("io.ktor.plugin") version "3.5.0"
+    id("io.ktor.plugin") version "3.5.1"
     id("jacoco")
 }
 
@@ -29,19 +29,19 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
-    implementation("ch.qos.logback:logback-classic:1.5.34")
-    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:e4b13eed86d83ae3ce309eb16e9e7460024a4d7b")
+    implementation("ch.qos.logback:logback-classic:1.5.37")
+    implementation("com.github.InfinityLoop1308.PipePipeExtractor:extractor:f0086b4b7322cb2319f7956190d543c6bed3f25b")
     implementation("org.json:json:20260522")
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.3.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
-    implementation("org.postgresql:postgresql:42.7.11")
+    implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.xerial:sqlite-jdbc:3.53.2.0")
     implementation("com.password4j:password4j:1.8.4")
     implementation("com.auth0:java-jwt:4.5.2")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
