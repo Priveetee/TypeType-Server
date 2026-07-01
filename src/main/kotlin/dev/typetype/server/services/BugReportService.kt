@@ -10,11 +10,10 @@ import dev.typetype.server.models.BugReportCreateResponse
 import dev.typetype.server.models.BugReportStatusResponse
 import dev.typetype.server.models.CreateBugReportRequest
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
@@ -50,14 +49,16 @@ class BugReportService(private val json: Json = Json { ignoreUnknownKeys = true 
             .offset(offset)
             .toList()
         val emailByUserId = userEmailByUserId(reports.map { it[BugReportsTable.userId] }.toSet())
-        val items = reports.map { row -> toAdminListItem(row, emailByUserId[row[BugReportsTable.userId]].orEmpty()) }
+        val items = reports.map { row ->
+            BugReportRowMapper.toAdminListItem(row, emailByUserId[row[BugReportsTable.userId]].orEmpty())
+        }
         items to total
     }
 
     suspend fun detail(id: String): AdminBugReportDetailResponse? = DatabaseFactory.query {
         val row = BugReportsTable.selectAll().where { BugReportsTable.id eq id }.singleOrNull() ?: return@query null
         val email = UsersTable.selectAll().where { UsersTable.id eq row[BugReportsTable.userId] }.singleOrNull()?.get(UsersTable.email).orEmpty()
-        toAdminDetailItem(row, email)
+        BugReportRowMapper.toAdminDetailItem(json, row, email)
     }
 
     suspend fun updateStatus(id: String, status: String): BugReportStatusUpdateResult = DatabaseFactory.query {
@@ -98,29 +99,4 @@ class BugReportService(private val json: Json = Json { ignoreUnknownKeys = true 
             .filter { row -> row[UsersTable.id] in userIds }
             .associate { row -> row[UsersTable.id] to row[UsersTable.email] }
     }
-
-    private fun toAdminListItem(row: ResultRow, userEmail: String): AdminBugReportItem = AdminBugReportItem(
-        id = row[BugReportsTable.id],
-        category = row[BugReportsTable.category],
-        description = row[BugReportsTable.description],
-        status = row[BugReportsTable.status],
-        userId = row[BugReportsTable.userId],
-        userEmail = userEmail,
-        githubIssueUrl = row[BugReportsTable.githubIssueUrl],
-        createdAt = row[BugReportsTable.createdAt],
-        updatedAt = row[BugReportsTable.updatedAt],
-    )
-
-    private fun toAdminDetailItem(row: ResultRow, userEmail: String): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
-        id = row[BugReportsTable.id],
-        category = row[BugReportsTable.category],
-        description = row[BugReportsTable.description],
-        status = row[BugReportsTable.status],
-        userId = row[BugReportsTable.userId],
-        userEmail = userEmail,
-        context = json.decodeFromString(BugReportContextItem.serializer(), row[BugReportsTable.context]),
-        githubIssueUrl = row[BugReportsTable.githubIssueUrl],
-        createdAt = row[BugReportsTable.createdAt],
-        updatedAt = row[BugReportsTable.updatedAt],
-    )
 }
