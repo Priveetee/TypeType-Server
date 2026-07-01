@@ -80,7 +80,6 @@ internal class SabrSessionPump {
         when {
             request.sequenceNumber <= max -> prepareForRewind(request)
             request.sequenceNumber > max + 1 -> prepareForForwardJump(request)
-            else -> prepareForMediaSegment(request)
         }
     }
 }
