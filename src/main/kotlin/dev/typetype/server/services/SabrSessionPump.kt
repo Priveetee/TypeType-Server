@@ -37,7 +37,7 @@ internal class SabrSessionPump {
                 return@withLock segment
             }
             if (holder.session.isBeyondEnd(request)) return@withLock null
-            if (!request.isInitializationSegment) holder.session.prepareForMediaSegment(request)
+            holder.session.prepareForRequestedSegment(request)
             runCatching { holder.session.fetchSegment(request, localization) }
                 .getOrNull()
                 ?.also { holder.markServed(it) }
