@@ -32,8 +32,8 @@ class SabrSessionPumpTest {
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>()
         val segment = mediaSegment(startMs, durationMs)
-        every { session.getCachedSegment(request) } returns null
-        every { session.isBeyondEnd(request) } returns false
+        every { session.getCachedSegment(any()) } returns null
+        every { session.isBeyondEnd(any()) } returns false
         every { session.prepareForRewind(request) } returns Unit
         every { session.prepareForForwardJump(request) } returns Unit
         every { session.streamState } returns streamState
@@ -43,7 +43,7 @@ class SabrSessionPumpTest {
         every { streamState.setRequestTrackMode(any(), any(), any()) } returns Unit
         every { streamState.setFullyBuffered(companion, true) } returns Unit
         every { streamState.setFullyBuffered(format, false) } returns Unit
-        every { session.fetchSegment(request, any<Localization>()) } returns segment
+        every { session.fetchSegment(any(), any<Localization>()) } returns segment
         every { session.setPlayHeadMs(startMs + durationMs) } returns Unit
         val holder = SabrSessionHolder(
             session = session,
