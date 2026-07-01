@@ -37,7 +37,7 @@ internal class SabrSessionPump {
                 return@withLock segment
             }
             if (holder.session.isBeyondEnd(request)) return@withLock null
-            if (!request.isInitializationSegment) holder.session.prepareForForwardJump(request)
+            holder.session.prepareForRequestedSegment(request)
             runCatching { holder.session.fetchSegment(request, localization) }
                 .getOrNull()
                 ?.also { holder.markServed(it) }
@@ -93,10 +93,7 @@ internal class SabrSessionPump {
 
     private fun YoutubeSabrSession.prepareForRequestedSegment(request: SabrSegmentRequest) {
         if (request.isInitializationSegment) return
-        val max = streamState.getMaxSegment(request.format)
-        when {
-            request.sequenceNumber <= max -> prepareForRewind(request)
-            request.sequenceNumber > max + 1 -> prepareForForwardJump(request)
-        }
+        prepareForRewind(request)
+        prepareForForwardJump(request)
     }
 }

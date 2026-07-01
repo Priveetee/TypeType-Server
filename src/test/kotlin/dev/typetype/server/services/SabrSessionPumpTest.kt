@@ -30,6 +30,7 @@ class SabrSessionPumpTest {
         val segment = mediaSegment(startMs, durationMs)
         every { session.getCachedSegment(request) } returns null
         every { session.isBeyondEnd(request) } returns false
+        every { session.prepareForRewind(request) } returns Unit
         every { session.prepareForForwardJump(request) } returns Unit
         every { session.fetchSegment(request, any<Localization>()) } returns segment
         every { session.setPlayHeadMs(startMs + durationMs) } returns Unit
@@ -45,6 +46,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(segment, fetched)
+        verify { session.prepareForRewind(request) }
         verify { session.prepareForForwardJump(request) }
         verify { session.fetchSegment(request, any<Localization>()) }
         verify { session.setPlayHeadMs(startMs + durationMs) }
