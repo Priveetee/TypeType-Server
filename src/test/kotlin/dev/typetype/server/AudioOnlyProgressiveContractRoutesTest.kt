@@ -34,7 +34,7 @@ class AudioOnlyProgressiveContractRoutesTest {
 
     @Test
     fun `GET audio-only returns signed HLS fallback for HLS manifest audio streams`() = testApplication {
-        val hlsAudio = testAudioStream(url = HLS_URL, audioLocale = "en")
+        val hlsAudio = testAudioStream(url = "https://manifest.googlevideo.com/api/manifest/hls/test", audioLocale = "en")
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
             testStreamResponse(audioStreams = listOf(hlsAudio))
         )
@@ -116,7 +116,4 @@ class AudioOnlyProgressiveContractRoutesTest {
         routing { audioOnlySourceRoutes(streamService, proxyService, tokenService) }
     }
 
-    private companion object {
-        const val HLS_URL = "https://manifest.googlevideo.com/api/manifest/hls/test"
-    }
 }

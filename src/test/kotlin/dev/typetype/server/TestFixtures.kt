@@ -1,7 +1,6 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.AudioStreamItem
-import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.models.VideoStreamItem
 
@@ -72,52 +71,4 @@ fun testAudioStream(
     isOriginal = isOriginal,
     deliveryMethod = deliveryMethod,
     manifestUrl = manifestUrl,
-)
-
-fun testStreamResponse(
-    videoOnlyStreams: List<VideoStreamItem> = listOf(testVideoStream()),
-    audioStreams: List<AudioStreamItem> = listOf(testAudioStream()),
-    duration: Long = 300,
-    hlsUrl: String = "",
-    dashMpdUrl: String = "",
-): StreamResponse = StreamResponse(
-    id = "test-id",
-    title = "Test Video",
-    uploaderName = "Test Channel",
-    uploaderUrl = "https://youtube.com/channel/test",
-    uploaderAvatarUrl = "",
-    thumbnailUrl = "",
-    description = "",
-    duration = duration,
-    viewCount = 0,
-    likeCount = 0,
-    dislikeCount = 0,
-    uploadDate = "",
-    uploaded = 0,
-    uploaderSubscriberCount = 0,
-    uploaderVerified = false,
-    category = "",
-    license = "",
-    visibility = "",
-    tags = emptyList(),
-    streamType = "video_stream",
-    isLive = false,
-    isPostLive = false,
-    isLiveContent = false,
-    hasLiveManifest = false,
-    isShortFormContent = false,
-    requiresMembership = false,
-    startPosition = 0L,
-    streamSegments = emptyList(),
-    hlsUrl = hlsUrl,
-    dashMpdUrl = dashMpdUrl,
-    videoStreams = emptyList(),
-    audioStreams = audioStreams,
-    originalAudioTrackId = null,
-    preferredDefaultAudioTrackId = null,
-    videoOnlyStreams = videoOnlyStreams,
-    subtitles = emptyList(),
-    previewFrames = emptyList(),
-    sponsorBlockSegments = emptyList(),
-    relatedStreams = emptyList(),
 )
