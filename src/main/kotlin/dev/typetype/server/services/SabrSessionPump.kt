@@ -26,13 +26,16 @@ internal class SabrSessionPump {
         request: SabrSegmentRequest,
     ): SabrMediaSegment? {
         holder.lastRequestAt = Instant.now()
-        holder.session.getCachedSegment(request)?.let { return it }
+        holder.session.getCachedSegment(request)?.let { segment ->
+            holder.markServed(segment)
+            return segment
+        }
         if (holder.session.isBeyondEnd(request)) return null
         val waiter = holder.pendingAwaits.computeIfAbsent(request) { CompletableDeferred() }
         holder.pendingSignals.add(request)
         return try {
             waiter.await()
-            holder.session.getCachedSegment(request)
+            holder.session.getCachedSegment(request)?.also { holder.markServed(it) }
         } finally {
             holder.pendingAwaits.remove(request, waiter)
         }
@@ -43,7 +46,12 @@ internal class SabrSessionPump {
         while (isAlive()) {
             try {
                 holder.pumpMutex.withLock {
-                    holder.pendingSignals.firstOrNull()?.let { signal ->
+                    val signal = holder.pendingSignals.firstOrNull()
+                    if (signal == null && holder.pendingAwaits.isEmpty() && bothFormatsKnown(holder)) {
+                        holder.session.evictPlayed()
+                        return@withLock
+                    }
+                    signal?.let {
                         holder.session.prepareForRequestedSegment(signal)
                         holder.pendingSignals.remove(signal)
                     }
@@ -55,6 +63,12 @@ internal class SabrSessionPump {
             } catch (_: Exception) {
                 delay(2_000)
             }
+        }
+    }
+
+    private fun SabrSessionHolder.markServed(segment: SabrMediaSegment) {
+        if (!segment.header.isInitSegment) {
+            session.setPlayHeadMs(segment.header.startMs + segment.header.durationMs)
         }
     }
 

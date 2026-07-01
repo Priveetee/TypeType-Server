@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -15,9 +16,16 @@ fun Route.sabrRoutes(
     streamService: StreamService,
     authService: AuthService?,
     accessControlService: AccessControlService?,
+    adminSettingsService: AdminSettingsService?,
 ) {
-    val manifestHandler = SabrManifestHandler(sabrSessionStore, streamService, authService, accessControlService)
-    val segmentHandler = SabrSegmentHandler(sabrSessionStore, authService, accessControlService)
+    val manifestHandler = SabrManifestHandler(
+        sabrSessionStore,
+        streamService,
+        authService,
+        accessControlService,
+        adminSettingsService,
+    )
+    val segmentHandler = SabrSegmentHandler(sabrSessionStore, authService, accessControlService, adminSettingsService)
     get("/sabr/manifest/{videoId}") {
         val videoId = call.parameters["videoId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))

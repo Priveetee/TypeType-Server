@@ -4,6 +4,8 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.VideoStreamItem
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.VideoStream
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 internal fun VideoStream.toVideoStreamItem(videoId: String, isVideoOnly: Boolean): VideoStreamItem {
     val method = deliveryMethodName()
@@ -25,7 +27,7 @@ internal fun VideoStream.toVideoStreamItem(videoId: String, isVideoOnly: Boolean
         indexStart = getIndexStart().toLong(),
         indexEnd = getIndexEnd().toLong(),
         deliveryMethod = method,
-        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId" else null,
+        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId?videoItag=${getItag()}" else null,
     )
 }
 
@@ -49,7 +51,7 @@ internal fun AudioStream.toAudioStreamItem(videoId: String): AudioStreamItem {
         audioLocale = getAudioLocale(),
         isOriginal = false,
         deliveryMethod = method,
-        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId" else null,
+        manifestUrl = if (method == "sabr") audioManifestUrl(videoId, getItag(), getAudioTrackId()) else null,
     )
 }
 
@@ -70,3 +72,10 @@ private fun VideoStream.playableUrl(method: String): String =
 
 private fun AudioStream.playableUrl(method: String): String =
     if (method == "sabr" || !isUrl) "" else getContent().orEmpty()
+
+private fun audioManifestUrl(videoId: String, itag: Int, trackId: String?): String {
+    val track = trackId?.takeIf { it.isNotBlank() }
+        ?.let { "&audioTrackId=${URLEncoder.encode(it, StandardCharsets.UTF_8)}" }
+        .orEmpty()
+    return "/sabr/manifest/$videoId?audioItag=$itag$track"
+}

@@ -86,7 +86,7 @@ class StreamInfoMappersCoreTest {
         val mappedVideo = video.toVideoStreamItem("dQw4w9WgXcQ", isVideoOnly = true)
         assertEquals("", mappedVideo.url)
         assertEquals("sabr", mappedVideo.deliveryMethod)
-        assertEquals("/sabr/manifest/dQw4w9WgXcQ", mappedVideo.manifestUrl)
+        assertEquals("/sabr/manifest/dQw4w9WgXcQ?videoItag=137", mappedVideo.manifestUrl)
 
         val audio = mockk<AudioStream>()
         every { audio.getContent() } returns "https://example.invalid/sabr-audio"
@@ -101,7 +101,7 @@ class StreamInfoMappersCoreTest {
         every { audio.getInitEnd() } returns 0
         every { audio.getIndexStart() } returns 0
         every { audio.getIndexEnd() } returns 0
-        every { audio.getAudioTrackId() } returns null
+        every { audio.getAudioTrackId() } returns "en.0"
         every { audio.getAudioTrackName() } returns null
         every { audio.getAudioLocale() } returns null
         every { audio.getDeliveryMethod() } returns DeliveryMethod.SABR
@@ -109,6 +109,6 @@ class StreamInfoMappersCoreTest {
         val mappedAudio = audio.toAudioStreamItem("dQw4w9WgXcQ")
         assertEquals("", mappedAudio.url)
         assertEquals("sabr", mappedAudio.deliveryMethod)
-        assertEquals("/sabr/manifest/dQw4w9WgXcQ", mappedAudio.manifestUrl)
+        assertEquals("/sabr/manifest/dQw4w9WgXcQ?audioItag=140&audioTrackId=en.0", mappedAudio.manifestUrl)
     }
 }

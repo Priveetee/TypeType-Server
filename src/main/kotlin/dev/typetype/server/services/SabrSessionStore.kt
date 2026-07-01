@@ -42,7 +42,7 @@ class SabrSessionStore(
         audioFormat: YoutubeSabrFormat,
         videoFormat: YoutubeSabrFormat,
     ): SabrSessionHolder {
-        val key = SabrSessionKey(videoId, userId, audioFormat.itag, videoFormat.itag)
+        val key = SabrSessionKey(videoId, userId, audioFormat.itag, audioFormat.audioTrackId, videoFormat.itag)
         registry.get(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
         val provider = TypetypeTokenSabrPoTokenProvider(tokenServiceUrl)
@@ -54,7 +54,7 @@ class SabrSessionStore(
     }
 
     internal fun lookup(videoId: String, userId: String, audioItag: Int, videoItag: Int): SabrSessionHolder? =
-        registry.get(SabrSessionKey(videoId, userId, audioItag, videoItag))
+        registry.get(SabrSessionKey(videoId, userId, audioItag, null, videoItag))
 
     internal fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? =
         registry.lookupByItag(videoId, userId, itag)
