@@ -14,7 +14,6 @@ internal fun YoutubeSabrSession.prepareForRequestedSegment(
     if (request.sequenceNumber > 1) primeInitialMedia(holder, localization)
     prepareForRewind(request)
     prepareForForwardJump(request)
-    streamState.setBufferedRangesOverride(emptyList())
     val startMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
     streamState.setPlayerTimeMs(if (startMs == 0L) 0L else startMs + 1L)
     if (request.format.isAudio) {

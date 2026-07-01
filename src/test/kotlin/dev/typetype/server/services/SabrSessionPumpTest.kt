@@ -37,7 +37,6 @@ class SabrSessionPumpTest {
         every { session.prepareForRewind(request) } returns Unit
         every { session.prepareForForwardJump(request) } returns Unit
         every { session.streamState } returns streamState
-        every { streamState.setBufferedRangesOverride(emptyList()) } returns Unit
         every { streamState.getSegmentStartMs(format, sequence) } returns startMs
         every { streamState.setPlayerTimeMs(startMs + 1L) } returns Unit
         every { streamState.setRequestTrackMode(any(), any(), any()) } returns Unit
@@ -59,7 +58,6 @@ class SabrSessionPumpTest {
         assertSame(segment, fetched)
         verify { session.prepareForRewind(request) }
         verify { session.prepareForForwardJump(request) }
-        verify { streamState.setBufferedRangesOverride(emptyList()) }
         verify { streamState.setPlayerTimeMs(startMs + 1L) }
         verifyTrackMode(streamState, isAudio = itag == 140)
         verify { streamState.setFullyBuffered(companion, true) }
