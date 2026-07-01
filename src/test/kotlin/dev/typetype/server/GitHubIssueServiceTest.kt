@@ -1,8 +1,8 @@
 package dev.typetype.server
 
-import dev.typetype.server.models.AdminBugReportDetailResponse
-import dev.typetype.server.models.BugApiErrorItem
-import dev.typetype.server.models.BugReportContextItem
+import dev.typetype.server.GitHubIssueServiceTestReports.sampleReport
+import dev.typetype.server.GitHubIssueServiceTestReports.sampleReportWithDomain
+import dev.typetype.server.GitHubIssueServiceTestReports.sampleReportWithHostTokens
 import dev.typetype.server.services.GitHubIssueCreateResult
 import dev.typetype.server.services.GitHubIssueService
 import kotlinx.coroutines.runBlocking
@@ -52,89 +52,4 @@ class GitHubIssueServiceTest {
         assertTrue(url.contains("requestId=redacted-host"), url)
         assertTrue(url.contains("User agent: Mozilla (redacted-host/client)"), url)
     }
-
-    private fun sampleReport(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
-        id = "report-id",
-        category = "player",
-        description = "Video freezes after 10s",
-        status = "new",
-        userId = "user-id",
-        userEmail = "user@test.local",
-        context = BugReportContextItem(
-            route = "/watch",
-            timestamp = 1775200000000,
-            userAgent = "Mozilla/5.0",
-            browserLanguage = "fr-FR",
-            apiErrors = listOf(
-                BugApiErrorItem(
-                    requestId = "req-123",
-                    endpoint = "/streams",
-                    status = 400,
-                    code = "BAD_REQUEST",
-                    message = "Invalid url",
-                    timestamp = 1775200000001,
-                ),
-            ),
-        ),
-        githubIssueUrl = null,
-        createdAt = 1775200000000,
-        updatedAt = 1775200000000,
-    )
-
-    private fun sampleReportWithDomain(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
-        id = "report-id-2",
-        category = "ui",
-        description = "Fails on https://internal.local/watch?url=abc",
-        status = "new",
-        userId = "user-id-2",
-        userEmail = "user@private.example",
-        context = BugReportContextItem(
-            route = "https://private.example/watch?url=abc",
-            timestamp = 1775200001000,
-            userAgent = "Mozilla/5.0 (see https://ua.example/meta)",
-            browserLanguage = "fr-FR",
-            videoUrl = "https://private.example/video?id=1",
-            apiErrors = listOf(
-                BugApiErrorItem(
-                    requestId = "req-redact",
-                    endpoint = "https://internal.local/api/streams?url=1",
-                    status = 500,
-                    code = "INTERNAL_ERROR",
-                    message = "Upstream from https://internal.local failed",
-                    timestamp = 1775200001001,
-                ),
-            ),
-        ),
-        githubIssueUrl = null,
-        createdAt = 1775200001000,
-        updatedAt = 1775200001000,
-    )
-
-    private fun sampleReportWithHostTokens(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
-        id = "report-id-3",
-        category = "functionality",
-        description = "Host token redaction case",
-        status = "new",
-        userId = "user-id-3",
-        userEmail = "user3@test.local",
-        context = BugReportContextItem(
-            route = "/shorts",
-            timestamp = 1775200002000,
-            userAgent = "Mozilla (private.host.internal/client)",
-            browserLanguage = "fr-FR",
-            apiErrors = listOf(
-                BugApiErrorItem(
-                    requestId = "req.private.local",
-                    endpoint = "/admin/bug-reports",
-                    status = 409,
-                    code = "CONFLICT",
-                    message = "already exists",
-                    timestamp = 1775200002001,
-                ),
-            ),
-        ),
-        githubIssueUrl = null,
-        createdAt = 1775200002000,
-        updatedAt = 1775200002000,
-    )
 }
