@@ -1,10 +1,10 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.SubscriptionItem
-import dev.typetype.server.models.VideoItem
+import dev.typetype.server.SubscriptionFeedTestFixtures.channel
+import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
+import dev.typetype.server.SubscriptionFeedTestFixtures.video
 import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
@@ -53,19 +53,6 @@ class SubscriptionFeedRoutesTest {
         block()
     }
 
-    private fun video(uploaded: Long) = VideoItem(
-        id = "id-$uploaded", title = "V$uploaded", url = "u/$uploaded", thumbnailUrl = "",
-        uploaderName = "Ch", uploaderUrl = "chUrl", uploaderAvatarUrl = "",
-        duration = 300L, viewCount = 0L, uploadDate = "", uploaded = uploaded,
-        streamType = "video_stream", isShortFormContent = false, uploaderVerified = false, shortDescription = null,
-    )
-
-    private fun channel(vararg v: VideoItem) = ExtractionResult.Success(
-        ChannelResponse("Test", "", "", "", 0L, false, v.toList(), null),
-    )
-
-    private fun sub(n: Int) = SubscriptionItem("https://yt.com/c/$n", "C$n", "")
-
     @Test
     fun `GET subscriptions feed without token returns 401`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/subscriptions/feed").status)
@@ -79,8 +66,8 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed returns videos sorted by uploaded desc`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, sub(1))
-        subscriptionsService.add(TEST_USER_ID, sub(2))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        subscriptionsService.add(TEST_USER_ID, subscription(2))
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L), video(3000L))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(2000L))
         val body = client.get("/subscriptions/feed?page=0&limit=10") {
@@ -92,7 +79,7 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed pagination works`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, sub(1))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
         coEvery { channelService.getChannel(any(), null) } returns channel(video(5000L), video(4000L), video(3000L))
         val body = client.get("/subscriptions/feed?page=0&limit=2") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -103,8 +90,8 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed failed channel is silently ignored`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, sub(1))
-        subscriptionsService.add(TEST_USER_ID, sub(2))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        subscriptionsService.add(TEST_USER_ID, subscription(2))
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L))
         coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns ExtractionResult.Failure("err")
         val resp = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
@@ -114,7 +101,7 @@ class SubscriptionFeedRoutesTest {
 
     @Test
     fun `GET subscriptions feed last page has null nextpage`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, sub(1))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
         coEvery { channelService.getChannel(any(), null) } returns channel(video(1000L))
         val body = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"nextpage\":null"))
