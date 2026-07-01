@@ -1,0 +1,85 @@
+package dev.typetype.server.routes
+
+import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.SabrManifestBuilder
+import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.StreamService
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+
+internal class SabrManifestHandler(
+    private val sabrSessionStore: SabrSessionStore,
+    private val streamService: StreamService,
+    private val authService: AuthService?,
+    private val accessControlService: AccessControlService?,
+) {
+    suspend fun handle(call: ApplicationCall, videoId: String) {
+        val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
+        val hls = audioOnly && call.request.queryParameters["format"].equals("hls", ignoreCase = true)
+        val access = call.accessProfileOrRespond(authService, accessControlService) ?: return
+        val url = "https://www.youtube.com/watch?v=$videoId"
+        when (val result = streamService.getStreamInfo(url)) {
+            is ExtractionResult.Success -> {
+                if (!access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
+                    return call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                }
+            }
+            is ExtractionResult.Failure ->
+                return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.BadRequest ->
+                return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+        }
+        val info = fetchSabrInfo(videoId)
+            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
+        val audio = SabrFormatSelector.audio(info)
+            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No AAC/mp4a SABR audio for this video"))
+        val video = SabrFormatSelector.video(info)
+            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No AVC/mp4 SABR video for this video"))
+        val holder = sabrSessionStore.getOrCreate(videoId, access.userId ?: videoId, info, audio, video)
+        sabrSessionStore.ensureWarmed(holder)
+        val state = holder.session.streamState
+        val endAudio = state.getEndSegment(holder.audioFormat)
+        val endVideo = state.getEndSegment(holder.videoFormat)
+        if (endAudio <= 0L || endVideo <= 0L) {
+            return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("Segment index not yet available"))
+        }
+        val manifest = when {
+            audioOnly && hls -> SabrManifestBuilder.buildAudioOnlyHls(videoId, holder.audioFormat, endAudio, state, holder.sessionToken)
+            audioOnly -> SabrManifestBuilder.buildAudioOnly(videoId, holder.audioFormat, endAudio, state, holder.sessionToken)
+            else -> SabrManifestBuilder.build(videoId, holder.audioFormat, holder.videoFormat, endAudio, endVideo, state, holder.sessionToken)
+        }
+        call.response.headers.append("Cache-Control", "no-store")
+        call.respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
+    }
+
+    private suspend fun fetchSabrInfo(videoId: String) = withContext(Dispatchers.IO) {
+        withTimeoutOrNull(20_000L) {
+            runCatching {
+                YoutubeSabrProbe.fetchSabrInfo(
+                    videoId,
+                    YoutubeSabrClientProfile.WEB,
+                    Localization("en", "GB"),
+                    ContentCountry("GB"),
+                )
+            }.getOrNull()
+        }
+    }
+
+    private companion object {
+        val DASH_CONTENT_TYPE: ContentType = ContentType.parse("application/dash+xml")
+        val HLS_CONTENT_TYPE: ContentType = ContentType.parse("application/vnd.apple.mpegurl")
+    }
+}
