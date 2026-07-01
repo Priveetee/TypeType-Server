@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.localization.Localization
@@ -31,13 +30,17 @@ internal class SabrSessionPump {
             return segment
         }
         if (holder.session.isBeyondEnd(request)) return null
-        val waiter = holder.pendingAwaits.computeIfAbsent(request) { CompletableDeferred() }
-        holder.pendingSignals.add(request)
-        return try {
-            waiter.await()
-            holder.session.getCachedSegment(request)?.also { holder.markServed(it) }
-        } finally {
-            holder.pendingAwaits.remove(request, waiter)
+        val localization = Localization("en", "GB")
+        return holder.pumpMutex.withLock {
+            holder.session.getCachedSegment(request)?.let { segment ->
+                holder.markServed(segment)
+                return@withLock segment
+            }
+            if (holder.session.isBeyondEnd(request)) return@withLock null
+            if (!request.isInitializationSegment) holder.session.prepareForMediaSegment(request)
+            runCatching { holder.session.fetchSegment(request, localization) }
+                .getOrNull()
+                ?.also { holder.markServed(it) }
         }
     }
 
