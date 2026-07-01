@@ -13,7 +13,6 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 class SabrSessionPumpTest {
@@ -28,13 +27,10 @@ class SabrSessionPumpTest {
         every { format.itag } returns itag
         val request = SabrSegmentRequest.media(format, sequence)
         val session = mockk<YoutubeSabrSession>()
-        val streamState = mockk<YoutubeSabrStreamState>()
         val segment = mediaSegment(startMs, durationMs)
         every { session.getCachedSegment(request) } returns null
         every { session.isBeyondEnd(request) } returns false
-        every { session.streamState } returns streamState
-        every { streamState.getMaxSegment(format) } returns 20
-        every { session.prepareForRewind(request) } returns Unit
+        every { session.prepareForForwardJump(request) } returns Unit
         every { session.fetchSegment(request, any<Localization>()) } returns segment
         every { session.setPlayHeadMs(startMs + durationMs) } returns Unit
         val holder = SabrSessionHolder(
@@ -49,7 +45,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(segment, fetched)
-        verify { session.prepareForRewind(request) }
+        verify { session.prepareForForwardJump(request) }
         verify { session.fetchSegment(request, any<Localization>()) }
         verify { session.setPlayHeadMs(startMs + durationMs) }
     }
