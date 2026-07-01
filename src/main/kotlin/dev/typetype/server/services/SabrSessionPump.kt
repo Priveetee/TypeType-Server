@@ -37,7 +37,7 @@ internal class SabrSessionPump {
                 return@withLock segment
             }
             if (holder.session.isBeyondEnd(request)) return@withLock null
-            holder.session.prepareForRequestedSegment(request)
+            holder.session.prepareForRequestedSegment(holder, request)
             runCatching { holder.session.fetchSegment(request, localization) }
                 .getOrNull()
                 ?.also { holder.markServed(it) }
@@ -55,7 +55,7 @@ internal class SabrSessionPump {
                         return@withLock
                     }
                     signal?.let {
-                        holder.session.prepareForRequestedSegment(signal)
+                        holder.session.prepareForRequestedSegment(holder, signal)
                         holder.pendingSignals.remove(signal)
                     }
                     holder.session.evictPlayed()
@@ -91,9 +91,26 @@ internal class SabrSessionPump {
         }
     }
 
-    private fun YoutubeSabrSession.prepareForRequestedSegment(request: SabrSegmentRequest) {
+    private fun YoutubeSabrSession.prepareForRequestedSegment(holder: SabrSessionHolder, request: SabrSegmentRequest) {
         if (request.isInitializationSegment) return
         prepareForRewind(request)
         prepareForForwardJump(request)
+        streamState.setBufferedRangesOverride(emptyList())
+        val startMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
+        streamState.setPlayerTimeMs(if (startMs == 0L) 0L else startMs + 1L)
+        if (request.format.isAudio) {
+            streamState.setRequestTrackMode(AUDIO_ONLY_TRACKS, true, false)
+            streamState.setFullyBuffered(holder.videoFormat, true)
+            streamState.setFullyBuffered(holder.audioFormat, false)
+        } else {
+            streamState.setRequestTrackMode(VIDEO_ONLY_TRACKS, false, true)
+            streamState.setFullyBuffered(holder.audioFormat, true)
+            streamState.setFullyBuffered(holder.videoFormat, false)
+        }
+    }
+
+    private companion object {
+        const val AUDIO_ONLY_TRACKS = 1
+        const val VIDEO_ONLY_TRACKS = 2
     }
 }
