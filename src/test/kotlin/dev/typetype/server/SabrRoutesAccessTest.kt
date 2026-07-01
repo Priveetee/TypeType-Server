@@ -63,6 +63,7 @@ class SabrRoutesAccessTest {
                 AuthService("sabr-test-secret"),
                 accessControlService = null,
                 adminSettingsService = adminSettings,
+                audioOnlyTokenService = null,
             )
         }
     }

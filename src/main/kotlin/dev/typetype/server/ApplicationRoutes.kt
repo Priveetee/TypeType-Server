@@ -77,7 +77,14 @@ internal fun Application.installApplicationRoutes(
         }
         installProxyRoutes(svc)
         rateLimit(PROXY_ZONE) {
-            sabrRoutes(svc.sabrSessionStore, svc.streamService, authService, svc.accessControlService, adminSettingsService)
+            sabrRoutes(
+                svc.sabrSessionStore,
+                svc.streamService,
+                authService,
+                svc.accessControlService,
+                adminSettingsService,
+                svc.audioOnlyMediaTokenService,
+            )
         }
         downloaderGatewayRoutes(downloaderGatewayService)
         oidcAuthRoutes(oidcAuthService, adminSettingsService)

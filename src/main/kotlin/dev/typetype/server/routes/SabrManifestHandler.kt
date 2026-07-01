@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrSessionStore
@@ -27,13 +28,21 @@ internal class SabrManifestHandler(
     private val authService: AuthService?,
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
+    private val audioOnlyTokenService: AudioOnlyMediaTokenService?,
 ) {
+    private val accessResolver = SabrManifestAccessResolver(audioOnlyTokenService)
+
     suspend fun handle(call: ApplicationCall, videoId: String) {
         val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
         val hls = audioOnly && call.request.queryParameters["format"].equals("hls", ignoreCase = true)
-        val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
+        val manifestAccess = accessResolver.resolve(call, videoId) ?: return
+        val access = when (manifestAccess) {
+            is SabrManifestAccess.AudioOnlyToken -> null
+            SabrManifestAccess.RequiresAuth ->
+                call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
+        }
         val url = "https://www.youtube.com/watch?v=$videoId"
-        if (access.profile.enabled) {
+        if (access?.profile?.enabled == true) {
             when (val result = streamService.getStreamInfo(url)) {
                 is ExtractionResult.Success -> {
                     if (!access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
@@ -48,16 +57,18 @@ internal class SabrManifestHandler(
         }
         val info = fetchSabrInfo(videoId)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
+        val audioToken = (manifestAccess as? SabrManifestAccess.AudioOnlyToken)?.token
         val audio = SabrFormatSelector.audio(
             info,
-            call.request.queryParameters["audioItag"]?.toIntOrNull(),
-            call.request.queryParameters["audioTrackId"],
+            audioToken?.selectedItag ?: call.request.queryParameters["audioItag"]?.toIntOrNull(),
+            audioToken?.selectedAudioTrackId ?: call.request.queryParameters["audioTrackId"],
             hls,
         )
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
         val video = SabrFormatSelector.video(info, call.request.queryParameters["videoItag"]?.toIntOrNull())
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
-        val holder = sabrSessionStore.getOrCreate(videoId, access.userId ?: videoId, info, audio, video)
+        val userId = audioToken?.userId ?: access?.userId ?: videoId
+        val holder = sabrSessionStore.getOrCreate(videoId, userId, info, audio, video)
         sabrSessionStore.ensureWarmed(holder)
         val state = holder.session.streamState
         val endAudio = state.getEndSegment(holder.audioFormat)

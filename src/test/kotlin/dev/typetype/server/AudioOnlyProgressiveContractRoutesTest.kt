@@ -74,7 +74,7 @@ class AudioOnlyProgressiveContractRoutesTest {
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"src\":\"/sabr/manifest/test-id?audioOnly=true&format=hls\""))
+        assertTrue(body.contains("\"src\":\"/sabr/manifest/test-id?audioOnly=true&format=hls&audioToken="))
         assertTrue(body.contains("\"kind\":\"hls\""))
         assertTrue(body.contains("\"mimeType\":\"application/vnd.apple.mpegurl\""))
         assertTrue(body.contains("\"bitrate\":128"))

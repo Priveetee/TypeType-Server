@@ -24,7 +24,7 @@ internal fun AudioOnlyStreamSelection.toResponse(
             ?: return ExtractionResult.Failure("No audio-only stream is available")
         AudioOnlyStreamKind.Dash -> stream.manifestUrl?.let { audioOnlyDashManifest(it) }
             ?: return ExtractionResult.Failure("No audio-only stream is available")
-        AudioOnlyStreamKind.SabrHls -> stream.manifestUrl?.let { audioOnlySabrHlsManifest(it) }
+        AudioOnlyStreamKind.SabrHls -> stream.manifestUrl?.let { audioOnlySabrHlsManifest(it, token) }
             ?: return ExtractionResult.Failure("No audio-only stream is available")
     }
     return ExtractionResult.Success(AudioOnlyStreamResponse(
@@ -47,8 +47,10 @@ private fun encode(value: String): String = URLEncoder.encode(value, StandardCha
 private fun audioOnlyDashManifest(manifestUrl: String): String =
     manifestUrl + if (manifestUrl.contains("?")) "&audioOnly=true" else "?audioOnly=true"
 
-private fun audioOnlySabrHlsManifest(manifestUrl: String): String =
-    manifestUrl + if (manifestUrl.contains("?")) "&audioOnly=true&format=hls" else "?audioOnly=true&format=hls"
+private fun audioOnlySabrHlsManifest(manifestUrl: String, token: String): String {
+    val separator = if (manifestUrl.contains("?")) "&" else "?"
+    return "$manifestUrl${separator}audioOnly=true&format=hls&audioToken=${encode(token)}"
+}
 
 private const val HLS_MIME_TYPE = "application/vnd.apple.mpegurl"
 private const val DASH_MIME_TYPE = "application/dash+xml"

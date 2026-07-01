@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -17,6 +18,7 @@ fun Route.sabrRoutes(
     authService: AuthService?,
     accessControlService: AccessControlService?,
     adminSettingsService: AdminSettingsService?,
+    audioOnlyTokenService: AudioOnlyMediaTokenService?,
 ) {
     val manifestHandler = SabrManifestHandler(
         sabrSessionStore,
@@ -24,6 +26,7 @@ fun Route.sabrRoutes(
         authService,
         accessControlService,
         adminSettingsService,
+        audioOnlyTokenService,
     )
     val segmentHandler = SabrSegmentHandler(sabrSessionStore, authService, accessControlService, adminSettingsService)
     get("/sabr/manifest/{videoId}") {
