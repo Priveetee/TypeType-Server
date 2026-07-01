@@ -30,11 +30,7 @@ class HistoryRoutesTest {
     private val service = HistoryService()
     private val auth = AuthService.fixed(TEST_USER_ID)
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun initDb() { TestDatabase.setup() }
-    }
+    companion object { @BeforeAll @JvmStatic fun initDb() { TestDatabase.setup() } }
 
     @BeforeEach
     fun clean() { TestDatabase.truncateAll() }
