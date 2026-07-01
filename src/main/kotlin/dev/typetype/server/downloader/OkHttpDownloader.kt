@@ -1,7 +1,9 @@
 package dev.typetype.server.downloader
 
 import okhttp3.Callback
+import okhttp3.Call
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.schabi.newpipe.extractor.downloader.CancellableCall
 import org.schabi.newpipe.extractor.downloader.Downloader
@@ -10,10 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.localization.Localization
-import java.io.FilterInputStream
 import java.util.concurrent.TimeUnit
-import okhttp3.Call
-import okhttp3.Request
 
 class OkHttpDownloader private constructor(private val client: OkHttpClient) : Downloader() {
 
@@ -33,16 +32,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
                 throw ReCaptchaException("reCaptcha required", request.url())
             }
 
-            val responseBodyBytes = httpResponse.body.bytes()
-            val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-            return Response(
-                httpResponse.code,
-                httpResponse.message,
-                httpResponse.headers.toMultimap(),
-                responseBody,
-                responseBodyBytes,
-                httpResponse.request.url.toString()
-            )
+            return OkHttpExtractorResponseMapper.toExtractorResponse(httpResponse)
         }
     }
 
@@ -54,17 +44,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         call.enqueue(object : Callback {
             override fun onResponse(call: Call, response: okhttp3.Response) {
                 response.use { httpResponse ->
-                    val responseBodyBytes = httpResponse.body.bytes()
-                    val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-                    val extractorResponse = Response(
-                        httpResponse.code,
-                        httpResponse.message,
-                        httpResponse.headers.toMultimap(),
-                        responseBody,
-                        responseBodyBytes,
-                        httpResponse.request.url.toString()
-                    )
-                    callback.onSuccess(extractorResponse)
+                    callback.onSuccess(OkHttpExtractorResponseMapper.toExtractorResponse(httpResponse))
                     cancellableCall.setFinished()
                 }
             }
@@ -95,20 +75,10 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
             httpResponse.close()
             throw ReCaptchaException("reCaptcha required", url)
         }
-        val body = httpResponse.body
-        val stream = object : FilterInputStream(body.byteStream()) {
-            override fun close() {
-                try {
-                    super.close()
-                } finally {
-                    httpResponse.close()
-                }
-            }
-        }
         return StreamingResponse(
             httpResponse.code,
             httpResponse.headers.toMultimap(),
-            stream,
+            OkHttpStreamingBodyStream(httpResponse),
         )
     }
 
