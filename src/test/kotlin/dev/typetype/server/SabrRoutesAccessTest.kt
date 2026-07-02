@@ -14,6 +14,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.ktor.server.websocket.WebSockets
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -56,6 +57,7 @@ class SabrRoutesAccessTest {
 
     private fun ApplicationTestBuilder.installSabrApp(): Unit = application {
         install(ContentNegotiation) { json() }
+        install(WebSockets)
         routing {
             sabrRoutes(
                 sabrSessionStore,
