@@ -22,4 +22,5 @@ data class VideoStreamItem(
     val indexEnd: Long,
     val deliveryMethod: String = "progressive",
     val manifestUrl: String? = null,
+    val sabrSessionUrl: String? = null,
 )

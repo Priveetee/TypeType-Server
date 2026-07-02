@@ -22,4 +22,5 @@ data class AudioStreamItem(
     val isOriginal: Boolean,
     val deliveryMethod: String = "progressive",
     val manifestUrl: String? = null,
+    val sabrSessionUrl: String? = null,
 )
