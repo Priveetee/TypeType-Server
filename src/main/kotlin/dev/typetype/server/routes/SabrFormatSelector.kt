@@ -13,7 +13,8 @@ internal object SabrFormatSelector {
 
     fun audio(info: YoutubeSabrInfo, itag: Int?, trackId: String?, requireAac: Boolean): YoutubeSabrFormat? {
         if (itag != null) return info.formats.firstOrNull { it.matchesAudio(itag, trackId, requireAac) }
-        return info.formats.filter { it.isAac() }.maxByOrNull { it.bitrate }
+        return info.formats.filter { it.isAac() && (trackId.isNullOrBlank() || it.audioTrackId == trackId) }
+            .maxWithOrNull(audioComparator)
             ?: if (requireAac) null else info.findBestAudioFormat()
     }
 
@@ -23,4 +24,11 @@ internal object SabrFormatSelector {
 
     private fun YoutubeSabrFormat.isAac(): Boolean =
         isAudio && mimeType?.contains("mp4") == true && mimeType?.contains("mp4a") == true
+
+    private val audioComparator = compareBy<YoutubeSabrFormat> { it.isOriginalAudio }
+        .thenBy { it.isPlainAudioVariant() }
+        .thenBy { !it.isDrc }
+        .thenBy { it.bitrate }
+
+    private fun YoutubeSabrFormat.isPlainAudioVariant(): Boolean = xtags.isNullOrBlank()
 }
