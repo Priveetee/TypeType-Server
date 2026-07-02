@@ -1,11 +1,9 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.downloader.OkHttpDownloader
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
@@ -21,7 +19,7 @@ class SabrSessionStoreTest {
 
     @Test
     fun storeRoundTrip() = runBlocking {
-        NewPipe.init(OkHttpDownloader.instance())
+        NewPipeInitializer.init()
         val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
         val videoId = System.getenv("SABR_PROBE_VIDEOS")?.split(",")?.firstOrNull()?.trim() ?: "dQw4w9WgXcQ"
         val userId = "sabr-probe-user"

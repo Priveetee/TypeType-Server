@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.downloader.OkHttpDownloader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -8,7 +7,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -21,8 +19,8 @@ import java.util.Base64
 
 class SabrSessionStore(
     private val tokenServiceUrl: String,
-    private val maxSessions: Int = 4,
-    private val idleEviction: Duration = Duration.ofSeconds(90),
+    private val maxSessions: Int = defaultMaxSessions(),
+    private val idleEviction: Duration = defaultIdleEviction(),
     private val pumpLoopIntervalMs: Long = 750,
 ) {
     private val registry = SabrSessionRegistry()
@@ -32,7 +30,7 @@ class SabrSessionStore(
     private val random = SecureRandom()
 
     init {
-        runCatching { NewPipe.init(OkHttpDownloader.instance()) }
+        runCatching { NewPipeInitializer.init() }
     }
 
     internal fun getOrCreate(
@@ -47,6 +45,9 @@ class SabrSessionStore(
         registry.ensureCapacity(maxSessions)
         val provider = TypetypeTokenSabrPoTokenProvider(tokenServiceUrl)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
+        runCatching { provider.getPoToken(info, session.streamState) }
+            .getOrNull()
+            ?.let { session.streamState.setPoToken(it) }
         val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, newSessionToken(), Instant.now())
         registry.put(key, holder)
         scope.launch { pump.pumpLoop({ registry.contains(key) }, holder, pumpLoopIntervalMs) }
@@ -61,6 +62,9 @@ class SabrSessionStore(
 
     internal fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? =
         registry.lookupByToken(videoId, token, itag)
+
+    internal fun lookupByToken(videoId: String, token: String): SabrSessionHolder? =
+        registry.lookupByToken(videoId, token)
 
     internal suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8) {
         pump.ensureWarmed(holder, maxPumps)
@@ -88,5 +92,14 @@ class SabrSessionStore(
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private companion object {
+        fun defaultMaxSessions(): Int =
+            System.getenv("SABR_MAX_SESSIONS")?.toIntOrNull()?.coerceAtLeast(1) ?: 24
+
+        fun defaultIdleEviction(): Duration = Duration.ofSeconds(
+            System.getenv("SABR_IDLE_EVICTION_SECONDS")?.toLongOrNull()?.coerceAtLeast(60L) ?: 240L,
+        )
     }
 }

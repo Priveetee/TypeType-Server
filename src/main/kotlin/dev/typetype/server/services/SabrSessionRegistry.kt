@@ -9,7 +9,7 @@ internal class SabrSessionRegistry {
 
     fun get(key: SabrSessionKey): SabrSessionHolder? {
         val holder = sessions[key]
-        if (holder != null) holder.lastRequestAt = Instant.now()
+        holder?.touch()
         return holder
     }
 
@@ -26,7 +26,7 @@ internal class SabrSessionRegistry {
             if (key.userId != userId) continue
             if (holder.info.videoId != videoId) continue
             if (holder.audioFormat.itag != itag && holder.videoFormat.itag != itag) continue
-            holder.lastRequestAt = now
+            holder.touch(now)
             return holder
         }
         return null
@@ -36,18 +36,31 @@ internal class SabrSessionRegistry {
         val holder = sessionsByToken[token] ?: return null
         if (holder.info.videoId != videoId) return null
         if (holder.audioFormat.itag != itag && holder.videoFormat.itag != itag) return null
-        holder.lastRequestAt = Instant.now()
+        holder.touch()
+        return holder
+    }
+
+    fun lookupByToken(videoId: String, token: String): SabrSessionHolder? {
+        val holder = sessionsByToken[token] ?: return null
+        if (holder.info.videoId != videoId) return null
+        holder.touch()
         return holder
     }
 
     fun ensureCapacity(maxSessions: Int) {
-        if (sessions.size < maxSessions) return
-        val oldest = sessions.entries.minByOrNull { it.value.lastRequestAt } ?: return
-        remove(oldest.key)
+        while (sessions.size >= maxSessions) {
+            val oldest = sessions.entries
+                .filterNot { it.value.hasActiveWebSocket() }
+                .minByOrNull { it.value.lastRequestAt }
+                ?: return
+            remove(oldest.key)
+        }
     }
 
     fun evictIdle(cutoff: Instant) {
-        val stale = sessions.entries.filter { it.value.lastRequestAt.isBefore(cutoff) }.map { it.key }
+        val stale = sessions.entries
+            .filter { !it.value.hasActiveWebSocket() && it.value.lastRequestAt.isBefore(cutoff) }
+            .map { it.key }
         stale.forEach(::remove)
     }
 
@@ -59,7 +72,6 @@ internal class SabrSessionRegistry {
     private fun remove(key: SabrSessionKey) {
         sessions.remove(key)?.let { holder ->
             sessionsByToken.remove(holder.sessionToken, holder)
-            holder.pendingAwaits.values.forEach { it.complete(Unit) }
         }
     }
 }

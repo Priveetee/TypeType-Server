@@ -1,10 +1,8 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.downloader.OkHttpDownloader
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
@@ -24,7 +22,7 @@ class SabrProbeTest {
 
     @Test
     fun probeSabr() {
-        NewPipe.init(OkHttpDownloader.instance())
+        NewPipeInitializer.init()
         val loc = Localization("en", "GB")
         val country = ContentCountry("GB")
         val provider = TypetypeTokenSabrPoTokenProvider(tokenServiceUrl)
