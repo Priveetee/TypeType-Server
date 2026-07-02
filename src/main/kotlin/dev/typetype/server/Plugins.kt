@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.SabrWebSocketLimits
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -48,7 +49,7 @@ fun Application.configurePlugins(authService: AuthService) {
     install(WebSockets) {
         pingPeriodMillis = 15_000
         timeoutMillis = 30_000
-        maxFrameSize = 16L * 1024
+        maxFrameSize = SabrWebSocketLimits.MAX_BINARY_FRAME_BYTES
         masking = false
     }
     configureCompression()
