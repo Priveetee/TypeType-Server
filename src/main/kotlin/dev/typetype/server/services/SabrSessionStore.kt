@@ -34,6 +34,7 @@ internal class SabrSessionStore(
 ) {
     private val registry = SabrSessionRegistry()
     private val pump = SabrSessionPump()
+    private val infoCache = SabrPreparedInfoCache()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
     private val random = SecureRandom()
@@ -100,16 +101,16 @@ internal class SabrSessionStore(
 
     internal suspend fun fetchInfo(videoId: String, startTimeMs: Long = 0L): SabrPreparedInfo? = withContext(Dispatchers.IO) {
         repeat(SABR_INFO_ATTEMPTS) { attempt ->
-            fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext it }
+            fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext infoCache.put(videoId, it) }
             if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
         }
         if (startTimeMs > 0L) {
             repeat(SABR_INFO_ATTEMPTS) { attempt ->
-                fetchInfoOnce(videoId, 0L)?.let { return@withContext it }
+                fetchInfoOnce(videoId, 0L)?.let { return@withContext infoCache.put(videoId, it) }
                 if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
             }
         }
-        null
+        infoCache.get(videoId)
     }
 
     private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
