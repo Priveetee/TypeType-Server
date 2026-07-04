@@ -14,24 +14,38 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 class SabrProbeTest {
 
     private val tokenServiceUrl: String =
-        System.getenv("SUBTITLE_SERVICE_URL") ?: "http://localhost:8081"
+        sabrProbeTokenServiceUrl()
 
     private val probeVideos: List<String> =
-        (System.getenv("SABR_PROBE_VIDEOS") ?: "dQw4w9WgXcQ,9bZkp7q19f0,aqz-KE-bpKQ,jNQXAC9IVRw")
-            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        sabrProbeVideoIds()
 
     @Test
-    fun probeSabr() {
+    fun probeSabr(): Unit {
         NewPipeInitializer.init()
         val loc = Localization("en", "GB")
         val country = ContentCountry("GB")
-        val provider = TypetypeTokenSabrPoTokenProvider(tokenServiceUrl)
+        val tokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl)
         val profile = YoutubeSabrClientProfile.WEB
+        val playerTimeMs = sabrProbePlayerTimeMs()
+        val audioItag = sabrProbeAudioItag()
+        val videoItags = sabrProbeVideoItags()
+        println(
+            "config videos=${probeVideos.joinToString(",")} playerTimeMs=$playerTimeMs " +
+                "audioItag=$audioItag videoItags=${videoItags.joinToString(",")}"
+        )
 
         for (videoId in probeVideos) {
             println("\n========== SABR probe: $videoId ==========")
             try {
-                val info = YoutubeSabrProbe.fetchSabrInfo(videoId, profile, loc, country)
+                val token = tokenClient.fetch(videoId) ?: error("No SABR token")
+                val info = YoutubeSabrProbe.fetchSabrInfo(
+                    videoId,
+                    profile,
+                    loc,
+                    country,
+                    token.visitorPoToken,
+                    token.visitorData,
+                )
                 println("serverAbrStreamingUrl present: ${!info.serverAbrStreamingUrl.isNullOrEmpty()}")
                 println("videoPlaybackUstreamerConfig present: ${!info.videoPlaybackUstreamerConfig.isNullOrEmpty()}")
                 println("--- formats (itag | A/V | height×width | bitrate | mime | audioTrack | approxDurMs) ---")
@@ -48,25 +62,31 @@ class SabrProbeTest {
                 }
                 val hasAvc = info.formats.any { it.itag == 137 }
                 println("AVC itag 137 present: $hasAvc")
+                for (videoItag in videoItags) {
+                    val configuredVideo = info.formats.firstOrNull { it.itag == videoItag && it.isVideo }
+                    println("configured video itag $videoItag present: ${configuredVideo != null}")
+                    configuredVideo?.let { printSabrProbeFormat("configured video[$videoItag]", it) }
+                }
 
-                val audio = info.findBestAudioFormat()
-                val video = info.findBestVideoFormat()
+                val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
+                    ?: info.findBestAudioFormat()
+                val video = info.formats.firstOrNull { it.itag == videoItags.first() && it.isVideo }
+                    ?: info.findBestVideoFormat()
                 println("selected pair: audio=${audio?.itag} video=${video?.itag}")
                 if (audio == null || video == null) {
                     println("no usable audio/video pair — skipping session")
                     continue
                 }
 
+                val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, token)
                 val session = YoutubeSabrSession(info, audio, video, provider)
+                session.streamState.setActiveTrackTypes(true, true)
+                session.streamState.setPlayerTimeMs(playerTimeMs)
                 println("--- pumpOnce #1 ---")
                 val segments = session.pumpOnce(loc)
                 println("segments returned: ${segments.size}")
                 segments.take(8).forEach { s ->
-                    val h = s.header
-                    println(
-                        "  itag=${h.itag} seq=${h.sequenceNumber} isInit=${h.isInitSegment} " +
-                            "dur=${h.durationMs}ms start=${h.startMs}ms bytes=${s.data.size}"
-                    )
+                    println("  ${sabrProbeSegmentHeader(s)}")
                 }
                 println("session complete: ${session.isComplete}")
             } catch (e: Exception) {

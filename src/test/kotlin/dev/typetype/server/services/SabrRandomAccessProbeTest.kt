@@ -1,75 +1,127 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 @EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
 @Tag("network")
 class SabrRandomAccessProbeTest {
     private val tokenServiceUrl: String =
-        System.getenv("SUBTITLE_SERVICE_URL") ?: "http://localhost:8081"
+        sabrProbeTokenServiceUrl()
 
     @Test
-    fun `pumps post seek stateful responses`() = runBlocking {
+    fun `fetches post seek stateful responses`(): Unit = runBlocking {
         NewPipeInitializer.init()
-        val videoId = System.getenv("SABR_PROBE_VIDEO") ?: "dQw4w9WgXcQ"
-        val videoItag = System.getenv("SABR_PROBE_VIDEO_ITAG")?.toIntOrNull() ?: 137
-        val audioItag = System.getenv("SABR_PROBE_AUDIO_ITAG")?.toIntOrNull() ?: 140
-        val videoSequence = System.getenv("SABR_PROBE_VIDEO_SEQUENCE")?.toIntOrNull() ?: 14
-        val localization = Localization("en", "GB")
-        val country = ContentCountry("GB")
-        val info = YoutubeSabrProbe.fetchSabrInfo(videoId, YoutubeSabrClientProfile.WEB, localization, country)
-        val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
-            ?: info.findBestAudioFormat()
-            ?: error("No SABR audio format for probe")
-        val video = info.formats.firstOrNull { it.itag == videoItag && it.isVideo }
-            ?: info.findBestVideoFormat()
-            ?: error("No SABR video format for probe")
+        val videoId = sabrProbeVideoId()
+        val videoItags = sabrProbeVideoItags()
+        val audioItag = sabrProbeAudioItag()
+        val playerTimeMs = sabrProbePlayerTimeMs()
+        val timeoutMs = sabrProbeTimeoutMs()
         val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
         try {
-            val videoHolder = store.getOrCreate(videoId, "sabr-random-access-video", info, audio, video)
-            store.ensureWarmed(videoHolder)
-            val videoSegments = withTimeoutOrNull(60_000L) {
-                pumpStateful(videoHolder, SabrSegmentRequest.media(video, videoSequence), localization)
-            }
-
-            assertTrue((videoSegments?.sumOf { it.length } ?: 0) > 0, "video pump bytes")
             println(
-                "videoTarget=${video.itag}/$videoSequence audio=${audio.itag} " +
-                    "segments=${videoSegments?.size} bytes=${videoSegments?.sumOf { it.length }}"
+                "config videoId=$videoId playerTimeMs=$playerTimeMs audioItag=$audioItag " +
+                    "videoItags=${videoItags.joinToString(",")} timeoutMs=$timeoutMs " +
+                    "contract=stateful-pump"
             )
+            val prepared = store.fetchInfo(videoId, playerTimeMs) ?: error("SABR probe failed")
+            val info = prepared.info
+            val audio = requireAudioFormat(info.formats, audioItag)
+            printSabrProbeFormat("audio", audio)
+            for (videoItag in videoItags) {
+                val video = requireVideoFormat(info.formats, videoItag)
+                printSabrProbeFormat("video", video)
+                val holder = store.getOrCreate(
+                    videoId,
+                    "sabr-random-access-video-$videoItag",
+                    info,
+                    audio,
+                    video,
+                    prepared.initialToken,
+                    playerTimeMs,
+                )
+                store.ensureWarmed(holder)
+                holder.setActiveTracks(videoActive = true, audioActive = true)
+                holder.setPlayerTimeMs(playerTimeMs)
+                holder.mediaRequestsAt(playerTimeMs).forEach { request ->
+                    println("pump target[$videoItag] ${sabrProbeRequestSummary(holder, request)}")
+                }
+                val startedAt = System.nanoTime()
+                val segments = withTimeoutOrNull(timeoutMs) {
+                    store.fetchMediaAt(holder, playerTimeMs)
+                }
+                val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000L
+                println("pump[$videoItag] elapsedMs=$elapsedMs segments=${segments?.size ?: -1}")
+                segments.orEmpty().forEach { println("pump[$videoItag] ${sabrProbeSegmentHeader(it)}") }
+                if (segments == null) {
+                    printDirectFailure(holder, playerTimeMs, videoItag)
+                }
+                assertTrue(
+                    segments.orEmpty().any { it.covers(video, playerTimeMs) },
+                    "video[$videoItag] pump bytes",
+                )
+                assertTrue(
+                    segments.orEmpty().any { it.covers(audio, playerTimeMs) },
+                    "audio[$videoItag] pump bytes",
+                )
+            }
         } finally {
             store.release()
         }
     }
 
-    private suspend fun pumpStateful(
+    private suspend fun printDirectFailure(
         holder: SabrSessionHolder,
-        request: SabrSegmentRequest,
-        localization: Localization,
-    ): List<SabrMediaSegment> {
-        holder.session.getCachedSegment(request)?.let { return listOf(it) }
-        var segments = emptyList<SabrMediaSegment>()
-        while (segments.isEmpty()) {
-            holder.pumpMutex.withLock {
-                holder.session.configureTargetRequest(holder, request)
-                segments = holder.session.pumpOnce(localization)
-                holder.session.clearTargetRequest(holder)
+        playerTimeMs: Long,
+        videoItag: Int,
+    ): Unit {
+        val result = holder.pumpMutex.withLock {
+            runCatchingNonCancellation {
+                holder.session.fetchMediaAt(
+                    playerTimeMs,
+                    holder.isVideoActive(),
+                    holder.isAudioActive(),
+                    Localization("en", "GB"),
+                )
             }
-            if (segments.isEmpty()) delay(250L)
         }
-        return segments
+        result.exceptionOrNull()?.let { error ->
+            println("pump[$videoItag] direct error ${error.javaClass.simpleName}: ${error.message}")
+        }
+    }
+
+    private fun requireAudioFormat(
+        formats: List<YoutubeSabrFormat>,
+        audioItag: Int,
+    ): YoutubeSabrFormat =
+        formats.filter { it.itag == audioItag && it.isAudio }
+            .maxWithOrNull(compareBy<YoutubeSabrFormat> { it.isOriginalAudio }
+                .thenBy { it.xtags.isNullOrBlank() }
+                .thenBy { !it.isDrc }
+                .thenBy { it.bitrate })
+            ?: error("No SABR audio format for itag $audioItag")
+
+    private fun requireVideoFormat(
+        formats: List<YoutubeSabrFormat>,
+        videoItag: Int,
+    ): YoutubeSabrFormat =
+        formats.firstOrNull { it.itag == videoItag && it.isVideo }
+            ?: error("No SABR video format for itag $videoItag")
+
+    private fun SabrMediaSegment.covers(format: YoutubeSabrFormat, playerTimeMs: Long): Boolean {
+        val header = header
+        if (length <= 0 || header.isInitSegment || header.itag != format.itag) return false
+        val startMs = header.startMs
+        val durationMs = header.durationMs
+        return startMs >= 0 && durationMs > 0 &&
+            playerTimeMs >= startMs && playerTimeMs < startMs + durationMs
     }
 }
