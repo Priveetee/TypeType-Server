@@ -88,3 +88,15 @@ private fun audioSessionUrl(videoId: String, itag: Int, trackId: String?): Strin
         .orEmpty()
     return "/sabr/session/$videoId?audioItag=$itag$track"
 }
+
+internal fun VideoStreamItem.isSupportedPlaybackStream(): Boolean =
+    deliveryMethod != "sabr" || isSupportedSabrVideo()
+
+internal fun AudioStreamItem.isSupportedPlaybackStream(): Boolean =
+    deliveryMethod != "sabr" || isSupportedSabrAudio()
+
+private fun VideoStreamItem.isSupportedSabrVideo(): Boolean =
+    mimeType.contains("mp4") && (codec?.contains("avc1") == true || mimeType.contains("avc1"))
+
+private fun AudioStreamItem.isSupportedSabrAudio(): Boolean =
+    mimeType.contains("mp4") && (codec?.contains("mp4a") == true || mimeType.contains("mp4a"))

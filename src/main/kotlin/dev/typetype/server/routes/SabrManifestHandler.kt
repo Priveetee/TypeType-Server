@@ -14,13 +14,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 
 internal class SabrManifestHandler(
     private val sabrSessionStore: SabrSessionStore,
@@ -55,47 +48,77 @@ internal class SabrManifestHandler(
                     return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             }
         }
-        val info = fetchSabrInfo(videoId)
+        val startTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
+            ?: call.request.queryParameters["startTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
+            ?: 0L
+        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audioToken = (manifestAccess as? SabrManifestAccess.AudioOnlyToken)?.token
         val audio = SabrFormatSelector.audio(
-            info,
+            prepared.info,
             audioToken?.selectedItag ?: call.request.queryParameters["audioItag"]?.toIntOrNull(),
             audioToken?.selectedAudioTrackId ?: call.request.queryParameters["audioTrackId"],
-            hls,
+            requireAac = true,
         )
-            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
-        val video = SabrFormatSelector.video(info, call.request.queryParameters["videoItag"]?.toIntOrNull())
-            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
+            ?: return call.respond(
+                HttpStatusCode.UnprocessableEntity,
+                ErrorResponse("No SABR audio for this video"),
+            )
+        val video = SabrFormatSelector.video(
+            prepared.info,
+            call.request.queryParameters["videoItag"]?.toIntOrNull(),
+        )
+            ?: return call.respond(
+                HttpStatusCode.UnprocessableEntity,
+                ErrorResponse("No SABR video for this video"),
+            )
         val userId = audioToken?.userId ?: access?.userId ?: videoId
-        val holder = sabrSessionStore.getOrCreate(videoId, userId, info, audio, video)
+        val holder = sabrSessionStore.getOrCreate(
+            videoId,
+            userId,
+            prepared.info,
+            audio,
+            video,
+            prepared.initialToken,
+            startTimeMs,
+        )
         sabrSessionStore.ensureWarmed(holder)
         val state = holder.session.streamState
         val endAudio = state.getEndSegment(holder.audioFormat)
         val endVideo = state.getEndSegment(holder.videoFormat)
         if (endAudio <= 0L || endVideo <= 0L) {
-            return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("Segment index not yet available"))
+            return call.respond(
+                HttpStatusCode.UnprocessableEntity,
+                ErrorResponse("Segment index not yet available"),
+            )
         }
         val manifest = when {
-            audioOnly && hls -> SabrManifestBuilder.buildAudioOnlyHls(videoId, holder.audioFormat, endAudio, state, holder.sessionToken)
-            audioOnly -> SabrManifestBuilder.buildAudioOnly(videoId, holder.audioFormat, endAudio, state, holder.sessionToken)
-            else -> SabrManifestBuilder.build(videoId, holder.audioFormat, holder.videoFormat, endAudio, endVideo, state, holder.sessionToken)
+            audioOnly && hls -> SabrManifestBuilder.buildAudioOnlyHls(
+                videoId,
+                holder.audioFormat,
+                endAudio,
+                state,
+                holder.sessionToken,
+            )
+            audioOnly -> SabrManifestBuilder.buildAudioOnly(
+                videoId,
+                holder.audioFormat,
+                endAudio,
+                state,
+                holder.sessionToken,
+            )
+            else -> SabrManifestBuilder.build(
+                videoId,
+                holder.audioFormat,
+                holder.videoFormat,
+                endAudio,
+                endVideo,
+                state,
+                holder.sessionToken,
+            )
         }
         call.response.headers.append("Cache-Control", "no-store")
         call.respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
-    }
-
-    private suspend fun fetchSabrInfo(videoId: String) = withContext(Dispatchers.IO) {
-        withTimeoutOrNull(20_000L) {
-            runCatching {
-                YoutubeSabrProbe.fetchSabrInfo(
-                    videoId,
-                    YoutubeSabrClientProfile.WEB,
-                    Localization("en", "GB"),
-                    ContentCountry("GB"),
-                )
-            }.getOrNull()
-        }
     }
 
     private companion object {

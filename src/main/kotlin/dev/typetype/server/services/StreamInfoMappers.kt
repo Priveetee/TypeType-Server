@@ -42,11 +42,14 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse {
         streamSegments = runCatching { streamSegments.map { it.toStreamSegmentItem() } }.getOrElse { emptyList() },
         hlsUrl = liveMetadata.hlsUrl,
         dashMpdUrl = liveMetadata.dashMpdUrl,
-        videoStreams = videoStreams.map { it.toVideoStreamItem(id, false) },
-        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem(id) }.getOrNull() },
+        videoStreams = videoStreams.map { it.toVideoStreamItem(id, false) }
+            .filter { it.isSupportedPlaybackStream() },
+        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem(id) }.getOrNull() }
+            .filter { it.isSupportedPlaybackStream() },
         originalAudioTrackId = null,
         preferredDefaultAudioTrackId = null,
-        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(id, true) },
+        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(id, true) }
+            .filter { it.isSupportedPlaybackStream() },
         subtitles = subtitles.mapNotNull { runCatching { it.toSubtitleItem() }.getOrNull() },
         previewFrames = previewFrames.mapNotNull { runCatching { it.toPreviewFrameItem() }.getOrNull() },
         sponsorBlockSegments = runCatching { getSponsorBlockSegments().map { it.toSegmentItem() } }.getOrElse { emptyList() },

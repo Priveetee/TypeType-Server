@@ -14,7 +14,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.websocket.webSocket
 
-fun Route.sabrRoutes(
+internal fun Route.sabrRoutes(
     sabrSessionStore: SabrSessionStore,
     streamService: StreamService,
     authService: AuthService?,
@@ -39,7 +39,12 @@ fun Route.sabrRoutes(
     )
     val stateHandler = SabrSessionStateHandler(sabrSessionStore)
     val webSocketHandler = SabrWebSocketHandler(sabrSessionStore)
-    val segmentHandler = SabrSegmentHandler(sabrSessionStore, authService, accessControlService, adminSettingsService)
+    val segmentHandler = SabrSegmentHandler(
+        sabrSessionStore,
+        authService,
+        accessControlService,
+        adminSettingsService,
+    )
     webSocket("/sabr/session/{videoId}/ws") {
         val videoId = call.parameters["videoId"] ?: return@webSocket
         webSocketHandler.handle(this, videoId)

@@ -5,14 +5,14 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 internal object SabrFormatSelector {
     fun video(info: YoutubeSabrInfo, itag: Int?): YoutubeSabrFormat? {
-        if (itag != null) return info.findFormatByItag(itag)?.takeIf { it.isVideo }
-        return info.formats.filter { it.isVideo && it.mimeType?.contains("mp4") == true && it.mimeType?.contains("avc1") == true }
+        if (itag != null) return info.findFormatByItag(itag)?.takeIf { it.isSupportedVideo() }
+        return info.formats.filter { it.isSupportedVideo() }
             .maxByOrNull { it.height }
-            ?: info.findBestVideoFormat()
     }
 
     fun audio(info: YoutubeSabrInfo, itag: Int?, trackId: String?, requireAac: Boolean): YoutubeSabrFormat? {
-        if (itag != null) return info.formats.firstOrNull { it.matchesAudio(itag, trackId, requireAac) }
+        if (itag != null) return info.formats.filter { it.matchesAudio(itag, trackId, requireAac) }
+            .maxWithOrNull(audioComparator)
         return info.formats.filter { it.isAac() && (trackId.isNullOrBlank() || it.audioTrackId == trackId) }
             .maxWithOrNull(audioComparator)
             ?: if (requireAac) null else info.findBestAudioFormat()
@@ -24,6 +24,9 @@ internal object SabrFormatSelector {
 
     private fun YoutubeSabrFormat.isAac(): Boolean =
         isAudio && mimeType?.contains("mp4") == true && mimeType?.contains("mp4a") == true
+
+    private fun YoutubeSabrFormat.isSupportedVideo(): Boolean =
+        isVideo && mimeType?.contains("mp4") == true && mimeType?.contains("avc1") == true
 
     private val audioComparator = compareBy<YoutubeSabrFormat> { it.isOriginalAudio }
         .thenBy { it.isPlainAudioVariant() }
