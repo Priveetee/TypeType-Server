@@ -103,6 +103,12 @@ internal class SabrSessionStore(
             fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext it }
             if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
         }
+        if (startTimeMs > 0L) {
+            repeat(SABR_INFO_ATTEMPTS) { attempt ->
+                fetchInfoOnce(videoId, 0L)?.let { return@withContext it }
+                if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
+            }
+        }
         null
     }
 
