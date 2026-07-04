@@ -27,7 +27,7 @@ internal fun VideoStream.toVideoStreamItem(videoId: String, isVideoOnly: Boolean
         indexStart = getIndexStart().toLong(),
         indexEnd = getIndexEnd().toLong(),
         deliveryMethod = method,
-        manifestUrl = if (method == "sabr") "/sabr/manifest/$videoId?videoItag=${getItag()}" else null,
+        manifestUrl = null,
         sabrSessionUrl = if (method == "sabr") "/sabr/session/$videoId?videoItag=${getItag()}" else null,
     )
 }
@@ -52,7 +52,7 @@ internal fun AudioStream.toAudioStreamItem(videoId: String): AudioStreamItem {
         audioLocale = getAudioLocale(),
         isOriginal = false,
         deliveryMethod = method,
-        manifestUrl = if (method == "sabr") audioManifestUrl(videoId, getItag(), getAudioTrackId()) else null,
+        manifestUrl = null,
         sabrSessionUrl = if (method == "sabr") audioSessionUrl(videoId, getItag(), getAudioTrackId()) else null,
     )
 }
@@ -74,13 +74,6 @@ private fun VideoStream.playableUrl(method: String): String =
 
 private fun AudioStream.playableUrl(method: String): String =
     if (method == "sabr" || !isUrl) "" else getContent().orEmpty()
-
-private fun audioManifestUrl(videoId: String, itag: Int, trackId: String?): String {
-    val track = trackId?.takeIf { it.isNotBlank() }
-        ?.let { "&audioTrackId=${URLEncoder.encode(it, StandardCharsets.UTF_8)}" }
-        .orEmpty()
-    return "/sabr/manifest/$videoId?audioItag=$itag$track"
-}
 
 private fun audioSessionUrl(videoId: String, itag: Int, trackId: String?): String {
     val track = trackId?.takeIf { it.isNotBlank() }

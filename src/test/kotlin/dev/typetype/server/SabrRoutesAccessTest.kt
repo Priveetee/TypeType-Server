@@ -36,13 +36,23 @@ class SabrRoutesAccessTest {
     fun clean(): Unit = TestDatabase.truncateAll()
 
     @Test
-    fun `manifest rejects anonymous when guests are disabled`() = testApplication {
+    fun `manifest route is disabled`() = testApplication {
         adminSettings.upsert(AdminSettingsItem(allowGuest = false))
         installSabrApp()
 
         val response = client.get("/sabr/manifest/dqWhXeGQkgU")
 
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.Gone, response.status)
+    }
+
+    @Test
+    fun `static segment route is disabled`() = testApplication {
+        adminSettings.upsert(AdminSettingsItem(allowGuest = false))
+        installSabrApp()
+
+        val response = client.get("/sabr/dqWhXeGQkgU/140/segment/14")
+
+        assertEquals(HttpStatusCode.Gone, response.status)
     }
 
     @Test

@@ -22,14 +22,6 @@ internal fun Route.sabrRoutes(
     adminSettingsService: AdminSettingsService?,
     audioOnlyTokenService: AudioOnlyMediaTokenService?,
 ) {
-    val manifestHandler = SabrManifestHandler(
-        sabrSessionStore,
-        streamService,
-        authService,
-        accessControlService,
-        adminSettingsService,
-        audioOnlyTokenService,
-    )
     val sessionHandler = SabrSessionDescriptorHandler(
         sabrSessionStore,
         streamService,
@@ -65,16 +57,12 @@ internal fun Route.sabrRoutes(
         sessionHandler.handle(call, videoId)
     }
     get("/sabr/manifest/{videoId}") {
-        val videoId = call.parameters["videoId"]
-            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
-        manifestHandler.handle(call, videoId)
+        call.respond(HttpStatusCode.Gone, ErrorResponse("SABR static manifests are disabled"))
     }
     get("/sabr/{videoId}/{itag}/init") {
         segmentHandler.handle(call, isInit = true, seq = 0)
     }
     get("/sabr/{videoId}/{itag}/segment/{seq}") {
-        val seq = call.parameters["seq"]?.toIntOrNull()
-            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
-        segmentHandler.handle(call, isInit = false, seq = seq)
+        call.respond(HttpStatusCode.Gone, ErrorResponse("SABR static segments are disabled"))
     }
 }
