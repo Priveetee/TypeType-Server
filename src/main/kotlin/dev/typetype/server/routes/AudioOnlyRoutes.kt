@@ -11,6 +11,7 @@ import dev.typetype.server.services.AudioOnlyStreamResolver
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
+import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -66,11 +67,12 @@ fun Route.audioOnlyContractRoutes(
     }
 }
 
-fun Route.audioOnlySourceRoutes(
+internal fun Route.audioOnlySourceRoutes(
     streamService: StreamService,
     proxyService: ProxyService,
     tokenService: AudioOnlyMediaTokenService,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    sabrSessionStore: SabrSessionStore? = null,
 ) {
     get("/streams/audio-only/source") {
         val raw = call.request.queryParameters["token"]
@@ -87,14 +89,23 @@ fun Route.audioOnlySourceRoutes(
             token.preferOriginal,
             token.preferredLocale,
             allowHls = false,
-            allowSabr = false,
+            allowSabr = sabrSessionStore != null,
             selectedItag = token.selectedItag,
             selectedAudioTrackId = token.selectedAudioTrackId,
         )) {
-            is ExtractionResult.Success -> call.respondProxyResult(
-                proxyService.pipe(result.data.stream.url, call.request.headers.audioOnlyRangeHeader(), null)
-                    .ensureProgressiveAudio()
-            )
+            is ExtractionResult.Success -> when (result.data.kind) {
+                dev.typetype.server.services.AudioOnlyStreamKind.SabrProgressive -> {
+                    val store = sabrSessionStore ?: return@get call.respond(
+                        HttpStatusCode.UnprocessableEntity,
+                        ErrorResponse("No audio-only stream is available"),
+                    )
+                    call.respondSabrAudioOnlySource(store, token, result.data)
+                }
+                else -> call.respondProxyResult(
+                    proxyService.pipe(result.data.stream.url, call.request.headers.audioOnlyRangeHeader(), null)
+                        .ensureProgressiveAudio()
+                )
+            }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
         }

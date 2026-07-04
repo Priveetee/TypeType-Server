@@ -57,12 +57,15 @@ class AudioOnlyStreamResolver(
                 return ExtractionResult.Success(AudioOnlyStreamSelection(response, progressive, AudioOnlyStreamKind.Progressive))
             }
         }
+        val sabr = (if (allowSabr) sabrCandidate(response, preferOriginal, preferredLocale) else null)
+            ?.takeIf { selectedItag == null || it.matchesSelected(selectedItag, selectedAudioTrackId) }
+        if (sabr != null) return ExtractionResult.Success(
+            AudioOnlyStreamSelection(response, sabr, AudioOnlyStreamKind.SabrProgressive)
+        )
         if (selectedItag != null) return ExtractionResult.Failure("No audio-only stream is available")
         val hls = (if (allowHls) hlsCandidate(response, preferOriginal, preferredLocale) else null)
         if (hls != null) return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
-        val sabr = (if (allowSabr) sabrCandidate(response, preferOriginal, preferredLocale) else null)
-            ?: return ExtractionResult.Failure("No audio-only stream is available")
-        return ExtractionResult.Success(AudioOnlyStreamSelection(response, sabr, AudioOnlyStreamKind.SabrHls))
+        return ExtractionResult.Failure("No audio-only stream is available")
     }
 
     private fun hlsCandidate(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?) =

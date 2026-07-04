@@ -19,7 +19,8 @@ internal fun AudioOnlyStreamSelection.toResponse(
 ): ExtractionResult<AudioOnlyStreamResponse> {
     val token = tokenService.createToken(userId, url, preferOriginal, preferredLocale, stream.itag, stream.audioTrackId)
     val src = when (kind) {
-        AudioOnlyStreamKind.Progressive -> "/streams/audio-only/source?token=${encode(token)}"
+        AudioOnlyStreamKind.Progressive, AudioOnlyStreamKind.SabrProgressive ->
+            "/streams/audio-only/source?token=${encode(token)}"
         AudioOnlyStreamKind.Hls -> hlsTokenService?.createPath(stream.url)
             ?: return ExtractionResult.Failure("No audio-only stream is available")
         AudioOnlyStreamKind.Dash -> stream.manifestUrl?.let { audioOnlyDashManifest(it) }
@@ -33,7 +34,7 @@ internal fun AudioOnlyStreamSelection.toResponse(
         mimeType = when (kind) {
             AudioOnlyStreamKind.Hls, AudioOnlyStreamKind.SabrHls -> HLS_MIME_TYPE
             AudioOnlyStreamKind.Dash -> DASH_MIME_TYPE
-            AudioOnlyStreamKind.Progressive -> stream.mimeType
+            AudioOnlyStreamKind.Progressive, AudioOnlyStreamKind.SabrProgressive -> stream.mimeType
         },
         codec = stream.codec,
         bitrate = stream.bitrate,

@@ -21,7 +21,7 @@ object AudioOnlyStreamSelector {
 
     fun sabrCandidates(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?): List<AudioStreamItem> =
         response.audioStreams
-            .filter { it.deliveryMethod == "sabr" && !it.manifestUrl.isNullOrBlank() && isSabrDashSafeAudio(it) }
+            .filter { it.deliveryMethod == "sabr" && !it.sabrSessionUrl.isNullOrBlank() && isSabrDashSafeAudio(it) }
             .sortedWith(defaultComparator(response, preferOriginal, preferredLocale))
 
     private fun defaultComparator(

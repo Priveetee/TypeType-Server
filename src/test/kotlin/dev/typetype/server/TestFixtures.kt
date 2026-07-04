@@ -52,6 +52,7 @@ fun testAudioStream(
     itag: Int = 140,
     deliveryMethod: String = "progressive",
     manifestUrl: String? = null,
+    sabrSessionUrl: String? = null,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -71,4 +72,5 @@ fun testAudioStream(
     isOriginal = isOriginal,
     deliveryMethod = deliveryMethod,
     manifestUrl = manifestUrl,
+    sabrSessionUrl = sabrSessionUrl,
 )

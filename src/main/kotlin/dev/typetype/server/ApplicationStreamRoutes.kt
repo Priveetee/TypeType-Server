@@ -62,6 +62,7 @@ internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
             youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
             },
+            sabrSessionStore = svc.sabrSessionStore,
         )
         nicoVideoProxyRoutes(svc.nicoVideoProxyService)
     }
