@@ -5,17 +5,14 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
-import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SabrWebSocketLimits
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
-import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import kotlin.math.max
@@ -80,15 +77,6 @@ internal class SabrSessionDescriptorHandler(
             startTimeMs,
         )
         sabrSessionStore.ensureWarmed(holder)
-        val state = holder.session.streamState
-        val endAudio = state.getEndSegment(holder.audioFormat)
-        val endVideo = state.getEndSegment(holder.videoFormat)
-        if (endAudio <= 0L || endVideo <= 0L) {
-            return call.respond(
-                HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("Segment index not yet available"),
-            )
-        }
         call.respond(buildJsonObject {
             put("videoId", videoId)
             put("session", holder.sessionToken)
@@ -100,8 +88,8 @@ internal class SabrSessionDescriptorHandler(
                 "durationMs",
                 max(holder.audioFormat.approxDurationMs, holder.videoFormat.approxDurationMs),
             )
-            putJsonObject("audio") { putFormat(holder, holder.audioFormat, endAudio) }
-            putJsonObject("video") { putFormat(holder, holder.videoFormat, endVideo) }
+            putJsonObject("audio") { putFormat(holder.audioFormat) }
+            putJsonObject("video") { putFormat(holder.videoFormat) }
             putJsonObject("endpoints") {
                 put("webSocket", "/sabr/session/$videoId/ws?session=${holder.sessionToken}")
                 put("audioInit", initPath(videoId, holder.audioFormat, holder.sessionToken))
@@ -110,32 +98,15 @@ internal class SabrSessionDescriptorHandler(
         })
     }
 
-    private fun kotlinx.serialization.json.JsonObjectBuilder.putFormat(
-        holder: SabrSessionHolder,
-        format: YoutubeSabrFormat,
-        endSegment: Long,
-    ): Unit {
-        val state = holder.session.streamState
+    private fun kotlinx.serialization.json.JsonObjectBuilder.putFormat(format: YoutubeSabrFormat): Unit {
         put("itag", format.itag)
         put("mimeType", format.mimeType)
         put("bitrate", format.bitrate)
-        put("endSegment", endSegment)
         put("approxDurationMs", format.approxDurationMs)
         put("qualityLabel", format.qualityLabel)
         put("audioTrackId", format.audioTrackId)
         put("audioTrackName", format.audioTrackDisplayName)
         put("init", initPath("{videoId}", format, "{session}"))
-        putJsonArray("segments") {
-            for (sequence in 1..endSegment.toInt()) {
-                val startMs = state.getSegmentStartMs(format, sequence).coerceAtLeast(0L)
-                val endMs = state.getSegmentEndMs(format, sequence).coerceAtLeast(startMs)
-                addJsonObject {
-                    put("sequence", sequence)
-                    put("startMs", startMs)
-                    put("durationMs", endMs - startMs)
-                }
-            }
-        }
     }
 
     private fun initPath(videoId: String, format: YoutubeSabrFormat, session: String): String =
