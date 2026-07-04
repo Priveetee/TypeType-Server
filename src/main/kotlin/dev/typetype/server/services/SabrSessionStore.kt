@@ -99,6 +99,14 @@ internal class SabrSessionStore(
     }
 
     internal suspend fun fetchInfo(videoId: String, startTimeMs: Long = 0L): SabrPreparedInfo? = withContext(Dispatchers.IO) {
+        repeat(SABR_INFO_ATTEMPTS) { attempt ->
+            fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext it }
+            if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
+        }
+        null
+    }
+
+    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
         withTimeoutOrNull(SABR_INFO_TIMEOUT_MS) {
             val token = tokenClient.fetch(videoId) ?: return@withTimeoutOrNull null
             runCatching {
@@ -113,7 +121,6 @@ internal class SabrSessionStore(
                 )
             }.getOrNull()?.let { SabrPreparedInfo(it, token) }
         }
-    }
 
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
@@ -167,6 +174,8 @@ internal class SabrSessionStore(
 
     private companion object {
         const val SABR_INFO_TIMEOUT_MS = 20_000L
+        const val SABR_INFO_ATTEMPTS = 3
+        const val SABR_INFO_RETRY_DELAY_MS = 500L
 
         fun defaultMaxSessions(): Int =
             System.getenv("SABR_MAX_SESSIONS")?.toIntOrNull()?.coerceAtLeast(1) ?: 24
