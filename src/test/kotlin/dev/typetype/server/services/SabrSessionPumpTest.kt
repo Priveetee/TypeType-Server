@@ -39,6 +39,7 @@ class SabrSessionPumpTest {
             audioFormat = audio,
             videoFormat = video,
             sessionToken = "session-token",
+            key = SabrSessionKey("video", "user", 140, null, 137, 0L),
             lastRequestAt = Instant.EPOCH,
         )
 

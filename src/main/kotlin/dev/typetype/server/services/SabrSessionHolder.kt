@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -16,6 +17,7 @@ internal class SabrSessionHolder(
     val audioFormat: YoutubeSabrFormat,
     val videoFormat: YoutubeSabrFormat,
     val sessionToken: String,
+    val key: SabrSessionKey,
     @Volatile var lastRequestAt: Instant,
     val pumpMutex: Mutex = Mutex(),
 ) {
@@ -24,6 +26,7 @@ internal class SabrSessionHolder(
     private val activeItags: MutableSet<Int> = ConcurrentHashMap.newKeySet()
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
+    private val pumpStarted = AtomicBoolean(false)
     private val activeWebSockets = AtomicInteger(0)
     @Volatile private var playerTimeMs: Long = 0L
 
@@ -50,6 +53,8 @@ internal class SabrSessionHolder(
     }
 
     fun hasActiveWebSocket(): Boolean = activeWebSockets.get() > 0
+
+    fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
 
     fun setLastServedSequence(itag: Int, sequence: Int): Unit {
         lastServedSequences[itag] = sequence

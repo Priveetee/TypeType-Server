@@ -21,7 +21,7 @@ class SabrSessionTimeRequestsTest {
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64
         every { state.getSegmentNumberAtOrAfterTimeMs(audio, 321_601L) } returns 33
-        val holder = SabrSessionHolder(session, mockk<YoutubeSabrInfo>(), audio, video, "session", Instant.now())
+        val holder = holder(session, audio, video)
 
         val requests = holder.mediaRequestsAt(321_601L)
 
@@ -38,7 +38,7 @@ class SabrSessionTimeRequestsTest {
         every { session.streamState } returns state
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64
-        val holder = SabrSessionHolder(session, mockk<YoutubeSabrInfo>(), audio, video, "session", Instant.now())
+        val holder = holder(session, audio, video)
         holder.setActiveTracks(videoActive = true, audioActive = false)
 
         val requests = holder.mediaRequestsAt(321_601L)
@@ -54,4 +54,18 @@ class SabrSessionTimeRequestsTest {
         every { format.isVideo } returns !isAudio
         return format
     }
+
+    private fun holder(
+        session: YoutubeSabrSession,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+    ): SabrSessionHolder = SabrSessionHolder(
+        session,
+        mockk<YoutubeSabrInfo>(),
+        audio,
+        video,
+        "session",
+        SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
+        Instant.now(),
+    )
 }

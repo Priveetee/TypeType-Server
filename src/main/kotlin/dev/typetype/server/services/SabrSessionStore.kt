@@ -50,6 +50,7 @@ internal class SabrSessionStore(
         videoFormat: YoutubeSabrFormat,
         initialToken: SabrTokenBundle? = null,
         startTimeMs: Long = 0L,
+        startPump: Boolean = true,
     ): SabrSessionHolder {
         val key = SabrSessionKey(
             videoId,
@@ -68,11 +69,17 @@ internal class SabrSessionStore(
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
             ?.let { session.streamState.setPoToken(it) }
-        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, newSessionToken(), Instant.now())
+        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, newSessionToken(), key, Instant.now())
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
-        scope.launch { pump.pumpLoop({ registry.contains(key) }, holder, pumpLoopIntervalMs) }
+        if (startPump) startPump(holder)
         return holder
+    }
+
+    internal fun startPump(holder: SabrSessionHolder) {
+        if (holder.markPumpStarted()) {
+            scope.launch { pump.pumpLoop({ registry.contains(holder.key) }, holder, pumpLoopIntervalMs) }
+        }
     }
 
     internal fun lookup(videoId: String, userId: String, audioItag: Int, videoItag: Int): SabrSessionHolder? =

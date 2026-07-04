@@ -75,6 +75,7 @@ internal class SabrSessionDescriptorHandler(
             video,
             prepared.initialToken,
             startTimeMs,
+            startPump = false,
         )
         val videoInit = sabrSessionStore.fetchInitializationData(holder, holder.videoFormat)
         val audioInit = sabrSessionStore.fetchInitializationData(holder, holder.audioFormat)
@@ -82,6 +83,7 @@ internal class SabrSessionDescriptorHandler(
             return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR initialization failed"))
         }
         sabrSessionStore.ensureWarmed(holder)
+        sabrSessionStore.startPump(holder)
         call.respond(buildJsonObject {
             put("videoId", videoId)
             put("session", holder.sessionToken)

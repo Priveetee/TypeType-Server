@@ -48,6 +48,7 @@ class SabrSessionRegistryTest {
     private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137, 0L)
 
     private fun holder(videoId: String, lastRequestAt: Instant): SabrSessionHolder {
+        val key = key(videoId)
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
@@ -58,6 +59,7 @@ class SabrSessionRegistryTest {
             audioFormat = format(140, isAudio = true),
             videoFormat = format(137, isAudio = false),
             sessionToken = "token-$videoId",
+            key = key,
             lastRequestAt = lastRequestAt,
         )
     }
