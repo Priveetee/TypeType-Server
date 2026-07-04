@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +30,7 @@ internal class SabrSessionStore(
     private val idleEviction: Duration = defaultIdleEviction(),
     private val pumpLoopIntervalMs: Long = 750,
     private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
+    private val initCache: CacheService? = null,
 ) {
     private val registry = SabrSessionRegistry()
     private val pump = SabrSessionPump()
@@ -110,6 +112,12 @@ internal class SabrSessionStore(
 
     internal suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
         pump.fetchMediaAt(holder, playerTimeMs)
+
+    internal suspend fun fetchInitializationData(
+        holder: SabrSessionHolder,
+        format: YoutubeSabrFormat,
+    ): ByteArray? = SabrInitializationData.fetch(format, initCache)
+        ?.also { holder.session.streamState.ingestInitializationData(format, it) }
 
     fun release() {
         idleCheckJob.cancel()

@@ -32,12 +32,15 @@ internal class SabrSegmentHandler(
             sabrSessionStore.lookupByItag(videoId, access.userId ?: videoId, itag)
         } ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR session for this request"))
         val format = if (holder.audioFormat.itag == itag) holder.audioFormat else holder.videoFormat
-        val request = if (isInit) {
-            SabrSegmentRequest.initialization(format)
-        } else {
-            if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
-            SabrSegmentRequest.media(format, seq)
+        if (isInit) {
+            val bytes = withTimeoutOrNull(20_000L) {
+                sabrSessionStore.fetchInitializationData(holder, format)
+            } ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
+            call.response.headers.append("Cache-Control", "no-store")
+            return call.respondOutputStream(containerMime(format.mimeType.orEmpty())) { write(bytes) }
         }
+        if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
+        val request = SabrSegmentRequest.media(format, seq)
         val segment = withTimeoutOrNull(20_000L) { sabrSessionStore.fetchSegment(holder, request) }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
         call.response.headers.append("Cache-Control", "no-store")

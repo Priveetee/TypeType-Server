@@ -130,6 +130,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
                 "Missing or invalid SABR target",
             )
         holder.pumpMutex.withLock { holder.applySabrWebSocketState(message) }
+        if (init) return SabrWebSocketInitSender.send(session, holder, sabrSessionStore, requestId, request, FETCH_TIMEOUT_MS)
         var completed = false
         val segment = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
             sabrSessionStore.fetchSegment(holder, request).also { completed = true }
@@ -150,9 +151,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
         segments: List<SabrMediaSegment>,
     ): Unit {
         val totalBytes = segments.sumOf { it.length.toLong() }
-        session.send(
-            Frame.Text(SabrWebSocketProtocol.startedJson(requestId, segments.size, totalBytes).toString())
-        )
+        session.send(Frame.Text(SabrWebSocketProtocol.startedJson(requestId, segments.size, totalBytes).toString()))
         for (segment in segments) {
             if (segment.length.toLong() > SabrWebSocketLimits.MAX_BINARY_FRAME_BYTES) {
                 sendError(session, requestId, "segment_too_large", "SABR segment exceeds WebSocket frame limit")
@@ -161,9 +160,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
             session.send(Frame.Text(SabrWebSocketProtocol.segmentJson(requestId, segment).toString()))
             session.send(Frame.Binary(true, segment.data))
         }
-        session.send(
-            Frame.Text(SabrWebSocketProtocol.doneJson(holder, requestId, segments.size, totalBytes).toString())
-        )
+        session.send(Frame.Text(SabrWebSocketProtocol.doneJson(holder, requestId, segments.size, totalBytes).toString()))
     }
 
     private suspend fun sendError(

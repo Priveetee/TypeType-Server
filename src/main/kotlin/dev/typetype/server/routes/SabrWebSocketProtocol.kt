@@ -49,6 +49,17 @@ internal object SabrWebSocketProtocol {
         put("length", segment.length)
     }
 
+    fun initSegmentJson(requestId: String?, itag: Int, length: Int): JsonObject = buildJsonObject {
+        put("type", "segment")
+        requestId?.let { put("requestId", it) }
+        put("itag", itag)
+        put("sequence", -1)
+        put("init", true)
+        put("startMs", -1)
+        put("durationMs", -1)
+        put("length", length)
+    }
+
     fun doneJson(
         holder: SabrSessionHolder,
         requestId: String?,
