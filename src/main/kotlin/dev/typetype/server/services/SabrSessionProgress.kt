@@ -1,7 +1,6 @@
 package dev.typetype.server.services
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
 internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment): Unit {
     if (!segment.header.isInitSegment) {
@@ -9,11 +8,6 @@ internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment): Unit {
         setReaderPosition(format, segment.header.startMs + segment.header.durationMs)
         setLastServedSequence(segment.header.itag, segment.header.sequenceNumber)
     }
-}
-
-internal fun SabrSessionHolder.markRequested(request: SabrSegmentRequest): Unit {
-    val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
-    setReaderPosition(request.format, startMs.coerceAtLeast(0L))
 }
 
 internal fun bothFormatsKnown(holder: SabrSessionHolder): Boolean {
