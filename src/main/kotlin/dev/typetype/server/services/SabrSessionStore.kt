@@ -7,21 +7,28 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
 import java.util.Base64
 
-class SabrSessionStore(
-    private val tokenServiceUrl: String,
+internal class SabrSessionStore(
+    tokenServiceUrl: String,
     private val maxSessions: Int = defaultMaxSessions(),
     private val idleEviction: Duration = defaultIdleEviction(),
     private val pumpLoopIntervalMs: Long = 750,
+    private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
 ) {
     private val registry = SabrSessionRegistry()
     private val pump = SabrSessionPump()
@@ -39,11 +46,20 @@ class SabrSessionStore(
         info: YoutubeSabrInfo,
         audioFormat: YoutubeSabrFormat,
         videoFormat: YoutubeSabrFormat,
+        initialToken: SabrTokenBundle? = null,
+        startTimeMs: Long = 0L,
     ): SabrSessionHolder {
-        val key = SabrSessionKey(videoId, userId, audioFormat.itag, audioFormat.audioTrackId, videoFormat.itag)
+        val key = SabrSessionKey(
+            videoId,
+            userId,
+            audioFormat.itag,
+            audioFormat.audioTrackId,
+            videoFormat.itag,
+            startTimeMs.coerceAtLeast(0L),
+        )
         registry.get(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
-        val provider = TypetypeTokenSabrPoTokenProvider(tokenServiceUrl)
+        val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
@@ -55,7 +71,7 @@ class SabrSessionStore(
     }
 
     internal fun lookup(videoId: String, userId: String, audioItag: Int, videoItag: Int): SabrSessionHolder? =
-        registry.get(SabrSessionKey(videoId, userId, audioItag, null, videoItag))
+        registry.get(SabrSessionKey(videoId, userId, audioItag, null, videoItag, 0L))
 
     internal fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? =
         registry.lookupByItag(videoId, userId, itag)
@@ -70,10 +86,30 @@ class SabrSessionStore(
         pump.ensureWarmed(holder, maxPumps)
     }
 
+    internal suspend fun fetchInfo(videoId: String, startTimeMs: Long = 0L): SabrPreparedInfo? = withContext(Dispatchers.IO) {
+        withTimeoutOrNull(SABR_INFO_TIMEOUT_MS) {
+            val token = tokenClient.fetch(videoId) ?: return@withTimeoutOrNull null
+            runCatching {
+                YoutubeSabrProbe.fetchSabrInfo(
+                    videoId,
+                    YoutubeSabrClientProfile.WEB,
+                    Localization("en", "GB"),
+                    ContentCountry("GB"),
+                    token.visitorBoundPoToken,
+                    token.visitorData,
+                    startTimeMs.toStartTimeSecs(),
+                )
+            }.getOrNull()?.let { SabrPreparedInfo(it, token) }
+        }
+    }
+
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
     ): SabrMediaSegment? = pump.fetchSegment(holder, request)
+
+    internal suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
+        pump.fetchMediaAt(holder, playerTimeMs)
 
     fun release() {
         idleCheckJob.cancel()
@@ -95,11 +131,18 @@ class SabrSessionStore(
     }
 
     private companion object {
+        const val SABR_INFO_TIMEOUT_MS = 20_000L
+
         fun defaultMaxSessions(): Int =
             System.getenv("SABR_MAX_SESSIONS")?.toIntOrNull()?.coerceAtLeast(1) ?: 24
 
         fun defaultIdleEviction(): Duration = Duration.ofSeconds(
             System.getenv("SABR_IDLE_EVICTION_SECONDS")?.toLongOrNull()?.coerceAtLeast(60L) ?: 240L,
         )
+
+        fun Long.toStartTimeSecs(): Int? {
+            if (this <= 0L) return null
+            return (this / 1_000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        }
     }
 }

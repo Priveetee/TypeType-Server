@@ -6,4 +6,5 @@ internal data class SabrSessionKey(
     val audioItag: Int,
     val audioTrackId: String?,
     val videoItag: Int,
+    val startTimeMs: Long,
 )

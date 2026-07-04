@@ -12,6 +12,7 @@ class SabrSessionKeyTest {
             audioItag = 140,
             audioTrackId = "en.0",
             videoItag = 137,
+            startTimeMs = 0L,
         )
         val french = english.copy(audioTrackId = "fr.0")
 

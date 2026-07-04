@@ -4,52 +4,54 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 
 @EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
 @Tag("network")
 class SabrSessionStoreTest {
 
     private val tokenServiceUrl: String =
-        System.getenv("SUBTITLE_SERVICE_URL") ?: "http://localhost:8081"
+        sabrProbeTokenServiceUrl()
 
     @Test
-    fun storeRoundTrip() = runBlocking {
+    fun storeRoundTrip(): Unit = runBlocking {
         NewPipeInitializer.init()
         val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
-        val videoId = System.getenv("SABR_PROBE_VIDEOS")?.split(",")?.firstOrNull()?.trim() ?: "dQw4w9WgXcQ"
+        val videoId = sabrProbeVideoId()
+        val playerTimeMs = sabrProbePlayerTimeMs()
+        val timeoutMs = sabrProbeTimeoutMs()
+        val audioItag = sabrProbeAudioItag()
+        val videoItag = sabrProbeVideoItags().first()
         val userId = "sabr-probe-user"
-        val loc = Localization("en", "GB")
-        val country = ContentCountry("GB")
 
-        println("\n========== SABR store round-trip: $videoId ==========")
-        val info = YoutubeSabrProbe.fetchSabrInfo(videoId, YoutubeSabrClientProfile.WEB, loc, country)
-        val audio = info.findBestAudioFormat()
-        val video = info.findBestVideoFormat()
+        println(
+            "\n========== SABR store round-trip: $videoId " +
+                "playerTimeMs=$playerTimeMs timeoutMs=$timeoutMs =========="
+        )
+        val prepared = store.fetchInfo(videoId) ?: error("SABR probe failed")
+        val info = prepared.info
+        val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
+            ?: info.findBestAudioFormat()
+        val video = info.formats.firstOrNull { it.itag == videoItag && it.isVideo }
+            ?: info.findBestVideoFormat()
         println("probe picked: audio=${audio?.itag} video=${video?.itag}")
         check(audio != null && video != null)
+        printSabrProbeFormat("audio", audio)
+        printSabrProbeFormat("video", video)
 
-        val holder = store.getOrCreate(videoId, userId, info, audio, video)
+        val holder = store.getOrCreate(videoId, userId, info, audio, video, prepared.initialToken)
+        store.ensureWarmed(holder)
+        holder.setActiveTracks(videoActive = true, audioActive = true)
+        holder.setPlayerTimeMs(playerTimeMs)
         println("session complete (cold): ${holder.session.isComplete}")
 
         val requests = listOf(
-            SabrSegmentRequest.media(video, 1),
-            SabrSegmentRequest.media(video, 2),
-            SabrSegmentRequest.media(audio, 1),
-            SabrSegmentRequest.media(audio, 2),
-        )
+            SabrSegmentRequest.initialization(video),
+            SabrSegmentRequest.initialization(audio),
+        ) + mediaRequestsForProbe(holder, video, audio, playerTimeMs)
         for ((i, req) in requests.withIndex()) {
-            val seg = store.fetchSegment(holder, req)
-            val header = seg?.header
-            println(
-                "  req[$i] itag=${req.format.itag} seq=${req.sequenceNumber} -> " +
-                    "hit=${header != null} itag=${header?.itag} seq=${header?.sequenceNumber} " +
-                    "isInit=${header?.isInitSegment} bytes=${seg?.data?.size ?: -1}"
-            )
+            val result = fetchSabrProbeSegment(store, holder, req, timeoutMs)
+            printSabrProbeFetch("req[$i]", holder, req, result)
         }
         println("session complete after fetches: ${holder.session.isComplete}")
 
@@ -57,5 +59,20 @@ class SabrSessionStoreTest {
         println("lookup same key: ${looked === holder}")
 
         store.release()
+    }
+
+    private fun mediaRequestsForProbe(
+        holder: SabrSessionHolder,
+        video: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat,
+        audio: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat,
+        playerTimeMs: Long,
+    ): List<SabrSegmentRequest> {
+        val videoSequence = System.getenv("SABR_PROBE_VIDEO_SEQUENCE")?.toIntOrNull()
+        val audioSequence = System.getenv("SABR_PROBE_AUDIO_SEQUENCE")?.toIntOrNull()
+        if (videoSequence == null && audioSequence == null) return holder.mediaRequestsAt(playerTimeMs)
+        return listOfNotNull(
+            videoSequence?.let { SabrSegmentRequest.media(video, it) },
+            audioSequence?.let { SabrSegmentRequest.media(audio, it) },
+        )
     }
 }

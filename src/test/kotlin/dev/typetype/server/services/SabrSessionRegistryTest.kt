@@ -45,7 +45,7 @@ class SabrSessionRegistryTest {
         active.releaseWebSocket()
     }
 
-    private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137)
+    private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137, 0L)
 
     private fun holder(videoId: String, lastRequestAt: Instant): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
