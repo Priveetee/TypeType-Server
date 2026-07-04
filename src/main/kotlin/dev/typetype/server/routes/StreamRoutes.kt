@@ -2,7 +2,9 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoStreamItem
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
@@ -53,6 +55,7 @@ fun Route.streamRoutes(
                 val data = result.data
                     .filterAllowed(accessProfile)
                     .withSignedPublicHlsUrl(userId != null && !access.allowGuest, publicHlsManifestTokenService)
+                    .withoutSabrManifestUrls()
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
                     if (usedYoutubeSession || accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
@@ -105,6 +108,18 @@ private fun StreamResponse.withSignedPublicHlsUrl(
     if (hlsUrl.startsWith("/streams/hls-manifest?token=")) return this
     return copy(hlsUrl = tokenService.createPath(hlsUrl))
 }
+
+private fun StreamResponse.withoutSabrManifestUrls(): StreamResponse = copy(
+    videoStreams = videoStreams.map { stream -> stream.withoutSabrManifestUrl() },
+    videoOnlyStreams = videoOnlyStreams.map { stream -> stream.withoutSabrManifestUrl() },
+    audioStreams = audioStreams.map { stream -> stream.withoutSabrManifestUrl() },
+)
+
+private fun VideoStreamItem.withoutSabrManifestUrl(): VideoStreamItem =
+    if (deliveryMethod == "sabr") copy(manifestUrl = null) else this
+
+private fun AudioStreamItem.withoutSabrManifestUrl(): AudioStreamItem =
+    if (deliveryMethod == "sabr") copy(manifestUrl = null) else this
 
 private fun ExtractionResult.BadRequest.toErrorResponse(): ErrorResponse =
     if (message == YOUTUBE_SESSION_RECONNECT_ERROR) {
