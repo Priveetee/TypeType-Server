@@ -48,6 +48,8 @@ class SabrRandomAccessProbeTest {
                     prepared.initialToken,
                     playerTimeMs,
                 )
+                assertInitData(store, holder, audio)
+                assertInitData(store, holder, video)
                 store.ensureWarmed(holder)
                 holder.setActiveTracks(videoActive = true, audioActive = true)
                 holder.setPlayerTimeMs(playerTimeMs)
@@ -96,6 +98,16 @@ class SabrRandomAccessProbeTest {
         result.exceptionOrNull()?.let { error ->
             println("pump[$videoItag] direct error ${error.javaClass.simpleName}: ${error.message}")
         }
+    }
+
+    private suspend fun assertInitData(
+        store: SabrSessionStore,
+        holder: SabrSessionHolder,
+        format: YoutubeSabrFormat,
+    ): Unit {
+        val data = store.fetchInitializationData(holder, format)
+        println("init itag=${format.itag} bytes=${data?.size ?: -1}")
+        assertTrue(data?.isNotEmpty() == true, "init bytes for itag ${format.itag}")
     }
 
     private fun requireAudioFormat(

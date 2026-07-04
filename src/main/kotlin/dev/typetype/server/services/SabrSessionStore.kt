@@ -63,10 +63,13 @@ internal class SabrSessionStore(
         registry.ensureCapacity(maxSessions)
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
+        val normalizedStartTimeMs = startTimeMs.coerceAtLeast(0L)
+        session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
             ?.let { session.streamState.setPoToken(it) }
         val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, newSessionToken(), Instant.now())
+        holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
         scope.launch { pump.pumpLoop({ registry.contains(key) }, holder, pumpLoopIntervalMs) }
         return holder
@@ -116,8 +119,25 @@ internal class SabrSessionStore(
     internal suspend fun fetchInitializationData(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
-    ): ByteArray? = SabrInitializationData.fetch(format, initCache)
-        ?.also { holder.session.streamState.ingestInitializationData(format, it) }
+    ): ByteArray? {
+        if (format.isAudio && holder.playerTimeMs() > 0L) {
+            fetchInitializationSegmentData(holder, holder.videoFormat)
+        }
+        return fetchInitializationSegmentData(holder, format)
+    }
+
+    private suspend fun fetchInitializationSegmentData(
+        holder: SabrSessionHolder,
+        format: YoutubeSabrFormat,
+    ): ByteArray? {
+        val request = SabrSegmentRequest.initialization(format)
+        holder.session.getCachedSegment(request)?.data?.let { return it }
+        SabrInitializationData.fetch(format, initCache)?.let { bytes ->
+            holder.session.streamState.ingestInitializationData(format, bytes)
+            return bytes
+        }
+        return pump.fetchSegment(holder, request)?.data
+    }
 
     fun release() {
         idleCheckJob.cancel()
