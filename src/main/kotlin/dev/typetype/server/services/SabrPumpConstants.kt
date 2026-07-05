@@ -8,6 +8,6 @@ internal const val SEQUENTIAL_FILL_AHEAD_MS = 30_000L
 internal const val INITIAL_SEQUENTIAL_LIMIT_MS = 90_000L
 internal const val PLAYER_TIME_OFFSET_MS = 5L
 internal const val REWIND_GAP_MS = 2_000L
-internal const val READAHEAD_CUSHION_MS = 30_000L
+internal const val READAHEAD_CUSHION_MS = 60_000L
 internal const val BACK_BUFFER_MS = 30_000L
 internal const val MAX_AHEAD_BYTES = 100L * 1024 * 1024
