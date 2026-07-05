@@ -3,13 +3,16 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AudioOnlyMediaToken
 import dev.typetype.server.services.AudioOnlyStreamSelection
+import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondOutputStream
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import java.io.ByteArrayOutputStream
 import kotlin.math.max
 
 internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
@@ -37,6 +40,11 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
     holder.setActiveTracks(videoActive = false, audioActive = true)
     val init = sabrSessionStore.fetchInitializationData(holder, audio)
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
+    val rangeHeader = request.headers[HttpHeaders.Range]
+    if (rangeHeader != null) {
+        val body = buildSabrAudioOnlyBody(sabrSessionStore, holder, audio.approxDurationMs, init)
+        return respondSabrAudioOnlyBytes(audio.mimeType.orEmpty(), body, rangeHeader)
+    }
     response.headers.append(HttpHeaders.CacheControl, "no-store")
     response.headers.append("Accept-Ranges", "none")
     respondOutputStream(containerMime(audio.mimeType.orEmpty())) {
@@ -53,6 +61,52 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
             positionMs = nextPosition(positionMs, segments)
         }
     }
+}
+
+private suspend fun ApplicationCall.respondSabrAudioOnlyBytes(
+    mimeType: String,
+    body: ByteArray,
+    rangeHeader: String,
+): Unit {
+    val total = body.size.toLong()
+    response.headers.append(HttpHeaders.CacheControl, "no-store")
+    response.headers.append(HttpHeaders.AcceptRanges, "bytes")
+    when (val range = parseAudioOnlyByteRange(rangeHeader, total)) {
+        is AudioOnlyByteRange.Satisfiable -> {
+            response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
+            respondBytes(
+                body.copyOfRange(range.first.toInt(), (range.last + 1L).toInt()),
+                containerMime(mimeType),
+                HttpStatusCode.PartialContent,
+            )
+        }
+        is AudioOnlyByteRange.Unsatisfiable -> {
+            response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
+            respond(HttpStatusCode.RequestedRangeNotSatisfiable)
+        }
+        null -> respondBytes(body, containerMime(mimeType), HttpStatusCode.OK)
+    }
+}
+
+private suspend fun buildSabrAudioOnlyBody(
+    sabrSessionStore: SabrSessionStore,
+    holder: SabrSessionHolder,
+    durationMs: Long,
+    init: ByteArray,
+): ByteArray {
+    val output = ByteArrayOutputStream()
+    output.write(init)
+    var positionMs = 0L
+    var lastSequence = 0
+    repeat(maxSegmentCount(durationMs)) {
+        val segments = sabrSessionStore.fetchMediaAt(holder, positionMs).orEmpty()
+            .filter { it.header.itag == holder.audioFormat.itag && it.header.sequenceNumber > lastSequence }
+        if (segments.isEmpty()) return output.toByteArray()
+        segments.forEach { output.write(it.data) }
+        lastSequence = segments.maxOf { it.header.sequenceNumber }
+        positionMs = nextPosition(positionMs, segments)
+    }
+    return output.toByteArray()
 }
 
 private fun maxSegmentCount(durationMs: Long): Int {

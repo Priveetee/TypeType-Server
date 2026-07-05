@@ -156,12 +156,16 @@ private suspend fun ApplicationCall.respondAudioOnlyHead(source: AudioOnlySource
             response.headers.append(HttpHeaders.CacheControl, "no-store")
             response.headers.append(HttpHeaders.ContentType, result.data.stream.mimeType)
             val length = result.data.stream.contentLength.takeIf { it > 0 && result.data.kind == AudioOnlyStreamKind.Progressive }
-            val range = request.headers[HttpHeaders.Range]?.let { parseSingleByteRange(it, length) }
-            if (range != null && length != null) {
+            val range = length?.let { parseAudioOnlyByteRange(request.headers[HttpHeaders.Range], it) }
+            if (range is AudioOnlyByteRange.Satisfiable) {
                 response.headers.append(HttpHeaders.AcceptRanges, "bytes")
                 response.headers.append(HttpHeaders.ContentLength, (range.last - range.first + 1L).toString())
-                response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/$length")
+                response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
                 respond(HttpStatusCode.PartialContent)
+            } else if (range is AudioOnlyByteRange.Unsatisfiable) {
+                response.headers.append(HttpHeaders.AcceptRanges, "bytes")
+                response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
+                respond(HttpStatusCode.RequestedRangeNotSatisfiable)
             } else {
                 response.headers.append(HttpHeaders.AcceptRanges, if (length == null) "none" else "bytes")
                 length?.let { response.headers.append(HttpHeaders.ContentLength, it.toString()) }
@@ -171,17 +175,6 @@ private suspend fun ApplicationCall.respondAudioOnlyHead(source: AudioOnlySource
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
         is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
     }
-}
-
-private fun parseSingleByteRange(value: String, length: Long?): LongRange? {
-    val total = length ?: return null
-    if (!value.startsWith("bytes=")) return null
-    val parts = value.removePrefix("bytes=").split("-", limit = 2)
-    if (parts.size != 2) return null
-    val start = parts[0].toLongOrNull()?.coerceAtLeast(0L) ?: return null
-    val end = parts[1].toLongOrNull()?.coerceAtMost(total - 1L) ?: total - 1L
-    if (start > end || start >= total) return null
-    return start..end
 }
 
 private fun String?.toBooleanParam(): Boolean = equals("true", ignoreCase = true)
