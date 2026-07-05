@@ -28,6 +28,7 @@ internal class SabrSessionHolder(
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
     private val activeWebSockets = AtomicInteger(0)
+    private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     @Volatile private var playerTimeMs: Long = 0L
 
     init {
@@ -59,6 +60,12 @@ internal class SabrSessionHolder(
     fun setLastServedSequence(itag: Int, sequence: Int): Unit {
         lastServedSequences[itag] = sequence
     }
+
+    fun cachedSegment(key: String): CachedSabrSegment? = segmentMemory.get(key)
+
+    fun putCachedSegment(key: String, segment: CachedSabrSegment): Unit = segmentMemory.put(key, segment)
+
+    fun evictCachedSegmentsBefore(ms: Long): Unit = segmentMemory.evictBefore(ms)
 
     fun lastServedSequence(format: YoutubeSabrFormat): Int? = lastServedSequences[format.itag]
 
@@ -111,5 +118,9 @@ internal class SabrSessionHolder(
             activeItags.remove(itag)
             readerPositions.remove(itag)
         }
+    }
+
+    private companion object {
+        const val MAX_SEGMENT_MEMORY_BYTES = 64L * 1024L * 1024L
     }
 }
