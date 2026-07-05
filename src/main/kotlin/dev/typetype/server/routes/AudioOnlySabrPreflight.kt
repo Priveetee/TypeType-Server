@@ -23,6 +23,6 @@ internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
         startPump = false,
     )
     holder.setActiveTracks(videoActive = false, audioActive = true)
-    fetchInitializationData(holder, audio) ?: return false
-    return fetchMediaAt(holder, 0L).orEmpty().any { it.header.itag == audio.itag }
+    val init = fetchInitializationData(holder, audio) ?: return false
+    return materializeSabrAudioOnlyBody(this, holder, init) != null
 }
