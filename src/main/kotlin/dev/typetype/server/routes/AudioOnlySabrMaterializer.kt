@@ -58,6 +58,43 @@ private suspend fun SabrSessionStore.fetchAudioBytes(
         !segment.header.isInitSegment &&
             segment.header.itag == holder.audioFormat.itag &&
             segment.header.sequenceNumber == sequence
+    }?.data ?: fetchAudioBytesFromFreshHolder(holder, sequence, startMs)
+}
+
+private suspend fun SabrSessionStore.fetchAudioBytesFromFreshHolder(
+    holder: SabrSessionHolder,
+    sequence: Int,
+    targetMs: Long,
+): ByteArray? {
+    val prepared = fetchInfo(holder.key.videoId, startTimeMs = targetMs, cachedFirst = false) ?: return null
+    val audio = SabrFormatSelector.audio(
+        prepared.info,
+        holder.audioFormat.itag,
+        holder.audioFormat.audioTrackId,
+        requireAac = true,
+    ) ?: return null
+    val video = SabrFormatSelector.lightestVideo(prepared.info) ?: return null
+    val freshHolder = getOrCreate(
+        holder.key.videoId,
+        holder.key.userId,
+        prepared.info,
+        audio,
+        video,
+        prepared.initialToken,
+        startTimeMs = targetMs,
+        startPump = false,
+    )
+    freshHolder.setActiveTracks(videoActive = true, audioActive = true)
+    fetchMediaAt(freshHolder, targetMs)?.firstOrNull { segment ->
+        !segment.header.isInitSegment &&
+            segment.header.itag == audio.itag &&
+            segment.header.sequenceNumber == sequence
+    }?.let { return it.data }
+    val request = SabrSegmentRequest.media(audio, sequence)
+    return fetchSegment(freshHolder, request)?.takeIf { segment ->
+        !segment.header.isInitSegment &&
+            segment.header.itag == audio.itag &&
+            segment.header.sequenceNumber == sequence
     }?.data
 }
 

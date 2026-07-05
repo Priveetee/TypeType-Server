@@ -65,6 +65,7 @@ class AudioOnlySabrMaterializerTest {
         coEvery { store.fetchMediaAt(holder, any()) } returns null
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns segment(140, 1, byteArrayOf(1))
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns null
+        coEvery { store.fetchInfo(any(), any(), any()) } returns null
 
         val body = materializeSabrAudioOnlyBody(store, holder, byteArrayOf(9, 8))
 
