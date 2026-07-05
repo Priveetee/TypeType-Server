@@ -28,14 +28,31 @@ class AudioOnlySabrMaterializerTest {
         val holder = holder(audio, video, endSegments = listOf(0L, 0L, 0L, 3L))
         val store = mockk<SabrSessionStore>()
         coEvery { store.cachedSegment(holder, any()) } returns null
-        coEvery { store.fetchMediaAt(holder, 0L) } returns listOf(segment(140, 1, byteArrayOf(1)))
-        coEvery { store.fetchMediaAt(holder, 10_000L) } returns listOf(segment(140, 2, byteArrayOf(2)))
-        coEvery { store.fetchMediaAt(holder, 20_000L) } returns listOf(segment(140, 3, byteArrayOf(3)))
+        coEvery { store.fetchMediaAt(holder, 1_000L) } returns listOf(segment(140, 1, byteArrayOf(1)))
+        coEvery { store.fetchMediaAt(holder, 11_000L) } returns listOf(segment(140, 2, byteArrayOf(2)))
+        coEvery { store.fetchMediaAt(holder, 21_000L) } returns listOf(segment(140, 3, byteArrayOf(3)))
         coEvery { store.fetchSegment(holder, any()) } returns null
 
         val body = materializeSabrAudioOnlyBody(store, holder, byteArrayOf(9, 8))
 
         assertArrayEquals(byteArrayOf(9, 8, 1, 2, 3), body)
+    }
+
+    @Test
+    fun `materializer falls back when time fetch returns only video`() = runTest {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(160, isAudio = false)
+        val holder = holder(audio, video, endSegments = listOf(0L, 0L, 2L))
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+        coEvery { store.fetchMediaAt(holder, 1_000L) } returns listOf(segment(140, 1, byteArrayOf(1)))
+        coEvery { store.fetchMediaAt(holder, 11_000L) } returns listOf(segment(160, 2, byteArrayOf(7)))
+        coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns null
+        coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns segment(140, 2, byteArrayOf(2))
+
+        val body = materializeSabrAudioOnlyBody(store, holder, byteArrayOf(9, 8))
+
+        assertArrayEquals(byteArrayOf(9, 8, 1, 2), body)
     }
 
     @Test

@@ -25,7 +25,18 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
             localization,
         )
     }
-    return result.getOrNull()?.also { holder.markServed(it) }
+    return result.getOrNull()
+        ?.takeIf { it.matches(request) }
+        ?.also { holder.markServed(it) }
+}
+
+private fun SabrMediaSegment.matches(request: SabrSegmentRequest): Boolean {
+    if (header.itag != request.format.itag) return false
+    return if (request.isInitializationSegment) {
+        header.isInitSegment
+    } else {
+        !header.isInitSegment && header.sequenceNumber == request.sequenceNumber
+    }
 }
 
 private fun YoutubeSabrSession.targetTimeInsideSegment(request: SabrSegmentRequest): Long {

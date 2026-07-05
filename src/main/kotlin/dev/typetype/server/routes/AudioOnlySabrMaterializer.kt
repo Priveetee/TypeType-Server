@@ -10,6 +10,21 @@ internal suspend fun materializeSabrAudioOnlyBody(
     holder: SabrSessionHolder,
     init: ByteArray,
 ): ByteArray? {
+    val videoWasActive = holder.isVideoActive()
+    val audioWasActive = holder.isAudioActive()
+    holder.setActiveTracks(videoActive = false, audioActive = true)
+    return try {
+        materializeSabrAudioOnlyBodyActive(sabrSessionStore, holder, init)
+    } finally {
+        holder.setActiveTracks(videoActive = videoWasActive, audioActive = audioWasActive)
+    }
+}
+
+private suspend fun materializeSabrAudioOnlyBodyActive(
+    sabrSessionStore: SabrSessionStore,
+    holder: SabrSessionHolder,
+    init: ByteArray,
+): ByteArray? {
     val output = ByteArrayOutputStream()
     output.write(init)
     var sequence = 1
@@ -33,7 +48,7 @@ private suspend fun SabrSessionStore.fetchAudioBytes(
     cachedSegment(holder, request)?.let { cached ->
         if (!cached.init && cached.itag == holder.audioFormat.itag && cached.sequence == sequence) return cached.bytes
     }
-    val startMs = holder.session.streamState.getSegmentStartMs(holder.audioFormat, sequence).coerceAtLeast(0L)
+    val startMs = holder.audioTargetTimeMs(sequence)
     fetchMediaAt(holder, startMs)?.firstOrNull { segment ->
         !segment.header.isInitSegment &&
             segment.header.itag == holder.audioFormat.itag &&
@@ -46,4 +61,12 @@ private suspend fun SabrSessionStore.fetchAudioBytes(
     }?.data
 }
 
+private fun SabrSessionHolder.audioTargetTimeMs(sequence: Int): Long {
+    val startMs = session.streamState.getSegmentStartMs(audioFormat, sequence).coerceAtLeast(0L)
+    val nextStartMs = session.streamState.getSegmentStartMs(audioFormat, sequence + 1).coerceAtLeast(0L)
+    if (nextStartMs <= startMs + 1L) return startMs
+    return minOf(startMs + SABR_AUDIO_ONLY_TARGET_OFFSET_MS, nextStartMs - 1L)
+}
+
 private const val MAX_SABR_AUDIO_ONLY_SEGMENTS = 10_000
+private const val SABR_AUDIO_ONLY_TARGET_OFFSET_MS = 1_000L
