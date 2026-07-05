@@ -63,6 +63,52 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
     }
 }
 
+internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
+    sabrSessionStore: SabrSessionStore,
+    token: AudioOnlyMediaToken,
+    selection: AudioOnlyStreamSelection,
+) {
+    val videoId = token.videoUrl.youtubeVideoId()
+        ?: return respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube URL"))
+    val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true)
+        ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
+    val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
+        ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
+    val video = SabrFormatSelector.video(prepared.info, null)
+        ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
+    val holder = sabrSessionStore.getOrCreate(
+        videoId,
+        token.userId ?: videoId,
+        prepared.info,
+        audio,
+        video,
+        prepared.initialToken,
+        startPump = false,
+    )
+    holder.setActiveTracks(videoActive = false, audioActive = true)
+    val init = sabrSessionStore.fetchInitializationData(holder, audio)
+        ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
+    val total = buildSabrAudioOnlyBody(sabrSessionStore, holder, audio.approxDurationMs, init).size.toLong()
+    response.headers.append(HttpHeaders.CacheControl, "no-store")
+    response.headers.append(HttpHeaders.ContentType, audio.mimeType.orEmpty())
+    response.headers.append(HttpHeaders.AcceptRanges, "bytes")
+    when (val range = parseAudioOnlyByteRange(request.headers[HttpHeaders.Range], total)) {
+        is AudioOnlyByteRange.Satisfiable -> {
+            response.headers.append(HttpHeaders.ContentLength, (range.last - range.first + 1L).toString())
+            response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
+            respond(HttpStatusCode.PartialContent)
+        }
+        is AudioOnlyByteRange.Unsatisfiable -> {
+            response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
+            respond(HttpStatusCode.RequestedRangeNotSatisfiable)
+        }
+        null -> {
+            response.headers.append(HttpHeaders.ContentLength, total.toString())
+            respond(HttpStatusCode.OK)
+        }
+    }
+}
+
 private suspend fun ApplicationCall.respondSabrAudioOnlyBytes(
     mimeType: String,
     body: ByteArray,

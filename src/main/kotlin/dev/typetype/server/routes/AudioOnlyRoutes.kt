@@ -90,6 +90,13 @@ internal fun Route.audioOnlySourceRoutes(
     head("/streams/audio-only/source") {
         val result = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo, sabrSessionStore)
             ?: return@head
+        if (result.result is ExtractionResult.Success && result.result.data.kind == AudioOnlyStreamKind.SabrProgressive) {
+            val store = sabrSessionStore ?: return@head call.respond(
+                HttpStatusCode.UnprocessableEntity,
+                ErrorResponse("No audio-only stream is available"),
+            )
+            return@head call.respondSabrAudioOnlyHead(store, result.token, result.result.data)
+        }
         call.respondAudioOnlyHead(result)
     }
     get("/streams/audio-only/source") {
