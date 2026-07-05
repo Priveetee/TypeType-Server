@@ -17,9 +17,21 @@ internal object SabrSessionMediaFetcher {
                     holder.isAudioActive(),
                     localization,
                 )
-            }.getOrNull()?.also { segments ->
+            }.getOrNull()?.takeIf { it.isNotEmpty() }?.also { segments ->
                 segments.forEach { holder.markServed(it) }
-            }
+            } ?: fetchActiveRequests(holder, playerTimeMs, localization)
         }
+    }
+
+    private fun fetchActiveRequests(
+        holder: SabrSessionHolder,
+        playerTimeMs: Long,
+        localization: Localization,
+    ): List<SabrMediaSegment>? {
+        val segments = holder.mediaRequestsAt(playerTimeMs).map { request ->
+            holder.session.fetchTargetedSegment(holder, request, localization, playerTimeMs)
+                ?: return null
+        }
+        return segments.takeIf { it.isNotEmpty() }
     }
 }
