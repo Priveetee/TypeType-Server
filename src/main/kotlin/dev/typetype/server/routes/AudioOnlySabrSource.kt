@@ -33,7 +33,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
         prepared.initialToken,
         startPump = false,
     )
-    holder.setActiveTracks(videoActive = false, audioActive = true)
+    holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = sabrSessionStore.fetchInitializationData(holder, audio)
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
     val body = materializeSabrAudioOnlyBody(sabrSessionStore, holder, init)
@@ -63,7 +63,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         prepared.initialToken,
         startPump = false,
     )
-    holder.setActiveTracks(videoActive = false, audioActive = true)
+    holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = sabrSessionStore.fetchInitializationData(holder, audio)
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
     val body = materializeSabrAudioOnlyBody(sabrSessionStore, holder, init)

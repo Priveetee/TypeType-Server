@@ -22,7 +22,7 @@ internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
         prepared.initialToken,
         startPump = false,
     )
-    holder.setActiveTracks(videoActive = false, audioActive = true)
+    holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = fetchInitializationData(holder, audio) ?: return false
     return materializeSabrAudioOnlyBody(this, holder, init) != null
 }
