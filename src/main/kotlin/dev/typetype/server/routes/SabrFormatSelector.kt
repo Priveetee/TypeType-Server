@@ -10,6 +10,10 @@ internal object SabrFormatSelector {
             .maxByOrNull { it.height }
     }
 
+    fun lightestVideo(info: YoutubeSabrInfo): YoutubeSabrFormat? =
+        info.formats.filter { it.isSupportedVideo() }
+            .minWithOrNull(compareBy<YoutubeSabrFormat> { it.height }.thenBy { it.bitrate })
+
     fun audio(info: YoutubeSabrInfo, itag: Int?, trackId: String?, requireAac: Boolean): YoutubeSabrFormat? {
         if (itag != null) return info.formats.filter { it.matchesAudio(itag, trackId, requireAac) }
             .maxWithOrNull(audioComparator)

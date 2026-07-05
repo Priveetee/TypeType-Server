@@ -12,7 +12,7 @@ internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
     val prepared = fetchInfo(videoId, cachedFirst = true) ?: return false
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, selection.stream.audioTrackId, requireAac = true)
         ?: return false
-    val video = SabrFormatSelector.video(prepared.info, null) ?: return false
+    val video = SabrFormatSelector.lightestVideo(prepared.info) ?: return false
     val holder = getOrCreate(
         videoId,
         userId ?: videoId,

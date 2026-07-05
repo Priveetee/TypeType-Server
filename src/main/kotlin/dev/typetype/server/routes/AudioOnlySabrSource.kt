@@ -22,7 +22,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
-    val video = SabrFormatSelector.video(prepared.info, null)
+    val video = SabrFormatSelector.lightestVideo(prepared.info)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
     val holder = sabrSessionStore.getOrCreate(
         videoId,
@@ -52,7 +52,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
-    val video = SabrFormatSelector.video(prepared.info, null)
+    val video = SabrFormatSelector.lightestVideo(prepared.info)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
     val holder = sabrSessionStore.getOrCreate(
         videoId,
