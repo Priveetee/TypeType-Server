@@ -8,6 +8,7 @@ import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.StreamService
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.head
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -90,6 +91,54 @@ class AudioOnlySourceRoutesTest {
         installSourceApp()
 
         val response = client.get("/streams/audio-only/source?token=invalid")
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `HEAD audio-only source returns media headers for valid token`() = testApplication {
+        val selected = testAudioStream(url = "https://example.googlevideo.com/audio-en", audioLocale = "en")
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(selected))
+        )
+        installSourceApp()
+        val token = tokenService.createToken(null, "https://youtube.com/watch?v=test", false, "en", 140, null)
+
+        val response = client.head("/streams/audio-only/source?token=$token")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("audio/mp4", response.headers[HttpHeaders.ContentType])
+        assertEquals("bytes", response.headers[HttpHeaders.AcceptRanges])
+        assertEquals("5000000", response.headers[HttpHeaders.ContentLength])
+        assertEquals("", response.bodyAsText())
+    }
+
+    @Test
+    fun `HEAD audio-only source supports Range probe`() = testApplication {
+        val selected = testAudioStream(url = "https://example.googlevideo.com/audio-en", audioLocale = "en")
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(selected))
+        )
+        installSourceApp()
+        val token = tokenService.createToken(null, "https://youtube.com/watch?v=test", false, "en", 140, null)
+
+        val response = client.head("/streams/audio-only/source?token=$token") {
+            header(HttpHeaders.Range, "bytes=0-3")
+        }
+
+        assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertEquals("audio/mp4", response.headers[HttpHeaders.ContentType])
+        assertEquals("bytes", response.headers[HttpHeaders.AcceptRanges])
+        assertEquals("bytes 0-3/5000000", response.headers[HttpHeaders.ContentRange])
+        assertEquals("4", response.headers[HttpHeaders.ContentLength])
+        assertEquals("", response.bodyAsText())
+    }
+
+    @Test
+    fun `HEAD audio-only source rejects invalid token`() = testApplication {
+        installSourceApp()
+
+        val response = client.head("/streams/audio-only/source?token=invalid")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
