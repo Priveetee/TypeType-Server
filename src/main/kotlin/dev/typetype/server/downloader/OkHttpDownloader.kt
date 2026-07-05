@@ -88,7 +88,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         val body = dataToSend?.toRequestBody()
             ?: if (method == "POST" || method == "PUT" || method == "PATCH") ByteArray(0).toRequestBody() else null
         val builder = Request.Builder()
-            .url(request.url())
+            .url(normalizeExtractorUrl(request.url()))
             .method(method, body)
 
         request.headers().forEach { (name, values) ->
@@ -98,3 +98,6 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         return builder.build()
     }
 }
+
+internal fun normalizeExtractorUrl(url: String): String =
+    if (url.startsWith("/")) "https://www.youtube.com$url" else url
