@@ -27,9 +27,11 @@ class AudioOnlySabrMaterializerTest {
         val video = sabrFormat(137, isAudio = false)
         val holder = holder(audio, video, endSegments = listOf(0L, 0L, 0L, 3L))
         val store = mockk<SabrSessionStore>()
-        coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns segment(140, 1, byteArrayOf(1))
-        coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns segment(140, 2, byteArrayOf(2))
-        coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 3 }) } returns segment(140, 3, byteArrayOf(3))
+        coEvery { store.cachedSegment(holder, any()) } returns null
+        coEvery { store.fetchMediaAt(holder, 0L) } returns listOf(segment(140, 1, byteArrayOf(1)))
+        coEvery { store.fetchMediaAt(holder, 10_000L) } returns listOf(segment(140, 2, byteArrayOf(2)))
+        coEvery { store.fetchMediaAt(holder, 20_000L) } returns listOf(segment(140, 3, byteArrayOf(3)))
+        coEvery { store.fetchSegment(holder, any()) } returns null
 
         val body = materializeSabrAudioOnlyBody(store, holder, byteArrayOf(9, 8))
 
@@ -42,6 +44,8 @@ class AudioOnlySabrMaterializerTest {
         val video = sabrFormat(137, isAudio = false)
         val holder = holder(audio, video, endSegments = listOf(0L, 0L, 0L))
         val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+        coEvery { store.fetchMediaAt(holder, any()) } returns null
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns segment(140, 1, byteArrayOf(1))
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns null
 
@@ -57,6 +61,9 @@ class AudioOnlySabrMaterializerTest {
         every { session.isBeyondEnd(any()) } returns false
         every { streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { streamState.getEndSegment(audio) } returnsMany endSegments
+        every { streamState.getSegmentStartMs(audio, any()) } answers {
+            (secondArg<Int>() - 1).coerceAtLeast(0) * 10_000L
+        }
         return SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
