@@ -32,6 +32,7 @@ fun Route.audioOnlyContractRoutes(
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     proxyService: ProxyService? = null,
+    sabrAudioOnlyPlayable: (suspend (String, String?, AudioOnlyStreamSelection) -> Boolean)? = null,
 ) {
     get("/streams/audio-only") {
         val url = call.request.queryParameters["url"]
@@ -50,6 +51,14 @@ fun Route.audioOnlyContractRoutes(
             is ExtractionResult.Success -> {
                 if (!access.profile.allowsUploader(result.data.response.uploaderUrl, result.data.response.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                }
+                if (result.data.kind == AudioOnlyStreamKind.SabrProgressive &&
+                    sabrAudioOnlyPlayable?.invoke(url, access.userId, result.data) == false
+                ) {
+                    return@get call.respond(
+                        HttpStatusCode.UnprocessableEntity,
+                        ErrorResponse("No audio-only stream is available"),
+                    )
                 }
                 call.response.headers.append(HttpHeaders.CacheControl, "no-store")
                 when (val response = result.data.toResponse(

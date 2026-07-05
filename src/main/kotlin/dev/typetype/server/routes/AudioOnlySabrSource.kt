@@ -19,7 +19,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
 ) {
     val videoId = token.videoUrl.youtubeVideoId()
         ?: return respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube URL"))
-    val prepared = sabrSessionStore.fetchInfo(videoId)
+    val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
@@ -54,11 +54,6 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
         }
     }
 }
-
-private fun String.youtubeVideoId(): String? = Regex("(?:[?&]v=|/shorts/|youtu\\.be/)([A-Za-z0-9_-]{6,})")
-    .find(this)
-    ?.groupValues
-    ?.getOrNull(1)
 
 private fun maxSegmentCount(durationMs: Long): Int {
     val durationBased = (durationMs.coerceAtLeast(1L) / 1_000L + 20L).coerceAtLeast(60L)

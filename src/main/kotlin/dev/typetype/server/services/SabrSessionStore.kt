@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
+import dev.typetype.server.services.SabrSessionStoreDefaults.toStartTimeSecs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,8 +27,8 @@ import java.util.Base64
 
 internal class SabrSessionStore(
     tokenServiceUrl: String,
-    private val maxSessions: Int = defaultMaxSessions(),
-    private val idleEviction: Duration = defaultIdleEviction(),
+    private val maxSessions: Int = SabrSessionStoreDefaults.maxSessions(),
+    private val idleEviction: Duration = SabrSessionStoreDefaults.idleEviction(),
     private val pumpLoopIntervalMs: Long = 750,
     private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
     private val initCache: CacheService? = null,
@@ -99,22 +100,29 @@ internal class SabrSessionStore(
         pump.ensureWarmed(holder, maxPumps)
     }
 
-    internal suspend fun fetchInfo(videoId: String, startTimeMs: Long = 0L): SabrPreparedInfo? = withContext(Dispatchers.IO) {
-        repeat(SABR_INFO_ATTEMPTS) { attempt ->
+    internal suspend fun fetchInfo(
+        videoId: String,
+        startTimeMs: Long = 0L,
+        cachedFirst: Boolean = false,
+    ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
+        if (cachedFirst) infoCache.get(videoId)?.let { return@withContext it }
+        repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
             fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext infoCache.put(videoId, it) }
-            if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
+            if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
         }
         if (startTimeMs > 0L) {
-            repeat(SABR_INFO_ATTEMPTS) { attempt ->
+            repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
                 fetchInfoOnce(videoId, 0L)?.let { return@withContext infoCache.put(videoId, it) }
-                if (attempt + 1 < SABR_INFO_ATTEMPTS) delay(SABR_INFO_RETRY_DELAY_MS)
+                if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) {
+                    delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
+                }
             }
         }
         infoCache.get(videoId)
     }
 
     private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
-        withTimeoutOrNull(SABR_INFO_TIMEOUT_MS) {
+        withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
             val token = tokenClient.fetch(videoId) ?: return@withTimeoutOrNull null
             runCatching {
                 YoutubeSabrProbe.fetchSabrInfo(
@@ -179,21 +187,4 @@ internal class SabrSessionStore(
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
-    private companion object {
-        const val SABR_INFO_TIMEOUT_MS = 20_000L
-        const val SABR_INFO_ATTEMPTS = 3
-        const val SABR_INFO_RETRY_DELAY_MS = 500L
-
-        fun defaultMaxSessions(): Int =
-            System.getenv("SABR_MAX_SESSIONS")?.toIntOrNull()?.coerceAtLeast(1) ?: 24
-
-        fun defaultIdleEviction(): Duration = Duration.ofSeconds(
-            System.getenv("SABR_IDLE_EVICTION_SECONDS")?.toLongOrNull()?.coerceAtLeast(60L) ?: 240L,
-        )
-
-        fun Long.toStartTimeSecs(): Int? {
-            if (this <= 0L) return null
-            return (this / 1_000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        }
-    }
 }

@@ -5,6 +5,7 @@ import dev.typetype.server.models.ProxyResponse
 import dev.typetype.server.routes.audioOnlyContractRoutes
 import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.services.AudioOnlyMediaTokenService
+import dev.typetype.server.services.AudioOnlyStreamSelection
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.StreamService
@@ -83,6 +84,25 @@ class AudioOnlyProgressiveContractRoutesTest {
     }
 
     @Test
+    fun `GET audio-only rejects SABR source when preflight fails`() = testApplication {
+        val sabrAudio = testAudioStream(
+            url = "",
+            bitrate = 128,
+            deliveryMethod = "sabr",
+            sabrSessionUrl = "/sabr/session/test-id?audioItag=140",
+        )
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(sabrAudio))
+        )
+        installContractApp { _, _, _ -> false }
+
+        val response = client.get("/streams/audio-only?url=https://youtube.com/watch?v=test")
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertTrue(response.bodyAsText().contains("No audio-only stream is available"))
+    }
+
+    @Test
     fun `GET audio-only source rejects HLS upstream response`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(testStreamResponse())
         coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
@@ -107,9 +127,18 @@ class AudioOnlyProgressiveContractRoutesTest {
         assertTrue(response.bodyAsText().contains("Audio-only source did not return progressive audio"))
     }
 
-    private fun io.ktor.server.testing.ApplicationTestBuilder.installContractApp(): Unit = application {
+    private fun io.ktor.server.testing.ApplicationTestBuilder.installContractApp(
+        sabrAudioOnlyPlayable: (suspend (String, String?, AudioOnlyStreamSelection) -> Boolean)? = null,
+    ): Unit = application {
         install(ContentNegotiation) { json() }
-        routing { audioOnlyContractRoutes(streamService, tokenService, publicHlsManifestTokenService = hlsTokenService) }
+        routing {
+            audioOnlyContractRoutes(
+                streamService,
+                tokenService,
+                publicHlsManifestTokenService = hlsTokenService,
+                sabrAudioOnlyPlayable = sabrAudioOnlyPlayable,
+            )
+        }
     }
 
     private fun io.ktor.server.testing.ApplicationTestBuilder.installSourceApp(): Unit = application {
