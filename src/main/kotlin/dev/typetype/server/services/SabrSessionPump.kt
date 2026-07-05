@@ -8,7 +8,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.time.Instant
 
-internal class SabrSessionPump {
+internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = null) {
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "GB")
         var pumps = 0
@@ -36,6 +36,7 @@ internal class SabrSessionPump {
         holder.lastRequestAt = Instant.now()
         holder.session.getCachedSegment(request)?.let { segment ->
             holder.markServed(segment)
+            segmentCache?.put(holder, segment)
             return segment
         }
         if (holder.session.isBeyondEnd(request)) return null
@@ -45,7 +46,7 @@ internal class SabrSessionPump {
     }
 
     suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
-        SabrSessionMediaFetcher.fetch(holder, playerTimeMs)
+        SabrSessionMediaFetcher.fetch(holder, playerTimeMs)?.also { segmentCache?.putAll(holder, it) }
 
     suspend fun pumpLoop(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "GB")
@@ -69,12 +70,16 @@ internal class SabrSessionPump {
         return holder.pumpMutex.withLock {
             holder.session.getCachedSegment(request)?.let { segment ->
                 holder.markServed(segment)
+                segmentCache?.put(holder, segment)
                 return@withLock segment
             }
             if (holder.session.isBeyondEnd(request)) return@withLock null
             runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }
                 .getOrNull()
-                ?.also { holder.markServed(it) }
+                ?.also {
+                    holder.markServed(it)
+                    segmentCache?.put(holder, it)
+                }
         }
     }
 
@@ -115,6 +120,7 @@ internal class SabrSessionPump {
                 val fetched = runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }.getOrNull()
                 fetched?.also { holder.markServed(it) }
             }
+            if (segment != null) segmentCache?.put(holder, segment)
             if (segment != null || holder.session.isBeyondEnd(request)) return segment
             pumps++
             delay(FETCH_RETRY_DELAY_MS)
@@ -137,6 +143,7 @@ internal class SabrSessionPump {
                 if (holder.session.isBeyondEnd(request)) return@withLock null
                 holder.session.fetchTargetedSegment(holder, request, localization)
             }
+            if (segment != null) segmentCache?.put(holder, segment)
             if (segment != null || holder.session.isBeyondEnd(request)) return segment
             attempt++
             delay(FETCH_RETRY_DELAY_MS)
@@ -150,29 +157,31 @@ internal class SabrSessionPump {
         return startMs <= INITIAL_SEQUENTIAL_LIMIT_MS || startMs <= edgeMs + SEQUENTIAL_FILL_AHEAD_MS
     }
 
-    private fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
+    private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
         prepareEviction(holder)
         if (holder.session.requestNumber == 0) {
-            holder.session.pumpOnce(localization)
+            pumpOnceAndCache(holder, localization)
             return true
         }
         holder.consumeRefetch()?.let { request ->
             holder.session.prepareForRewind(request)
-            holder.session.pumpOnce(localization)
+            pumpOnceAndCache(holder, localization)
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
             holder.session.prepareForForwardJump(request)
-            holder.session.pumpOnce(localization)
+            pumpOnceAndCache(holder, localization)
             return true
         }
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
-        if (holder.hasActiveWebSocket()) return false
         if (isThrottled(holder)) return false
         holder.session.streamState.setPlayerTimeMs(holder.session.streamState.getMinBufferedEndMs())
-        holder.session.pumpOnce(localization)
+        pumpOnceAndCache(holder, localization)
         return false
     }
+
+    private suspend fun pumpOnceAndCache(holder: SabrSessionHolder, localization: Localization): List<SabrMediaSegment> =
+        holder.session.pumpOnce(localization).also { segmentCache?.putAll(holder, it) }
 
     private fun prepareEviction(holder: SabrSessionHolder): Unit {
         holder.session.setPlayHeadMs((holder.readerTailMs() - BACK_BUFFER_MS).coerceAtLeast(0L))

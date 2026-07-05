@@ -2,7 +2,6 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
-import dev.typetype.server.services.SabrWebSocketLimits
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
@@ -13,7 +12,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 
 internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionStore) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -100,6 +98,9 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
             )
         }
         holder.pumpMutex.withLock { holder.applySabrWebSocketState(message) }
+        sabrSessionStore.cachedMediaAt(holder, playerTimeMs)?.let {
+            return session.sendCachedSabrSegments(holder, requestId, it)
+        }
         var completed = false
         val segments = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
             sabrSessionStore.fetchMediaAt(holder, playerTimeMs).also { completed = true }
@@ -111,7 +112,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
         if (segments.isEmpty()) {
             return sendError(session, requestId, "segment_unavailable", "SABR segment unavailable")
         }
-        sendSegments(session, holder, requestId, segments)
+        session.sendSabrSegments(holder, requestId, segments)
     }
 
     private suspend fun handleSegment(
@@ -131,6 +132,9 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
             )
         holder.pumpMutex.withLock { holder.applySabrWebSocketState(message) }
         if (init) return SabrWebSocketInitSender.send(session, holder, sabrSessionStore, requestId, request, FETCH_TIMEOUT_MS)
+        sabrSessionStore.cachedSegment(holder, request)?.let {
+            return session.sendCachedSabrSegments(holder, requestId, listOf(it))
+        }
         var completed = false
         val segment = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
             sabrSessionStore.fetchSegment(holder, request).also { completed = true }
@@ -141,26 +145,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
         if (segment == null) {
             return sendError(session, requestId, "segment_unavailable", "SABR segment unavailable")
         }
-        sendSegments(session, holder, requestId, listOf(segment))
-    }
-
-    private suspend fun sendSegments(
-        session: DefaultWebSocketServerSession,
-        holder: SabrSessionHolder,
-        requestId: String?,
-        segments: List<SabrMediaSegment>,
-    ): Unit {
-        val totalBytes = segments.sumOf { it.length.toLong() }
-        session.send(Frame.Text(SabrWebSocketProtocol.startedJson(requestId, segments.size, totalBytes).toString()))
-        for (segment in segments) {
-            if (segment.length.toLong() > SabrWebSocketLimits.MAX_BINARY_FRAME_BYTES) {
-                sendError(session, requestId, "segment_too_large", "SABR segment exceeds WebSocket frame limit")
-                return
-            }
-            session.send(Frame.Text(SabrWebSocketProtocol.segmentJson(requestId, segment).toString()))
-            session.send(Frame.Binary(true, segment.data))
-        }
-        session.send(Frame.Text(SabrWebSocketProtocol.doneJson(holder, requestId, segments.size, totalBytes).toString()))
+        session.sendSabrSegments(holder, requestId, listOf(segment))
     }
 
     private suspend fun sendError(

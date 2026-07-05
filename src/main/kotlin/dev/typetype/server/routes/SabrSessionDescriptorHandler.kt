@@ -11,6 +11,7 @@ import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -77,12 +78,12 @@ internal class SabrSessionDescriptorHandler(
             startTimeMs,
             startPump = false,
         )
-        val videoInit = sabrSessionStore.fetchInitializationData(holder, holder.videoFormat)
-        val audioInit = sabrSessionStore.fetchInitializationData(holder, holder.audioFormat)
-        if (videoInit == null || audioInit == null) {
-            return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR initialization failed"))
+        val preflight = withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) {
+            sabrSessionStore.preflightPlayback(holder, startTimeMs)
+        } == true
+        if (!preflight) {
+            return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR preflight failed"))
         }
-        sabrSessionStore.ensureWarmed(holder)
         sabrSessionStore.startPump(holder)
         call.respond(buildJsonObject {
             put("videoId", videoId)
@@ -118,4 +119,8 @@ internal class SabrSessionDescriptorHandler(
 
     private fun initPath(videoId: String, format: YoutubeSabrFormat, session: String): String =
         "/sabr/$videoId/${format.itag}/init?session=$session"
+
+    private companion object {
+        const val PREFLIGHT_TIMEOUT_MS = 25_000L
+    }
 }

@@ -5,6 +5,7 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.markServed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -41,6 +42,11 @@ internal class SabrSegmentHandler(
         }
         if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
         val request = SabrSegmentRequest.media(format, seq)
+        sabrSessionStore.cachedSegment(holder, request)?.let { cached ->
+            holder.markServed(cached)
+            call.response.headers.append("Cache-Control", "no-store")
+            return call.respondOutputStream(containerMime(cached.mimeType)) { write(cached.bytes) }
+        }
         val segment = withTimeoutOrNull(20_000L) { sabrSessionStore.fetchSegment(holder, request) }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
         call.response.headers.append("Cache-Control", "no-store")

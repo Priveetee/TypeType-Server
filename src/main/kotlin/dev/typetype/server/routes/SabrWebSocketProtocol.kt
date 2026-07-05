@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrWebSocketLimits
+import dev.typetype.server.services.CachedSabrSegment
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -46,6 +47,17 @@ internal object SabrWebSocketProtocol {
         put("init", header.isInitSegment)
         put("startMs", header.startMs)
         put("durationMs", header.durationMs)
+        put("length", segment.length)
+    }
+
+    fun segmentJson(requestId: String?, segment: CachedSabrSegment): JsonObject = buildJsonObject {
+        put("type", "segment")
+        requestId?.let { put("requestId", it) }
+        put("itag", segment.itag)
+        put("sequence", segment.sequence)
+        put("init", segment.init)
+        put("startMs", segment.startMs)
+        put("durationMs", segment.durationMs)
         put("length", segment.length)
     }
 

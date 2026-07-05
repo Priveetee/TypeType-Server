@@ -34,7 +34,9 @@ internal class SabrSessionStore(
     private val initCache: CacheService? = null,
 ) {
     private val registry = SabrSessionRegistry()
-    private val pump = SabrSessionPump()
+    private val segmentCache = SabrSegmentCache(initCache)
+    private val pump = SabrSessionPump(segmentCache)
+    private val warmer = SabrPlaybackWarmer()
     private val infoCache = SabrPreparedInfoCache()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
@@ -90,15 +92,21 @@ internal class SabrSessionStore(
     internal fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? =
         registry.lookupByItag(videoId, userId, itag)
 
-    internal fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? =
-        registry.lookupByToken(videoId, token, itag)
+    internal fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? = registry.lookupByToken(videoId, token, itag)
 
-    internal fun lookupByToken(videoId: String, token: String): SabrSessionHolder? =
-        registry.lookupByToken(videoId, token)
+    internal fun lookupByToken(videoId: String, token: String): SabrSessionHolder? = registry.lookupByToken(videoId, token)
 
-    internal suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8) {
-        pump.ensureWarmed(holder, maxPumps)
-    }
+    internal suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8): Unit = pump.ensureWarmed(holder, maxPumps)
+
+    internal suspend fun preflightPlayback(holder: SabrSessionHolder, playerTimeMs: Long): Boolean =
+        warmer.preflight(this, holder, playerTimeMs)
+
+    internal suspend fun cachedMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<CachedSabrSegment>? =
+        holder.mediaRequestsAt(playerTimeMs).map { segmentCache.get(holder, it) }
+            .takeIf { cached -> cached.all { it != null } }?.filterNotNull()
+
+    internal suspend fun cachedSegment(holder: SabrSessionHolder, request: SabrSegmentRequest): CachedSabrSegment? =
+        segmentCache.get(holder, request)
 
     internal suspend fun fetchInfo(
         videoId: String,
@@ -160,12 +168,12 @@ internal class SabrSessionStore(
         format: YoutubeSabrFormat,
     ): ByteArray? {
         val request = SabrSegmentRequest.initialization(format)
-        holder.session.getCachedSegment(request)?.data?.let { return it }
+        holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
         SabrInitializationData.fetch(format, initCache)?.let { bytes ->
             holder.session.streamState.ingestInitializationData(format, bytes)
             return bytes
         }
-        return pump.fetchSegment(holder, request)?.data
+        return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
     }
 
     fun release() {
