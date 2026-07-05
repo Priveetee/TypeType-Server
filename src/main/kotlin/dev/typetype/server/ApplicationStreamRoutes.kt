@@ -8,6 +8,7 @@ import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
+import dev.typetype.server.routes.withPlayableSabrStreams
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import io.ktor.server.plugins.ratelimit.rateLimit
@@ -28,6 +29,7 @@ internal fun Route.installStreamRoutes(
             },
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
+            sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
         )
         audioOnlyContractRoutes(
             streamService = svc.streamService,

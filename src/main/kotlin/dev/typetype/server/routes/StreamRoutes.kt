@@ -29,6 +29,7 @@ fun Route.streamRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
+    sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 ): Unit {
     get("/streams") {
         val url = call.request.queryParameters["url"]
@@ -52,10 +53,15 @@ fun Route.streamRoutes(
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
-                val data = result.data
+                val filtered = result.data
                     .filterAllowed(accessProfile)
                     .withSignedPublicHlsUrl(userId != null && !access.allowGuest, publicHlsManifestTokenService)
                     .withoutSabrManifestUrls()
+                val data = if (sabrStreamContractFilter == null) {
+                    filtered
+                } else {
+                    sabrStreamContractFilter(url, filtered)
+                }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
                     if (usedYoutubeSession || accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
