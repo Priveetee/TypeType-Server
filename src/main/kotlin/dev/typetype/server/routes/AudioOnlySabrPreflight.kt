@@ -2,8 +2,19 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.AudioOnlyStreamSelection
 import dev.typetype.server.services.SabrSessionStore
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
+    videoUrl: String,
+    userId: String?,
+    selection: AudioOnlyStreamSelection,
+): Boolean {
+    return withTimeoutOrNull(SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS) {
+        isSabrAudioOnlyPlayableWithinTimeout(videoUrl, userId, selection)
+    } ?: false
+}
+
+private suspend fun SabrSessionStore.isSabrAudioOnlyPlayableWithinTimeout(
     videoUrl: String,
     userId: String?,
     selection: AudioOnlyStreamSelection,
@@ -26,3 +37,5 @@ internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
     val init = fetchInitializationData(holder, audio) ?: return false
     return materializeSabrAudioOnlyBody(this, holder, init) != null
 }
+
+private const val SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS = 60_000L

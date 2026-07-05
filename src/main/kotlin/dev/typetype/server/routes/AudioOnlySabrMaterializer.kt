@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.io.ByteArrayOutputStream
 
@@ -14,7 +15,9 @@ internal suspend fun materializeSabrAudioOnlyBody(
     val audioWasActive = holder.isAudioActive()
     holder.setActiveTracks(videoActive = false, audioActive = true)
     return try {
-        materializeSabrAudioOnlyBodyActive(sabrSessionStore, holder, init)
+        withTimeoutOrNull(SABR_AUDIO_ONLY_MATERIALIZE_TIMEOUT_MS) {
+            materializeSabrAudioOnlyBodyActive(sabrSessionStore, holder, init)
+        }
     } finally {
         holder.setActiveTracks(videoActive = videoWasActive, audioActive = audioWasActive)
     }
@@ -107,3 +110,4 @@ private fun SabrSessionHolder.audioTargetTimeMs(sequence: Int): Long {
 
 private const val MAX_SABR_AUDIO_ONLY_SEGMENTS = 10_000
 private const val SABR_AUDIO_ONLY_TARGET_OFFSET_MS = 1_000L
+private const val SABR_AUDIO_ONLY_MATERIALIZE_TIMEOUT_MS = 60_000L
