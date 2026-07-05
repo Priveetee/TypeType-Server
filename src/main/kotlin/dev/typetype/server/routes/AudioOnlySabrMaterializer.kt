@@ -10,17 +10,24 @@ internal suspend fun materializeSabrAudioOnlyBody(
     holder: SabrSessionHolder,
     init: ByteArray,
 ): ByteArray? {
-    val endSegment = holder.session.streamState.getEndSegment(holder.audioFormat).toInt()
-    if (endSegment <= 0 || endSegment > MAX_SABR_AUDIO_ONLY_SEGMENTS) return null
     val output = ByteArrayOutputStream()
     output.write(init)
-    for (sequence in 1..endSegment) {
-        val segment = sabrSessionStore.fetchSegment(holder, SabrSegmentRequest.media(holder.audioFormat, sequence))
-            ?: return null
-        if (segment.header.isInitSegment || segment.header.itag != holder.audioFormat.itag) return null
+    var sequence = 1
+    while (sequence <= MAX_SABR_AUDIO_ONLY_SEGMENTS) {
+        val endSegment = holder.session.streamState.getEndSegment(holder.audioFormat).toInt()
+        if (endSegment > 0 && sequence > endSegment) return output.toByteArray()
+        val request = SabrSegmentRequest.media(holder.audioFormat, sequence)
+        val segment = sabrSessionStore.fetchSegment(holder, request)
+            ?: return if (holder.session.isBeyondEnd(request) && sequence > 1) output.toByteArray() else null
+        if (
+            segment.header.isInitSegment ||
+            segment.header.itag != holder.audioFormat.itag ||
+            segment.header.sequenceNumber != sequence
+        ) return null
         output.write(segment.data)
+        sequence++
     }
-    return output.toByteArray()
+    return null
 }
 
 private const val MAX_SABR_AUDIO_ONLY_SEGMENTS = 10_000

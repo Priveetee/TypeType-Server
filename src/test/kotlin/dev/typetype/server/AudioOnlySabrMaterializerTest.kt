@@ -25,7 +25,7 @@ class AudioOnlySabrMaterializerTest {
     fun `materializer writes init and every audio sequence`() = runTest {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
-        val holder = holder(audio, video, endSegment = 3)
+        val holder = holder(audio, video, endSegments = listOf(0L, 0L, 0L, 3L))
         val store = mockk<SabrSessionStore>()
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns segment(140, 1, byteArrayOf(1))
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns segment(140, 2, byteArrayOf(2))
@@ -40,7 +40,7 @@ class AudioOnlySabrMaterializerTest {
     fun `materializer fails instead of returning partial body`() = runTest {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
-        val holder = holder(audio, video, endSegment = 3)
+        val holder = holder(audio, video, endSegments = listOf(0L, 0L, 0L))
         val store = mockk<SabrSessionStore>()
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 1 }) } returns segment(140, 1, byteArrayOf(1))
         coEvery { store.fetchSegment(holder, match { it.sequenceNumber == 2 }) } returns null
@@ -50,12 +50,13 @@ class AudioOnlySabrMaterializerTest {
         assertNull(body)
     }
 
-    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat, endSegment: Long): SabrSessionHolder {
+    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat, endSegments: List<Long>): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns streamState
+        every { session.isBeyondEnd(any()) } returns false
         every { streamState.setActiveTrackTypes(any(), any()) } returns Unit
-        every { streamState.getEndSegment(audio) } returns endSegment
+        every { streamState.getEndSegment(audio) } returnsMany endSegments
         return SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
