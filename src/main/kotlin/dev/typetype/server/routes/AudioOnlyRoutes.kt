@@ -19,6 +19,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
@@ -161,22 +162,23 @@ private suspend fun ApplicationCall.respondAudioOnlyHead(source: AudioOnlySource
     when (val result = source.result) {
         is ExtractionResult.Success -> {
             response.headers.append(HttpHeaders.CacheControl, "no-store")
-            response.headers.append(HttpHeaders.ContentType, result.data.stream.mimeType)
             val length = result.data.stream.contentLength.takeIf { it > 0 && result.data.kind == AudioOnlyStreamKind.Progressive }
             val range = length?.let { parseAudioOnlyByteRange(request.headers[HttpHeaders.Range], it) }
             if (range is AudioOnlyByteRange.Satisfiable) {
                 response.headers.append(HttpHeaders.AcceptRanges, "bytes")
-                response.headers.append(HttpHeaders.ContentLength, (range.last - range.first + 1L).toString())
                 response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
-                respond(HttpStatusCode.PartialContent)
+                respondOutputStream(
+                    containerMime(result.data.stream.mimeType),
+                    HttpStatusCode.PartialContent,
+                    range.last - range.first + 1L,
+                ) {}
             } else if (range is AudioOnlyByteRange.Unsatisfiable) {
                 response.headers.append(HttpHeaders.AcceptRanges, "bytes")
                 response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
                 respond(HttpStatusCode.RequestedRangeNotSatisfiable)
             } else {
                 response.headers.append(HttpHeaders.AcceptRanges, if (length == null) "none" else "bytes")
-                length?.let { response.headers.append(HttpHeaders.ContentLength, it.toString()) }
-                respond(HttpStatusCode.OK)
+                respondOutputStream(containerMime(result.data.stream.mimeType), HttpStatusCode.OK, length ?: 0L) {}
             }
         }
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))

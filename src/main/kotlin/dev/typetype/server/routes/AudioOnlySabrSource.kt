@@ -90,21 +90,22 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
     val total = buildSabrAudioOnlyBody(sabrSessionStore, holder, audio.approxDurationMs, init).size.toLong()
     response.headers.append(HttpHeaders.CacheControl, "no-store")
-    response.headers.append(HttpHeaders.ContentType, audio.mimeType.orEmpty())
     response.headers.append(HttpHeaders.AcceptRanges, "bytes")
     when (val range = parseAudioOnlyByteRange(request.headers[HttpHeaders.Range], total)) {
         is AudioOnlyByteRange.Satisfiable -> {
-            response.headers.append(HttpHeaders.ContentLength, (range.last - range.first + 1L).toString())
             response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
-            respond(HttpStatusCode.PartialContent)
+            respondOutputStream(
+                containerMime(audio.mimeType.orEmpty()),
+                HttpStatusCode.PartialContent,
+                range.last - range.first + 1L,
+            ) {}
         }
         is AudioOnlyByteRange.Unsatisfiable -> {
             response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
             respond(HttpStatusCode.RequestedRangeNotSatisfiable)
         }
         null -> {
-            response.headers.append(HttpHeaders.ContentLength, total.toString())
-            respond(HttpStatusCode.OK)
+            respondOutputStream(containerMime(audio.mimeType.orEmpty()), HttpStatusCode.OK, total) {}
         }
     }
 }
