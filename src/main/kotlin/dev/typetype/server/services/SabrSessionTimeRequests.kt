@@ -4,9 +4,12 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.mediaRequestsAt(playerTimeMs: Long): List<SabrSegmentRequest> = buildList {
-    if (isVideoActive()) add(mediaRequestAt(videoFormat, playerTimeMs))
-    if (isAudioActive()) add(mediaRequestAt(audioFormat, playerTimeMs))
+    if (isVideoActive() && needsMediaAt(videoFormat, playerTimeMs)) add(mediaRequestAt(videoFormat, playerTimeMs))
+    if (isAudioActive() && needsMediaAt(audioFormat, playerTimeMs)) add(mediaRequestAt(audioFormat, playerTimeMs))
 }
+
+private fun SabrSessionHolder.needsMediaAt(format: YoutubeSabrFormat, playerTimeMs: Long): Boolean =
+    (readerPosition(format) ?: return true) <= playerTimeMs.coerceAtLeast(0L)
 
 private fun SabrSessionHolder.mediaRequestAt(
     format: YoutubeSabrFormat,

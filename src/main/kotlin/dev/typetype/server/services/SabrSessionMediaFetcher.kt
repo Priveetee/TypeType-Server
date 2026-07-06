@@ -36,6 +36,6 @@ internal object SabrSessionMediaFetcher {
             holder.session.fetchTargetedSegment(holder, request, localization)
                 ?: return null
         }
-        return segments.takeIf { it.isNotEmpty() }
+        return segments
     }
 }

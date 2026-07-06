@@ -110,7 +110,7 @@ internal class SabrWebSocketHandler(private val sabrSessionStore: SabrSessionSto
             return sendError(session, requestId, "segment_unavailable", "SABR segment unavailable")
         }
         if (segments.isEmpty()) {
-            return sendError(session, requestId, "segment_unavailable", "SABR segment unavailable")
+            return session.sendSabrSegments(holder, requestId, segments)
         }
         session.sendSabrSegments(holder, requestId, segments)
     }

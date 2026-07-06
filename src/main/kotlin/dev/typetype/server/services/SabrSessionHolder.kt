@@ -81,6 +81,8 @@ internal class SabrSessionHolder(
 
     fun readerHeadMs(): Long = readerTailMs()
 
+    fun readerPosition(format: YoutubeSabrFormat): Long? = readerPositions[format.itag]
+
     fun readerTailMs(): Long {
         if (activeItags.isEmpty()) return 0L
         var tail = Long.MAX_VALUE
