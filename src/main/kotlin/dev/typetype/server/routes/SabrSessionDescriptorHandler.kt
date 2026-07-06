@@ -5,6 +5,8 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.SabrPreparedInfo
+import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
@@ -67,43 +69,69 @@ internal class SabrSessionDescriptorHandler(
                 HttpStatusCode.UnprocessableEntity,
                 ErrorResponse("No SABR video for this video"),
             )
-        val holder = sabrSessionStore.getOrCreate(
-            videoId,
-            access.userId ?: videoId,
-            prepared.info,
-            audio,
-            video,
-            prepared.initialToken,
-            startTimeMs,
-            startPump = false,
-        )
-        val preflight = withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) {
-            sabrSessionStore.preflightPlayback(holder, startTimeMs)
-        } == true
-        if (!preflight) {
+        val userId = access.userId ?: videoId
+        val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs)
+        val readyHolder = preflightOrRecreate(videoId, userId, prepared, audio, video, startTimeMs, holder)
+        if (readyHolder == null) {
             return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR preflight failed"))
         }
-        sabrSessionStore.startPump(holder)
+        sabrSessionStore.startPump(readyHolder)
         call.respond(buildJsonObject {
             put("videoId", videoId)
-            put("session", holder.sessionToken)
+            put("session", readyHolder.sessionToken)
             put("transport", "http-segments")
             put("protocol", HTTP_SEGMENTS_PROTOCOL)
             put("startTimeMs", startTimeMs)
             put(
                 "durationMs",
-                max(holder.audioFormat.approxDurationMs, holder.videoFormat.approxDurationMs),
+                max(readyHolder.audioFormat.approxDurationMs, readyHolder.videoFormat.approxDurationMs),
             )
-            putJsonObject("audio") { putFormat(holder.audioFormat) }
-            putJsonObject("video") { putFormat(holder.videoFormat) }
+            putJsonObject("audio") { putFormat(readyHolder.audioFormat) }
+            putJsonObject("video") { putFormat(readyHolder.videoFormat) }
             putJsonObject("endpoints") {
-                put("hls", "/sabr/manifest/$videoId?format=hls&session=${holder.sessionToken}")
-                put("dash", "/sabr/manifest/$videoId?session=${holder.sessionToken}")
-                put("audioInit", initPath(videoId, holder.audioFormat, holder.sessionToken))
-                put("videoInit", initPath(videoId, holder.videoFormat, holder.sessionToken))
+                put("hls", "/sabr/manifest/$videoId?format=hls&session=${readyHolder.sessionToken}")
+                put("dash", "/sabr/manifest/$videoId?session=${readyHolder.sessionToken}")
+                put("audioInit", initPath(videoId, readyHolder.audioFormat, readyHolder.sessionToken))
+                put("videoInit", initPath(videoId, readyHolder.videoFormat, readyHolder.sessionToken))
             }
         })
     }
+
+    private suspend fun preflightOrRecreate(
+        videoId: String,
+        userId: String,
+        prepared: SabrPreparedInfo,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        startTimeMs: Long,
+        holder: SabrSessionHolder,
+    ): SabrSessionHolder? {
+        if (preflight(holder, startTimeMs)) return holder
+        sabrSessionStore.release(holder)
+        val fresh = createHolder(videoId, userId, prepared, audio, video, startTimeMs)
+        return fresh.takeIf { preflight(it, startTimeMs) }
+    }
+
+    private suspend fun preflight(holder: SabrSessionHolder, startTimeMs: Long): Boolean =
+        withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) { sabrSessionStore.preflightPlayback(holder, startTimeMs) } == true
+
+    private fun createHolder(
+        videoId: String,
+        userId: String,
+        prepared: SabrPreparedInfo,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        startTimeMs: Long,
+    ): SabrSessionHolder = sabrSessionStore.getOrCreate(
+        videoId,
+        userId,
+        prepared.info,
+        audio,
+        video,
+        prepared.initialToken,
+        startTimeMs,
+        startPump = false,
+    )
 
     private fun kotlinx.serialization.json.JsonObjectBuilder.putFormat(format: YoutubeSabrFormat): Unit {
         put("itag", format.itag)

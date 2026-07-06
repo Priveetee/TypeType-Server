@@ -7,9 +7,12 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrManifestBuilder
+import dev.typetype.server.services.SabrPreparedInfo
+import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.bothFormatsKnown
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -85,29 +88,56 @@ internal class SabrManifestHandler(
                 ErrorResponse("No SABR video for this video"),
             )
         val userId = audioToken?.userId ?: access?.userId ?: videoId
-        val holder = sabrSessionStore.getOrCreate(
-            videoId,
-            userId,
-            prepared.info,
-            audio,
-            video,
-            prepared.initialToken,
-            startTimeMs,
-            startPump = false,
-        )
+        val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs)
         if (audioOnly) {
             sabrSessionStore.ensureWarmed(holder)
         } else if (!bothFormatsKnown(holder)) {
-            val preflight = withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) {
-                sabrSessionStore.preflightPlayback(holder, startTimeMs)
-            } == true
-            if (!preflight) {
+            val readyHolder = preflightOrRecreate(videoId, userId, prepared, audio, video, startTimeMs, holder)
+            if (readyHolder == null) {
                 return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR preflight failed"))
             }
+            sabrSessionStore.startPump(readyHolder)
+            return call.respondSabrManifest(readyHolder, videoId, audioOnly, hls)
         }
         sabrSessionStore.startPump(holder)
         call.respondSabrManifest(holder, videoId, audioOnly, hls)
     }
+
+    private suspend fun preflightOrRecreate(
+        videoId: String,
+        userId: String,
+        prepared: SabrPreparedInfo,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        startTimeMs: Long,
+        holder: SabrSessionHolder,
+    ): SabrSessionHolder? {
+        if (preflight(holder, startTimeMs)) return holder
+        sabrSessionStore.release(holder)
+        val fresh = createHolder(videoId, userId, prepared, audio, video, startTimeMs)
+        return fresh.takeIf { preflight(it, startTimeMs) }
+    }
+
+    private suspend fun preflight(holder: SabrSessionHolder, startTimeMs: Long): Boolean =
+        withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) { sabrSessionStore.preflightPlayback(holder, startTimeMs) } == true
+
+    private fun createHolder(
+        videoId: String,
+        userId: String,
+        prepared: SabrPreparedInfo,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        startTimeMs: Long,
+    ): SabrSessionHolder = sabrSessionStore.getOrCreate(
+        videoId,
+        userId,
+        prepared.info,
+        audio,
+        video,
+        prepared.initialToken,
+        startTimeMs,
+        startPump = false,
+    )
 
     private suspend fun handleHlsPlaylist(call: ApplicationCall, videoId: String, playlist: String) {
         val holder = sabrSessionStore.lookupByToken(videoId, call.request.queryParameters["session"].orEmpty())

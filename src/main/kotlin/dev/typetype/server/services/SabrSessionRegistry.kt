@@ -20,6 +20,11 @@ internal class SabrSessionRegistry {
 
     fun contains(key: SabrSessionKey): Boolean = sessions.containsKey(key)
 
+    fun remove(holder: SabrSessionHolder): Unit {
+        sessions.remove(holder.key, holder)
+        sessionsByToken.remove(holder.sessionToken, holder)
+    }
+
     fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? {
         val now = Instant.now()
         for ((key, holder) in sessions) {

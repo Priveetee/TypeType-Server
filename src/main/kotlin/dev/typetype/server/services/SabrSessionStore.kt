@@ -144,6 +144,8 @@ internal class SabrSessionStore(
         registry.clear()
     }
 
+    internal fun release(holder: SabrSessionHolder): Unit = registry.remove(holder)
+
     private suspend fun idleEvictionLoop() {
         while (true) {
             delay(15_000)
