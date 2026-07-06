@@ -30,6 +30,6 @@ internal class SabrPlaybackWarmer {
 
     private companion object {
         val logger = LoggerFactory.getLogger(SabrPlaybackWarmer::class.java)
-        const val INITIAL_WINDOW_MS = 12_000L
+        const val INITIAL_WINDOW_MS = 70_000L
     }
 }
