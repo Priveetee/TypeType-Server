@@ -18,7 +18,7 @@ internal class SabrPlaybackWarmer {
             if (segments.isEmpty()) return false
             hasVideo = hasVideo || segments.hasItag(holder.videoFormat.itag)
             hasAudio = hasAudio || segments.hasItag(holder.audioFormat.itag)
-            val next = segments.maxOf { it.header.startMs + it.header.durationMs }
+            val next = segments.minOf { it.header.startMs + it.header.durationMs }
             positionMs = maxOf(next, positionMs + 1L)
         }
         logger.info("sabr_preflight event=window_ready videoId={} startMs={} endMs={} audio={} video={}", holder.key.videoId, playerTimeMs, positionMs, hasAudio, hasVideo)
