@@ -30,6 +30,30 @@ class SabrDashManifestBuilderTest {
         assertFalse(manifest.contains("../dHqmN-5jVKY"))
     }
 
+    @Test
+    fun `dash manifest can start at seek segment`() {
+        val audio = format(140, "audio/mp4; codecs=\"mp4a.40.2\"", isAudio = true)
+        val video = format(137, "video/mp4; codecs=\"avc1.640028\"", isAudio = false)
+        val state = streamState(audio, video)
+
+        val manifest = SabrDashManifestBuilder.build(
+            "tRDCFwgcN0s",
+            audio,
+            video,
+            endSegmentAudio = 4,
+            endSegmentVideo = 4,
+            streamState = state,
+            sessionToken = "session-token",
+            startSegmentAudio = 3,
+            startSegmentVideo = 4,
+        )
+
+        assertFalse(manifest.contains("/api/sabr/tRDCFwgcN0s/137/segment/3?"))
+        assertTrue(manifest.contains("/api/sabr/tRDCFwgcN0s/137/segment/4?session=session-token"))
+        assertFalse(manifest.contains("/api/sabr/tRDCFwgcN0s/140/segment/2?"))
+        assertTrue(manifest.contains("/api/sabr/tRDCFwgcN0s/140/segment/3?session=session-token"))
+    }
+
     private fun format(itag: Int, mime: String, isAudio: Boolean): YoutubeSabrFormat {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
@@ -50,6 +74,10 @@ class SabrDashManifestBuilderTest {
             every { state.getSegmentEndMs(format, 1) } returns 1_000L
             every { state.getSegmentStartMs(format, 2) } returns 1_000L
             every { state.getSegmentEndMs(format, 2) } returns 2_000L
+            every { state.getSegmentStartMs(format, 3) } returns 2_000L
+            every { state.getSegmentEndMs(format, 3) } returns 3_000L
+            every { state.getSegmentStartMs(format, 4) } returns 3_000L
+            every { state.getSegmentEndMs(format, 4) } returns 4_000L
         }
         return state
     }

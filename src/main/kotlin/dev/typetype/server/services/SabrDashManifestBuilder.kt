@@ -12,11 +12,13 @@ internal object SabrDashManifestBuilder {
         endSegmentVideo: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        startSegmentAudio: Int = 1,
+        startSegmentVideo: Int = 1,
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.videoDurationSec(audio, video, streamState))
-        appendVideoAdaptation(sb, videoId, video, endSegmentVideo, streamState, sessionToken)
-        appendAudioAdaptation(sb, videoId, audio, endSegmentAudio, streamState, sessionToken)
+        appendVideoAdaptation(sb, videoId, video, startSegmentVideo, endSegmentVideo, streamState, sessionToken)
+        appendAudioAdaptation(sb, videoId, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
         return finish(sb)
     }
 
@@ -26,10 +28,11 @@ internal object SabrDashManifestBuilder {
         endSegmentAudio: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        startSegmentAudio: Int = 1,
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.audioDurationSec(audio, streamState))
-        appendAudioAdaptation(sb, videoId, audio, endSegmentAudio, streamState, sessionToken)
+        appendAudioAdaptation(sb, videoId, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
         return finish(sb)
     }
 
@@ -53,6 +56,7 @@ internal object SabrDashManifestBuilder {
         sb: StringBuilder,
         videoId: String,
         video: YoutubeSabrFormat,
+        startSegment: Int,
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
@@ -62,7 +66,7 @@ internal object SabrDashManifestBuilder {
         val sizeAttr = videoSizeAttr(video)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\" startWithSAP=\"1\">")
         sb.appendLine("      <Representation id=\"v\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"$codecs\">")
-        appendSegmentList(sb, videoId, video, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, videoId, video, startSegment, endSegment, streamState, sessionToken)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
@@ -71,6 +75,7 @@ internal object SabrDashManifestBuilder {
         sb: StringBuilder,
         videoId: String,
         audio: YoutubeSabrFormat,
+        startSegment: Int,
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
@@ -79,7 +84,7 @@ internal object SabrDashManifestBuilder {
         val bandwidth = audio.bitrate.coerceAtLeast(128_000)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\">")
         sb.appendLine("      <Representation id=\"a\" bandwidth=\"$bandwidth\" codecs=\"$codecs\">")
-        appendSegmentList(sb, videoId, audio, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, videoId, audio, startSegment, endSegment, streamState, sessionToken)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
@@ -88,23 +93,25 @@ internal object SabrDashManifestBuilder {
         sb: StringBuilder,
         videoId: String,
         format: YoutubeSabrFormat,
+        startSegment: Int,
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
     ) {
         val n = endSegment.coerceAtLeast(1)
+        val first = startSegment.coerceAtLeast(1).coerceAtMost(n.toInt())
         val avgMs = SabrManifestTiming.averageSegmentMs(format, n)
         val sessionQuery = "?session=$sessionToken"
         sb.appendLine("        <SegmentList timescale=\"1000\">")
         sb.appendLine("          <Initialization sourceURL=\"/api/sabr/$videoId/${format.itag}/init$sessionQuery\"/>")
         sb.appendLine("          <SegmentTimeline>")
-        for (seq in 1..n) {
+        for (seq in first..n) {
             val start = streamState.getSegmentStartMs(format, seq.toInt()).coerceAtLeast(0L)
             val duration = SabrManifestTiming.timelineDurationMs(format, seq.toInt(), streamState, avgMs)
             sb.appendLine("            <S t=\"$start\" d=\"$duration\"/>")
         }
         sb.appendLine("          </SegmentTimeline>")
-        for (seq in 1..n) {
+        for (seq in first..n) {
             sb.appendLine("          <SegmentURL media=\"/api/sabr/$videoId/${format.itag}/segment/$seq$sessionQuery\"/>")
         }
         sb.appendLine("        </SegmentList>")

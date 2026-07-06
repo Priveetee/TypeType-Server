@@ -36,6 +36,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
             endAudio,
             state,
             holder.sessionToken,
+            startSegmentAudio = holder.startSegment(holder.audioFormat),
         )
         else -> SabrManifestBuilder.build(
             videoId,
@@ -45,11 +46,18 @@ internal suspend fun ApplicationCall.respondSabrManifest(
             endVideo,
             state,
             holder.sessionToken,
+            startSegmentAudio = holder.startSegment(holder.audioFormat),
+            startSegmentVideo = holder.startSegment(holder.videoFormat),
         )
     }
     response.headers.append("Cache-Control", "no-store")
     respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
 }
+
+private fun SabrSessionHolder.startSegment(format: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat): Int =
+    key.startTimeMs.takeIf { it > 0L }
+        ?.let { session.streamState.getSegmentNumberAtOrAfterTimeMs(format, it).coerceAtLeast(1) }
+        ?: 1
 
 internal val DASH_CONTENT_TYPE: ContentType = ContentType.parse("application/dash+xml")
 internal val HLS_CONTENT_TYPE: ContentType = ContentType.parse("application/vnd.apple.mpegurl")

@@ -12,6 +12,8 @@ internal object SabrManifestBuilder {
         endSegmentVideo: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        startSegmentAudio: Int = 1,
+        startSegmentVideo: Int = 1,
     ): String = SabrDashManifestBuilder.build(
         videoId,
         audio,
@@ -20,6 +22,8 @@ internal object SabrManifestBuilder {
         endSegmentVideo,
         streamState,
         sessionToken,
+        startSegmentAudio,
+        startSegmentVideo,
     )
 
     fun buildAudioOnly(
@@ -28,7 +32,15 @@ internal object SabrManifestBuilder {
         endSegmentAudio: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
-    ): String = SabrDashManifestBuilder.buildAudioOnly(videoId, audio, endSegmentAudio, streamState, sessionToken)
+        startSegmentAudio: Int = 1,
+    ): String = SabrDashManifestBuilder.buildAudioOnly(
+        videoId,
+        audio,
+        endSegmentAudio,
+        streamState,
+        sessionToken,
+        startSegmentAudio,
+    )
 
     fun buildAudioOnlyHls(
         videoId: String,
