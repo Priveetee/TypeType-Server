@@ -14,6 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal class SabrManifestHandler(
     private val sabrSessionStore: SabrSessionStore,
@@ -85,12 +86,23 @@ internal class SabrManifestHandler(
             video,
             prepared.initialToken,
             startTimeMs,
+            startPump = false,
         )
-        sabrSessionStore.ensureWarmed(holder)
+        if (audioOnly) {
+            sabrSessionStore.ensureWarmed(holder)
+        } else {
+            val preflight = withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) {
+                sabrSessionStore.preflightPlayback(holder, startTimeMs)
+            } == true
+            if (!preflight) {
+                return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR preflight failed"))
+            }
+        }
+        sabrSessionStore.startPump(holder)
         val state = holder.session.streamState
         val endAudio = state.getEndSegment(holder.audioFormat)
         val endVideo = state.getEndSegment(holder.videoFormat)
-        if (endAudio <= 0L || endVideo <= 0L) {
+        if (endAudio <= 0L || (!audioOnly && endVideo <= 0L)) {
             return call.respond(
                 HttpStatusCode.UnprocessableEntity,
                 ErrorResponse("Segment index not yet available"),
@@ -160,5 +172,6 @@ internal class SabrManifestHandler(
     private companion object {
         val DASH_CONTENT_TYPE: ContentType = ContentType.parse("application/dash+xml")
         val HLS_CONTENT_TYPE: ContentType = ContentType.parse("application/vnd.apple.mpegurl")
+        const val PREFLIGHT_TIMEOUT_MS = 25_000L
     }
 }
