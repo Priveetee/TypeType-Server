@@ -12,7 +12,10 @@ private fun SabrSessionHolder.mediaRequestAt(
     format: YoutubeSabrFormat,
     playerTimeMs: Long,
 ): SabrSegmentRequest {
-    val sequence = session.streamState.getSegmentNumberAtOrAfterTimeMs(format, playerTimeMs.coerceAtLeast(0L))
+    val timeSequence = session.streamState.getSegmentNumberAtOrAfterTimeMs(format, playerTimeMs.coerceAtLeast(0L))
         .coerceAtLeast(1)
+    val sequence = lastServedSequence(format)?.let { last ->
+        if (timeSequence <= last) last + 1 else timeSequence
+    } ?: timeSequence
     return SabrSegmentRequest.media(format, sequence)
 }

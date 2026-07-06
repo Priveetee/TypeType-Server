@@ -75,6 +75,26 @@ class SabrSessionPumpTest {
         assertTrue(holder.shouldSend(mediaSegment(137, 65_000L, 5_000L, sequence = 13)))
     }
 
+    @Test
+    fun `media requests advance past already served boundary segments`() {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(137, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val streamState = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns streamState
+        every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 60_862L) } returns 7
+        val holder = sabrHolder(audio, video, session, streamState)
+        holder.markServed(mediaSegment(137, 55_789L, 5_072L, sequence = 12))
+        holder.markServed(mediaSegment(140, 59_907L, 9_985L, sequence = 7))
+
+        val requests = holder.mediaRequestsAt(60_862L)
+
+        assertEquals(13, requests.first { it.format == video }.sequenceNumber)
+        assertEquals(8, requests.first { it.format == audio }.sequenceNumber)
+    }
+
     private suspend fun assertCachedSegmentServed(itag: Int, sequence: Int, startMs: Long, durationMs: Long) {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
@@ -98,8 +118,8 @@ class SabrSessionPumpTest {
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
         session: YoutubeSabrSession = mockk<YoutubeSabrSession>(),
+        streamState: YoutubeSabrStreamState = mockk<YoutubeSabrStreamState>(),
     ): SabrSessionHolder {
-        val streamState = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         return SabrSessionHolder(
