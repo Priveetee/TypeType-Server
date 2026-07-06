@@ -114,7 +114,11 @@ internal class SabrManifestHandler(
     ): SabrSessionHolder? {
         if (preflight(holder, startTimeMs)) return holder
         sabrSessionStore.release(holder)
-        val fresh = createHolder(videoId, userId, prepared, audio, video, startTimeMs)
+        val refreshed = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = false) ?: prepared
+        val refreshedAudio = SabrFormatSelector.audio(refreshed.info, audio.itag, audio.audioTrackId, requireAac = true)
+            ?: return null
+        val refreshedVideo = SabrFormatSelector.video(refreshed.info, video.itag) ?: return null
+        val fresh = createHolder(videoId, userId, refreshed, refreshedAudio, refreshedVideo, startTimeMs)
         return fresh.takeIf { preflight(it, startTimeMs) }
     }
 
