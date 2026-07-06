@@ -10,7 +10,6 @@ import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.bothFormatsKnown
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -31,8 +30,15 @@ internal class SabrManifestHandler(
         val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
         val hls = call.request.queryParameters["format"].equals("hls", ignoreCase = true)
         val playlist = call.request.queryParameters["playlist"]
+        val sessionToken = call.request.queryParameters["session"]
         if (hls && playlist != null && call.request.queryParameters["session"] != null) {
             return handleHlsPlaylist(call, videoId, playlist)
+        }
+        if (sessionToken != null) {
+            val holder = sabrSessionStore.lookupByToken(videoId, sessionToken)
+                ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR session for this request"))
+            sabrSessionStore.startPump(holder)
+            return call.respondSabrManifest(holder, videoId, audioOnly, hls)
         }
         val manifestAccess = accessResolver.resolve(call, videoId) ?: return
         val access = when (manifestAccess) {
@@ -100,48 +106,7 @@ internal class SabrManifestHandler(
             }
         }
         sabrSessionStore.startPump(holder)
-        val state = holder.session.streamState
-        val endAudio = state.getEndSegment(holder.audioFormat)
-        val endVideo = state.getEndSegment(holder.videoFormat)
-        if (endAudio <= 0L || (!audioOnly && endVideo <= 0L)) {
-            return call.respond(
-                HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("Segment index not yet available"),
-            )
-        }
-        val manifest = when {
-            hls && audioOnly -> SabrManifestBuilder.buildAudioOnlyHls(
-                videoId,
-                holder.audioFormat,
-                endAudio,
-                state,
-                holder.sessionToken,
-            )
-            hls -> SabrManifestBuilder.buildHlsMaster(
-                videoId,
-                holder.audioFormat,
-                holder.videoFormat,
-                holder.sessionToken,
-            )
-            audioOnly -> SabrManifestBuilder.buildAudioOnly(
-                videoId,
-                holder.audioFormat,
-                endAudio,
-                state,
-                holder.sessionToken,
-            )
-            else -> SabrManifestBuilder.build(
-                videoId,
-                holder.audioFormat,
-                holder.videoFormat,
-                endAudio,
-                endVideo,
-                state,
-                holder.sessionToken,
-            )
-        }
-        call.response.headers.append("Cache-Control", "no-store")
-        call.respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
+        call.respondSabrManifest(holder, videoId, audioOnly, hls)
     }
 
     private suspend fun handleHlsPlaylist(call: ApplicationCall, videoId: String, playlist: String) {
@@ -171,8 +136,6 @@ internal class SabrManifestHandler(
     }
 
     private companion object {
-        val DASH_CONTENT_TYPE: ContentType = ContentType.parse("application/dash+xml")
-        val HLS_CONTENT_TYPE: ContentType = ContentType.parse("application/vnd.apple.mpegurl")
         const val PREFLIGHT_TIMEOUT_MS = 25_000L
     }
 }

@@ -136,6 +136,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
                 holder.session.fetchTargetedSegment(holder, request, localization)
+                    ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
             }
             if (segment != null) {
                 if (markServed) holder.markServed(segment)

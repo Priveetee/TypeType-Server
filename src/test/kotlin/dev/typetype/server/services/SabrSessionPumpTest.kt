@@ -59,6 +59,40 @@ class SabrSessionPumpTest {
     }
 
     @Test
+    fun `fetchSegment falls back to media window for seek segment`() = runTest {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(137, isAudio = false)
+        val request = SabrSegmentRequest.media(audio, 32)
+        val expected = mediaSegment(140, 309_522L, 9_985L, sequence = 32)
+        val session = mockk<YoutubeSabrSession>()
+        val streamState = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns streamState
+        every { session.getCachedSegment(request) } returns null
+        every { session.isBeyondEnd(request) } returns false
+        every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.getMinBufferedEndMs() } returns 0L
+        every { streamState.getSegmentStartMs(audio, 32) } returns 309_522L
+        every { streamState.getSegmentStartMs(audio, 33) } returns 319_507L
+        every { streamState.getSegmentEndMs(audio, 32) } returns 319_507L
+        every { session.fetchMediaSegmentAt(request, any(), false, true, any()) } throws RuntimeException("miss")
+        every { session.fetchMediaAt(310_522L, true, true, any()) } returns listOf(expected)
+        val holder = SabrSessionHolder(
+            session = session,
+            info = mockk<YoutubeSabrInfo>(),
+            audioFormat = audio,
+            videoFormat = video,
+            sessionToken = "session-token",
+            key = SabrSessionKey("video", "user", 140, null, 137, 0L),
+            lastRequestAt = Instant.EPOCH,
+        )
+
+        val fetched = SabrSessionPump().fetchSegment(holder, request)
+
+        assertSame(expected, fetched)
+        verify(exactly = 1) { session.fetchMediaAt(310_522L, true, true, any()) }
+    }
+
+    @Test
     fun `reader head is active track intersection and skips already served segments`() {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
