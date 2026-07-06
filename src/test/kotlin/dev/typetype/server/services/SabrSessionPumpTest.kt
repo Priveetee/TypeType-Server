@@ -95,6 +95,38 @@ class SabrSessionPumpTest {
         assertEquals(8, requests.first { it.format == audio }.sequenceNumber)
     }
 
+    @Test
+    fun `targeted fetch for advanced boundary request uses segment time`() = runTest {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(137, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val streamState = mockk<YoutubeSabrStreamState>()
+        val expected = mediaSegment(137, 60_860L, 5_072L, sequence = 13)
+        every { session.streamState } returns streamState
+        every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { session.fetchMediaAt(60_862L, true, true, any()) } returns emptyList()
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 60_862L) } returns 7
+        every { streamState.getSegmentStartMs(video, 13) } returns 60_860L
+        every { streamState.getSegmentStartMs(video, 14) } returns 65_932L
+        every { streamState.getSegmentStartMs(audio, 8) } returns 69_892L
+        every { streamState.getSegmentStartMs(audio, 9) } returns 79_877L
+        every { session.fetchMediaSegmentAt(any(), 61_860L, true, true, any()) } returns expected
+        every { session.fetchMediaSegmentAt(any(), 70_892L, true, true, any()) } returns mediaSegment(
+            140,
+            69_892L,
+            9_985L,
+            sequence = 8,
+        )
+        val holder = sabrHolder(audio, video, session, streamState)
+        holder.markServed(mediaSegment(137, 55_789L, 5_072L, sequence = 12))
+        holder.markServed(mediaSegment(140, 59_907L, 9_985L, sequence = 7))
+
+        val fetched = SabrSessionMediaFetcher.fetch(holder, 60_862L)
+
+        assertEquals(2, fetched?.size)
+    }
+
     private suspend fun assertCachedSegmentServed(itag: Int, sequence: Int, startMs: Long, durationMs: Long) {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)

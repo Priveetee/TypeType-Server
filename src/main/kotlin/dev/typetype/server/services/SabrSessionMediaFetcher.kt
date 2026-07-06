@@ -33,7 +33,7 @@ internal object SabrSessionMediaFetcher {
             request.isInitializationSegment || (holder.lastServedSequence(request.format) ?: 0) < request.sequenceNumber
         }
         val segments = requests.map { request ->
-            holder.session.fetchTargetedSegment(holder, request, localization, playerTimeMs)
+            holder.session.fetchTargetedSegment(holder, request, localization)
                 ?: return null
         }
         return segments.takeIf { it.isNotEmpty() }

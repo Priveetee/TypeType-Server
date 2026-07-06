@@ -2,10 +2,10 @@ package dev.typetype.server
 
 import dev.typetype.server.routes.audioOnlyContractRoutes
 import dev.typetype.server.routes.audioOnlySourceRoutes
-import dev.typetype.server.routes.isSabrAudioOnlyPlayable
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.proxyRoutes
+import dev.typetype.server.routes.sabrAudioOnlyUnplayableReason
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.withPlayableSabrStreams
@@ -42,8 +42,8 @@ internal fun Route.installStreamRoutes(
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             proxyService = svc.proxyService,
-            sabrAudioOnlyPlayable = { url, userId, selection ->
-                svc.sabrSessionStore.isSabrAudioOnlyPlayable(url, userId, selection)
+            sabrAudioOnlyUnavailableReason = { url, userId, selection ->
+                svc.sabrSessionStore.sabrAudioOnlyUnplayableReason(url, userId, selection)
             },
         )
         manifestRoutes(

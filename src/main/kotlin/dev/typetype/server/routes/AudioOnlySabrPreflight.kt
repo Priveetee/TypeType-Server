@@ -8,25 +8,31 @@ internal suspend fun SabrSessionStore.isSabrAudioOnlyPlayable(
     videoUrl: String,
     userId: String?,
     selection: AudioOnlyStreamSelection,
-): Boolean {
-    return withTimeoutOrNull(SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS) {
-        isSabrAudioOnlyPlayableWithinTimeout(videoUrl, userId, selection)
-    } ?: false
-}
+): Boolean = sabrAudioOnlyUnplayableReason(videoUrl, userId, selection) == null
 
-private suspend fun SabrSessionStore.isSabrAudioOnlyPlayableWithinTimeout(
+internal suspend fun SabrSessionStore.sabrAudioOnlyUnplayableReason(
     videoUrl: String,
     userId: String?,
     selection: AudioOnlyStreamSelection,
-): Boolean {
-    val videoId = videoUrl.youtubeVideoId() ?: return false
+): String? {
+    return withTimeoutOrNull(SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS) {
+        sabrAudioOnlyUnplayableReasonWithinTimeout(videoUrl, userId, selection)
+    } ?: "SABR audio-only preflight timed out before complete audio body"
+}
+
+private suspend fun SabrSessionStore.sabrAudioOnlyUnplayableReasonWithinTimeout(
+    videoUrl: String,
+    userId: String?,
+    selection: AudioOnlyStreamSelection,
+): String? {
+    val videoId = videoUrl.youtubeVideoId() ?: return "Invalid YouTube URL"
     if (AudioOnlySabrBodyCache.get(videoId, selection.stream.itag, selection.stream.audioTrackId) != null) {
-        return true
+        return null
     }
-    val prepared = fetchInfo(videoId, cachedFirst = true) ?: return false
+    val prepared = fetchInfo(videoId, cachedFirst = true) ?: return "SABR probe failed"
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, selection.stream.audioTrackId, requireAac = true)
-        ?: return false
-    val video = SabrFormatSelector.lightestVideo(prepared.info) ?: return false
+        ?: return "No SABR audio for this video"
+    val video = SabrFormatSelector.lightestVideo(prepared.info) ?: return "No SABR video context for this audio"
     val holder = getOrCreate(
         videoId,
         userId ?: videoId,
@@ -37,10 +43,10 @@ private suspend fun SabrSessionStore.isSabrAudioOnlyPlayableWithinTimeout(
         startPump = false,
     )
     holder.setActiveTracks(videoActive = true, audioActive = true)
-    val init = fetchInitializationData(holder, audio) ?: return false
-    val body = materializeSabrAudioOnlyBody(this, holder, init) ?: return false
+    val init = fetchInitializationData(holder, audio) ?: return "SABR audio initialization failed"
+    val body = materializeSabrAudioOnlyBody(this, holder, init) ?: return "SABR audio-only body is incomplete"
     AudioOnlySabrBodyCache.put(videoId, audio.itag, audio.audioTrackId, body)
-    return true
+    return null
 }
 
-private const val SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS = 60_000L
+private const val SABR_AUDIO_ONLY_PREFLIGHT_TIMEOUT_MS = 25_000L
