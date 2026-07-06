@@ -1,7 +1,6 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.services.SabrSessionStoreDefaults.toStartTimeSecs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -9,16 +8,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.security.SecureRandom
 import java.time.Duration
@@ -37,7 +30,7 @@ internal class SabrSessionStore(
     private val segmentCache = SabrSegmentCache(initCache)
     private val pump = SabrSessionPump(segmentCache)
     private val warmer = SabrPlaybackWarmer()
-    private val infoCache = SabrPreparedInfoCache()
+    private val infoFetcher = SabrInfoFetcher(tokenClient)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
     private val random = SecureRandom()
@@ -112,49 +105,7 @@ internal class SabrSessionStore(
         videoId: String,
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
-    ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
-        if (cachedFirst) playableCachedInfo(videoId)?.let { return@withContext it }
-        repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
-            fetchInfoOnce(videoId, startTimeMs, forceRefresh = attempt > 0)
-                ?.takeIf { it.hasAudioAndVideoFormats() }
-                ?.let { return@withContext infoCache.put(videoId, it) }
-            if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
-        }
-        if (startTimeMs > 0L) {
-            repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
-                fetchInfoOnce(videoId, 0L, forceRefresh = attempt > 0)
-                    ?.takeIf { it.hasAudioAndVideoFormats() }
-                    ?.let { return@withContext infoCache.put(videoId, it) }
-                if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) {
-                    delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
-                }
-            }
-        }
-        playableCachedInfo(videoId)
-    }
-
-    private fun playableCachedInfo(videoId: String): SabrPreparedInfo? {
-        val cached = infoCache.get(videoId) ?: return null
-        if (cached.hasAudioAndVideoFormats()) return cached
-        infoCache.remove(videoId)
-        return null
-    }
-
-    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long, forceRefresh: Boolean): SabrPreparedInfo? =
-        withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val token = tokenClient.fetch(videoId, forceRefresh = forceRefresh) ?: return@withTimeoutOrNull null
-            runCatching {
-                YoutubeSabrProbe.fetchSabrInfo(
-                    videoId,
-                    YoutubeSabrClientProfile.WEB,
-                    Localization("en", "GB"),
-                    ContentCountry("GB"),
-                    token.visitorBoundPoToken,
-                    token.visitorData,
-                    startTimeMs.toStartTimeSecs(),
-                )
-            }.getOrNull()?.let { SabrPreparedInfo(it, token) }
-        }
+    ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst)
 
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
