@@ -48,7 +48,7 @@ internal class SabrSessionDescriptorHandler(
         val startTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: call.request.queryParameters["startTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: 0L
-        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs)
+        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = SabrFormatSelector.audio(
             prepared.info,

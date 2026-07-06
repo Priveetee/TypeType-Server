@@ -18,6 +18,10 @@ internal class SabrPreparedInfoCache(
         return entry.value
     }
 
+    fun remove(videoId: String): Unit {
+        items.remove(videoId)
+    }
+
     fun put(videoId: String, value: SabrPreparedInfo): SabrPreparedInfo {
         items[videoId] = Entry(value, Instant.now())
         return value

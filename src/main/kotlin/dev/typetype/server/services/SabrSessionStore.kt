@@ -113,25 +113,36 @@ internal class SabrSessionStore(
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
-        if (cachedFirst) infoCache.get(videoId)?.let { return@withContext it }
+        if (cachedFirst) playableCachedInfo(videoId)?.let { return@withContext it }
         repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
-            fetchInfoOnce(videoId, startTimeMs)?.let { return@withContext infoCache.put(videoId, it) }
+            fetchInfoOnce(videoId, startTimeMs, forceRefresh = attempt > 0)
+                ?.takeIf { it.hasAudioAndVideoFormats() }
+                ?.let { return@withContext infoCache.put(videoId, it) }
             if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
         }
         if (startTimeMs > 0L) {
             repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
-                fetchInfoOnce(videoId, 0L)?.let { return@withContext infoCache.put(videoId, it) }
+                fetchInfoOnce(videoId, 0L, forceRefresh = attempt > 0)
+                    ?.takeIf { it.hasAudioAndVideoFormats() }
+                    ?.let { return@withContext infoCache.put(videoId, it) }
                 if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) {
                     delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
                 }
             }
         }
-        infoCache.get(videoId)
+        playableCachedInfo(videoId)
     }
 
-    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
+    private fun playableCachedInfo(videoId: String): SabrPreparedInfo? {
+        val cached = infoCache.get(videoId) ?: return null
+        if (cached.hasAudioAndVideoFormats()) return cached
+        infoCache.remove(videoId)
+        return null
+    }
+
+    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long, forceRefresh: Boolean): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val token = tokenClient.fetch(videoId) ?: return@withTimeoutOrNull null
+            val token = tokenClient.fetch(videoId, forceRefresh = forceRefresh) ?: return@withTimeoutOrNull null
             runCatching {
                 YoutubeSabrProbe.fetchSabrInfo(
                     videoId,

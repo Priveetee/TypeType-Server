@@ -6,3 +6,6 @@ internal class SabrPreparedInfo(
     val info: YoutubeSabrInfo,
     val initialToken: SabrTokenBundle,
 )
+
+internal fun SabrPreparedInfo.hasAudioAndVideoFormats(): Boolean =
+    info.formats.any { it.isAudio } && info.formats.any { it.isVideo }
