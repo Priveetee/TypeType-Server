@@ -101,6 +101,8 @@ docker compose -f docker-compose.dev-mirror.yml up -d
 | `DOWNLOADER_SERVICE_URL` | Base URL for TypeType-Downloader |
 | `SUBTITLE_SERVICE_URL` | Base URL for TypeType-Token |
 
+`DRAGONFLY_URL` is a Redis protocol URL consumed through Lettuce. On hosts where Dragonfly cannot start, such as some Raspberry Pi 4 environments, a local Redis-compatible service can be used instead, for example `redis://redis:6379` with `redis:7-alpine` in Compose.
+
 ## Checks
 
 ```bash
