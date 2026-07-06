@@ -2,7 +2,6 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
-import dev.typetype.server.services.SabrWebSocketLimits
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -28,6 +27,7 @@ private const val CHANNEL_RATE_LIMIT = 180
 private const val PROXY_RATE_LIMIT = 6000
 private const val PROXY_STORYBOARD_RATE_LIMIT = 1200
 private const val USER_DATA_RATE_LIMIT = 120
+private const val MAX_WEBSOCKET_FRAME_BYTES = 64L * 1024L * 1024L
 private val RATE_LIMIT_WINDOW = 1.minutes
 
 val EXTRACTION_ZONE = RateLimitName("extraction")
@@ -49,7 +49,7 @@ fun Application.configurePlugins(authService: AuthService) {
     install(WebSockets) {
         pingPeriodMillis = 15_000
         timeoutMillis = 30_000
-        maxFrameSize = SabrWebSocketLimits.MAX_BINARY_FRAME_BYTES
+        maxFrameSize = MAX_WEBSOCKET_FRAME_BYTES
         masking = false
     }
     configureCompression()

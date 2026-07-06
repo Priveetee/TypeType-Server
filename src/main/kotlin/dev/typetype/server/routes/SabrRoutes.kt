@@ -12,7 +12,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
-import io.ktor.server.websocket.webSocket
 
 internal fun Route.sabrRoutes(
     sabrSessionStore: SabrSessionStore,
@@ -30,7 +29,6 @@ internal fun Route.sabrRoutes(
         adminSettingsService,
     )
     val stateHandler = SabrSessionStateHandler(sabrSessionStore)
-    val webSocketHandler = SabrWebSocketHandler(sabrSessionStore)
     val segmentHandler = SabrSegmentHandler(
         sabrSessionStore,
         authService,
@@ -45,10 +43,6 @@ internal fun Route.sabrRoutes(
         adminSettingsService,
         audioOnlyTokenService,
     )
-    webSocket("/sabr/session/{videoId}/ws") {
-        val videoId = call.parameters["videoId"] ?: return@webSocket
-        webSocketHandler.handle(this, videoId)
-    }
     get("/sabr/session/{videoId}/state") {
         val videoId = call.parameters["videoId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))

@@ -6,7 +6,6 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrSessionStore
-import dev.typetype.server.services.SabrWebSocketLimits
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -88,10 +87,9 @@ internal class SabrSessionDescriptorHandler(
         call.respond(buildJsonObject {
             put("videoId", videoId)
             put("session", holder.sessionToken)
-            put("transport", "stateful-websocket")
-            put("protocol", SabrWebSocketProtocol.PROTOCOL)
+            put("transport", "http-segments")
+            put("protocol", HTTP_SEGMENTS_PROTOCOL)
             put("startTimeMs", startTimeMs)
-            put("maxBinaryFrameBytes", SabrWebSocketLimits.MAX_BINARY_FRAME_BYTES)
             put(
                 "durationMs",
                 max(holder.audioFormat.approxDurationMs, holder.videoFormat.approxDurationMs),
@@ -99,7 +97,8 @@ internal class SabrSessionDescriptorHandler(
             putJsonObject("audio") { putFormat(holder.audioFormat) }
             putJsonObject("video") { putFormat(holder.videoFormat) }
             putJsonObject("endpoints") {
-                put("webSocket", "/sabr/session/$videoId/ws?session=${holder.sessionToken}")
+                put("hls", "/sabr/manifest/$videoId?format=hls&session=${holder.sessionToken}")
+                put("dash", "/sabr/manifest/$videoId?session=${holder.sessionToken}")
                 put("audioInit", initPath(videoId, holder.audioFormat, holder.sessionToken))
                 put("videoInit", initPath(videoId, holder.videoFormat, holder.sessionToken))
             }
@@ -121,6 +120,7 @@ internal class SabrSessionDescriptorHandler(
         "/sabr/$videoId/${format.itag}/init?session=$session"
 
     private companion object {
+        const val HTTP_SEGMENTS_PROTOCOL = "typetype-sabr-http-v1"
         const val PREFLIGHT_TIMEOUT_MS = 25_000L
     }
 }

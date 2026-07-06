@@ -50,7 +50,6 @@ internal class SabrSessionRegistry {
     fun ensureCapacity(maxSessions: Int) {
         while (sessions.size >= maxSessions) {
             val oldest = sessions.entries
-                .filterNot { it.value.hasActiveWebSocket() }
                 .minByOrNull { it.value.lastRequestAt }
                 ?: return
             remove(oldest.key)
@@ -59,7 +58,7 @@ internal class SabrSessionRegistry {
 
     fun evictIdle(cutoff: Instant) {
         val stale = sessions.entries
-            .filter { !it.value.hasActiveWebSocket() && it.value.lastRequestAt.isBefore(cutoff) }
+            .filter { it.value.lastRequestAt.isBefore(cutoff) }
             .map { it.key }
         stale.forEach(::remove)
     }

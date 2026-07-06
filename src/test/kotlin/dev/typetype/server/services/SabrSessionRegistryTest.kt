@@ -13,36 +13,31 @@ import java.time.Instant
 
 class SabrSessionRegistryTest {
     @Test
-    fun `capacity eviction preserves active websocket sessions`() {
+    fun `capacity eviction removes oldest session`() {
         val registry = SabrSessionRegistry()
-        val activeKey = key("active")
+        val oldestKey = key("oldest")
         val idleKey = key("idle")
-        val active = holder("active", Instant.EPOCH)
+        val oldest = holder("oldest", Instant.EPOCH)
         val idle = holder("idle", Instant.EPOCH.plusSeconds(1))
-        active.retainWebSocket()
 
-        registry.put(activeKey, active)
+        registry.put(oldestKey, oldest)
         registry.put(idleKey, idle)
         registry.ensureCapacity(2)
 
-        assertSame(active, registry.get(activeKey))
-        assertNull(registry.get(idleKey))
-        active.releaseWebSocket()
+        assertNull(registry.get(oldestKey))
+        assertSame(idle, registry.get(idleKey))
     }
 
     @Test
-    fun `idle eviction skips active websocket sessions`() {
+    fun `idle eviction removes stale sessions`() {
         val registry = SabrSessionRegistry()
-        val activeKey = key("active")
-        val active = holder("active", Instant.EPOCH)
-        active.retainWebSocket()
-        active.lastRequestAt = Instant.EPOCH
+        val staleKey = key("stale")
+        val stale = holder("stale", Instant.EPOCH)
 
-        registry.put(activeKey, active)
+        registry.put(staleKey, stale)
         registry.evictIdle(Instant.EPOCH.plusSeconds(60))
 
-        assertSame(active, registry.get(activeKey))
-        active.releaseWebSocket()
+        assertNull(registry.get(staleKey))
     }
 
     private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137, 0L)

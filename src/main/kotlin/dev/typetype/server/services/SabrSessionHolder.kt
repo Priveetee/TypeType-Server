@@ -8,7 +8,6 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 internal class SabrSessionHolder(
@@ -27,7 +26,6 @@ internal class SabrSessionHolder(
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
-    private val activeWebSockets = AtomicInteger(0)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     @Volatile private var playerTimeMs: Long = 0L
 
@@ -42,18 +40,6 @@ internal class SabrSessionHolder(
     fun touch(now: Instant = Instant.now()): Unit {
         lastRequestAt = now
     }
-
-    fun retainWebSocket(): Unit {
-        activeWebSockets.incrementAndGet()
-        touch()
-    }
-
-    fun releaseWebSocket(): Unit {
-        if (activeWebSockets.decrementAndGet() < 0) activeWebSockets.set(0)
-        touch()
-    }
-
-    fun hasActiveWebSocket(): Boolean = activeWebSockets.get() > 0
 
     fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
 
