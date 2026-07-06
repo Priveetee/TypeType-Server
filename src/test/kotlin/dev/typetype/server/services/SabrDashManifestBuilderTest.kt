@@ -25,8 +25,8 @@ class SabrDashManifestBuilderTest {
             sessionToken = "session-token",
         )
 
-        assertTrue(manifest.contains("sourceURL=\"/sabr/dHqmN-5jVKY/137/init?session=session-token\""))
-        assertTrue(manifest.contains("media=\"/sabr/dHqmN-5jVKY/140/segment/1?session=session-token\""))
+        assertTrue(manifest.contains("sourceURL=\"/api/sabr/dHqmN-5jVKY/137/init?session=session-token\""))
+        assertTrue(manifest.contains("media=\"/api/sabr/dHqmN-5jVKY/140/segment/1?session=session-token\""))
         assertFalse(manifest.contains("../dHqmN-5jVKY"))
     }
 
