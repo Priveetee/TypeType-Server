@@ -15,29 +15,23 @@ internal object SabrSessionMediaFetcher {
         return holder.pumpMutex.withLock {
             val requests = holder.mediaRequestsAt(playerTimeMs)
             if (requests.isEmpty()) return@withLock emptyList()
-            val needsVideo = requests.any { it.format.itag == holder.videoFormat.itag }
-            val needsAudio = requests.any { it.format.itag == holder.audioFormat.itag }
-            val result = runCatchingNonCancellation {
-                holder.session.fetchMediaAt(
-                    playerTimeMs,
-                    needsVideo,
-                    needsAudio,
-                    localization,
-                )
-            }.onFailure { error ->
-                logger.warn(
-                    "sabr_media_fetch_failed videoId={} playerTimeMs={} video={} audio={} error={}",
-                    holder.key.videoId,
-                    playerTimeMs,
-                    needsVideo,
-                    needsAudio,
-                    error.message,
-                    error,
-                )
+            requests.map { request ->
+                val result = runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }
+                    .onFailure { error ->
+                        logger.warn(
+                            "sabr_media_fetch_failed videoId={} playerTimeMs={} itag={} sequence={} error={}",
+                            holder.key.videoId,
+                            playerTimeMs,
+                            request.format.itag,
+                            request.sequenceNumber,
+                            error.message,
+                            error,
+                        )
+                    }
+                result.getOrNull() ?: return@withLock null
             }
-            result.getOrNull()
-                ?.filter { holder.shouldSend(it) }
-                ?.takeIf { it.isNotEmpty() }
+                .filter { holder.shouldSend(it) }
+                .takeIf { it.isNotEmpty() }
         }
     }
 }
