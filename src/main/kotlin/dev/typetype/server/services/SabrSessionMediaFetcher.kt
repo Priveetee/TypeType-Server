@@ -10,32 +10,20 @@ internal object SabrSessionMediaFetcher {
         holder.lastRequestAt = Instant.now()
         val localization = Localization("en", "GB")
         return holder.pumpMutex.withLock {
+            val requests = holder.mediaRequestsAt(playerTimeMs)
+            if (requests.isEmpty()) return@withLock emptyList()
+            val needsVideo = requests.any { it.format.itag == holder.videoFormat.itag }
+            val needsAudio = requests.any { it.format.itag == holder.audioFormat.itag }
             runCatchingNonCancellation {
                 holder.session.fetchMediaAt(
                     playerTimeMs,
-                    holder.isVideoActive(),
-                    holder.isAudioActive(),
+                    needsVideo,
+                    needsAudio,
                     localization,
                 )
             }.getOrNull()
                 ?.filter { holder.shouldSend(it) }
                 ?.takeIf { it.isNotEmpty() }
-                ?: fetchActiveRequests(holder, playerTimeMs, localization)
         }
-    }
-
-    private fun fetchActiveRequests(
-        holder: SabrSessionHolder,
-        playerTimeMs: Long,
-        localization: Localization,
-    ): List<SabrMediaSegment>? {
-        val requests = holder.mediaRequestsAt(playerTimeMs).filter { request ->
-            request.isInitializationSegment || (holder.lastServedSequence(request.format) ?: 0) < request.sequenceNumber
-        }
-        val segments = requests.map { request ->
-            holder.session.fetchTargetedSegment(holder, request, localization)
-                ?: return null
-        }
-        return segments
     }
 }

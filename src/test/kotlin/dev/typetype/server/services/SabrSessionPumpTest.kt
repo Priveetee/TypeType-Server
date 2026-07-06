@@ -111,7 +111,7 @@ class SabrSessionPumpTest {
     }
 
     @Test
-    fun `targeted fetch for advanced boundary request uses segment time`() = runTest {
+    fun `media fetch requests only tracks that are not already ahead`() = runTest {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
         val session = mockk<YoutubeSabrSession>()
@@ -119,11 +119,8 @@ class SabrSessionPumpTest {
         val expected = mediaSegment(137, 60_860L, 5_072L, sequence = 13)
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
-        every { session.fetchMediaAt(60_862L, true, true, any()) } returns emptyList()
+        every { session.fetchMediaAt(60_862L, true, false, any()) } returns listOf(expected)
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
-        every { streamState.getSegmentStartMs(video, 13) } returns 60_860L
-        every { streamState.getSegmentStartMs(video, 14) } returns 65_932L
-        every { session.fetchMediaSegmentAt(any(), 61_860L, true, false, any()) } returns expected
         val holder = sabrHolder(audio, video, session, streamState)
         holder.markServed(mediaSegment(137, 55_789L, 5_072L, sequence = 12))
         holder.markServed(mediaSegment(140, 59_907L, 9_985L, sequence = 7))
@@ -131,6 +128,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionMediaFetcher.fetch(holder, 60_862L)
 
         assertEquals(listOf(expected), fetched)
+        verify { session.fetchMediaAt(60_862L, true, false, any()) }
     }
 
     private suspend fun assertCachedSegmentServed(itag: Int, sequence: Int, startMs: Long, durationMs: Long) {
