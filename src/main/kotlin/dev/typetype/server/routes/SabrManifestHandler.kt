@@ -9,6 +9,7 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.bothFormatsKnown
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -90,7 +91,7 @@ internal class SabrManifestHandler(
         )
         if (audioOnly) {
             sabrSessionStore.ensureWarmed(holder)
-        } else {
+        } else if (!bothFormatsKnown(holder)) {
             val preflight = withTimeoutOrNull(PREFLIGHT_TIMEOUT_MS) {
                 sabrSessionStore.preflightPlayback(holder, startTimeMs)
             } == true
