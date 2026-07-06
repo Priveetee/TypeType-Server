@@ -20,8 +20,8 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
         fetchMediaSegmentAt(
             request,
             targetPlayerTimeMs,
-            holder.isVideoActive(),
-            holder.isAudioActive(),
+            !request.format.isAudio,
+            request.format.isAudio,
             localization,
         )
     }

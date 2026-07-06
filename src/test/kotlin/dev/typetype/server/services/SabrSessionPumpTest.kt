@@ -41,7 +41,7 @@ class SabrSessionPumpTest {
         every { streamState.getMinBufferedEndMs() } returns 0L
         every { streamState.getSegmentStartMs(audio, 8) } returns 120_000L
         every { streamState.getSegmentStartMs(audio, 9) } returns 130_000L
-        every { session.fetchMediaSegmentAt(request, any(), true, true, any()) } returnsMany listOf(wrong, expected)
+        every { session.fetchMediaSegmentAt(request, any(), false, true, any()) } returnsMany listOf(wrong, expected)
         val holder = SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
@@ -55,7 +55,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(expected, fetched)
-        verify(exactly = 2) { session.fetchMediaSegmentAt(request, any(), true, true, any()) }
+        verify(exactly = 2) { session.fetchMediaSegmentAt(request, any(), false, true, any()) }
     }
 
     @Test
@@ -123,7 +123,7 @@ class SabrSessionPumpTest {
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
         every { streamState.getSegmentStartMs(video, 13) } returns 60_860L
         every { streamState.getSegmentStartMs(video, 14) } returns 65_932L
-        every { session.fetchMediaSegmentAt(any(), 61_860L, true, true, any()) } returns expected
+        every { session.fetchMediaSegmentAt(any(), 61_860L, true, false, any()) } returns expected
         val holder = sabrHolder(audio, video, session, streamState)
         holder.markServed(mediaSegment(137, 55_789L, 5_072L, sequence = 12))
         holder.markServed(mediaSegment(140, 59_907L, 9_985L, sequence = 7))
