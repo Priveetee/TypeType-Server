@@ -26,7 +26,7 @@ class AudioOnlyStreamResolver(
         val publicResult = if (sessionResult.hasAudioStreams()) null else streamService.getStreamInfo(url)
         return when (val result = publicResult.resolveWith(sessionResult)) {
             is ExtractionResult.Success -> select(
-                result.data,
+                result.data.withSabrManifestUrls(),
                 preferOriginal,
                 preferredLocale,
                 allowHls,

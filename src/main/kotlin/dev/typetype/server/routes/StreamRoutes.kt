@@ -11,6 +11,7 @@ import dev.typetype.server.services.SignedHlsManifestCookie
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YOUTUBE_SESSION_RECONNECT_ERROR
 import dev.typetype.server.services.filterAllowed
+import dev.typetype.server.services.withSabrManifestUrls
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
 import io.ktor.server.response.respond
@@ -52,6 +53,7 @@ fun Route.streamRoutes(
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
                 val filtered = result.data
+                    .withSabrManifestUrls()
                     .filterAllowed(accessProfile)
                     .withSignedPublicHlsUrl(userId != null && !access.allowGuest, publicHlsManifestTokenService)
                 val data = if (sabrStreamContractFilter == null) {

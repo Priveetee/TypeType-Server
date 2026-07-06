@@ -65,7 +65,6 @@ class AudioOnlyProgressiveContractRoutesTest {
             url = "",
             bitrate = 128,
             deliveryMethod = "sabr",
-            manifestUrl = "/sabr/manifest/test-id",
             sabrSessionUrl = "/sabr/session/test-id?audioItag=140",
         )
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
