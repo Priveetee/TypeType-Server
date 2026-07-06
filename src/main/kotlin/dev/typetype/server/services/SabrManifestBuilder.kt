@@ -37,4 +37,19 @@ internal object SabrManifestBuilder {
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
     ): String = SabrHlsManifestBuilder.buildAudioOnly(videoId, audio, endSegmentAudio, streamState, sessionToken)
+
+    fun buildHlsMaster(
+        videoId: String,
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        sessionToken: String,
+    ): String = SabrHlsManifestBuilder.buildMaster(videoId, audio, video, sessionToken)
+
+    fun buildVideoOnlyHls(
+        videoId: String,
+        video: YoutubeSabrFormat,
+        endSegmentVideo: Long,
+        streamState: YoutubeSabrStreamState,
+        sessionToken: String,
+    ): String = SabrHlsManifestBuilder.buildVideoOnly(videoId, video, endSegmentVideo, streamState, sessionToken)
 }

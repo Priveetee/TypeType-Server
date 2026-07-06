@@ -86,7 +86,7 @@ class StreamInfoMappersCoreTest {
         val mappedVideo = video.toVideoStreamItem("dQw4w9WgXcQ", isVideoOnly = true)
         assertEquals("", mappedVideo.url)
         assertEquals("sabr", mappedVideo.deliveryMethod)
-        assertNull(mappedVideo.manifestUrl)
+        assertEquals("/sabr/manifest/dQw4w9WgXcQ", mappedVideo.manifestUrl)
         assertEquals("/sabr/session/dQw4w9WgXcQ?videoItag=137", mappedVideo.sabrSessionUrl)
 
         val audio = mockk<AudioStream>()
@@ -110,7 +110,7 @@ class StreamInfoMappersCoreTest {
         val mappedAudio = audio.toAudioStreamItem("dQw4w9WgXcQ")
         assertEquals("", mappedAudio.url)
         assertEquals("sabr", mappedAudio.deliveryMethod)
-        assertNull(mappedAudio.manifestUrl)
+        assertEquals("/sabr/manifest/dQw4w9WgXcQ", mappedAudio.manifestUrl)
         assertEquals("/sabr/session/dQw4w9WgXcQ?audioItag=140&audioTrackId=en.0", mappedAudio.sabrSessionUrl)
     }
 }

@@ -52,18 +52,20 @@ class AudioOnlyProgressiveContractRoutesTest {
     }
 
     @Test
-    fun `GET audio-only returns SABR audio-only backend source when only SABR audio is available`() = testApplication {
+    fun `GET audio-only returns SABR HLS manifest when only SABR audio is available`() = testApplication {
         val opusSabrAudio = testAudioStream(
             url = "",
             codec = "opus",
             bitrate = 160,
             deliveryMethod = "sabr",
+            manifestUrl = "/sabr/manifest/test-id",
             sabrSessionUrl = "/sabr/session/test-id?audioItag=251",
         ).copy(mimeType = "audio/webm", format = "WebM Opus", itag = 251)
         val sabrAudio = testAudioStream(
             url = "",
             bitrate = 128,
             deliveryMethod = "sabr",
+            manifestUrl = "/sabr/manifest/test-id",
             sabrSessionUrl = "/sabr/session/test-id?audioItag=140",
         )
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
@@ -75,20 +77,21 @@ class AudioOnlyProgressiveContractRoutesTest {
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"src\":\"/streams/audio-only/source?token="))
-        assertTrue(body.contains("\"kind\":\"progressive\""))
-        assertTrue(body.contains("\"mimeType\":\"audio/mp4\""))
+        assertTrue(body.contains("\"src\":\"/sabr/manifest/test-id?audioOnly=true&format=hls&audioToken="))
+        assertTrue(body.contains("\"kind\":\"hls\""))
+        assertTrue(body.contains("\"mimeType\":\"application/vnd.apple.mpegurl\""))
         assertTrue(body.contains("\"bitrate\":128"))
         assertFalse(body.contains("\"codec\":\"opus\""))
-        assertFalse(body.contains("/sabr/manifest"))
+        assertTrue(body.contains("/sabr/manifest"))
     }
 
     @Test
-    fun `GET audio-only rejects SABR source when preflight fails`() = testApplication {
+    fun `GET audio-only does not require complete SABR body preflight for HLS`() = testApplication {
         val sabrAudio = testAudioStream(
             url = "",
             bitrate = 128,
             deliveryMethod = "sabr",
+            manifestUrl = "/sabr/manifest/test-id",
             sabrSessionUrl = "/sabr/session/test-id?audioItag=140",
         )
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
@@ -97,9 +100,11 @@ class AudioOnlyProgressiveContractRoutesTest {
         installContractApp { _, _, _ -> "SABR audio-only body is incomplete" }
 
         val response = client.get("/streams/audio-only?url=https://youtube.com/watch?v=test")
+        val body = response.bodyAsText()
 
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertTrue(response.bodyAsText().contains("SABR audio-only body is incomplete"))
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"kind\":\"hls\""))
+        assertTrue(body.contains("/sabr/manifest/test-id"))
     }
 
     @Test

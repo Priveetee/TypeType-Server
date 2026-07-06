@@ -27,7 +27,11 @@ internal class SabrManifestHandler(
 
     suspend fun handle(call: ApplicationCall, videoId: String) {
         val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
-        val hls = audioOnly && call.request.queryParameters["format"].equals("hls", ignoreCase = true)
+        val hls = call.request.queryParameters["format"].equals("hls", ignoreCase = true)
+        val playlist = call.request.queryParameters["playlist"]
+        if (hls && playlist != null && call.request.queryParameters["session"] != null) {
+            return handleHlsPlaylist(call, videoId, playlist)
+        }
         val manifestAccess = accessResolver.resolve(call, videoId) ?: return
         val access = when (manifestAccess) {
             is SabrManifestAccess.AudioOnlyToken -> null
@@ -93,11 +97,17 @@ internal class SabrManifestHandler(
             )
         }
         val manifest = when {
-            audioOnly && hls -> SabrManifestBuilder.buildAudioOnlyHls(
+            hls && audioOnly -> SabrManifestBuilder.buildAudioOnlyHls(
                 videoId,
                 holder.audioFormat,
                 endAudio,
                 state,
+                holder.sessionToken,
+            )
+            hls -> SabrManifestBuilder.buildHlsMaster(
+                videoId,
+                holder.audioFormat,
+                holder.videoFormat,
                 holder.sessionToken,
             )
             audioOnly -> SabrManifestBuilder.buildAudioOnly(
@@ -119,6 +129,32 @@ internal class SabrManifestHandler(
         }
         call.response.headers.append("Cache-Control", "no-store")
         call.respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
+    }
+
+    private suspend fun handleHlsPlaylist(call: ApplicationCall, videoId: String, playlist: String) {
+        val holder = sabrSessionStore.lookupByToken(videoId, call.request.queryParameters["session"].orEmpty())
+            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR session for this request"))
+        sabrSessionStore.ensureWarmed(holder)
+        val state = holder.session.streamState
+        val manifest = when (playlist) {
+            "audio" -> SabrManifestBuilder.buildAudioOnlyHls(
+                videoId,
+                holder.audioFormat,
+                state.getEndSegment(holder.audioFormat),
+                state,
+                holder.sessionToken,
+            )
+            "video" -> SabrManifestBuilder.buildVideoOnlyHls(
+                videoId,
+                holder.videoFormat,
+                state.getEndSegment(holder.videoFormat),
+                state,
+                holder.sessionToken,
+            )
+            else -> return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid HLS playlist"))
+        }
+        call.response.headers.append("Cache-Control", "no-store")
+        call.respondText(manifest, HLS_CONTENT_TYPE)
     }
 
     private companion object {

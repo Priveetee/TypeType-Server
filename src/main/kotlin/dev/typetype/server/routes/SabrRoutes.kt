@@ -37,6 +37,14 @@ internal fun Route.sabrRoutes(
         accessControlService,
         adminSettingsService,
     )
+    val manifestHandler = SabrManifestHandler(
+        sabrSessionStore,
+        streamService,
+        authService,
+        accessControlService,
+        adminSettingsService,
+        audioOnlyTokenService,
+    )
     webSocket("/sabr/session/{videoId}/ws") {
         val videoId = call.parameters["videoId"] ?: return@webSocket
         webSocketHandler.handle(this, videoId)
@@ -57,12 +65,16 @@ internal fun Route.sabrRoutes(
         sessionHandler.handle(call, videoId)
     }
     get("/sabr/manifest/{videoId}") {
-        call.respond(HttpStatusCode.Gone, ErrorResponse("SABR static manifests are disabled"))
+        val videoId = call.parameters["videoId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
+        manifestHandler.handle(call, videoId)
     }
     get("/sabr/{videoId}/{itag}/init") {
         segmentHandler.handle(call, isInit = true, seq = 0)
     }
     get("/sabr/{videoId}/{itag}/segment/{seq}") {
-        call.respond(HttpStatusCode.Gone, ErrorResponse("SABR static segments are disabled"))
+        val seq = call.parameters["seq"]?.toIntOrNull()
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
+        segmentHandler.handle(call, isInit = false, seq = seq)
     }
 }
