@@ -96,7 +96,7 @@ internal object SabrDashManifestBuilder {
         val avgMs = SabrManifestTiming.averageSegmentMs(format, n)
         val sessionQuery = "?session=$sessionToken"
         sb.appendLine("        <SegmentList timescale=\"1000\">")
-        sb.appendLine("          <Initialization sourceURL=\"../$videoId/${format.itag}/init$sessionQuery\"/>")
+        sb.appendLine("          <Initialization sourceURL=\"/sabr/$videoId/${format.itag}/init$sessionQuery\"/>")
         sb.appendLine("          <SegmentTimeline>")
         for (seq in 1..n) {
             val start = streamState.getSegmentStartMs(format, seq.toInt()).coerceAtLeast(0L)
@@ -105,7 +105,7 @@ internal object SabrDashManifestBuilder {
         }
         sb.appendLine("          </SegmentTimeline>")
         for (seq in 1..n) {
-            sb.appendLine("          <SegmentURL media=\"../$videoId/${format.itag}/segment/$seq$sessionQuery\"/>")
+            sb.appendLine("          <SegmentURL media=\"/sabr/$videoId/${format.itag}/segment/$seq$sessionQuery\"/>")
         }
         sb.appendLine("        </SegmentList>")
     }

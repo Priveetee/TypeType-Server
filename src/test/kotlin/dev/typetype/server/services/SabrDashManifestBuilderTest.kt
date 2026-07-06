@@ -1,0 +1,56 @@
+package dev.typetype.server.services
+
+import io.mockk.every
+import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+
+class SabrDashManifestBuilderTest {
+    @Test
+    fun `dash manifest uses root relative sabr media urls`() {
+        val audio = format(140, "audio/mp4; codecs=\"mp4a.40.2\"", isAudio = true)
+        val video = format(137, "video/mp4; codecs=\"avc1.640028\"", isAudio = false)
+        val state = streamState(audio, video)
+
+        val manifest = SabrDashManifestBuilder.build(
+            "dHqmN-5jVKY",
+            audio,
+            video,
+            endSegmentAudio = 2,
+            endSegmentVideo = 2,
+            streamState = state,
+            sessionToken = "session-token",
+        )
+
+        assertTrue(manifest.contains("sourceURL=\"/sabr/dHqmN-5jVKY/137/init?session=session-token\""))
+        assertTrue(manifest.contains("media=\"/sabr/dHqmN-5jVKY/140/segment/1?session=session-token\""))
+        assertFalse(manifest.contains("../dHqmN-5jVKY"))
+    }
+
+    private fun format(itag: Int, mime: String, isAudio: Boolean): YoutubeSabrFormat {
+        val format = mockk<YoutubeSabrFormat>()
+        every { format.itag } returns itag
+        every { format.mimeType } returns mime
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
+        every { format.width } returns if (isAudio) 0 else 1920
+        every { format.height } returns if (isAudio) 0 else 1080
+        every { format.approxDurationMs } returns 2_000L
+        return format
+    }
+
+    private fun streamState(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): YoutubeSabrStreamState {
+        val state = mockk<YoutubeSabrStreamState>()
+        every { state.getEndSegment(video) } returns 2L
+        every { state.getSegmentEndMs(video, 2) } returns 2_000L
+        listOf(audio, video).forEach { format ->
+            every { state.getSegmentStartMs(format, 1) } returns 0L
+            every { state.getSegmentEndMs(format, 1) } returns 1_000L
+            every { state.getSegmentStartMs(format, 2) } returns 1_000L
+            every { state.getSegmentEndMs(format, 2) } returns 2_000L
+        }
+        return state
+    }
+}

@@ -9,7 +9,6 @@ import dev.typetype.server.services.markServed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondOutputStream
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
@@ -37,23 +36,18 @@ internal class SabrSegmentHandler(
             val bytes = withTimeoutOrNull(20_000L) {
                 sabrSessionStore.fetchInitializationData(holder, format)
             } ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
-            call.response.headers.append("Cache-Control", "no-store")
-            return call.respondOutputStream(containerMime(format.mimeType.orEmpty())) { write(bytes) }
+            return call.respondSabrMediaBytes(format.mimeType.orEmpty(), bytes)
         }
         if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
         val request = SabrSegmentRequest.media(format, seq)
         sabrSessionStore.cachedSegment(holder, request)?.let { cached ->
             holder.markServed(cached)
-            call.response.headers.append("Cache-Control", "no-store")
-            return call.respondOutputStream(containerMime(cached.mimeType)) { write(cached.bytes) }
+            return call.respondSabrMediaBytes(cached.mimeType, cached.bytes)
         }
         val segment = withTimeoutOrNull(20_000L) { sabrSessionStore.fetchSegment(holder, request) }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
         holder.markServed(segment)
-        call.response.headers.append("Cache-Control", "no-store")
-        call.respondOutputStream(containerMime(format.mimeType.orEmpty())) {
-            write(segment.data)
-        }
+        call.respondSabrMediaBytes(format.mimeType.orEmpty(), segment.data)
     }
 
 }
