@@ -32,7 +32,22 @@ class YoutubeTakeoutImportJobStatusStore {
             it[YoutubeTakeoutImportJobsTable.status] = status
             it[YoutubeTakeoutImportJobsTable.phase] = phase
             it[YoutubeTakeoutImportJobsTable.progress] = progress.coerceIn(0, 100)
+            it[YoutubeTakeoutImportJobsTable.error] = null
             it[YoutubeTakeoutImportJobsTable.updatedAt] = System.currentTimeMillis()
         }
+    }
+
+    suspend fun failStatus(jobId: String, phase: String, error: String) = DatabaseFactory.query {
+        YoutubeTakeoutImportJobsTable.update({ YoutubeTakeoutImportJobsTable.id eq jobId }) {
+            it[YoutubeTakeoutImportJobsTable.status] = "failed"
+            it[YoutubeTakeoutImportJobsTable.phase] = phase
+            it[YoutubeTakeoutImportJobsTable.progress] = 100
+            it[YoutubeTakeoutImportJobsTable.error] = error.take(MAX_ERROR_LENGTH)
+            it[YoutubeTakeoutImportJobsTable.updatedAt] = System.currentTimeMillis()
+        }
+    }
+
+    private companion object {
+        const val MAX_ERROR_LENGTH = 500
     }
 }

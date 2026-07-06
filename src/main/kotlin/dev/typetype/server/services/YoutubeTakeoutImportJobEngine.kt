@@ -9,11 +9,11 @@ import kotlinx.coroutines.launch
 class YoutubeTakeoutImportJobEngine {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    fun startPreview(jobId: String, block: suspend () -> Unit) {
-        scope.launch { runCatching { block() } }
+    fun startPreview(jobId: String, block: suspend () -> Unit): Unit {
+        scope.launch { block() }
     }
 
-    fun startCommit(jobId: String, plan: YoutubeTakeoutCommitPlan, block: suspend (YoutubeTakeoutCommitPlan) -> Unit) {
-        scope.launch { runCatching { block(plan) } }
+    fun startCommit(jobId: String, plan: YoutubeTakeoutCommitPlan, block: suspend (YoutubeTakeoutCommitPlan) -> Unit): Unit {
+        scope.launch { block(plan) }
     }
 }

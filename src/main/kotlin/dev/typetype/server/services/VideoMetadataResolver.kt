@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistVideoItem
+import kotlinx.coroutines.CancellationException
 
 class VideoMetadataResolver(private val streamService: StreamService) {
     suspend fun enrichPlaylistVideos(videos: List<PlaylistVideoItem>): List<PlaylistVideoItem> {
@@ -24,10 +25,15 @@ class VideoMetadataResolver(private val streamService: StreamService) {
     suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> {
         val resolved = mutableMapOf<String, VideoMetadataItem>()
         urls.map { it.trim() }.filter { it.isNotBlank() }.distinct().forEach { url ->
-            when (val result = streamService.getStreamInfo(url)) {
-                is ExtractionResult.Success -> resolved[url] = result.data.toMetadata(url)
-                is ExtractionResult.BadRequest -> Unit
-                is ExtractionResult.Failure -> Unit
+            try {
+                when (val result = streamService.getStreamInfo(url)) {
+                    is ExtractionResult.Success -> resolved[url] = result.data.toMetadata(url)
+                    is ExtractionResult.BadRequest -> Unit
+                    is ExtractionResult.Failure -> Unit
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
             }
         }
         return resolved
