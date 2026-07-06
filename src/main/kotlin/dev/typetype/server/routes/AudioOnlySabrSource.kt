@@ -18,6 +18,9 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
 ) {
     val videoId = token.videoUrl.youtubeVideoId()
         ?: return respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube URL"))
+    AudioOnlySabrBodyCache.get(videoId, selection.stream.itag, token.selectedAudioTrackId)?.let { body ->
+        return respondSabrAudioOnlyBytes(selection.stream.mimeType.orEmpty(), body, request.headers[HttpHeaders.Range])
+    }
     val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
@@ -38,6 +41,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
     val body = materializeSabrAudioOnlyBody(sabrSessionStore, holder, init)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No complete SABR audio for this video"))
+    AudioOnlySabrBodyCache.put(videoId, audio.itag, audio.audioTrackId, body)
     respondSabrAudioOnlyBytes(audio.mimeType.orEmpty(), body, request.headers[HttpHeaders.Range])
 }
 
@@ -48,6 +52,9 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
 ) {
     val videoId = token.videoUrl.youtubeVideoId()
         ?: return respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid YouTube URL"))
+    AudioOnlySabrBodyCache.get(videoId, selection.stream.itag, token.selectedAudioTrackId)?.let { body ->
+        return respondSabrAudioOnlyHeadBytes(selection.stream.mimeType.orEmpty(), body)
+    }
     val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
     val audio = SabrFormatSelector.audio(prepared.info, selection.stream.itag, token.selectedAudioTrackId, requireAac = true)
@@ -68,6 +75,14 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         ?: return respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
     val body = materializeSabrAudioOnlyBody(sabrSessionStore, holder, init)
         ?: return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No complete SABR audio for this video"))
+    AudioOnlySabrBodyCache.put(videoId, audio.itag, audio.audioTrackId, body)
+    respondSabrAudioOnlyHeadBytes(audio.mimeType.orEmpty(), body)
+}
+
+private suspend fun ApplicationCall.respondSabrAudioOnlyHeadBytes(
+    mimeType: String,
+    body: ByteArray,
+): Unit {
     val total = body.size.toLong()
     response.headers.append(HttpHeaders.CacheControl, "no-store")
     response.headers.append(HttpHeaders.AcceptRanges, "bytes")
@@ -75,7 +90,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         is AudioOnlyByteRange.Satisfiable -> {
             response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
             respondOutputStream(
-                containerMime(audio.mimeType.orEmpty()),
+                containerMime(mimeType),
                 HttpStatusCode.PartialContent,
                 range.last - range.first + 1L,
             ) {}
@@ -85,7 +100,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
             respond(HttpStatusCode.RequestedRangeNotSatisfiable)
         }
         null -> {
-            respondOutputStream(containerMime(audio.mimeType.orEmpty()), HttpStatusCode.OK, total) {}
+            respondOutputStream(containerMime(mimeType), HttpStatusCode.OK, total) {}
         }
     }
 }

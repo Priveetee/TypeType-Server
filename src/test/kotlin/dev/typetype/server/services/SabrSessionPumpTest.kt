@@ -2,7 +2,9 @@ package dev.typetype.server.services
 
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import io.mockk.every
 import io.mockk.mockk
@@ -56,6 +58,23 @@ class SabrSessionPumpTest {
         verify(exactly = 2) { session.fetchMediaSegmentAt(request, any(), true, true, any()) }
     }
 
+    @Test
+    fun `reader head is active track intersection and skips already served segments`() {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(137, isAudio = false)
+        val holder = sabrHolder(audio, video)
+        val videoSegment = mediaSegment(137, 60_000L, 5_000L, sequence = 12)
+        val audioSegment = mediaSegment(140, 59_000L, 10_000L, sequence = 7)
+
+        holder.markServed(videoSegment)
+        assertEquals(0L, holder.readerHeadMs())
+        holder.markServed(audioSegment)
+
+        assertEquals(65_000L, holder.readerHeadMs())
+        assertFalse(holder.shouldSend(videoSegment))
+        assertTrue(holder.shouldSend(mediaSegment(137, 65_000L, 5_000L, sequence = 13)))
+    }
+
     private suspend fun assertCachedSegmentServed(itag: Int, sequence: Int, startMs: Long, durationMs: Long) {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
@@ -67,7 +86,23 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(request) } returns segment
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
-        val holder = SabrSessionHolder(
+        val holder = sabrHolder(audio, video, session)
+
+        val fetched = SabrSessionPump().fetchSegment(holder, request)
+
+        assertSame(segment, fetched)
+        assertEquals(0L, holder.readerHeadMs())
+    }
+
+    private fun sabrHolder(
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        session: YoutubeSabrSession = mockk<YoutubeSabrSession>(),
+    ): SabrSessionHolder {
+        val streamState = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns streamState
+        every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        return SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
             audioFormat = audio,
@@ -76,11 +111,6 @@ class SabrSessionPumpTest {
             key = SabrSessionKey("video", "user", 140, null, 137, 0L),
             lastRequestAt = Instant.EPOCH,
         )
-
-        val fetched = SabrSessionPump().fetchSegment(holder, request)
-
-        assertSame(segment, fetched)
-        assertEquals(startMs + durationMs, holder.readerHeadMs())
     }
 
     private fun sabrFormat(itag: Int, isAudio: Boolean): YoutubeSabrFormat {

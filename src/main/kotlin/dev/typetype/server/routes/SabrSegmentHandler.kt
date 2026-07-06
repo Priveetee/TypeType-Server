@@ -49,6 +49,7 @@ internal class SabrSegmentHandler(
         }
         val segment = withTimeoutOrNull(20_000L) { sabrSessionStore.fetchSegment(holder, request) }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
+        holder.markServed(segment)
         call.response.headers.append("Cache-Control", "no-store")
         call.respondOutputStream(containerMime(format.mimeType.orEmpty())) {
             write(segment.data)

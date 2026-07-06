@@ -27,7 +27,6 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
     }
     return result.getOrNull()
         ?.takeIf { it.matches(request) }
-        ?.also { holder.markServed(it) }
 }
 
 private fun SabrMediaSegment.matches(request: SabrSegmentRequest): Boolean {

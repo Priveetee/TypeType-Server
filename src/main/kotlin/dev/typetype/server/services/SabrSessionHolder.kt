@@ -79,7 +79,7 @@ internal class SabrSessionHolder(
 
     fun isVideoActive(): Boolean = activeItags.contains(videoFormat.itag)
 
-    fun readerHeadMs(): Long = activeItags.mapNotNull { readerPositions[it] }.maxOrNull() ?: 0L
+    fun readerHeadMs(): Long = readerTailMs()
 
     fun readerTailMs(): Long {
         if (activeItags.isEmpty()) return 0L

@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment): Unit {
     if (!segment.header.isInitSegment) {
@@ -19,6 +20,21 @@ internal fun SabrSessionHolder.markServed(segment: CachedSabrSegment): Unit {
         evictCachedSegmentsBefore(readerTailMs() - BACK_BUFFER_MS)
     }
 }
+
+internal fun SabrSessionHolder.shouldSend(segment: SabrMediaSegment): Boolean {
+    if (segment.header.isInitSegment) return true
+    val lastSequence = lastServedSequence(formatForItag(segment.header.itag)) ?: return true
+    return segment.header.sequenceNumber > lastSequence
+}
+
+internal fun SabrSessionHolder.shouldSend(segment: CachedSabrSegment): Boolean {
+    if (segment.init) return true
+    val lastSequence = lastServedSequence(formatForItag(segment.itag)) ?: return true
+    return segment.sequence > lastSequence
+}
+
+private fun SabrSessionHolder.formatForItag(itag: Int): YoutubeSabrFormat =
+    if (audioFormat.itag == itag) audioFormat else videoFormat
 
 internal fun bothFormatsKnown(holder: SabrSessionHolder): Boolean {
     val state = holder.session.streamState

@@ -143,7 +143,10 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                 if (holder.session.isBeyondEnd(request)) return@withLock null
                 holder.session.fetchTargetedSegment(holder, request, localization)
             }
-            if (segment != null) segmentCache?.put(holder, segment)
+            if (segment != null) {
+                holder.markServed(segment)
+                segmentCache?.put(holder, segment)
+            }
             if (segment != null || holder.session.isBeyondEnd(request)) return segment
             attempt++
             delay(FETCH_RETRY_DELAY_MS)
