@@ -69,3 +69,46 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-beta:
+    needs: build-and-push
+    if: github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    environment: beta
+    steps:
+      - name: Check deployment configuration
+        id: deploy-config
+        env:
+          TYPE_TYPE_DEPLOY_HOST: ${{ secrets.TYPE_TYPE_DEPLOY_HOST }}
+          TYPE_TYPE_DEPLOY_PORT: ${{ secrets.TYPE_TYPE_DEPLOY_PORT }}
+          TYPE_TYPE_DEPLOY_USER: ${{ secrets.TYPE_TYPE_DEPLOY_USER }}
+          TYPE_TYPE_DEPLOY_SSH_KEY: ${{ secrets.TYPE_TYPE_DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "$TYPE_TYPE_DEPLOY_HOST" ] || [ -z "$TYPE_TYPE_DEPLOY_PORT" ] || [ -z "$TYPE_TYPE_DEPLOY_USER" ] || [ -z "$TYPE_TYPE_DEPLOY_SSH_KEY" ]; then
+            echo "Deployment secrets are not configured; skipping deployment."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        if: steps.deploy-config.outputs.configured == 'true'
+        env:
+          TYPE_TYPE_DEPLOY_HOST: ${{ secrets.TYPE_TYPE_DEPLOY_HOST }}
+          TYPE_TYPE_DEPLOY_PORT: ${{ secrets.TYPE_TYPE_DEPLOY_PORT }}
+          TYPE_TYPE_DEPLOY_SSH_KEY: ${{ secrets.TYPE_TYPE_DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          install -m 600 /dev/null ~/.ssh/typetype_deploy_key
+          printf '%s\n' "$TYPE_TYPE_DEPLOY_SSH_KEY" > ~/.ssh/typetype_deploy_key
+          ssh-keyscan -p "$TYPE_TYPE_DEPLOY_PORT" "$TYPE_TYPE_DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy beta stack
+        if: steps.deploy-config.outputs.configured == 'true'
+        env:
+          TYPE_TYPE_DEPLOY_HOST: ${{ secrets.TYPE_TYPE_DEPLOY_HOST }}
+          TYPE_TYPE_DEPLOY_PORT: ${{ secrets.TYPE_TYPE_DEPLOY_PORT }}
+          TYPE_TYPE_DEPLOY_USER: ${{ secrets.TYPE_TYPE_DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/typetype_deploy_key -p "$TYPE_TYPE_DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$TYPE_TYPE_DEPLOY_USER@$TYPE_TYPE_DEPLOY_HOST" "/usr/local/sbin/typetype-beta-update"
+          curl --fail --silent --show-error https://beta.typetype.video/api/health
