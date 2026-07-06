@@ -32,21 +32,31 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
     suspend fun fetchSegment(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
+    ): SabrMediaSegment? = fetchSegment(holder, request, markServed = true)
+
+    private suspend fun fetchSegment(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        markServed: Boolean,
     ): SabrMediaSegment? {
         holder.lastRequestAt = Instant.now()
         holder.session.getCachedSegment(request)?.let { segment ->
-            holder.markServed(segment)
+            if (markServed) holder.markServed(segment)
             segmentCache?.put(holder, segment)
             return segment
         }
         if (holder.session.isBeyondEnd(request)) return null
         val localization = Localization("en", "GB")
-        if (request.isInitializationSegment) return fetchInitializationSegment(holder, request, localization)
-        return fetchMediaSegment(holder, request, localization)
+        if (request.isInitializationSegment) {
+            return fetchSabrInitializationSegment(holder, request, localization, segmentCache, markServed)
+        }
+        return fetchMediaSegment(holder, request, localization, markServed)
     }
 
     suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
-        SabrSessionMediaFetcher.fetch(holder, playerTimeMs)?.also { segmentCache?.putAll(holder, it) }
+        SabrSessionMediaFetcher.fetch(holder, playerTimeMs) { request ->
+            fetchSegment(holder, request, markServed = false)
+        }?.also { segmentCache?.putAll(holder, it) }
 
     suspend fun pumpLoop(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "GB")
@@ -62,48 +72,29 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         }
     }
 
-    private suspend fun fetchInitializationSegment(
-        holder: SabrSessionHolder,
-        request: SabrSegmentRequest,
-        localization: Localization,
-    ): SabrMediaSegment? {
-        return holder.pumpMutex.withLock {
-            holder.session.getCachedSegment(request)?.let { segment ->
-                holder.markServed(segment)
-                segmentCache?.put(holder, segment)
-                return@withLock segment
-            }
-            if (holder.session.isBeyondEnd(request)) return@withLock null
-            runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }
-                .getOrNull()
-                ?.also {
-                    holder.markServed(it)
-                    segmentCache?.put(holder, it)
-                }
-        }
-    }
-
     private suspend fun fetchMediaSegment(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
         localization: Localization,
+        markServed: Boolean,
     ): SabrMediaSegment? {
         if (shouldFillSequentially(holder, request)) {
-            fetchSequentially(holder, request, localization)?.let { return it }
+            fetchSequentially(holder, request, localization, markServed)?.let { return it }
         }
-        return fetchTargeted(holder, request, localization)
+        return fetchTargeted(holder, request, localization, markServed)
     }
 
     private suspend fun fetchSequentially(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
         localization: Localization,
+        markServed: Boolean,
     ): SabrMediaSegment? {
         var pumps = 0
         while (pumps < SEQUENTIAL_PUMPS) {
             val segment = holder.pumpMutex.withLock {
                 holder.session.getCachedSegment(request)?.let { cached ->
-                    holder.markServed(cached)
+                    if (markServed) holder.markServed(cached)
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
@@ -113,12 +104,14 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                     holder.setReaderPosition(request.format, startMs.coerceAtLeast(0L))
                     holder.session.prepareForRewind(request)
                     runCatchingNonCancellation { holder.session.pumpOnce(localization) }
-                    return@withLock holder.session.getCachedSegment(request)?.also { holder.markServed(it) }
+                    return@withLock holder.session.getCachedSegment(request)?.also {
+                        if (markServed) holder.markServed(it)
+                    }
                 } else {
                     holder.session.streamState.setPlayerTimeMs(maxOf(edgeMs, startMs + PLAYER_TIME_OFFSET_MS))
                 }
                 val fetched = runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }.getOrNull()
-                fetched?.also { holder.markServed(it) }
+                fetched?.also { if (markServed) holder.markServed(it) }
             }
             if (segment != null) segmentCache?.put(holder, segment)
             if (segment != null || holder.session.isBeyondEnd(request)) return segment
@@ -132,19 +125,20 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
         localization: Localization,
+        markServed: Boolean,
     ): SabrMediaSegment? {
         var attempt = 0
         while (attempt < FETCH_ATTEMPTS) {
             val segment = holder.pumpMutex.withLock {
                 holder.session.getCachedSegment(request)?.let { cached ->
-                    holder.markServed(cached)
+                    if (markServed) holder.markServed(cached)
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
                 holder.session.fetchTargetedSegment(holder, request, localization)
             }
             if (segment != null) {
-                holder.markServed(segment)
+                if (markServed) holder.markServed(segment)
                 segmentCache?.put(holder, segment)
             }
             if (segment != null || holder.session.isBeyondEnd(request)) return segment

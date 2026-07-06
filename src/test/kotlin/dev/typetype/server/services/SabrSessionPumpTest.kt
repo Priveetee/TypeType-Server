@@ -120,15 +120,15 @@ class SabrSessionPumpTest {
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
-        every { session.fetchSegment(match { it.format == video && it.sequenceNumber == 13 }, any()) } returns expected
         val holder = sabrHolder(audio, video, session, streamState)
         holder.markServed(mediaSegment(137, 55_789L, 5_072L, sequence = 12))
         holder.markServed(mediaSegment(140, 59_907L, 9_985L, sequence = 7))
 
-        val fetched = SabrSessionMediaFetcher.fetch(holder, 60_862L)
+        val fetched = SabrSessionMediaFetcher.fetch(holder, 60_862L) { request ->
+            if (request.format == video && request.sequenceNumber == 13) expected else null
+        }
 
         assertEquals(listOf(expected), fetched)
-        verify { session.fetchSegment(match { it.format == video && it.sequenceNumber == 13 }, any()) }
     }
 
     private suspend fun assertCachedSegmentServed(itag: Int, sequence: Int, startMs: Long, durationMs: Long) {
