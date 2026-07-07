@@ -5,6 +5,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackSegmentFetcher(
     private val fetchSegment: suspend (SabrSessionHolder, SabrSegmentRequest) -> SabrMediaSegment?,
@@ -29,10 +30,21 @@ internal class SabrPlaybackSegmentFetcher(
                 fetchSegment(holder, request)?.let { return@withTimeoutOrNull it }
                 val now = System.currentTimeMillis()
                 if (recoveryAtMs < 0L && now - waitStart >= refetchAfterMs) {
+                    logRecovery(holder, request)
                     holder.recoverFor(request)
                     recoveryAtMs = now
                 }
                 if (recoveryAtMs >= 0L && now - recoveryAtMs > recoveryFailureMs) {
+                    logger.warn(
+                        "sabr_playback_recovery_failed videoId={} itag={} seq={} edgeMs={} readerHeadMs={} readerTailMs={} state={}",
+                        holder.key.videoId,
+                        request.format.itag,
+                        request.sequenceNumber,
+                        holder.session.streamState.getMinBufferedEndMs(),
+                        holder.readerHeadMs(),
+                        holder.readerTailMs(),
+                        holder.playbackState(),
+                    )
                     holder.failTerminal("SABR playback recovery made no progress")
                     return@withTimeoutOrNull null
                 }
@@ -55,7 +67,23 @@ internal class SabrPlaybackSegmentFetcher(
         }
     }
 
+    private fun logRecovery(holder: SabrSessionHolder, request: SabrSegmentRequest) {
+        val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
+        logger.warn(
+            "sabr_playback_recovery videoId={} itag={} seq={} startMs={} edgeMs={} readerHeadMs={} readerTailMs={} state={}",
+            holder.key.videoId,
+            request.format.itag,
+            request.sequenceNumber,
+            startMs,
+            holder.session.streamState.getMinBufferedEndMs(),
+            holder.readerHeadMs(),
+            holder.readerTailMs(),
+            holder.playbackState(),
+        )
+    }
+
     private companion object {
+        val logger = LoggerFactory.getLogger(SabrPlaybackSegmentFetcher::class.java)
         const val RETRY_DELAY_MS = 250L
         const val REFETCH_AFTER_MS = 2_000L
         const val RECOVERY_FAILURE_MS = 10_000L

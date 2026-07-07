@@ -51,8 +51,28 @@ internal class SabrPlaybackHandler(
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         val request = call.playbackRequest()
         val playerTimeMs = request.effectiveStartTimeMs()
-        holder.setPlayerTimeMs(playerTimeMs)
-        respondPrepared(call, holder, holder.key.videoId, playerTimeMs)
+        val prepared = sabrSessionStore.fetchInfo(holder.key.videoId, playerTimeMs, cachedFirst = true)
+            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
+        val audio = SabrFormatSelector.audio(
+            prepared.info,
+            request.audioItag ?: holder.audioFormat.itag,
+            request.audioTrackId ?: holder.audioFormat.audioTrackId,
+            requireAac = true,
+        ) ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
+        val video = SabrFormatSelector.video(prepared.info, request.videoItag ?: holder.videoFormat.itag)
+            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
+        val target = sabrSessionStore.getOrCreate(
+            holder.key.videoId,
+            holder.key.userId,
+            prepared.info,
+            audio,
+            video,
+            prepared.initialToken,
+            playerTimeMs,
+            startPump = false,
+        )
+        target.setPlayerTimeMs(playerTimeMs)
+        respondPrepared(call, target, target.key.videoId, playerTimeMs)
     }
 
     suspend fun manifest(call: ApplicationCall, sessionId: String) {

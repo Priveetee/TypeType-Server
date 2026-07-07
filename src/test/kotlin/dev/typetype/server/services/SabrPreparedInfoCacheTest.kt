@@ -19,11 +19,20 @@ class SabrPreparedInfoCacheTest {
     @Test
     fun `cache can remove incomplete prepared info`() {
         val cache = SabrPreparedInfoCache()
-        cache.put("video", preparedInfo(listOf(format(isAudio = false))))
+        cache.put("video", 120_000L, preparedInfo(listOf(format(isAudio = false))))
 
-        cache.remove("video")
+        cache.remove("video", 120_000L)
 
-        assertFalse(cache.get("video")?.hasAudioAndVideoFormats() == true)
+        assertFalse(cache.get("video", 120_000L)?.hasAudioAndVideoFormats() == true)
+    }
+
+    @Test
+    fun `cache separates prepared info by start window`() {
+        val cache = SabrPreparedInfoCache()
+        cache.put("video", 120_000L, preparedInfo(listOf(format(isAudio = true), format(isAudio = false))))
+
+        assertTrue(cache.get("video", 120_000L)?.hasAudioAndVideoFormats() == true)
+        assertFalse(cache.get("video", 340_000L)?.hasAudioAndVideoFormats() == true)
     }
 
     private fun preparedInfo(formats: List<YoutubeSabrFormat>): SabrPreparedInfo {

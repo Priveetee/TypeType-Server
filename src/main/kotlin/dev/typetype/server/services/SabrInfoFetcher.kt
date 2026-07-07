@@ -20,25 +20,25 @@ internal class SabrInfoFetcher(
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
-        if (cachedFirst) playableCachedInfo(videoId)?.let { return@withContext it }
+        if (cachedFirst) playableCachedInfo(videoId, startTimeMs)?.let { return@withContext it }
         fetchPlayableWithRetries(videoId, startTimeMs)?.let { return@withContext it }
         if (startTimeMs > 0L) fetchPlayableWithRetries(videoId, 0L)?.let { return@withContext it }
-        playableCachedInfo(videoId)
+        playableCachedInfo(videoId, startTimeMs)
     }
 
     private suspend fun fetchPlayableWithRetries(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
         repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
             fetchInfoOnce(videoId, startTimeMs, forceRefresh = attempt > 0)
-                ?.let { return infoCache.put(videoId, it) }
+                ?.let { return infoCache.put(videoId, startTimeMs, it) }
             if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
         }
         return null
     }
 
-    private fun playableCachedInfo(videoId: String): SabrPreparedInfo? {
-        val cached = infoCache.get(videoId) ?: return null
+    private fun playableCachedInfo(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
+        val cached = infoCache.get(videoId, startTimeMs) ?: return null
         if (cached.hasAudioAndVideoFormats()) return cached
-        infoCache.remove(videoId)
+        infoCache.remove(videoId, startTimeMs)
         return null
     }
 

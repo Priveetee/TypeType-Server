@@ -7,25 +7,34 @@ import java.util.concurrent.ConcurrentHashMap
 internal class SabrPreparedInfoCache(
     private val ttl: Duration = Duration.ofMinutes(10),
 ) {
-    private val items = ConcurrentHashMap<String, Entry>()
+    private val items = ConcurrentHashMap<Key, Entry>()
 
-    fun get(videoId: String): SabrPreparedInfo? {
-        val entry = items[videoId] ?: return null
+    fun get(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
+        val key = Key(videoId, startBucket(startTimeMs))
+        val entry = items[key] ?: return null
         if (entry.createdAt.plus(ttl).isBefore(Instant.now())) {
-            items.remove(videoId, entry)
+            items.remove(key, entry)
             return null
         }
         return entry.value
     }
 
-    fun remove(videoId: String): Unit {
-        items.remove(videoId)
+    fun remove(videoId: String, startTimeMs: Long): Unit {
+        items.remove(Key(videoId, startBucket(startTimeMs)))
     }
 
-    fun put(videoId: String, value: SabrPreparedInfo): SabrPreparedInfo {
-        items[videoId] = Entry(value, Instant.now())
+    fun put(videoId: String, startTimeMs: Long, value: SabrPreparedInfo): SabrPreparedInfo {
+        items[Key(videoId, startBucket(startTimeMs))] = Entry(value, Instant.now())
         return value
     }
 
+    private fun startBucket(startTimeMs: Long): Long = startTimeMs.coerceAtLeast(0L) / START_BUCKET_MS
+
+    private data class Key(val videoId: String, val startBucket: Long)
+
     private data class Entry(val value: SabrPreparedInfo, val createdAt: Instant)
+
+    private companion object {
+        const val START_BUCKET_MS = 30_000L
+    }
 }

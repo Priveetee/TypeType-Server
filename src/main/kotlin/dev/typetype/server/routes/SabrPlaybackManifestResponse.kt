@@ -11,18 +11,18 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal suspend fun ApplicationCall.respondSabrPlaybackManifest(holder: SabrSessionHolder): Unit {
     val state = holder.session.streamState
-    val endAudio = state.getEndSegment(holder.audioFormat)
-    val endVideo = state.getEndSegment(holder.videoFormat)
-    if (endAudio <= 0L || endVideo <= 0L) {
+    val knownAudio = maxOf(state.getEndSegment(holder.audioFormat), state.getMaxSegment(holder.audioFormat).toLong())
+    val knownVideo = maxOf(state.getEndSegment(holder.videoFormat), state.getMaxSegment(holder.videoFormat).toLong())
+    if (knownAudio <= 0L || knownVideo <= 0L) {
         return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("Segment index not yet available"))
     }
     val startMs = holder.playerTimeMs().coerceAtLeast(0L)
     val edgeMs = state.getMinBufferedEndMs().coerceAtLeast(startMs)
     val windowEndMs = edgeMs + PLAYBACK_MANIFEST_WINDOW_MS
-    val startAudio = segmentAt(holder, holder.audioFormat, startMs, endAudio)
-    val startVideo = segmentAt(holder, holder.videoFormat, startMs, endVideo)
-    val windowEndAudio = segmentAt(holder, holder.audioFormat, windowEndMs, endAudio)
-    val windowEndVideo = segmentAt(holder, holder.videoFormat, windowEndMs, endVideo)
+    val startAudio = segmentAt(holder, holder.audioFormat, startMs, knownAudio)
+    val startVideo = segmentAt(holder, holder.videoFormat, startMs, knownVideo)
+    val windowEndAudio = segmentAt(holder, holder.audioFormat, windowEndMs, knownAudio)
+    val windowEndVideo = segmentAt(holder, holder.videoFormat, windowEndMs, knownVideo)
     val manifest = SabrManifestBuilder.build(
         holder.key.videoId,
         holder.audioFormat,

@@ -128,7 +128,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
-                holder.session.fetchTargetedSegment(holder, request, localization)
+                holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
                     ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
             }
             if (segment != null) {
@@ -143,9 +143,17 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
     }
 
     private fun shouldFillSequentially(holder: SabrSessionHolder, request: SabrSegmentRequest): Boolean {
+        if (targetPlayerTime(holder, request) != null) return false
         val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
         return startMs <= INITIAL_SEQUENTIAL_LIMIT_MS || startMs <= edgeMs + SEQUENTIAL_FILL_AHEAD_MS
     }
 
+    private fun targetPlayerTime(holder: SabrSessionHolder, request: SabrSegmentRequest): Long? {
+        val playerTimeMs = holder.playerTimeMs()
+        val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
+        if (playerTimeMs < startMs) return null
+        val endMs = holder.session.streamState.getSegmentEndMs(request.format, request.sequenceNumber)
+        return playerTimeMs.takeIf { it < endMs }
+    }
 }
