@@ -6,6 +6,8 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrPreparedInfo
+import dev.typetype.server.services.SabrPlaybackSegmentResult
+import dev.typetype.server.services.SabrPlaybackSessionService
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -13,7 +15,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackHandler(
@@ -23,6 +24,8 @@ internal class SabrPlaybackHandler(
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
 ) {
+    private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
+
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         if (!validateAccess(call, videoId, access)) return
@@ -32,22 +35,19 @@ internal class SabrPlaybackHandler(
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = selectAudio(call, prepared, request) ?: return
         val video = selectVideo(call, prepared, request) ?: return
-        val holder = sabrSessionStore.getOrCreate(
-            videoId,
-            access.userId ?: videoId,
-            prepared.info,
-            audio,
-            video,
-            prepared.initialToken,
-            startTimeMs,
-            startPump = false,
+        val preparation = playbackService.prepare(
+            videoId = videoId,
+            userId = access.userId ?: videoId,
+            prepared = prepared,
+            audio = audio,
+            video = video,
+            startTimeMs = startTimeMs,
         )
-        holder.setPlayerTimeMs(startTimeMs)
-        respondPrepared(call, holder, videoId, startTimeMs)
+        respondPrepared(call, preparation.holder, videoId, preparation.startTimeMs, preparation.ready)
     }
 
     suspend fun seek(call: ApplicationCall, sessionId: String) {
-        val holder = sabrSessionStore.lookupByToken(sessionId)
+        val holder = playbackService.lookup(sessionId)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         val request = call.playbackRequest()
         val playerTimeMs = request.effectiveStartTimeMs()
@@ -61,58 +61,50 @@ internal class SabrPlaybackHandler(
         ) ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
         val video = SabrFormatSelector.video(prepared.info, request.videoItag ?: holder.videoFormat.itag)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
-        val target = sabrSessionStore.getOrCreate(
-            holder.key.videoId,
-            holder.key.userId,
-            prepared.info,
-            audio,
-            video,
-            prepared.initialToken,
-            playerTimeMs,
-            startPump = false,
+        val preparation = playbackService.seek(
+            source = holder,
+            prepared = prepared,
+            audio = audio,
+            video = video,
+            playerTimeMs = playerTimeMs,
         )
-        target.setPlayerTimeMs(playerTimeMs)
-        respondPrepared(call, target, target.key.videoId, playerTimeMs)
+        respondPrepared(call, preparation.holder, preparation.holder.key.videoId, preparation.startTimeMs, preparation.ready)
     }
 
     suspend fun manifest(call: ApplicationCall, sessionId: String) {
-        val holder = sabrSessionStore.lookupByToken(sessionId)
+        val holder = playbackService.lookup(sessionId)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
-        sabrSessionStore.startPump(holder)
+        playbackService.startPump(holder)
         call.respondSabrPlaybackManifest(holder)
     }
 
     suspend fun segment(call: ApplicationCall, sessionId: String, isInit: Boolean, seq: Int) {
-        val holder = sabrSessionStore.lookupByToken(sessionId)
+        val holder = playbackService.lookup(sessionId)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         val itag = call.parameters["itag"]?.toIntOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid itag"))
         val format = holder.formatForItag(itag)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR track for this request"))
-        if (isInit) {
-            val bytes = withTimeoutOrNull(PLAYBACK_SEGMENT_TIMEOUT_MS) {
-                sabrSessionStore.fetchInitializationData(holder, format)
-            } ?: return call.respond(HttpStatusCode.Accepted, holder.toRetryPlaybackResponse("preparing", RETRY_AFTER_MS))
-            return call.respondSabrMediaBytes(format.mimeType.orEmpty(), bytes)
+        val result = if (isInit) {
+            playbackService.fetchInitialization(holder, format, PLAYBACK_SEGMENT_TIMEOUT_MS)
+        } else {
+            playbackService.fetchMedia(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS)
         }
-        if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
-        val segment = sabrSessionStore.fetchPlaybackSegment(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS)
-            ?: return call.respond(HttpStatusCode.Accepted, holder.toRetryPlaybackResponse("repositioning", RETRY_AFTER_MS))
-        call.respondSabrMediaBytes(format.mimeType.orEmpty(), segment.data)
+        respondSegment(call, result)
     }
 
-    private suspend fun respondPrepared(
-        call: ApplicationCall,
-        holder: SabrSessionHolder,
-        videoId: String,
-        startTimeMs: Long,
-    ) {
-        val ready = withTimeoutOrNull(PLAYBACK_READY_TIMEOUT_MS) {
-            sabrSessionStore.preflightPlayback(holder, startTimeMs)
-        } == true
-        sabrSessionStore.startPump(holder)
+    private suspend fun respondPrepared(call: ApplicationCall, holder: SabrSessionHolder, videoId: String, startTimeMs: Long, ready: Boolean) {
         val response = holder.toPlaybackResponse(videoId, startTimeMs, ready, RETRY_AFTER_MS)
         call.respond(if (ready) HttpStatusCode.OK else HttpStatusCode.Accepted, response)
+    }
+
+    private suspend fun respondSegment(call: ApplicationCall, result: SabrPlaybackSegmentResult): Unit = when (result) {
+        is SabrPlaybackSegmentResult.Ready -> call.respondSabrMediaBytes(result.mimeType, result.bytes)
+        is SabrPlaybackSegmentResult.Retry -> call.respond(
+            HttpStatusCode.Accepted,
+            result.holder.toRetryPlaybackResponse(result.status, RETRY_AFTER_MS),
+        )
+        SabrPlaybackSegmentResult.InvalidSequence -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
@@ -179,7 +171,6 @@ internal class SabrPlaybackHandler(
     }
 
     private companion object {
-        const val PLAYBACK_READY_TIMEOUT_MS = 20_000L
         const val PLAYBACK_SEGMENT_TIMEOUT_MS = 20_000L
         const val RETRY_AFTER_MS = 1_000L
     }
