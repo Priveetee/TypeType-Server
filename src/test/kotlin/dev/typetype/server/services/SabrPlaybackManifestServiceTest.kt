@@ -62,6 +62,18 @@ class SabrPlaybackManifestServiceTest {
         assertEquals(SabrPlaybackManifestResult.Retry("preparing"), result)
     }
 
+    @Test
+    fun `buffered edge at containing segment start is ready`() {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video, endAudio = 5L, endVideo = 5L, maxAudio = 5, maxVideo = 5, bufferedEdgeMs = 30_000L)
+        holder.setPlayerTimeMs(35_000L)
+
+        val result = SabrPlaybackManifestService().build(holder, "/api/sabr/playback/session-token")
+
+        assertTrue((result as SabrPlaybackManifestResult.Ready).manifest.contains("<MPD"))
+    }
+
     private fun holder(
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,

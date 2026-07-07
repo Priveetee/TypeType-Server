@@ -35,10 +35,13 @@ internal data class SabrPlaybackStateResponse(
     val audioItag: Int,
     val audioTrackId: String? = null,
     val generation: Long,
+    val requestedSeekTimeMs: Long? = null,
     val playerTimeMs: Long,
     val readerHeadMs: Long,
     val readerTailMs: Long,
     val bufferedEdgeMs: Long,
     val cachedBytes: Long,
+    val pendingRefetch: String? = null,
+    val pendingForwardSeek: String? = null,
     val terminalError: String? = null,
 )

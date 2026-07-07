@@ -32,6 +32,7 @@ internal class SabrSessionHolder(
     private val playbackState = AtomicReference(SabrPlaybackState.IDLE)
     private val terminalError = AtomicReference<String?>()
     private val networkError = AtomicReference<String?>()
+    private val requestedSeekTimeMs = AtomicLong(-1L)
     @Volatile private var playerTimeMs: Long = 0L
 
     init {
@@ -87,6 +88,12 @@ internal class SabrSessionHolder(
 
     fun playerTimeMs(): Long = playerTimeMs
 
+    fun setRequestedSeekTimeMs(ms: Long): Unit {
+        requestedSeekTimeMs.set(ms.coerceAtLeast(0L))
+    }
+
+    fun requestedSeekTimeMs(): Long? = requestedSeekTimeMs.get().takeIf { it >= 0L }
+
     fun isAudioActive(): Boolean = activeItags.contains(audioFormat.itag)
 
     fun isVideoActive(): Boolean = activeItags.contains(videoFormat.itag)
@@ -127,6 +134,10 @@ internal class SabrSessionHolder(
     fun consumeRefetch(): SabrSegmentRequest? = pendingRefetch.getAndSet(null)
 
     fun consumeForwardSeek(): SabrSegmentRequest? = pendingForwardSeek.getAndSet(null)
+
+    fun pendingRefetchRequest(): SabrSegmentRequest? = pendingRefetch.get()
+
+    fun pendingForwardSeekRequest(): SabrSegmentRequest? = pendingForwardSeek.get()
 
     fun hasPendingSeek(): Boolean = pendingRefetch.get() != null || pendingForwardSeek.get() != null
 

@@ -51,6 +51,10 @@ internal class SabrPlaybackHandler(
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         val request = call.playbackRequest()
         val playerTimeMs = request.effectiveStartTimeMs()
+        if (holder.matches(request)) {
+            val preparation = playbackService.seekExisting(holder, playerTimeMs)
+            return respondPrepared(call, preparation.holder, preparation.holder.key.videoId, preparation.startTimeMs, preparation.ready)
+        }
         val prepared = sabrSessionStore.fetchInfo(holder.key.videoId, playerTimeMs, cachedFirst = true)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = SabrFormatSelector.audio(
@@ -171,6 +175,13 @@ internal class SabrPlaybackHandler(
         audioFormat.itag -> audioFormat
         videoFormat.itag -> videoFormat
         else -> null
+    }
+
+    private fun SabrSessionHolder.matches(request: SabrPlaybackRequest): Boolean {
+        val sameVideo = request.videoItag == null || request.videoItag == videoFormat.itag
+        val sameAudio = request.audioItag == null || request.audioItag == audioFormat.itag
+        val sameTrack = request.audioTrackId == null || request.audioTrackId == audioFormat.audioTrackId
+        return sameVideo && sameAudio && sameTrack
     }
 
     private companion object {

@@ -6,6 +6,7 @@ import dev.typetype.server.services.SabrSessionStore
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
 internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessionStore) {
     suspend fun get(call: ApplicationCall, sessionId: String) {
@@ -22,11 +23,16 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         audioItag = audioFormat.itag,
         audioTrackId = audioFormat.audioTrackId,
         generation = activeGeneration(),
+        requestedSeekTimeMs = requestedSeekTimeMs(),
         playerTimeMs = playerTimeMs(),
         readerHeadMs = readerHeadMs(),
         readerTailMs = readerTailMs(),
         bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
         cachedBytes = session.cachedBytes,
+        pendingRefetch = pendingRefetchRequest()?.summary(),
+        pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         terminalError = terminalFailure(),
     )
+
+    private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 }

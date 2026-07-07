@@ -45,6 +45,14 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         )
     }
 
+    fun seekExisting(holder: SabrSessionHolder, playerTimeMs: Long): SabrPlaybackPreparation {
+        val generation = holder.advancePlaybackGeneration(playerTimeMs)
+        holder.setRequestedSeekTimeMs(playerTimeMs)
+        holder.requestReposition(playerTimeMs, generation)
+        sessionStore.startPump(holder)
+        return SabrPlaybackPreparation(holder, playerTimeMs, ready = false)
+    }
+
     fun lookup(sessionId: String): SabrSessionHolder? = sessionStore.lookupByToken(sessionId)
 
     fun startPump(holder: SabrSessionHolder): Unit = sessionStore.startPump(holder)
@@ -87,12 +95,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         sessionStore.cachedSegment(holder, request)
             ?.let { SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes) }
             ?: SabrPlaybackSegmentResult.Stale(holder)
-
-    private suspend fun seekExisting(holder: SabrSessionHolder, playerTimeMs: Long): SabrPlaybackPreparation {
-        val generation = holder.advancePlaybackGeneration(playerTimeMs)
-        holder.requestReposition(playerTimeMs, generation)
-        return prepareHolder(holder, playerTimeMs)
-    }
 
     private suspend fun prepareHolder(holder: SabrSessionHolder, startTimeMs: Long): SabrPlaybackPreparation {
         holder.setPlayerTimeMs(startTimeMs)

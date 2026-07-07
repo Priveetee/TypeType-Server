@@ -121,7 +121,6 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.getMinBufferedEndMs() } returns 10_000L
         val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), token())
         val store = mockk<SabrSessionStore>()
-        coEvery { store.preflightPlayback(holder, 90_000L) } returns false
         every { store.startPump(holder) } returns Unit
 
         val result = SabrPlaybackSessionService(store).seek(holder, prepared, audio, video, 90_000L)
@@ -129,7 +128,9 @@ class SabrPlaybackSessionServiceTest {
         assertSame(holder, result.holder)
         assertEquals(1L, holder.activeGeneration())
         assertEquals(90_000L, holder.readerTailMs())
+        assertEquals(90_000L, holder.requestedSeekTimeMs())
         assertEquals(9, holder.consumeForwardSeek()?.sequenceNumber)
+        coVerify(exactly = 0) { store.preflightPlayback(any(), any()) }
         verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
