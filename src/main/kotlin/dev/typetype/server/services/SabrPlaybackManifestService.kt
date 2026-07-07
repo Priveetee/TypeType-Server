@@ -15,6 +15,7 @@ internal class SabrPlaybackManifestService {
         val startVideo = segmentAt(holder, holder.videoFormat, startMs, knownVideo)
         val windowEndAudio = segmentAt(holder, holder.audioFormat, windowEndMs, knownAudio)
         val windowEndVideo = segmentAt(holder, holder.videoFormat, windowEndMs, knownVideo)
+        val generation = holder.activeGeneration()
         return SabrPlaybackManifestResult.Ready(
             SabrManifestBuilder.build(
                 videoId = holder.key.videoId,
@@ -27,6 +28,7 @@ internal class SabrPlaybackManifestService {
                 startSegmentAudio = startAudio,
                 startSegmentVideo = startVideo,
                 mediaBasePath = mediaBasePath,
+                extraSegmentQuery = "&generation=$generation",
             ),
         )
     }

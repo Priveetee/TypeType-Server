@@ -4,19 +4,27 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment): Unit {
+    markServed(segment, activeGeneration())
+}
+
+internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment, generation: Long): Unit {
     if (!segment.header.isInitSegment) {
         val format = if (audioFormat.itag == segment.header.itag) audioFormat else videoFormat
-        setReaderPosition(format, segment.header.startMs + segment.header.durationMs)
-        setLastServedSequence(segment.header.itag, segment.header.sequenceNumber)
+        setReaderPosition(format, segment.header.startMs + segment.header.durationMs, generation)
+        setLastServedSequence(segment.header.itag, segment.header.sequenceNumber, generation)
         evictCachedSegmentsBefore(readerTailMs() - SabrPumpPolicy.backBufferMs(this))
     }
 }
 
 internal fun SabrSessionHolder.markServed(segment: CachedSabrSegment): Unit {
+    markServed(segment, activeGeneration())
+}
+
+internal fun SabrSessionHolder.markServed(segment: CachedSabrSegment, generation: Long): Unit {
     if (!segment.init) {
         val format = if (audioFormat.itag == segment.itag) audioFormat else videoFormat
-        setReaderPosition(format, segment.startMs + segment.durationMs)
-        setLastServedSequence(segment.itag, segment.sequence)
+        setReaderPosition(format, segment.startMs + segment.durationMs, generation)
+        setLastServedSequence(segment.itag, segment.sequence, generation)
         evictCachedSegmentsBefore(readerTailMs() - SabrPumpPolicy.backBufferMs(this))
     }
 }

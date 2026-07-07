@@ -21,6 +21,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         videoItag = videoFormat.itag,
         audioItag = audioFormat.itag,
         audioTrackId = audioFormat.audioTrackId,
+        generation = activeGeneration(),
         playerTimeMs = playerTimeMs(),
         readerHeadMs = readerHeadMs(),
         readerTailMs = readerTailMs(),

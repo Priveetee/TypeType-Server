@@ -48,7 +48,7 @@ class SabrPlaybackSessionServiceTest {
         val store = mockk<SabrSessionStore>()
         coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns null
 
-        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L)
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.Retry(holder, "repositioning"), result)
     }
@@ -62,7 +62,7 @@ class SabrPlaybackSessionServiceTest {
         val store = mockk<SabrSessionStore>()
         coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns segment
 
-        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L)
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         val ready = result as SabrPlaybackSegmentResult.Ready
         assertEquals("audio/mp4", ready.mimeType)
@@ -75,10 +75,47 @@ class SabrPlaybackSessionServiceTest {
         val store = mockk<SabrSessionStore>(relaxed = true)
         val holder = holder(audio, format(137, isAudio = false))
 
-        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 0, timeoutMs = 50L)
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 0, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.InvalidSequence, result)
         coVerify(exactly = 0) { store.fetchPlaybackSegment(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `stale media generation does not fetch or reposition`() = runTest {
+        val audio = format(140, isAudio = true)
+        val holder = holder(audio, format(137, isAudio = false))
+        holder.advancePlaybackGeneration(10_000L)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
+
+        assertEquals(SabrPlaybackSegmentResult.Stale(holder), result)
+        coVerify(exactly = 0) { store.fetchPlaybackSegment(any(), any(), any(), any()) }
+        assertEquals(null, holder.consumeForwardSeek())
+        assertEquals(null, holder.consumeRefetch())
+    }
+
+    @Test
+    fun `same format seek reuses session and advances generation`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video)
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(any(), 90_000L) } returns 9
+        every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 90_000L
+        every { holder.session.streamState.getMinBufferedEndMs() } returns 10_000L
+        val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), token())
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.preflightPlayback(holder, 90_000L) } returns false
+        every { store.startPump(holder) } returns Unit
+
+        val result = SabrPlaybackSessionService(store).seek(holder, prepared, audio, video, 90_000L)
+
+        assertSame(holder, result.holder)
+        assertEquals(1L, holder.activeGeneration())
+        assertEquals(9, holder.consumeForwardSeek()?.sequenceNumber)
+        verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
@@ -101,6 +138,7 @@ class SabrPlaybackSessionServiceTest {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
+        every { format.audioTrackId } returns null
         every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format

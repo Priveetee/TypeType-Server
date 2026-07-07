@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 internal class SabrSessionHolder(
@@ -20,12 +21,13 @@ internal class SabrSessionHolder(
     @Volatile var lastRequestAt: Instant,
     val pumpMutex: Mutex = Mutex(),
 ) {
-    private val readerPositions = ConcurrentHashMap<Int, Long>()
-    private val lastServedSequences = ConcurrentHashMap<Int, Int>()
+    private val readerPositions = ConcurrentHashMap<ReaderTrackKey, Long>()
+    private val lastServedSequences = ConcurrentHashMap<ReaderTrackKey, Int>()
     private val activeItags: MutableSet<Int> = ConcurrentHashMap.newKeySet()
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
+    private val activeGeneration = AtomicLong(0L)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     private val playbackState = AtomicReference(SabrPlaybackState.IDLE)
     private val terminalError = AtomicReference<String?>()
@@ -36,8 +38,20 @@ internal class SabrSessionHolder(
         setActiveTracks(videoActive = true, audioActive = true)
     }
 
-    fun setReaderPosition(format: YoutubeSabrFormat, endMs: Long): Unit {
-        readerPositions[format.itag] = endMs
+    fun activeGeneration(): Long = activeGeneration.get()
+
+    fun advancePlaybackGeneration(ms: Long): Long {
+        setPlayerTimeMs(ms)
+        val generation = activeGeneration.incrementAndGet()
+        clearReaderStateBefore(generation)
+        return generation
+    }
+
+    fun setReaderPosition(format: YoutubeSabrFormat, endMs: Long): Unit =
+        setReaderPosition(format, endMs, activeGeneration())
+
+    fun setReaderPosition(format: YoutubeSabrFormat, endMs: Long, generation: Long): Unit {
+        if (generation == activeGeneration()) readerPositions[ReaderTrackKey(generation, format.itag)] = endMs
     }
 
     fun touch(now: Instant = Instant.now()): Unit {
@@ -46,8 +60,11 @@ internal class SabrSessionHolder(
 
     fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
 
-    fun setLastServedSequence(itag: Int, sequence: Int): Unit {
-        lastServedSequences[itag] = sequence
+    fun setLastServedSequence(itag: Int, sequence: Int): Unit =
+        setLastServedSequence(itag, sequence, activeGeneration())
+
+    fun setLastServedSequence(itag: Int, sequence: Int, generation: Long): Unit {
+        if (generation == activeGeneration()) lastServedSequences[ReaderTrackKey(generation, itag)] = sequence
     }
 
     fun cachedSegment(key: String): CachedSabrSegment? = segmentMemory.get(key)
@@ -56,7 +73,10 @@ internal class SabrSessionHolder(
 
     fun evictCachedSegmentsBefore(ms: Long): Unit = segmentMemory.evictBefore(ms)
 
-    fun lastServedSequence(format: YoutubeSabrFormat): Int? = lastServedSequences[format.itag]
+    fun lastServedSequence(format: YoutubeSabrFormat): Int? = lastServedSequence(format, activeGeneration())
+
+    fun lastServedSequence(format: YoutubeSabrFormat, generation: Long): Int? =
+        lastServedSequences[ReaderTrackKey(generation, format.itag)]
 
     fun setPlayerTimeMs(ms: Long): Unit {
         playerTimeMs = ms.coerceAtLeast(0L)
@@ -70,19 +90,24 @@ internal class SabrSessionHolder(
 
     fun readerHeadMs(): Long {
         var head = 0L
+        val generation = activeGeneration()
         for (itag in activeItags) {
-            head = maxOf(head, readerPositions[itag] ?: 0L)
+            head = maxOf(head, readerPositions[ReaderTrackKey(generation, itag)] ?: 0L)
         }
         return head
     }
 
-    fun readerPosition(format: YoutubeSabrFormat): Long? = readerPositions[format.itag]
+    fun readerPosition(format: YoutubeSabrFormat): Long? = readerPosition(format, activeGeneration())
+
+    fun readerPosition(format: YoutubeSabrFormat, generation: Long): Long? =
+        readerPositions[ReaderTrackKey(generation, format.itag)]
 
     fun readerTailMs(): Long {
         if (activeItags.isEmpty()) return 0L
         var tail = Long.MAX_VALUE
+        val generation = activeGeneration()
         for (itag in activeItags) {
-            val position = readerPositions[itag] ?: return 0L
+            val position = readerPositions[ReaderTrackKey(generation, itag)] ?: return 0L
             tail = minOf(tail, position)
         }
         return if (tail == Long.MAX_VALUE) 0L else tail
@@ -133,9 +158,17 @@ internal class SabrSessionHolder(
             activeItags.add(itag)
         } else {
             activeItags.remove(itag)
-            readerPositions.remove(itag)
+            readerPositions.keys.removeIf { it.itag == itag }
+            lastServedSequences.keys.removeIf { it.itag == itag }
         }
     }
+
+    private fun clearReaderStateBefore(generation: Long): Unit {
+        readerPositions.keys.removeIf { it.generation < generation }
+        lastServedSequences.keys.removeIf { it.generation < generation }
+    }
+
+    private data class ReaderTrackKey(val generation: Long, val itag: Int)
 
     private companion object {
         const val MAX_SEGMENT_MEMORY_BYTES = 64L * 1024L * 1024L

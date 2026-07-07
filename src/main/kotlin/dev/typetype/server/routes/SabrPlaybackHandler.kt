@@ -85,10 +85,11 @@ internal class SabrPlaybackHandler(
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid itag"))
         val format = holder.formatForItag(itag)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR track for this request"))
+        val generation = call.request.queryParameters["generation"]?.toLongOrNull() ?: holder.activeGeneration()
         val result = if (isInit) {
             playbackService.fetchInitialization(holder, format, PLAYBACK_SEGMENT_TIMEOUT_MS)
         } else {
-            playbackService.fetchMedia(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS)
+            playbackService.fetchMedia(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS, generation)
         }
         respondSegment(call, result)
     }
@@ -104,7 +105,9 @@ internal class SabrPlaybackHandler(
             HttpStatusCode.Accepted,
             result.holder.toRetryPlaybackResponse(result.status, RETRY_AFTER_MS),
         )
+        is SabrPlaybackSegmentResult.Stale -> call.respond(HttpStatusCode.Conflict, ErrorResponse("Stale SABR playback generation"))
         SabrPlaybackSegmentResult.InvalidSequence -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
+        SabrPlaybackSegmentResult.InvalidGeneration -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation"))
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {

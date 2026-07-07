@@ -15,11 +15,12 @@ internal object SabrDashManifestBuilder {
         startSegmentAudio: Int = 1,
         startSegmentVideo: Int = 1,
         mediaBasePath: String = "/api/sabr/$videoId",
+        extraSegmentQuery: String = "",
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.videoDurationSec(audio, video, streamState))
-        appendVideoAdaptation(sb, mediaBasePath, video, startSegmentVideo, endSegmentVideo, streamState, sessionToken)
-        appendAudioAdaptation(sb, mediaBasePath, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
+        appendVideoAdaptation(sb, mediaBasePath, video, startSegmentVideo, endSegmentVideo, streamState, sessionToken, extraSegmentQuery)
+        appendAudioAdaptation(sb, mediaBasePath, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken, extraSegmentQuery)
         return finish(sb)
     }
 
@@ -62,13 +63,14 @@ internal object SabrDashManifestBuilder {
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        extraSegmentQuery: String,
     ) {
         val (container, codecs) = splitMime(video.mimeType.orEmpty())
         val bandwidth = video.bitrate.coerceAtLeast(1)
         val sizeAttr = videoSizeAttr(video)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\" startWithSAP=\"1\">")
         sb.appendLine("      <Representation id=\"v\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"$codecs\">")
-        appendSegmentList(sb, mediaBasePath, video, startSegment, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, mediaBasePath, video, startSegment, endSegment, streamState, sessionToken, extraSegmentQuery)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
@@ -81,12 +83,13 @@ internal object SabrDashManifestBuilder {
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        extraSegmentQuery: String = "",
     ) {
         val (container, codecs) = splitMime(audio.mimeType.orEmpty())
         val bandwidth = audio.bitrate.coerceAtLeast(128_000)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\">")
         sb.appendLine("      <Representation id=\"a\" bandwidth=\"$bandwidth\" codecs=\"$codecs\">")
-        appendSegmentList(sb, mediaBasePath, audio, startSegment, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, mediaBasePath, audio, startSegment, endSegment, streamState, sessionToken, extraSegmentQuery)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
@@ -99,11 +102,12 @@ internal object SabrDashManifestBuilder {
         endSegment: Long,
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
+        extraSegmentQuery: String,
     ) {
         val n = endSegment.coerceAtLeast(1)
         val first = startSegment.coerceAtLeast(1).coerceAtMost(n.toInt())
         val avgMs = SabrManifestTiming.averageSegmentMs(format, n)
-        val sessionQuery = "?session=$sessionToken"
+        val sessionQuery = "?session=$sessionToken$extraSegmentQuery"
         sb.appendLine("        <SegmentList timescale=\"1000\">")
         sb.appendLine("          <Initialization sourceURL=\"$mediaBasePath/${format.itag}/init$sessionQuery\"/>")
         sb.appendLine("          <SegmentTimeline>")

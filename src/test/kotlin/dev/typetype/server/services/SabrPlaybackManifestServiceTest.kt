@@ -47,7 +47,7 @@ class SabrPlaybackManifestServiceTest {
         val ready = result as SabrPlaybackManifestResult.Ready
         assertTrue(ready.manifest.contains("<MPD"))
         assertTrue(ready.manifest.contains("/api/sabr/playback/session-token/137/init?session=session-token"))
-        assertTrue(ready.manifest.contains("/api/sabr/playback/session-token/140/segment/2?session=session-token"))
+        assertTrue(ready.manifest.contains("/api/sabr/playback/session-token/140/segment/2?session=session-token&generation=0"))
     }
 
     private fun holder(
