@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import org.slf4j.LoggerFactory
 
 internal class SabrInfoFetcher(
     private val tokenClient: TypetypeTokenSabrTokenClient,
@@ -43,7 +44,15 @@ internal class SabrInfoFetcher(
 
     private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long, forceRefresh: Boolean): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val token = tokenClient.fetch(videoId, forceRefresh = forceRefresh) ?: return@withTimeoutOrNull null
+            val token = tokenClient.fetch(videoId, forceRefresh = forceRefresh)
+                ?: return@withTimeoutOrNull null.also {
+                    logger.warn(
+                        "sabr_probe event=token_missing videoId={} startTimeMs={} forceRefresh={}",
+                        videoId,
+                        startTimeMs,
+                        forceRefresh,
+                    )
+                }
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
                 fetchInfoForProfile(videoId, startTimeMs, token, profile)
                     ?.takeIf { it.hasAudioAndVideoFormats() }
@@ -55,19 +64,48 @@ internal class SabrInfoFetcher(
         startTimeMs: Long,
         token: SabrTokenBundle,
         profile: YoutubeSabrClientProfile,
-    ): SabrPreparedInfo? = runCatching {
-        YoutubeSabrProbe.fetchSabrInfo(
-            videoId,
-            profile,
-            LOCALIZATION,
-            CONTENT_COUNTRY,
-            token.visitorBoundPoToken,
-            token.visitorData,
-            startTimeMs.toStartTimeSecs(),
-        )
-    }.getOrNull()?.let { SabrPreparedInfo(it, token) }
+    ): SabrPreparedInfo? {
+        val result = runCatching {
+            YoutubeSabrProbe.fetchSabrInfo(
+                videoId,
+                profile,
+                LOCALIZATION,
+                CONTENT_COUNTRY,
+                token.visitorBoundPoToken,
+                token.visitorData,
+                startTimeMs.toStartTimeSecs(),
+            )
+        }
+        result.onFailure { error ->
+            logger.warn(
+                "sabr_probe event=fetch_failed videoId={} profile={} startTimeMs={} errorType={} error={}",
+                videoId,
+                profile,
+                startTimeMs,
+                error.javaClass.simpleName,
+                error.message,
+                error,
+            )
+        }
+        return result.getOrNull()?.let { info ->
+            val prepared = SabrPreparedInfo(info, token)
+            if (!prepared.hasAudioAndVideoFormats()) {
+                logger.warn(
+                    "sabr_probe event=no_av_formats videoId={} profile={} formatCount={} hasAudio={} hasVideo={} streamingUrl={}",
+                    videoId,
+                    profile,
+                    info.formats.size,
+                    info.formats.any { it.isAudio },
+                    info.formats.any { it.isVideo },
+                    !info.serverAbrStreamingUrl.isNullOrEmpty(),
+                )
+            }
+            prepared
+        }
+    }
 
     private companion object {
+        val logger = LoggerFactory.getLogger(SabrInfoFetcher::class.java)
         val LOCALIZATION = Localization("en", "GB")
         val CONTENT_COUNTRY = ContentCountry("GB")
         val CLIENT_PROFILES = listOf(YoutubeSabrClientProfile.WEB, YoutubeSabrClientProfile.MWEB)
