@@ -1,6 +1,5 @@
 package dev.typetype.server.routes
 
-import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrSessionHolder
 import io.ktor.http.HttpStatusCode
@@ -14,7 +13,7 @@ internal suspend fun ApplicationCall.respondSabrPlaybackManifest(holder: SabrSes
     val knownAudio = maxOf(state.getEndSegment(holder.audioFormat), state.getMaxSegment(holder.audioFormat).toLong())
     val knownVideo = maxOf(state.getEndSegment(holder.videoFormat), state.getMaxSegment(holder.videoFormat).toLong())
     if (knownAudio <= 0L || knownVideo <= 0L) {
-        return respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("Segment index not yet available"))
+        return respond(HttpStatusCode.Accepted, holder.toRetryPlaybackResponse(holder.playbackStatus(), RETRY_AFTER_MS))
     }
     val startMs = holder.playerTimeMs().coerceAtLeast(0L)
     val edgeMs = state.getMinBufferedEndMs().coerceAtLeast(startMs)
@@ -44,4 +43,8 @@ private fun segmentAt(holder: SabrSessionHolder, format: YoutubeSabrFormat, ms: 
         .coerceAtLeast(1)
         .coerceAtMost(maxSegment.toInt().coerceAtLeast(1))
 
+private fun SabrSessionHolder.playbackStatus(): String = playbackState().name.lowercase().takeIf { it != "idle" }
+    ?: "preparing"
+
 private const val PLAYBACK_MANIFEST_WINDOW_MS = 30_000L
+private const val RETRY_AFTER_MS = 1_000L
