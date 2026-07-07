@@ -8,6 +8,10 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackSegmentFetcher(
     private val fetchSegment: suspend (SabrSessionHolder, SabrSegmentRequest) -> SabrMediaSegment?,
+    private val retryDelayMs: Long = RETRY_DELAY_MS,
+    private val refetchAfterMs: Long = REFETCH_AFTER_MS,
+    private val recoveryFailureMs: Long = RECOVERY_FAILURE_MS,
+    private val forwardSeekAheadMs: Long = FORWARD_SEEK_AHEAD_MS,
 ) {
     suspend fun fetch(
         holder: SabrSessionHolder,
@@ -17,21 +21,35 @@ internal class SabrPlaybackSegmentFetcher(
     ): SabrMediaSegment? {
         val request = SabrSegmentRequest.media(format, sequence)
         return withTimeoutOrNull(timeoutMs) {
+            val waitStart = System.currentTimeMillis()
+            var recoveryAtMs = -1L
             while (true) {
+                holder.terminalFailure()?.let { return@withTimeoutOrNull null }
+                holder.consumeNetworkFailure()?.let { return@withTimeoutOrNull null }
                 fetchSegment(holder, request)?.let { return@withTimeoutOrNull it }
-                holder.repositionFor(request)
-                delay(RETRY_DELAY_MS)
+                val now = System.currentTimeMillis()
+                if (recoveryAtMs < 0L && now - waitStart >= refetchAfterMs) {
+                    holder.recoverFor(request)
+                    recoveryAtMs = now
+                }
+                if (recoveryAtMs >= 0L && now - recoveryAtMs > recoveryFailureMs) {
+                    holder.failTerminal("SABR playback recovery made no progress")
+                    return@withTimeoutOrNull null
+                }
+                delay(retryDelayMs)
             }
             null
         }
     }
 
-    private fun SabrSessionHolder.repositionFor(request: SabrSegmentRequest) {
+    private fun SabrSessionHolder.recoverFor(request: SabrSegmentRequest) {
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs)
         val edgeMs = session.streamState.getMinBufferedEndMs()
         if (startMs < edgeMs) {
             requestRefetch(request)
+        } else if (startMs > edgeMs + forwardSeekAheadMs) {
+            requestForwardSeek(request)
         } else {
             requestForwardSeek(request)
         }
@@ -39,5 +57,8 @@ internal class SabrPlaybackSegmentFetcher(
 
     private companion object {
         const val RETRY_DELAY_MS = 250L
+        const val REFETCH_AFTER_MS = 2_000L
+        const val RECOVERY_FAILURE_MS = 10_000L
+        const val FORWARD_SEEK_AHEAD_MS = 30_000L
     }
 }

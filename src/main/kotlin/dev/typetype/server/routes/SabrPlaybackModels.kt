@@ -24,3 +24,19 @@ internal data class SabrPlaybackResponse(
     val status: String,
     val retryAfterMs: Long? = null,
 )
+
+@Serializable
+internal data class SabrPlaybackStateResponse(
+    val sessionId: String,
+    val videoId: String,
+    val state: String,
+    val videoItag: Int,
+    val audioItag: Int,
+    val audioTrackId: String? = null,
+    val playerTimeMs: Long,
+    val readerHeadMs: Long,
+    val readerTailMs: Long,
+    val bufferedEdgeMs: Long,
+    val cachedBytes: Long,
+    val terminalError: String? = null,
+)

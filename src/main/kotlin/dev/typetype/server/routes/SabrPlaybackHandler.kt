@@ -59,13 +59,7 @@ internal class SabrPlaybackHandler(
         val holder = sabrSessionStore.lookupByToken(sessionId)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         sabrSessionStore.startPump(holder)
-        call.respondSabrManifest(
-            holder,
-            holder.key.videoId,
-            audioOnly = false,
-            hls = false,
-            mediaBasePath = SabrPlaybackPaths.mediaBasePath(sessionId),
-        )
+        call.respondSabrPlaybackManifest(holder)
     }
 
     suspend fun segment(call: ApplicationCall, sessionId: String, isInit: Boolean, seq: Int) {
@@ -78,12 +72,12 @@ internal class SabrPlaybackHandler(
         if (isInit) {
             val bytes = withTimeoutOrNull(PLAYBACK_SEGMENT_TIMEOUT_MS) {
                 sabrSessionStore.fetchInitializationData(holder, format)
-            } ?: return call.respond(HttpStatusCode.Accepted, retryResponse(holder, "preparing", RETRY_AFTER_MS))
+            } ?: return call.respond(HttpStatusCode.Accepted, holder.toRetryPlaybackResponse("preparing", RETRY_AFTER_MS))
             return call.respondSabrMediaBytes(format.mimeType.orEmpty(), bytes)
         }
         if (seq < 1) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
         val segment = sabrSessionStore.fetchPlaybackSegment(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS)
-            ?: return call.respond(HttpStatusCode.Accepted, retryResponse(holder, "repositioning", RETRY_AFTER_MS))
+            ?: return call.respond(HttpStatusCode.Accepted, holder.toRetryPlaybackResponse("repositioning", RETRY_AFTER_MS))
         call.respondSabrMediaBytes(format.mimeType.orEmpty(), segment.data)
     }
 
@@ -97,7 +91,7 @@ internal class SabrPlaybackHandler(
             sabrSessionStore.preflightPlayback(holder, startTimeMs)
         } == true
         sabrSessionStore.startPump(holder)
-        val response = playbackResponse(holder, videoId, startTimeMs, ready)
+        val response = holder.toPlaybackResponse(videoId, startTimeMs, ready, RETRY_AFTER_MS)
         call.respond(if (ready) HttpStatusCode.OK else HttpStatusCode.Accepted, response)
     }
 
@@ -163,34 +157,6 @@ internal class SabrPlaybackHandler(
         videoFormat.itag -> videoFormat
         else -> null
     }
-
-    private fun playbackResponse(holder: SabrSessionHolder, videoId: String, startTimeMs: Long, ready: Boolean) =
-        SabrPlaybackResponse(
-            sessionId = holder.sessionToken,
-            videoId = videoId,
-            manifestUrl = if (ready) SabrPlaybackPaths.manifestPath(holder.sessionToken) else null,
-            videoItag = holder.videoFormat.itag,
-            audioItag = holder.audioFormat.itag,
-            audioTrackId = holder.audioFormat.audioTrackId,
-            startTimeMs = startTimeMs,
-            ready = ready,
-            status = if (ready) "ready" else "preparing",
-            retryAfterMs = if (ready) null else RETRY_AFTER_MS,
-        )
-
-    private fun retryResponse(holder: SabrSessionHolder, status: String, retryAfterMs: Long) =
-        SabrPlaybackResponse(
-            sessionId = holder.sessionToken,
-            videoId = holder.key.videoId,
-            manifestUrl = null,
-            videoItag = holder.videoFormat.itag,
-            audioItag = holder.audioFormat.itag,
-            audioTrackId = holder.audioFormat.audioTrackId,
-            startTimeMs = holder.playerTimeMs(),
-            ready = false,
-            status = status,
-            retryAfterMs = retryAfterMs,
-        )
 
     private companion object {
         const val PLAYBACK_READY_TIMEOUT_MS = 20_000L

@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.localization.Localization
@@ -9,11 +8,15 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.time.Instant
 
 internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = null) {
+    private val loop = SabrSessionPumpLoop(segmentCache)
+
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "GB")
         var pumps = 0
+        holder.setPlaybackState(SabrPlaybackState.PREPARING)
         while (pumps < maxPumps && !isWarmEnough(holder) && !holder.session.isComplete) {
             holder.pumpMutex.withLock {
+                holder.setPlaybackState(SabrPlaybackState.REQUESTING)
                 runCatchingNonCancellation { holder.session.pumpOnce(localization) }
             }
             pumps++
@@ -22,6 +25,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
             SabrInitializationData.ingest(holder.audioFormat, holder)
             SabrInitializationData.ingest(holder.videoFormat, holder)
         }
+        holder.setPlaybackState(SabrPlaybackState.IDLE)
     }
 
     private fun isWarmEnough(holder: SabrSessionHolder): Boolean =
@@ -58,19 +62,8 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
             fetchTargeted(holder, request, Localization("en", "GB"), markServed = false)
         }?.also { segmentCache?.putAll(holder, it) }
 
-    suspend fun pumpLoop(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
-        val localization = Localization("en", "GB")
-        while (isAlive()) {
-            try {
-                val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization) }
-                delay(if (immediate) 0L else intervalMs)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                delay(ERROR_RETRY_MS)
-            }
-        }
-    }
+    suspend fun pumpLoop(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long): Unit =
+        loop.run(isAlive, holder, intervalMs)
 
     private suspend fun fetchMediaSegment(
         holder: SabrSessionHolder,
@@ -155,39 +148,4 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         return startMs <= INITIAL_SEQUENTIAL_LIMIT_MS || startMs <= edgeMs + SEQUENTIAL_FILL_AHEAD_MS
     }
 
-    private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
-        prepareEviction(holder)
-        if (holder.session.requestNumber == 0) {
-            pumpOnceAndCache(holder, localization)
-            return true
-        }
-        holder.consumeRefetch()?.let { request ->
-            holder.session.prepareForRewind(request)
-            pumpOnceAndCache(holder, localization)
-            return true
-        }
-        holder.consumeForwardSeek()?.let { request ->
-            holder.session.prepareForForwardJump(request)
-            pumpOnceAndCache(holder, localization)
-            return true
-        }
-        if (holder.session.isComplete && !holder.hasPendingSeek()) return false
-        if (isThrottled(holder)) return false
-        holder.session.streamState.setPlayerTimeMs(holder.session.streamState.getMinBufferedEndMs())
-        pumpOnceAndCache(holder, localization)
-        return false
-    }
-
-    private suspend fun pumpOnceAndCache(holder: SabrSessionHolder, localization: Localization): List<SabrMediaSegment> =
-        holder.session.pumpOnce(localization).also { segmentCache?.putAll(holder, it) }
-
-    private fun prepareEviction(holder: SabrSessionHolder): Unit {
-        holder.session.setPlayHeadMs((holder.readerTailMs() - BACK_BUFFER_MS).coerceAtLeast(0L))
-        holder.session.evictPlayed()
-    }
-
-    private fun isThrottled(holder: SabrSessionHolder): Boolean {
-        val edgeMs = holder.session.streamState.getMinBufferedEndMs()
-        return edgeMs - holder.readerHeadMs() > READAHEAD_CUSHION_MS || holder.session.cachedBytes > MAX_AHEAD_BYTES
-    }
 }

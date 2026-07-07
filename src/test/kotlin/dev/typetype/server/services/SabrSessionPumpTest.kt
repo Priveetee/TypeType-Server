@@ -101,10 +101,10 @@ class SabrSessionPumpTest {
         val audioSegment = mediaSegment(140, 59_000L, 10_000L, sequence = 7)
 
         holder.markServed(videoSegment)
-        assertEquals(0L, holder.readerHeadMs())
+        assertEquals(65_000L, holder.readerHeadMs())
         holder.markServed(audioSegment)
 
-        assertEquals(65_000L, holder.readerHeadMs())
+        assertEquals(69_000L, holder.readerHeadMs())
         assertFalse(holder.shouldSend(videoSegment))
         assertTrue(holder.shouldSend(mediaSegment(137, 65_000L, 5_000L, sequence = 13)))
     }
@@ -181,7 +181,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(segment, fetched)
-        assertEquals(0L, holder.readerHeadMs())
+        assertEquals(startMs + durationMs, holder.readerHeadMs())
     }
 
     private fun sabrHolder(
@@ -207,6 +207,7 @@ class SabrSessionPumpTest {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         every { format.lastModified } returns 1L
         every { format.xtags } returns null
         return format

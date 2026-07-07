@@ -29,7 +29,9 @@ internal class SabrSessionStore(
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache(initCache)
     private val pump = SabrSessionPump(segmentCache)
-    private val playbackFetcher = SabrPlaybackSegmentFetcher { holder, request -> fetchSegment(holder, request) }
+    private val playbackFetcher = SabrPlaybackSegmentFetcher(
+        fetchSegment = { holder, request -> fetchSegment(holder, request) },
+    )
     private val warmer = SabrPlaybackWarmer()
     private val infoFetcher = SabrInfoFetcher(tokenClient)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

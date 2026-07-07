@@ -50,6 +50,7 @@ internal fun Route.sabrRoutes(
         accessControlService,
         adminSettingsService,
     )
+    val playbackStateHandler = SabrPlaybackStateHandler(sabrSessionStore)
     post("/sabr/playback/{videoId}") {
         val videoId = call.parameters["videoId"]
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
@@ -64,6 +65,11 @@ internal fun Route.sabrRoutes(
         val sessionId = call.parameters["sessionId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
         playbackHandler.manifest(call, sessionId)
+    }
+    get("/sabr/playback/{sessionId}/state") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackStateHandler.get(call, sessionId)
     }
     get("/sabr/playback/{sessionId}/{itag}/init") {
         val sessionId = call.parameters["sessionId"]

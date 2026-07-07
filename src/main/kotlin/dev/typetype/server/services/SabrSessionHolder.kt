@@ -27,6 +27,9 @@ internal class SabrSessionHolder(
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
+    private val playbackState = AtomicReference(SabrPlaybackState.IDLE)
+    private val terminalError = AtomicReference<String?>()
+    private val networkError = AtomicReference<String?>()
     @Volatile private var playerTimeMs: Long = 0L
 
     init {
@@ -65,7 +68,13 @@ internal class SabrSessionHolder(
 
     fun isVideoActive(): Boolean = activeItags.contains(videoFormat.itag)
 
-    fun readerHeadMs(): Long = readerTailMs()
+    fun readerHeadMs(): Long {
+        var head = 0L
+        for (itag in activeItags) {
+            head = maxOf(head, readerPositions[itag] ?: 0L)
+        }
+        return head
+    }
 
     fun readerPosition(format: YoutubeSabrFormat): Long? = readerPositions[format.itag]
 
@@ -92,6 +101,26 @@ internal class SabrSessionHolder(
     fun consumeForwardSeek(): SabrSegmentRequest? = pendingForwardSeek.getAndSet(null)
 
     fun hasPendingSeek(): Boolean = pendingRefetch.get() != null || pendingForwardSeek.get() != null
+
+    fun setPlaybackState(state: SabrPlaybackState): Unit {
+        playbackState.set(state)
+    }
+
+    fun playbackState(): SabrPlaybackState = playbackState.get()
+
+    fun recordNetworkFailure(message: String?): Unit {
+        networkError.set(message)
+        playbackState.set(SabrPlaybackState.NETWORK_FAILED)
+    }
+
+    fun consumeNetworkFailure(): String? = networkError.getAndSet(null)
+
+    fun failTerminal(message: String?): Unit {
+        terminalError.set(message)
+        playbackState.set(SabrPlaybackState.TERMINAL)
+    }
+
+    fun terminalFailure(): String? = terminalError.get()
 
     fun setActiveTracks(videoActive: Boolean, audioActive: Boolean): Unit {
         setActive(videoFormat.itag, videoActive)

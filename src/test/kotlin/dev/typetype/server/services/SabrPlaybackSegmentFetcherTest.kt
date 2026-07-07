@@ -22,7 +22,7 @@ class SabrPlaybackSegmentFetcherTest {
         val holder = holder(audio, video, minBufferedEndMs = 60_000L, segmentStartMs = 30_000L)
         val expected = mediaSegment(audio, sequence = 4)
         var calls = 0
-        val fetcher = SabrPlaybackSegmentFetcher { _, _ ->
+        val fetcher = testFetcher { _, _ ->
             calls += 1
             if (calls == 1) null else expected
         }
@@ -40,7 +40,7 @@ class SabrPlaybackSegmentFetcherTest {
         val holder = holder(audio, video, minBufferedEndMs = 60_000L, segmentStartMs = 90_000L)
         val expected = mediaSegment(video, sequence = 12)
         var calls = 0
-        val fetcher = SabrPlaybackSegmentFetcher { _, _ ->
+        val fetcher = testFetcher { _, _ ->
             calls += 1
             if (calls == 1) null else expected
         }
@@ -78,8 +78,19 @@ class SabrPlaybackSegmentFetcherTest {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
     }
+
+    private fun testFetcher(
+        fetch: suspend (SabrSessionHolder, org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest) -> SabrMediaSegment?,
+    ): SabrPlaybackSegmentFetcher = SabrPlaybackSegmentFetcher(
+        fetchSegment = fetch,
+        retryDelayMs = 1L,
+        refetchAfterMs = 0L,
+        recoveryFailureMs = 1_000L,
+        forwardSeekAheadMs = 30_000L,
+    )
 
     private fun mediaSegment(format: YoutubeSabrFormat, sequence: Int): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>()

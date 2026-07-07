@@ -1,0 +1,31 @@
+package dev.typetype.server.routes
+
+import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.services.SabrSessionHolder
+import dev.typetype.server.services.SabrSessionStore
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respond
+
+internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessionStore) {
+    suspend fun get(call: ApplicationCall, sessionId: String) {
+        val holder = sabrSessionStore.lookupByToken(sessionId)
+            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
+        call.respond(holder.toStateResponse())
+    }
+
+    private fun SabrSessionHolder.toStateResponse(): SabrPlaybackStateResponse = SabrPlaybackStateResponse(
+        sessionId = sessionToken,
+        videoId = key.videoId,
+        state = playbackState().name.lowercase(),
+        videoItag = videoFormat.itag,
+        audioItag = audioFormat.itag,
+        audioTrackId = audioFormat.audioTrackId,
+        playerTimeMs = playerTimeMs(),
+        readerHeadMs = readerHeadMs(),
+        readerTailMs = readerTailMs(),
+        bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
+        cachedBytes = session.cachedBytes,
+        terminalError = terminalFailure(),
+    )
+}
