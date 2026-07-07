@@ -128,6 +128,7 @@ class SabrPlaybackSessionServiceTest {
 
         assertSame(holder, result.holder)
         assertEquals(1L, holder.activeGeneration())
+        assertEquals(90_000L, holder.readerTailMs())
         assertEquals(9, holder.consumeForwardSeek()?.sequenceNumber)
         verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }

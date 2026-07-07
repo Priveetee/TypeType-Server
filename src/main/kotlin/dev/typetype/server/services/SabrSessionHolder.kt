@@ -44,6 +44,9 @@ internal class SabrSessionHolder(
         setPlayerTimeMs(ms)
         val generation = activeGeneration.incrementAndGet()
         clearReaderStateBefore(generation)
+        for (itag in activeItags) {
+            readerPositions[ReaderTrackKey(generation, itag)] = playerTimeMs()
+        }
         return generation
     }
 
