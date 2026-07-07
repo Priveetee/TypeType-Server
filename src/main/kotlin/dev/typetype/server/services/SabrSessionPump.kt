@@ -152,6 +152,8 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
     private fun targetPlayerTime(holder: SabrSessionHolder, request: SabrSegmentRequest): Long? {
         val playerTimeMs = holder.playerTimeMs()
         val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
+        val edgeMs = holder.session.streamState.getMinBufferedEndMs()
+        if (startMs <= edgeMs + SEQUENTIAL_FILL_AHEAD_MS) return null
         if (playerTimeMs < startMs) return null
         val endMs = holder.session.streamState.getSegmentEndMs(request.format, request.sequenceNumber)
         return playerTimeMs.takeIf { it < endMs }
