@@ -54,6 +54,28 @@ class SabrDashManifestBuilderTest {
         assertTrue(manifest.contains("/api/sabr/tRDCFwgcN0s/140/segment/3?session=session-token"))
     }
 
+    @Test
+    fun `dash manifest can use playback session media path`() {
+        val audio = format(140, "audio/mp4; codecs=\"mp4a.40.2\"", isAudio = true)
+        val video = format(137, "video/mp4; codecs=\"avc1.640028\"", isAudio = false)
+        val state = streamState(audio, video)
+
+        val manifest = SabrDashManifestBuilder.build(
+            "tRDCFwgcN0s",
+            audio,
+            video,
+            endSegmentAudio = 2,
+            endSegmentVideo = 2,
+            streamState = state,
+            sessionToken = "session-token",
+            mediaBasePath = "/api/sabr/playback/session-token",
+        )
+
+        assertTrue(manifest.contains("sourceURL=\"/api/sabr/playback/session-token/137/init?session=session-token\""))
+        assertTrue(manifest.contains("media=\"/api/sabr/playback/session-token/140/segment/1?session=session-token\""))
+        assertFalse(manifest.contains("/api/sabr/tRDCFwgcN0s/"))
+    }
+
     private fun format(itag: Int, mime: String, isAudio: Boolean): YoutubeSabrFormat {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag

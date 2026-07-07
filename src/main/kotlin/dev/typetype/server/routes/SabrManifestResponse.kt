@@ -14,6 +14,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
     videoId: String,
     audioOnly: Boolean,
     hls: Boolean,
+    mediaBasePath: String = "/api/sabr/$videoId",
 ): Unit {
     val state = holder.session.streamState
     val endAudio = state.getEndSegment(holder.audioFormat)
@@ -37,6 +38,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
             state,
             holder.sessionToken,
             startSegmentAudio = holder.startSegment(holder.audioFormat),
+            mediaBasePath = mediaBasePath,
         )
         else -> SabrManifestBuilder.build(
             videoId,
@@ -48,6 +50,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
             holder.sessionToken,
             startSegmentAudio = holder.startSegment(holder.audioFormat),
             startSegmentVideo = holder.startSegment(holder.videoFormat),
+            mediaBasePath = mediaBasePath,
         )
     }
     response.headers.append("Cache-Control", "no-store")

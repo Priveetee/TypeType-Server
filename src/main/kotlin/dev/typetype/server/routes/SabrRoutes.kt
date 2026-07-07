@@ -43,6 +43,40 @@ internal fun Route.sabrRoutes(
         adminSettingsService,
         audioOnlyTokenService,
     )
+    val playbackHandler = SabrPlaybackHandler(
+        sabrSessionStore,
+        streamService,
+        authService,
+        accessControlService,
+        adminSettingsService,
+    )
+    post("/sabr/playback/{videoId}") {
+        val videoId = call.parameters["videoId"]
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
+        playbackHandler.create(call, videoId)
+    }
+    post("/sabr/playback/{sessionId}/seek") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackHandler.seek(call, sessionId)
+    }
+    get("/sabr/playback/{sessionId}/manifest") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackHandler.manifest(call, sessionId)
+    }
+    get("/sabr/playback/{sessionId}/{itag}/init") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackHandler.segment(call, sessionId, isInit = true, seq = 0)
+    }
+    get("/sabr/playback/{sessionId}/{itag}/segment/{seq}") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        val seq = call.parameters["seq"]?.toIntOrNull()
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid seq"))
+        playbackHandler.segment(call, sessionId, isInit = false, seq = seq)
+    }
     get("/sabr/session/{videoId}/state") {
         val videoId = call.parameters["videoId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))

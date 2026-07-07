@@ -40,6 +40,17 @@ class SabrSessionRegistryTest {
         assertNull(registry.get(staleKey))
     }
 
+    @Test
+    fun `lookup by token returns matching playback session`() {
+        val registry = SabrSessionRegistry()
+        val key = key("playback")
+        val holder = holder("playback", Instant.EPOCH)
+
+        registry.put(key, holder)
+
+        assertSame(holder, registry.lookupByToken("token-playback"))
+    }
+
     private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137, 0L)
 
     private fun holder(videoId: String, lastRequestAt: Instant): SabrSessionHolder {

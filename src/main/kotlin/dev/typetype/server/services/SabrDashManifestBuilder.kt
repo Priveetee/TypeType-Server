@@ -14,11 +14,12 @@ internal object SabrDashManifestBuilder {
         sessionToken: String,
         startSegmentAudio: Int = 1,
         startSegmentVideo: Int = 1,
+        mediaBasePath: String = "/api/sabr/$videoId",
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.videoDurationSec(audio, video, streamState))
-        appendVideoAdaptation(sb, videoId, video, startSegmentVideo, endSegmentVideo, streamState, sessionToken)
-        appendAudioAdaptation(sb, videoId, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
+        appendVideoAdaptation(sb, mediaBasePath, video, startSegmentVideo, endSegmentVideo, streamState, sessionToken)
+        appendAudioAdaptation(sb, mediaBasePath, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
         return finish(sb)
     }
 
@@ -29,10 +30,11 @@ internal object SabrDashManifestBuilder {
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
         startSegmentAudio: Int = 1,
+        mediaBasePath: String = "/api/sabr/$videoId",
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.audioDurationSec(audio, streamState))
-        appendAudioAdaptation(sb, videoId, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
+        appendAudioAdaptation(sb, mediaBasePath, audio, startSegmentAudio, endSegmentAudio, streamState, sessionToken)
         return finish(sb)
     }
 
@@ -54,7 +56,7 @@ internal object SabrDashManifestBuilder {
 
     private fun appendVideoAdaptation(
         sb: StringBuilder,
-        videoId: String,
+        mediaBasePath: String,
         video: YoutubeSabrFormat,
         startSegment: Int,
         endSegment: Long,
@@ -66,14 +68,14 @@ internal object SabrDashManifestBuilder {
         val sizeAttr = videoSizeAttr(video)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\" startWithSAP=\"1\">")
         sb.appendLine("      <Representation id=\"v\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"$codecs\">")
-        appendSegmentList(sb, videoId, video, startSegment, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, mediaBasePath, video, startSegment, endSegment, streamState, sessionToken)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
 
     private fun appendAudioAdaptation(
         sb: StringBuilder,
-        videoId: String,
+        mediaBasePath: String,
         audio: YoutubeSabrFormat,
         startSegment: Int,
         endSegment: Long,
@@ -84,14 +86,14 @@ internal object SabrDashManifestBuilder {
         val bandwidth = audio.bitrate.coerceAtLeast(128_000)
         sb.appendLine("    <AdaptationSet mimeType=\"$container\">")
         sb.appendLine("      <Representation id=\"a\" bandwidth=\"$bandwidth\" codecs=\"$codecs\">")
-        appendSegmentList(sb, videoId, audio, startSegment, endSegment, streamState, sessionToken)
+        appendSegmentList(sb, mediaBasePath, audio, startSegment, endSegment, streamState, sessionToken)
         sb.appendLine("      </Representation>")
         sb.appendLine("    </AdaptationSet>")
     }
 
     private fun appendSegmentList(
         sb: StringBuilder,
-        videoId: String,
+        mediaBasePath: String,
         format: YoutubeSabrFormat,
         startSegment: Int,
         endSegment: Long,
@@ -103,7 +105,7 @@ internal object SabrDashManifestBuilder {
         val avgMs = SabrManifestTiming.averageSegmentMs(format, n)
         val sessionQuery = "?session=$sessionToken"
         sb.appendLine("        <SegmentList timescale=\"1000\">")
-        sb.appendLine("          <Initialization sourceURL=\"/api/sabr/$videoId/${format.itag}/init$sessionQuery\"/>")
+        sb.appendLine("          <Initialization sourceURL=\"$mediaBasePath/${format.itag}/init$sessionQuery\"/>")
         sb.appendLine("          <SegmentTimeline>")
         for (seq in first..n) {
             val start = streamState.getSegmentStartMs(format, seq.toInt()).coerceAtLeast(0L)
@@ -112,7 +114,7 @@ internal object SabrDashManifestBuilder {
         }
         sb.appendLine("          </SegmentTimeline>")
         for (seq in first..n) {
-            sb.appendLine("          <SegmentURL media=\"/api/sabr/$videoId/${format.itag}/segment/$seq$sessionQuery\"/>")
+            sb.appendLine("          <SegmentURL media=\"$mediaBasePath/${format.itag}/segment/$seq$sessionQuery\"/>")
         }
         sb.appendLine("        </SegmentList>")
     }

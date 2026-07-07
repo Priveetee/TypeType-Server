@@ -52,6 +52,12 @@ internal class SabrSessionRegistry {
         return holder
     }
 
+    fun lookupByToken(token: String): SabrSessionHolder? {
+        val holder = sessionsByToken[token] ?: return null
+        holder.touch()
+        return holder
+    }
+
     fun ensureCapacity(maxSessions: Int) {
         while (sessions.size >= maxSessions) {
             val oldest = sessions.entries
