@@ -109,7 +109,9 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         audioFormat.itag == audio.itag && audioFormat.audioTrackId == audio.audioTrackId && videoFormat.itag == video.itag
 
     private fun SabrSessionHolder.requestReposition(playerTimeMs: Long, generation: Long): Unit {
-        val request = mediaRequestsAt(playerTimeMs, generation).firstOrNull() ?: return
+        val request = mediaRequestsAt(playerTimeMs, generation).minByOrNull {
+            session.streamState.getSegmentStartMs(it.format, it.sequenceNumber)
+        } ?: return
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)
         if (startMs < session.streamState.getMinBufferedEndMs()) requestRefetch(request) else requestForwardSeek(request)
