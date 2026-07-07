@@ -1,0 +1,117 @@
+package dev.typetype.server.services
+
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import java.time.Instant
+
+class SabrPlaybackSessionServiceTest {
+    @Test
+    fun `prepare sets target time and starts pump after preflight`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val info = mockk<YoutubeSabrInfo>()
+        val prepared = SabrPreparedInfo(info, token())
+        val holder = holder(audio, video)
+        val store = mockk<SabrSessionStore>()
+        every { store.getOrCreate("video", "user", info, audio, video, prepared.initialToken, 88_168L, false) } returns holder
+        coEvery { store.preflightPlayback(holder, 88_168L) } returns false
+        every { store.startPump(holder) } returns Unit
+
+        val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 88_168L)
+
+        assertSame(holder, result.holder)
+        assertEquals(88_168L, result.startTimeMs)
+        assertFalse(result.ready)
+        assertEquals(88_168L, holder.playerTimeMs())
+        coVerify { store.preflightPlayback(holder, 88_168L) }
+        verify { store.startPump(holder) }
+    }
+
+    @Test
+    fun `missing media segment is retryable`() = runTest {
+        val audio = format(140, isAudio = true)
+        val holder = holder(audio, format(137, isAudio = false))
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns null
+
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L)
+
+        assertEquals(SabrPlaybackSegmentResult.Retry(holder, "repositioning"), result)
+    }
+
+    @Test
+    fun `ready media segment returns bytes`() = runTest {
+        val audio = format(140, isAudio = true)
+        val holder = holder(audio, format(137, isAudio = false))
+        val segment = mockk<SabrMediaSegment>()
+        every { segment.data } returns byteArrayOf(1, 2, 3)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns segment
+
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L)
+
+        val ready = result as SabrPlaybackSegmentResult.Ready
+        assertEquals("audio/mp4", ready.mimeType)
+        assertArrayEquals(byteArrayOf(1, 2, 3), ready.bytes)
+    }
+
+    @Test
+    fun `invalid media sequence does not call store`() = runTest {
+        val audio = format(140, isAudio = true)
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        val holder = holder(audio, format(137, isAudio = false))
+
+        val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 0, timeoutMs = 50L)
+
+        assertEquals(SabrPlaybackSegmentResult.InvalidSequence, result)
+        coVerify(exactly = 0) { store.fetchPlaybackSegment(any(), any(), any(), any()) }
+    }
+
+    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns state
+        every { state.setActiveTrackTypes(true, true) } returns Unit
+        return SabrSessionHolder(
+            session = session,
+            info = mockk<YoutubeSabrInfo>(),
+            audioFormat = audio,
+            videoFormat = video,
+            sessionToken = "session-token",
+            key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
+            lastRequestAt = Instant.EPOCH,
+        )
+    }
+
+    private fun format(itag: Int, isAudio: Boolean): YoutubeSabrFormat {
+        val format = mockk<YoutubeSabrFormat>()
+        every { format.itag } returns itag
+        every { format.isAudio } returns isAudio
+        every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
+        return format
+    }
+
+    private fun token(): SabrTokenBundle = SabrTokenBundle(
+        videoId = "video",
+        visitorBoundPoToken = "visitor-token",
+        visitorBoundPoTokenBytes = byteArrayOf(1),
+        visitorData = "visitor-data",
+        videoBoundPoToken = "video-token",
+        videoBoundPoTokenBytes = byteArrayOf(2),
+    )
+}
