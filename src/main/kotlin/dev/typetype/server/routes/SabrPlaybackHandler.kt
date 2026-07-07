@@ -87,7 +87,7 @@ internal class SabrPlaybackHandler(
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR track for this request"))
         val generation = call.request.queryParameters["generation"]?.toLongOrNull() ?: holder.activeGeneration()
         val result = if (isInit) {
-            playbackService.fetchInitialization(holder, format, PLAYBACK_SEGMENT_TIMEOUT_MS)
+            playbackService.fetchInitialization(holder, format, PLAYBACK_SEGMENT_TIMEOUT_MS, generation)
         } else {
             playbackService.fetchMedia(holder, format, seq, PLAYBACK_SEGMENT_TIMEOUT_MS, generation)
         }

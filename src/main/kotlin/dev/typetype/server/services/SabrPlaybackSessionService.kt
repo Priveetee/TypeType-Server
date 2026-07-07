@@ -53,7 +53,12 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
         timeoutMs: Long,
+        generation: Long,
     ): SabrPlaybackSegmentResult {
+        val activeGeneration = holder.activeGeneration()
+        if (generation > activeGeneration) return SabrPlaybackSegmentResult.InvalidGeneration
+        val request = SabrSegmentRequest.initialization(format)
+        if (generation < activeGeneration) return staleMedia(holder, request)
         val bytes = withTimeoutOrNull(timeoutMs) { sessionStore.fetchInitializationData(holder, format) }
         return if (bytes == null) SabrPlaybackSegmentResult.Retry(holder, PREPARING) else {
             SabrPlaybackSegmentResult.Ready(format.mimeType.orEmpty(), bytes)

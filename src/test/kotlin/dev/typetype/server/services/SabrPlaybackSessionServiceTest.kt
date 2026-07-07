@@ -70,6 +70,20 @@ class SabrPlaybackSessionServiceTest {
     }
 
     @Test
+    fun `stale initialization generation does not fetch`() = runTest {
+        val audio = format(140, isAudio = true)
+        val holder = holder(audio, format(137, isAudio = false))
+        holder.advancePlaybackGeneration(10_000L)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+
+        val result = SabrPlaybackSessionService(store).fetchInitialization(holder, audio, timeoutMs = 50L, generation = 0L)
+
+        assertEquals(SabrPlaybackSegmentResult.Stale(holder), result)
+        coVerify(exactly = 0) { store.fetchInitializationData(any(), any()) }
+    }
+
+    @Test
     fun `invalid media sequence does not call store`() = runTest {
         val audio = format(140, isAudio = true)
         val store = mockk<SabrSessionStore>(relaxed = true)
