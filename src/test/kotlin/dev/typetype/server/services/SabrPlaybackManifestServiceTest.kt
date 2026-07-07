@@ -50,6 +50,18 @@ class SabrPlaybackManifestServiceTest {
         assertTrue(ready.manifest.contains("/api/sabr/playback/session-token/140/segment/2?session=session-token&generation=0"))
     }
 
+    @Test
+    fun `buffered edge behind playback start is retryable`() {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video, endAudio = 5L, endVideo = 5L, maxAudio = 5, maxVideo = 5, bufferedEdgeMs = 20_000L)
+        holder.setPlayerTimeMs(30_000L)
+
+        val result = SabrPlaybackManifestService().build(holder, "/api/sabr/playback/session-token")
+
+        assertEquals(SabrPlaybackManifestResult.Retry("preparing"), result)
+    }
+
     private fun holder(
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
@@ -57,6 +69,7 @@ class SabrPlaybackManifestServiceTest {
         endVideo: Long,
         maxAudio: Int,
         maxVideo: Int,
+        bufferedEdgeMs: Long = 20_000L,
     ): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
@@ -66,7 +79,7 @@ class SabrPlaybackManifestServiceTest {
         every { state.getEndSegment(video) } returns endVideo
         every { state.getMaxSegment(audio) } returns maxAudio
         every { state.getMaxSegment(video) } returns maxVideo
-        every { state.getMinBufferedEndMs() } returns 20_000L
+        every { state.getMinBufferedEndMs() } returns bufferedEdgeMs
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } answers {
             ((secondArg<Long>() / 10_000L) + 1L).toInt().coerceIn(1, 5)
         }
