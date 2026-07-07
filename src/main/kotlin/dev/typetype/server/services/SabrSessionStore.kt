@@ -82,6 +82,11 @@ internal class SabrSessionStore(
         }
     }
 
+    internal fun warmPlaybackAsync(holder: SabrSessionHolder) {
+        if (holder.playbackState() == SabrPlaybackState.REQUESTING || holder.playbackState() == SabrPlaybackState.REPOSITIONING) return
+        scope.launch { fetchMediaAt(holder, holder.playerTimeMs()) }
+    }
+
     internal fun lookup(videoId: String, userId: String, audioItag: Int, videoItag: Int): SabrSessionHolder? =
         registry.get(SabrSessionKey(videoId, userId, audioItag, null, videoItag, 0L))
 

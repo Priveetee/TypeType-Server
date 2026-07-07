@@ -79,6 +79,7 @@ internal class SabrPlaybackHandler(
         val holder = playbackService.lookup(sessionId)
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         playbackService.startPump(holder)
+        playbackService.warmPlayback(holder)
         call.respondSabrPlaybackManifest(holder)
     }
 

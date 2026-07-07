@@ -57,6 +57,8 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
 
     fun startPump(holder: SabrSessionHolder): Unit = sessionStore.startPump(holder)
 
+    fun warmPlayback(holder: SabrSessionHolder): Unit = sessionStore.warmPlaybackAsync(holder)
+
     suspend fun fetchInitialization(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
