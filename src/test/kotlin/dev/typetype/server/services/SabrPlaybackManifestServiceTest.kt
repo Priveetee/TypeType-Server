@@ -74,6 +74,20 @@ class SabrPlaybackManifestServiceTest {
         assertTrue((result as SabrPlaybackManifestResult.Ready).manifest.contains("<MPD"))
     }
 
+    @Test
+    fun `reader tail at containing segment start is ready`() {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video, endAudio = 5L, endVideo = 5L, maxAudio = 5, maxVideo = 5, bufferedEdgeMs = 20_000L)
+        holder.setPlayerTimeMs(35_000L)
+        holder.setReaderPosition(audio, 30_000L)
+        holder.setReaderPosition(video, 30_000L)
+
+        val result = SabrPlaybackManifestService().build(holder, "/api/sabr/playback/session-token")
+
+        assertTrue((result as SabrPlaybackManifestResult.Ready).manifest.contains("<MPD"))
+    }
+
     private fun holder(
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,

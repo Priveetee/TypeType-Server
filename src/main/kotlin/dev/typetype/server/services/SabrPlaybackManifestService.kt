@@ -15,7 +15,8 @@ internal class SabrPlaybackManifestService {
         val startVideoMs = state.getSegmentStartMs(holder.videoFormat, startVideo).coerceAtLeast(0L)
         val readyAtMs = minOf(startAudioMs, startVideoMs)
         val bufferedEdgeMs = state.getMinBufferedEndMs()
-        if (bufferedEdgeMs < readyAtMs) return SabrPlaybackManifestResult.Retry(holder.playbackStatus())
+        val progressMs = maxOf(bufferedEdgeMs, holder.readerTailMs())
+        if (progressMs < readyAtMs) return SabrPlaybackManifestResult.Retry(holder.playbackStatus())
         val edgeMs = bufferedEdgeMs.coerceAtLeast(startMs)
         val windowEndMs = edgeMs + PLAYBACK_MANIFEST_WINDOW_MS
         val windowEndAudio = segmentAt(holder, holder.audioFormat, windowEndMs, knownAudio)
