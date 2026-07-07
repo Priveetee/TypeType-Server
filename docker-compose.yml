@@ -24,6 +24,8 @@ services:
     ports:
       - "8080:8080"
     env_file: .env
+    environment:
+      DRAGONFLY_URL: ${DRAGONFLY_URL:-redis://dragonfly:6379}
     depends_on:
       - postgres
       - dragonfly
