@@ -82,7 +82,7 @@ docker compose -f docker-compose.dev-mirror.yml up -d
 ./scripts/bootstrap-garage.sh
 ```
 
-On `arm64`/`aarch64` hosts where Dragonfly cannot start, add the Redis-compatible ARM override:
+On `arm64`/`aarch64` hosts, add the Dragonfly ARM override:
 
 ```bash
 docker compose -f docker-compose.dev-mirror.yml -f docker-compose.arm64.yml up -d
@@ -108,7 +108,7 @@ COMPOSE_OVERRIDE_FILE="$PWD/docker-compose.arm64.yml" ./scripts/bootstrap-garage
 | `DOWNLOADER_SERVICE_URL` | Base URL for TypeType-Downloader |
 | `SUBTITLE_SERVICE_URL` | Base URL for TypeType-Token |
 
-`DRAGONFLY_URL` is a Redis protocol URL consumed through Lettuce. On hosts where Dragonfly cannot start, such as some Raspberry Pi 4 environments, a local Redis-compatible service can be used instead. The provided ARM Compose override keeps the internal host as `dragonfly` and runs `redis:7-alpine`, so the default URL remains `redis://dragonfly:6379`.
+`DRAGONFLY_URL` is a Redis protocol URL consumed through Lettuce. The provided ARM Compose override keeps Dragonfly as the cache service, pins the `dragonfly` service to `linux/arm64`, and keeps the default URL as `redis://dragonfly:6379`.
 
 ## Checks
 

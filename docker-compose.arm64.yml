@@ -1,4 +1,4 @@
 services:
   dragonfly:
-    image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    platform: linux/arm64
