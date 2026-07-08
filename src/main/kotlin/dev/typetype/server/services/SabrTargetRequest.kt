@@ -17,16 +17,23 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
         else -> targetTimeInsideSegment(request)
     }
     val result = runCatchingNonCancellation {
-        fetchMediaSegmentAt(
-            request,
-            targetPlayerTimeMs,
-            !request.format.isAudio,
-            request.format.isAudio,
-            localization,
-        )
+        prepareForTarget(request, targetPlayerTimeMs)
+        fetchSegment(request, localization)
     }
     return result.getOrNull()
         ?.takeIf { it.matches(request) }
+}
+
+private fun YoutubeSabrSession.prepareForTarget(request: SabrSegmentRequest, targetPlayerTimeMs: Long): Unit {
+    if (request.isInitializationSegment) return
+    val edgeMs = streamState.getMinBufferedEndMs()
+    val startMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber)
+    when {
+        startMs < edgeMs -> prepareForRewind(request)
+        startMs > edgeMs + TARGET_SEGMENT_OFFSET_MS -> prepareForForwardJump(request)
+        else -> prepareForMediaSegment(request)
+    }
+    streamState.setPlayerTimeMs(targetPlayerTimeMs.coerceAtLeast(0L))
 }
 
 private fun SabrMediaSegment.matches(request: SabrSegmentRequest): Boolean {

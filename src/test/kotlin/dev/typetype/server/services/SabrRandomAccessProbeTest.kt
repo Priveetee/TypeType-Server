@@ -87,12 +87,9 @@ class SabrRandomAccessProbeTest {
     ): Unit {
         val result = holder.pumpMutex.withLock {
             runCatchingNonCancellation {
-                holder.session.fetchMediaAt(
-                    playerTimeMs,
-                    holder.isVideoActive(),
-                    holder.isAudioActive(),
-                    Localization("en", "GB"),
-                )
+                holder.mediaRequestsAt(playerTimeMs).map { request ->
+                    holder.session.fetchSegment(request, Localization("en", "GB"))
+                }
             }
         }
         result.exceptionOrNull()?.let { error ->

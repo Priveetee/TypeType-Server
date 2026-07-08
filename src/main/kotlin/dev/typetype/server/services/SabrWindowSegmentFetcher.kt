@@ -11,24 +11,17 @@ internal object SabrWindowSegmentFetcher {
         localization: Localization,
         segmentCache: SabrSegmentCache?,
     ): SabrMediaSegment? {
-        val segments = runCatchingNonCancellation {
-            holder.session.fetchMediaAt(request.targetTimeMs(holder), true, true, localization)
-        }.getOrNull().orEmpty()
-        segments.forEach { segmentCache?.put(holder, it) }
-        return segments.firstOrNull { it.matches(request) }
+        val segment = runCatchingNonCancellation {
+            holder.session.prepareForMediaSegment(request)
+            holder.session.fetchSegment(request, localization)
+        }.getOrNull()
+        if (segment != null) segmentCache?.put(holder, segment)
+        return segment?.takeIf { it.matches(request) }
             ?: holder.session.getCachedSegment(request)
-    }
-
-    private fun SabrSegmentRequest.targetTimeMs(holder: SabrSessionHolder): Long {
-        val start = holder.session.streamState.getSegmentStartMs(format, sequenceNumber).coerceAtLeast(0L)
-        val end = holder.session.streamState.getSegmentEndMs(format, sequenceNumber)
-        return if (end > start + 1L) minOf(start + TARGET_SEGMENT_OFFSET_MS, end - 1L) else start
     }
 
     private fun SabrMediaSegment.matches(request: SabrSegmentRequest): Boolean {
         if (header.isInitSegment || request.isInitializationSegment) return false
         return header.itag == request.format.itag && header.sequenceNumber == request.sequenceNumber
     }
-
-    private const val TARGET_SEGMENT_OFFSET_MS = 1_000L
 }

@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.services.SabrSessionStoreDefaults.toStartTimeSecs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -79,7 +78,6 @@ internal class SabrInfoFetcher(
                 CONTENT_COUNTRY,
                 token.visitorBoundPoToken,
                 token.visitorData,
-                startTimeMs.toStartTimeSecs(),
             )
         }
         result.onFailure { error ->
