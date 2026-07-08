@@ -23,7 +23,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         sabrSessionStore.startPump(holder)
         sabrSessionStore.warmPlaybackAsync(holder)
 
-        val window = windowBuilder.build(holder, request)
+        val window = buildWithTargetedPrefetch(holder, request)
         if (window.isReady) {
             return call.respond(HttpStatusCode.OK, window.response)
         }
@@ -56,7 +56,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
         sabrSessionStore.warmPlaybackAsync(holder)
-        val window = windowBuilder.build(holder, request)
+        val window = buildWithTargetedPrefetch(holder, request)
         val status = if (window.isReady) HttpStatusCode.OK else HttpStatusCode.Accepted
         call.respond(status, holder.prefetchResponse(request, window))
     }
@@ -69,6 +69,21 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val window = windowBuilder.build(holder, request)
         if (window.isReady) return call.respond(HttpStatusCode.OK, window.response)
         call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
+    }
+
+    private suspend fun buildWithTargetedPrefetch(
+        holder: SabrSessionHolder,
+        request: SabrPlaybackWindowRequest,
+    ): SabrPlaybackWindowBuildResult {
+        val window = windowBuilder.build(holder, request)
+        val blockedRequest = window.blockedRequest ?: return window
+        sabrSessionStore.fetchPlaybackSegment(
+            holder = holder,
+            format = blockedRequest.format,
+            sequence = blockedRequest.sequenceNumber,
+            timeoutMs = TARGETED_PREFETCH_TIMEOUT_MS,
+        )
+        return windowBuilder.build(holder, request)
     }
 
     private fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
@@ -169,6 +184,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
 
     private companion object {
         const val RETRY_AFTER_MS = 500L
+        const val TARGETED_PREFETCH_TIMEOUT_MS = 2_500L
         const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

@@ -24,6 +24,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 video = video.track,
             ),
             blockedBy = audio.blockedBy ?: video.blockedBy,
+            blockedRequest = audio.blockedRequest ?: video.blockedRequest,
         )
     }
 
@@ -39,12 +40,15 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
+        var blockedRequest: SabrSegmentRequest? = null
         var seq = startSeq
         var coveredEndMs = request.playerTimeMs.coerceAtLeast(0L)
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
-            val segment = sabrSessionStore.cachedSegment(holder, SabrSegmentRequest.media(format, seq))
+            val mediaRequest = SabrSegmentRequest.media(format, seq)
+            val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
             if (segment == null) {
                 blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
+                blockedRequest = mediaRequest
                 break
             }
             segments += segment.toWindowSegment(holder, format)
@@ -62,6 +66,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 segments = segments,
             ),
             blockedBy = blockedBy,
+            blockedRequest = blockedRequest,
         )
     }
 
@@ -86,6 +91,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     private data class TrackBuildResult(
         val track: SabrPlaybackWindowTrack,
         val blockedBy: String?,
+        val blockedRequest: SabrSegmentRequest?,
     )
 
     private companion object {
@@ -96,6 +102,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
 internal data class SabrPlaybackWindowBuildResult(
     val response: SabrPlaybackWindowReadyResponse,
     val blockedBy: String?,
+    val blockedRequest: SabrSegmentRequest?,
 ) {
     val isReady: Boolean = blockedBy == null && response.audio.segments.isNotEmpty() && response.video.segments.isNotEmpty()
 }
