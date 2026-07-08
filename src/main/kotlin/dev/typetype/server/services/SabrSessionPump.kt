@@ -91,6 +91,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
+                holder.consumeMatchingSeek(request)
                 val edgeMs = holder.session.streamState.getMinBufferedEndMs()
                 val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
                 if (startMs < edgeMs - REWIND_GAP_MS) {
@@ -128,6 +129,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
+                holder.consumeMatchingSeek(request)
                 holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
                     ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
             }
@@ -158,4 +160,20 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         val endMs = holder.session.streamState.getSegmentEndMs(request.format, request.sequenceNumber)
         return playerTimeMs.takeIf { it < endMs }
     }
+
+    private fun SabrSessionHolder.consumeMatchingSeek(request: SabrSegmentRequest): Unit {
+        pendingRefetchRequest()?.takeIf { it.matches(request) }?.let {
+            consumeRefetch()
+            setPlaybackState(SabrPlaybackState.REPOSITIONING)
+            session.prepareForRewind(request)
+        }
+        pendingForwardSeekRequest()?.takeIf { it.matches(request) }?.let {
+            consumeForwardSeek()
+            setPlaybackState(SabrPlaybackState.REPOSITIONING)
+            session.prepareForForwardJump(request)
+        }
+    }
+
+    private fun SabrSegmentRequest.matches(other: SabrSegmentRequest): Boolean =
+        format.itag == other.format.itag && sequenceNumber == other.sequenceNumber && isInitializationSegment == other.isInitializationSegment
 }
