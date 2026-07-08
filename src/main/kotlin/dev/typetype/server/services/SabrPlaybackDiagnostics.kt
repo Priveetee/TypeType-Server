@@ -8,7 +8,9 @@ internal object SabrPlaybackDiagnostics {
     private val blockers = ConcurrentHashMap<String, String>()
 
     fun record(holder: SabrSessionHolder, request: SabrSegmentRequest, message: String?): Unit {
-        blockers[holder.sessionToken] = "${request.trackName()}:${request.format.itag}:${request.sequenceNumber} ${message.blockerSummary()}"
+        val blocker = "${request.trackName()}:${request.format.itag}:${request.sequenceNumber} ${message.blockerSummary()}"
+        blockers[holder.sessionToken] = blocker
+        if (message.isProtectedNoMedia()) holder.failTerminal("$blocker after PO-token refresh attempts")
     }
 
     fun clear(holder: SabrSessionHolder, segment: SabrMediaSegment): Unit {
@@ -26,4 +28,7 @@ internal object SabrPlaybackDiagnostics {
         contains("policy", ignoreCase = true) -> "policy-only response"
         else -> this
     }
+
+    private fun String?.isProtectedNoMedia(): Boolean =
+        this != null && contains("SABR protected no-media response") && contains("status=3")
 }
