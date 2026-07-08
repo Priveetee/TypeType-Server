@@ -11,8 +11,8 @@ internal class TypetypeTokenSabrTokenClient(
     private val tokenServiceUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
 ) {
-    fun fetch(videoId: String, forceRefresh: Boolean = false): SabrTokenBundle? {
-        val url = buildUrl(videoId, forceRefresh)
+    fun fetch(videoId: String, forceRefresh: Boolean = false, refreshVideo: Boolean = false): SabrTokenBundle? {
+        val url = buildUrl(videoId, forceRefresh, refreshVideo)
         return try {
             client.newCall(Request.Builder().url(url).get().build()).execute().use { resp ->
                 if (!resp.isSuccessful) {
@@ -45,10 +45,11 @@ internal class TypetypeTokenSabrTokenClient(
         )
     }
 
-    private fun buildUrl(videoId: String, forceRefresh: Boolean): String {
+    private fun buildUrl(videoId: String, forceRefresh: Boolean, refreshVideo: Boolean): String {
         val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
         return "${tokenServiceUrl.trimEnd('/')}/potoken?videoId=$encodedVideoId" +
-            if (forceRefresh) "&refresh=true&refreshVideo=true" else ""
+            (if (forceRefresh) "&refresh=true" else "") +
+            (if (refreshVideo) "&refreshVideo=true" else "")
     }
 
     private fun base64UrlDecode(s: String): ByteArray {
