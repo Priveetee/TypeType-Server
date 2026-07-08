@@ -22,6 +22,7 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
         fetchSegment(request, localization)
     }
     result.onFailure { error ->
+        SabrPlaybackDiagnostics.record(holder, request, error.message)
         logger.warn(
             "sabr_target event=fetch_failed videoId={} itag={} seq={} init={} targetMs={} errorType={} error={}",
             holder.key.videoId,
@@ -36,6 +37,7 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
     }
     return result.getOrNull()
         ?.takeIf { it.matches(request) }
+        ?.also { SabrPlaybackDiagnostics.clear(holder, it) }
 }
 
 private fun YoutubeSabrSession.prepareForTarget(request: SabrSegmentRequest, targetPlayerTimeMs: Long): Unit {

@@ -17,6 +17,7 @@ internal object SabrWindowSegmentFetcher {
             holder.session.fetchSegment(request, localization)
         }
         result.onFailure { error ->
+            SabrPlaybackDiagnostics.record(holder, request, error.message)
             logger.warn(
                 "sabr_window event=fetch_failed videoId={} itag={} seq={} errorType={} error={}",
                 holder.key.videoId,
@@ -30,6 +31,7 @@ internal object SabrWindowSegmentFetcher {
         val segment = result.getOrNull()
         if (segment != null) segmentCache?.put(holder, segment)
         return segment?.takeIf { it.matches(request) }
+            ?.also { SabrPlaybackDiagnostics.clear(holder, it) }
             ?: holder.session.getCachedSegment(request)
     }
 
