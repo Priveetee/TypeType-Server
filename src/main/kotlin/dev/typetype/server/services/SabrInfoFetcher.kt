@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.slf4j.LoggerFactory
 
@@ -24,6 +25,11 @@ internal class SabrInfoFetcher(
         fetchPlayableWithRetries(videoId, startTimeMs)?.let { return@withContext it }
         if (startTimeMs > 0L) fetchPlayableWithRetries(videoId, 0L)?.let { return@withContext it }
         playableCachedInfo(videoId, startTimeMs)
+    }
+
+    fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
+        if (!SabrPreparedInfo(info, null).hasAudioAndVideoFormats()) return
+        infoCache.put(videoId, startTimeMs = 0L, SabrPreparedInfo(info, null))
     }
 
     private suspend fun fetchPlayableWithRetries(videoId: String, startTimeMs: Long): SabrPreparedInfo? {

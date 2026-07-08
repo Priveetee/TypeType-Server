@@ -63,10 +63,12 @@ internal class ExtractionServiceRegistry(
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
+    val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
     private val pipePipeStreamService = PipePipeStreamService(
         cache,
         YouTubeSubtitleService(httpClient, subtitleServiceUrl),
         BilibiliRelatedService(),
+        sabrSessionStore::rememberExtractedInfo,
     )
     val youtubeSessionService = YoutubeSessionService(youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret))
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
@@ -98,7 +100,6 @@ internal class ExtractionServiceRegistry(
         }
     }
     val suggestionService = CachedSuggestionService(YoutubeScopedSuggestionService(PipePipeSuggestionService()), cache)
-    val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
 
     private companion object {
         const val MIN_YOUTUBE_SESSION_SECRET_LENGTH = 32

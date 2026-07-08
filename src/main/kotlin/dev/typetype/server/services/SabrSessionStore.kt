@@ -117,6 +117,9 @@ internal class SabrSessionStore(
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst)
 
+    internal fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
+        infoFetcher.rememberExtractedInfo(videoId, info)
+
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,

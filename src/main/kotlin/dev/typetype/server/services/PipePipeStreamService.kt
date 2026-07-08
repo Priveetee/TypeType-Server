@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
@@ -33,6 +34,7 @@ internal class PipePipeStreamService(
     private val cache: CacheService,
     private val subtitleService: YouTubeSubtitleService,
     private val bilibiliRelatedService: BilibiliRelatedService,
+    private val sabrInfoSink: ((String, YoutubeSabrInfo) -> Unit)? = null,
 ) : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
@@ -47,6 +49,7 @@ internal class PipePipeStreamService(
                         val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
                         val segmentsDeferred = async { resolveSegments(extractor) }
                         val streamInfo = streamInfoDeferred.await()
+                        rememberSabrInfo(streamInfo)
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
                         val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
@@ -63,6 +66,18 @@ internal class PipePipeStreamService(
                 onFailure = { StreamExtractionErrorMapper.map(it, sourceUrl = url) }
             )
         }
+
+    private fun rememberSabrInfo(streamInfo: StreamInfo): Unit {
+        val sink = sabrInfoSink ?: return
+        val info = sequence {
+            streamInfo.videoStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.videoOnlyStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.audioStreams.forEach { yield(it.deliveryMethodInfo) }
+        }.filterIsInstance<YoutubeSabrInfo>()
+            .firstOrNull { it.videoId == streamInfo.id }
+            ?: return
+        sink(streamInfo.id, info)
+    }
 
     private suspend fun resolveSegments(
         extractor: StreamExtractor,
