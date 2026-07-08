@@ -110,6 +110,19 @@ class SabrSessionPumpTest {
     }
 
     @Test
+    fun `prepared media advances reader position without marking segment served`() {
+        val audio = sabrFormat(140, isAudio = true)
+        val video = sabrFormat(137, isAudio = false)
+        val holder = sabrHolder(audio, video)
+        val segment = mediaSegment(137, 120_000L, 5_000L, sequence = 24)
+
+        holder.markPrepared(segment)
+
+        assertEquals(125_000L, holder.readerHeadMs())
+        assertTrue(holder.shouldSend(segment))
+    }
+
+    @Test
     fun `media requests advance past already served boundary segments`() {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)

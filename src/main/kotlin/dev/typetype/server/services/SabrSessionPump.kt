@@ -60,7 +60,10 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
     suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
         SabrSessionMediaFetcher.fetch(holder, playerTimeMs) { request ->
             fetchTargeted(holder, request, Localization("en", "GB"), markServed = false)
-        }?.also { segmentCache?.putAll(holder, it) }
+        }?.also { segments ->
+            segmentCache?.putAll(holder, segments)
+            segments.forEach { holder.markPrepared(it) }
+        }
 
     suspend fun pumpLoop(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long): Unit =
         loop.run(isAlive, holder, intervalMs)

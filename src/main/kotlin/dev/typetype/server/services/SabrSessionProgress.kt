@@ -16,6 +16,13 @@ internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment, generation:
     }
 }
 
+internal fun SabrSessionHolder.markPrepared(segment: SabrMediaSegment): Unit {
+    if (!segment.header.isInitSegment) {
+        val format = if (audioFormat.itag == segment.header.itag) audioFormat else videoFormat
+        setReaderPosition(format, segment.header.startMs + segment.header.durationMs)
+    }
+}
+
 internal fun SabrSessionHolder.markServed(segment: CachedSabrSegment): Unit {
     markServed(segment, activeGeneration())
 }
