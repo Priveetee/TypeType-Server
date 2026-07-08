@@ -48,7 +48,7 @@ internal class TypetypeTokenSabrTokenClient(
     private fun buildUrl(videoId: String, forceRefresh: Boolean): String {
         val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
         return "${tokenServiceUrl.trimEnd('/')}/potoken?videoId=$encodedVideoId" +
-            if (forceRefresh) "&refreshVideo=true" else ""
+            if (forceRefresh) "&refresh=true&refreshVideo=true" else ""
     }
 
     private fun base64UrlDecode(s: String): ByteArray {
