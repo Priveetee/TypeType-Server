@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.slf4j.LoggerFactory
 import java.io.IOException
 
 internal class SabrSessionPumpLoop {
@@ -36,7 +37,18 @@ internal class SabrSessionPumpLoop {
             } catch (error: OutOfMemoryError) {
                 holder.failTerminal(error.message)
                 return
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                logger.warn(
+                    "sabr_pump event=round_failed videoId={} state={} requestNumber={} edgeMs={} cachedBytes={} errorType={} error={}",
+                    holder.key.videoId,
+                    holder.playbackState(),
+                    holder.session.requestNumber,
+                    holder.session.streamState.getMinBufferedEndMs(),
+                    holder.session.cachedBytes,
+                    error.javaClass.simpleName,
+                    error.message,
+                    error,
+                )
                 delay(SabrPumpPolicy.ERROR_RETRY_MS)
             }
         }
@@ -94,5 +106,9 @@ internal class SabrSessionPumpLoop {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
         return edgeMs - holder.readerHeadMs() > SabrPumpPolicy.READAHEAD_CUSHION_MS ||
             holder.session.cachedBytes > SabrPumpPolicy.MAX_AHEAD_BYTES
+    }
+
+    private companion object {
+        val logger = LoggerFactory.getLogger(SabrSessionPumpLoop::class.java)
     }
 }

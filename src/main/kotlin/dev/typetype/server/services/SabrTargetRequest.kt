@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import org.slf4j.LoggerFactory
 
 internal fun YoutubeSabrSession.fetchTargetedSegment(
     holder: SabrSessionHolder,
@@ -20,6 +21,19 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
         prepareForTarget(request, targetPlayerTimeMs)
         pumpOnceStreamingUntilCached(localization, request)
         getCachedSegment(request)
+    }
+    result.onFailure { error ->
+        logger.warn(
+            "sabr_target event=fetch_failed videoId={} itag={} seq={} init={} targetMs={} errorType={} error={}",
+            holder.key.videoId,
+            request.format.itag,
+            request.sequenceNumber,
+            request.isInitializationSegment,
+            targetPlayerTimeMs,
+            error.javaClass.simpleName,
+            error.message,
+            error,
+        )
     }
     return result.getOrNull()
         ?.takeIf { it.matches(request) }
@@ -52,5 +66,7 @@ private fun YoutubeSabrSession.targetTimeInsideSegment(request: SabrSegmentReque
     if (nextStartMs <= startMs + 1L) return startMs
     return minOf(startMs + TARGET_SEGMENT_OFFSET_MS, nextStartMs - 1L)
 }
+
+private val logger = LoggerFactory.getLogger("SabrTargetRequest")
 
 private const val TARGET_SEGMENT_OFFSET_MS = 1_000L

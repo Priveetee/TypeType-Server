@@ -4,6 +4,7 @@ import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.slf4j.LoggerFactory
 
 internal suspend fun fetchSabrInitializationSegment(
     holder: SabrSessionHolder,
@@ -18,14 +19,27 @@ internal suspend fun fetchSabrInitializationSegment(
         return@withLock segment
     }
     if (holder.session.isBeyondEnd(request)) return@withLock null
-    runCatchingNonCancellation {
+    val result = runCatchingNonCancellation {
         holder.session.prepareForInitialization(request.format)
         holder.session.pumpOnceStreamingUntilCached(localization, request)
         holder.session.getCachedSegment(request)
     }
+    result.onFailure { error ->
+        logger.warn(
+            "sabr_init event=fetch_failed videoId={} itag={} errorType={} error={}",
+            holder.key.videoId,
+            request.format.itag,
+            error.javaClass.simpleName,
+            error.message,
+            error,
+        )
+    }
+    result
         .getOrNull()
         ?.also {
             if (markServed) holder.markServed(it)
             segmentCache?.put(holder, it)
         }
 }
+
+private val logger = LoggerFactory.getLogger("SabrInitializationSegmentFetcher")

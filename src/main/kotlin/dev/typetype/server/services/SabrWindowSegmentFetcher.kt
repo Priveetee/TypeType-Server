@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.slf4j.LoggerFactory
 
 internal object SabrWindowSegmentFetcher {
     suspend fun fetch(
@@ -11,11 +12,23 @@ internal object SabrWindowSegmentFetcher {
         localization: Localization,
         segmentCache: SabrSegmentCache?,
     ): SabrMediaSegment? {
-        val segment = runCatchingNonCancellation {
+        val result = runCatchingNonCancellation {
             holder.session.prepareForMediaSegment(request)
             holder.session.pumpOnceStreamingUntilCached(localization, request)
             holder.session.getCachedSegment(request)
-        }.getOrNull()
+        }
+        result.onFailure { error ->
+            logger.warn(
+                "sabr_window event=fetch_failed videoId={} itag={} seq={} errorType={} error={}",
+                holder.key.videoId,
+                request.format.itag,
+                request.sequenceNumber,
+                error.javaClass.simpleName,
+                error.message,
+                error,
+            )
+        }
+        val segment = result.getOrNull()
         if (segment != null) segmentCache?.put(holder, segment)
         return segment?.takeIf { it.matches(request) }
             ?: holder.session.getCachedSegment(request)
@@ -25,4 +38,6 @@ internal object SabrWindowSegmentFetcher {
         if (header.isInitSegment || request.isInitializationSegment) return false
         return header.itag == request.format.itag && header.sequenceNumber == request.sequenceNumber
     }
+
+    private val logger = LoggerFactory.getLogger(SabrWindowSegmentFetcher::class.java)
 }
