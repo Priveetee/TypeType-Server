@@ -18,7 +18,8 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
     }
     val result = runCatchingNonCancellation {
         prepareForTarget(request, targetPlayerTimeMs)
-        fetchSegment(request, localization)
+        pumpOnceStreamingUntilCached(localization, request)
+        getCachedSegment(request)
     }
     return result.getOrNull()
         ?.takeIf { it.matches(request) }

@@ -18,7 +18,11 @@ internal suspend fun fetchSabrInitializationSegment(
         return@withLock segment
     }
     if (holder.session.isBeyondEnd(request)) return@withLock null
-    runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }
+    runCatchingNonCancellation {
+        holder.session.prepareForInitialization(request.format)
+        holder.session.pumpOnceStreamingUntilCached(localization, request)
+        holder.session.getCachedSegment(request)
+    }
         .getOrNull()
         ?.also {
             if (markServed) holder.markServed(it)

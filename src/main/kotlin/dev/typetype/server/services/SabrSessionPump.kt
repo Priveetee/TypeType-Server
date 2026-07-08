@@ -8,7 +8,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.time.Instant
 
 internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = null) {
-    private val loop = SabrSessionPumpLoop(segmentCache)
+    private val loop = SabrSessionPumpLoop()
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "GB")
@@ -17,7 +17,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         while (pumps < maxPumps && !isWarmEnough(holder) && !holder.session.isComplete) {
             holder.pumpMutex.withLock {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-                runCatchingNonCancellation { holder.session.pumpOnce(localization) }
+                runCatchingNonCancellation { holder.session.pumpOnceStreaming(localization) }
             }
             pumps++
         }
@@ -100,7 +100,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                 if (startMs < edgeMs - REWIND_GAP_MS) {
                     holder.setReaderPosition(request.format, startMs.coerceAtLeast(0L))
                     holder.session.prepareForRewind(request)
-                    runCatchingNonCancellation { holder.session.pumpOnce(localization) }
+                    runCatchingNonCancellation { holder.session.pumpOnceStreamingUntilCached(localization, request) }
                     return@withLock holder.session.getCachedSegment(request)?.also {
                         if (markServed) holder.markServed(it)
                     }

@@ -13,7 +13,8 @@ internal object SabrWindowSegmentFetcher {
     ): SabrMediaSegment? {
         val segment = runCatchingNonCancellation {
             holder.session.prepareForMediaSegment(request)
-            holder.session.fetchSegment(request, localization)
+            holder.session.pumpOnceStreamingUntilCached(localization, request)
+            holder.session.getCachedSegment(request)
         }.getOrNull()
         if (segment != null) segmentCache?.put(holder, segment)
         return segment?.takeIf { it.matches(request) }

@@ -26,16 +26,15 @@ class SabrSessionPumpTest {
     }
 
     @Test
-    fun `fetchSegment retries targeted fetch when first segment does not match request`() = runTest {
+    fun `fetchSegment serves targeted segment published by streaming pump`() = runTest {
         val audio = sabrFormat(140, isAudio = true)
         val video = sabrFormat(137, isAudio = false)
         val request = SabrSegmentRequest.media(audio, 8)
-        val wrong = mediaSegment(137, 120_000L, 5_000L, sequence = 8)
         val expected = mediaSegment(140, 120_000L, 10_000L, sequence = 8)
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns streamState
-        every { session.getCachedSegment(request) } returns null
+        every { session.getCachedSegment(request) } returnsMany listOf(null, null, expected)
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
@@ -44,7 +43,7 @@ class SabrSessionPumpTest {
         every { streamState.setPlayerTimeMs(any()) } returns Unit
         every { session.prepareForForwardJump(request) } returns Unit
         every { session.prepareForMediaSegment(request) } returns Unit
-        every { session.fetchSegment(request, any()) } returnsMany listOf(wrong, expected)
+        every { session.pumpOnceStreamingUntilCached(any(), request) } returns 1
         val holder = SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
@@ -58,7 +57,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(expected, fetched)
-        verify(exactly = 2) { session.fetchSegment(request, any()) }
+        verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
     }
 
     @Test
@@ -70,7 +69,7 @@ class SabrSessionPumpTest {
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns streamState
-        every { session.getCachedSegment(request) } returns null
+        every { session.getCachedSegment(request) } returnsMany listOf(null, null, null, expected)
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
@@ -79,7 +78,7 @@ class SabrSessionPumpTest {
         every { streamState.setPlayerTimeMs(any()) } returns Unit
         every { session.prepareForForwardJump(request) } returns Unit
         every { session.prepareForMediaSegment(request) } returns Unit
-        every { session.fetchSegment(request, any()) } throws RuntimeException("miss") andThen expected
+        every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0 andThen 1
         val holder = SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),
@@ -93,7 +92,7 @@ class SabrSessionPumpTest {
         val fetched = SabrSessionPump().fetchSegment(holder, request)
 
         assertSame(expected, fetched)
-        verify(exactly = 2) { session.fetchSegment(request, any()) }
+        verify(exactly = 2) { session.pumpOnceStreamingUntilCached(any(), request) }
     }
 
     @Test

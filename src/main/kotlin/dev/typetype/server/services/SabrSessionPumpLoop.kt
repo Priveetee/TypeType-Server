@@ -5,11 +5,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.io.IOException
 
-internal class SabrSessionPumpLoop(private val segmentCache: SabrSegmentCache?) {
+internal class SabrSessionPumpLoop {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "GB")
         var consecutiveIoErrors = 0
@@ -50,20 +50,20 @@ internal class SabrSessionPumpLoop(private val segmentCache: SabrSegmentCache?) 
     private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
         prepareEviction(holder)
         if (holder.session.requestNumber == 0) {
-            pumpOnceAndCache(holder, localization)
+            pumpOnce(holder, localization)
             return true
         }
         holder.consumeRefetch()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
-            pumpOnceAndCache(holder, localization)
+            pumpUntilCached(holder, localization, request)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForForwardJump(request)
-            pumpOnceAndCache(holder, localization)
+            pumpUntilCached(holder, localization, request)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
@@ -74,13 +74,16 @@ internal class SabrSessionPumpLoop(private val segmentCache: SabrSegmentCache?) 
         }
         holder.setPlaybackState(SabrPlaybackState.REQUESTING)
         holder.session.streamState.setPlayerTimeMs(holder.session.streamState.getMinBufferedEndMs())
-        pumpOnceAndCache(holder, localization)
+        pumpOnce(holder, localization)
         holder.setPlaybackState(SabrPlaybackState.IDLE)
         return false
     }
 
-    private suspend fun pumpOnceAndCache(holder: SabrSessionHolder, localization: Localization): List<SabrMediaSegment> =
-        holder.session.pumpOnce(localization).also { segmentCache?.putAll(holder, it) }
+    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization): Int =
+        holder.session.pumpOnceStreaming(localization)
+
+    private fun pumpUntilCached(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int =
+        holder.session.pumpOnceStreamingUntilCached(localization, request)
 
     private fun prepareEviction(holder: SabrSessionHolder): Unit {
         holder.session.setPlayHeadMs((holder.readerTailMs() - SabrPumpPolicy.backBufferMs(holder)).coerceAtLeast(0L))

@@ -4,11 +4,11 @@ internal object SabrPumpPolicy {
     const val IDLE_POLL_MS = 400L
     const val ERROR_RETRY_MS = 1_000L
     const val MAX_CONSECUTIVE_IO_ERRORS = 5
-    const val READAHEAD_CUSHION_MS = 30_000L
+    const val READAHEAD_CUSHION_MS = 10_000L
     const val MAX_AHEAD_BYTES = 100L * 1024L * 1024L
-    const val BACK_BUFFER_MS = 30_000L
-    const val MIN_BACK_BUFFER_MS = 5_000L
-    const val BACK_BUFFER_BYTES = 16L * 1024L * 1024L
+    const val BACK_BUFFER_MS = 12_000L
+    const val MIN_BACK_BUFFER_MS = 2_000L
+    const val BACK_BUFFER_BYTES = 4L * 1024L * 1024L
 
     fun backBufferMs(holder: SabrSessionHolder): Long {
         val cachedBytes = runCatchingNonCancellation { holder.session.cachedBytes }.getOrDefault(0L)
