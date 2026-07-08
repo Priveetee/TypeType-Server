@@ -27,7 +27,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
 
         val window = buildWindow(holder, request)
         if (window.audio.segments.isNotEmpty() && window.video.segments.isNotEmpty()) {
-            return call.respond(HttpStatusCode.OK, window)
+            return call.respond(HttpStatusCode.OK, window.response)
         }
         call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
     }
