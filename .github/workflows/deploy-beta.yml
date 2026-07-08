@@ -1,0 +1,35 @@
+name: Deploy Beta
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy-beta:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$TYPE_TYPE_DEPLOY_SSH_KEY" > ~/.ssh/typetype_deploy
+          chmod 600 ~/.ssh/typetype_deploy
+        env:
+          TYPE_TYPE_DEPLOY_SSH_KEY: ${{ secrets.TYPE_TYPE_DEPLOY_SSH_KEY }}
+
+      - name: Update beta stack
+        run: |
+          ssh -i ~/.ssh/typetype_deploy \
+            -p "$TYPE_TYPE_DEPLOY_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "$TYPE_TYPE_DEPLOY_USER@$TYPE_TYPE_DEPLOY_HOST" \
+            /usr/local/sbin/typetype-beta-update
+        env:
+          TYPE_TYPE_DEPLOY_HOST: ${{ secrets.TYPE_TYPE_DEPLOY_HOST }}
+          TYPE_TYPE_DEPLOY_PORT: ${{ secrets.TYPE_TYPE_DEPLOY_PORT }}
+          TYPE_TYPE_DEPLOY_USER: ${{ secrets.TYPE_TYPE_DEPLOY_USER }}
