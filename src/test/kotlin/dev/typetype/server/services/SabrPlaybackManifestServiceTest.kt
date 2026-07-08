@@ -5,7 +5,6 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
@@ -101,10 +100,6 @@ class SabrPlaybackManifestServiceTest {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
-        every { session.getCachedSegment(any()) } answers {
-            val request = firstArg<SabrSegmentRequest>()
-            if (request.sequenceNumber >= 1) mockk() else null
-        }
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.getEndSegment(audio) } returns endAudio
         every { state.getEndSegment(video) } returns endVideo

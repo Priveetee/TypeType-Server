@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackManifestService {
@@ -18,8 +17,6 @@ internal class SabrPlaybackManifestService {
         val bufferedEdgeMs = state.getMinBufferedEndMs()
         val progressMs = maxOf(bufferedEdgeMs, holder.readerTailMs())
         if (progressMs < readyAtMs) return SabrPlaybackManifestResult.Retry(holder.playbackStatus())
-        if (!holder.hasStartSegment(holder.audioFormat, startAudio)) return SabrPlaybackManifestResult.Retry(holder.playbackStatus())
-        if (!holder.hasStartSegment(holder.videoFormat, startVideo)) return SabrPlaybackManifestResult.Retry(holder.playbackStatus())
         val edgeMs = bufferedEdgeMs.coerceAtLeast(startMs)
         val windowEndMs = edgeMs + PLAYBACK_MANIFEST_WINDOW_MS
         val windowEndAudio = segmentAt(holder, holder.audioFormat, windowEndMs, knownAudio)
@@ -46,9 +43,6 @@ internal class SabrPlaybackManifestService {
         holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(format, ms)
             .coerceAtLeast(1)
             .coerceAtMost(maxSegment.toInt().coerceAtLeast(1))
-
-    private fun SabrSessionHolder.hasStartSegment(format: YoutubeSabrFormat, sequence: Int): Boolean =
-        session.getCachedSegment(SabrSegmentRequest.media(format, sequence)) != null
 
     private fun SabrSessionHolder.playbackStatus(): String = playbackState().name.lowercase().takeIf { it != IDLE }
         ?: PREPARING

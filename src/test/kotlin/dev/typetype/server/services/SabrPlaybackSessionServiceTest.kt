@@ -46,6 +46,7 @@ class SabrPlaybackSessionServiceTest {
         val audio = format(140, isAudio = true)
         val holder = holder(audio, format(137, isAudio = false))
         val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
         coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns null
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
@@ -60,6 +61,7 @@ class SabrPlaybackSessionServiceTest {
         val segment = mockk<SabrMediaSegment>()
         every { segment.data } returns byteArrayOf(1, 2, 3)
         val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
         coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns segment
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)

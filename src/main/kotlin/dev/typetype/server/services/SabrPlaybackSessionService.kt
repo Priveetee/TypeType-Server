@@ -87,6 +87,10 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         if (generation > activeGeneration) return SabrPlaybackSegmentResult.InvalidGeneration
         val request = SabrSegmentRequest.media(format, sequence)
         if (generation < activeGeneration) return staleMedia(holder, request)
+        sessionStore.cachedSegment(holder, request)?.let {
+            holder.markServed(it, generation)
+            return SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes)
+        }
         val segment = sessionStore.fetchPlaybackSegment(holder, format, sequence, timeoutMs)
         return if (segment == null) SabrPlaybackSegmentResult.Retry(holder, REPOSITIONING) else {
             SabrPlaybackSegmentResult.Ready(format.mimeType.orEmpty(), segment.data)
