@@ -97,4 +97,6 @@ internal data class SabrPlaybackWindowPreparingResponse(
     val pendingRefetch: String? = null,
     val pendingForwardSeek: String? = null,
     val terminalError: String? = null,
+    val recoveryAction: String? = null,
+    val retryVideoItags: List<Int> = emptyList(),
 )

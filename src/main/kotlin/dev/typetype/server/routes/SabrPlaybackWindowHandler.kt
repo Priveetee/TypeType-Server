@@ -109,12 +109,28 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             pendingRefetch = pendingRefetchRequest()?.summary(),
             pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
             terminalError = terminalFailure(),
+            recoveryAction = recoveryAction(),
+            retryVideoItags = retryVideoItags(),
         )
 
     private fun SabrSessionHolder.matches(request: SabrPlaybackWindowRequest): Boolean =
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
     private fun SabrSessionHolder.durationMs(): Long = maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
+
+    private fun SabrSessionHolder.recoveryAction(): String? = terminalFailure()
+        ?.takeIf { it.contains("status=3 protected no-media") }
+        ?.let { "retry_fresh_session_lower_video_itag" }
+
+    private fun SabrSessionHolder.retryVideoItags(): List<Int> = if (recoveryAction() == null) emptyList() else {
+        info.formats.asSequence()
+            .filter { it.isVideo && it.itag != videoFormat.itag }
+            .sortedByDescending { it.bitrate }
+            .map { it.itag }
+            .distinct()
+            .take(MAX_RETRY_VIDEO_ITAGS)
+            .toList()
+    }
 
     private fun YoutubeSabrFormat.trackName(): String = if (isAudio) "audio" else "video"
 
@@ -136,5 +152,6 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     private companion object {
         const val RETRY_AFTER_MS = 500L
         const val MAX_SEGMENTS_PER_TRACK = 12
+        const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }
