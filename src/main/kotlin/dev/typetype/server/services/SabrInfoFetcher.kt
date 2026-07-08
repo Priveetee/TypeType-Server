@@ -108,11 +108,6 @@ internal class SabrInfoFetcher(
         val logger = LoggerFactory.getLogger(SabrInfoFetcher::class.java)
         val LOCALIZATION = Localization("en", "GB")
         val CONTENT_COUNTRY = ContentCountry("GB")
-        val CLIENT_PROFILES = listOf(
-            YoutubeSabrClientProfile.WEB,
-            YoutubeSabrClientProfile.MWEB,
-            YoutubeSabrClientProfile.ANDROID_VR,
-            YoutubeSabrClientProfile.IOS,
-        )
+        val CLIENT_PROFILES = listOf(YoutubeSabrClientProfile.WEB, YoutubeSabrClientProfile.MWEB)
     }
 }
