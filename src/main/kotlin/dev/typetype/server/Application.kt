@@ -29,7 +29,6 @@ import java.util.UUID
 fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
-    NewPipeInitializer.init()
     launchExtractorLifecycle()
     val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/typetype"
     val dbUser = System.getenv("DATABASE_USER") ?: "typetype"
@@ -51,6 +50,7 @@ fun Application.module() {
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
+    NewPipeInitializer.init(subtitleServiceUrl)
     val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey, jwtSecret, adminSettingsService)
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
