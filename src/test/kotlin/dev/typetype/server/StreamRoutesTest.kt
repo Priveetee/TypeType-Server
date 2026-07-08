@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.StreamService
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -14,6 +15,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class StreamRoutesTest {
@@ -65,5 +67,31 @@ class StreamRoutesTest {
         }
         val response = client.get("/streams?url=https://unsupported.com/video")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET streams returns 422 when final response has no playable source`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.Success(testStreamResponse())
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                streamRoutes(streamService) { _, data ->
+                    data.copy(
+                        videoStreams = emptyList(),
+                        videoOnlyStreams = emptyList(),
+                        audioStreams = emptyList(),
+                        hlsUrl = "",
+                        dashMpdUrl = "",
+                    )
+                }
+            }
+        }
+
+        val response = client.get("/streams?url=https://youtube.com/watch?v=test")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertTrue(body.contains("\"code\":\"no_playable_streams\""))
     }
 }

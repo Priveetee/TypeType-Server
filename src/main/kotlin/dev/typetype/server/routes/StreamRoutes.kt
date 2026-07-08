@@ -61,6 +61,12 @@ fun Route.streamRoutes(
                 } else {
                     sabrStreamContractFilter(url, filtered)
                 }
+                if (!data.hasPlayableSource()) {
+                    return@get call.respond(
+                        HttpStatusCode.UnprocessableEntity,
+                        ErrorResponse("No playable streams available", "no_playable_streams"),
+                    )
+                }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
                     if (usedYoutubeSession || accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
@@ -101,6 +107,9 @@ private fun StreamResponse.mergeWithPublic(public: StreamResponse): StreamRespon
 
 private fun ExtractionResult<StreamResponse>?.hasPlayableStreams(): Boolean =
     this is ExtractionResult.Success && data.playableStreamCount() > 0
+
+private fun StreamResponse.hasPlayableSource(): Boolean =
+    playableStreamCount() > 0 || hlsUrl.isNotBlank() || dashMpdUrl.isNotBlank()
 
 private fun StreamResponse.playableStreamCount(): Int =
     videoStreams.size + videoOnlyStreams.size + audioStreams.size
