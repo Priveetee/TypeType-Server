@@ -75,7 +75,7 @@ class SabrPlaybackManifestServiceTest {
     }
 
     @Test
-    fun `reader tail at containing segment start is ready`() {
+    fun `reader tail at containing segment start without buffered edge is retryable`() {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val holder = holder(audio, video, endAudio = 5L, endVideo = 5L, maxAudio = 5, maxVideo = 5, bufferedEdgeMs = 20_000L)
@@ -85,7 +85,7 @@ class SabrPlaybackManifestServiceTest {
 
         val result = SabrPlaybackManifestService().build(holder, "/api/sabr/playback/session-token")
 
-        assertTrue((result as SabrPlaybackManifestResult.Ready).manifest.contains("<MPD"))
+        assertEquals(SabrPlaybackManifestResult.Retry("preparing"), result)
     }
 
     private fun holder(
