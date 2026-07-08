@@ -14,8 +14,7 @@ internal object SabrWindowSegmentFetcher {
     ): SabrMediaSegment? {
         val result = runCatchingNonCancellation {
             holder.session.prepareForMediaSegment(request)
-            holder.session.pumpOnceStreamingUntilCached(localization, request)
-            holder.session.getCachedSegment(request)
+            holder.session.fetchSegment(request, localization)
         }
         result.onFailure { error ->
             logger.warn(
