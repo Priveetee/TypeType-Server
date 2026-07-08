@@ -136,6 +136,28 @@ class SabrPlaybackSessionServiceTest {
         verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
+    @Test
+    fun `same format seek repositions to latest track segment`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video)
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 120_000L) } returns 24
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 120_000L) } returns 13
+        every { holder.session.streamState.getSegmentStartMs(video, 24) } returns 120_000L
+        every { holder.session.streamState.getSegmentStartMs(audio, 13) } returns 118_979L
+        every { holder.session.streamState.getMinBufferedEndMs() } returns 109_637L
+        val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), token())
+        val store = mockk<SabrSessionStore>()
+        every { store.startPump(holder) } returns Unit
+
+        SabrPlaybackSessionService(store).seek(holder, prepared, audio, video, 120_000L)
+
+        val request = holder.consumeForwardSeek()
+        assertEquals(video.itag, request?.format?.itag)
+        assertEquals(24, request?.sequenceNumber)
+        assertEquals(120_000L, holder.readerTailMs())
+    }
+
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
