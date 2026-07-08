@@ -65,6 +65,7 @@ internal class SabrSessionStore(
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
         val normalizedStartTimeMs = startTimeMs.coerceAtLeast(0L)
+        configureSelectedVideoHints(session, videoFormat)
         session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
@@ -177,6 +178,11 @@ internal class SabrSessionStore(
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private fun configureSelectedVideoHints(session: YoutubeSabrSession, videoFormat: YoutubeSabrFormat): Unit {
+        session.streamState.setStickyResolutionOverride(videoFormat.height.takeIf { it > 0 })
+        session.streamState.setWriteLastManualSelectedResolution(true)
     }
 
 }

@@ -1,7 +1,6 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
@@ -10,88 +9,66 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessionStore) {
+    private val windowBuilder = SabrPlaybackWindowBuilder(sabrSessionStore)
+
     suspend fun post(call: ApplicationCall, sessionId: String) {
-        val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid window request"))
-        if (!holder.matches(request)) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Window formats do not match session"))
-        if (request.generation != holder.activeGeneration()) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation"))
+        val holder = validatedHolder(call, sessionId, request) ?: return
 
         holder.setPlayerTimeMs(request.playerTimeMs)
+        holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
         sabrSessionStore.warmPlaybackAsync(holder)
 
-        val window = buildWindow(holder, request)
-        if (window.audio.segments.isNotEmpty() && window.video.segments.isNotEmpty()) {
+        val window = windowBuilder.build(holder, request)
+        if (window.isReady) {
             return call.respond(HttpStatusCode.OK, window.response)
         }
         call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
     }
 
-    private suspend fun buildWindow(
-        holder: SabrSessionHolder,
-        request: SabrPlaybackWindowRequest,
-    ): WindowBuildResult {
-        val audio = buildTrack(holder, holder.audioFormat, request)
-        val video = buildTrack(holder, holder.videoFormat, request)
-        return WindowBuildResult(
-            SabrPlaybackWindowReadyResponse(
+    suspend fun position(call: ApplicationCall, sessionId: String) {
+        val request = runCatching { call.receive<SabrPlaybackPositionRequest>() }.getOrNull()
+            ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid position request"))
+        val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setPlayerTimeMs(request.playerTimeMs)
+        holder.applyClientState(request.bufferedRanges)
+        call.respond(
+            SabrPlaybackPositionResponse(
                 sessionId = holder.sessionToken,
                 generation = holder.activeGeneration(),
-                ready = true,
-                retryAfterMs = null,
-                durationMs = holder.durationMs(),
-                audio = audio.track,
-                video = video.track,
-            ),
-            audio.blockedBy ?: video.blockedBy,
+                playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
+                readerHeadMs = holder.readerHeadMs(),
+                readerTailMs = holder.readerTailMs(),
+                bufferedEdgeMs = holder.session.streamState.getMinBufferedEndMs(),
+            )
         )
     }
 
-    private suspend fun buildTrack(
-        holder: SabrSessionHolder,
-        format: YoutubeSabrFormat,
-        request: SabrPlaybackWindowRequest,
-    ): TrackBuildResult {
-        val startSeq = holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(format, request.playerTimeMs.coerceAtLeast(0L))
-            .coerceAtLeast(1)
-        val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
-        val segments = mutableListOf<SabrPlaybackWindowSegment>()
-        var blockedBy: String? = null
-        var seq = startSeq
-        while (segments.size < MAX_SEGMENTS_PER_TRACK) {
-            val segment = sabrSessionStore.cachedSegment(holder, SabrSegmentRequest.media(format, seq))
-            if (segment == null) {
-                blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
-                break
-            }
-            segments += segment.toWindowSegment(holder, format)
-            if (segment.startMs + segment.durationMs >= goalEndMs) break
-            seq++
-        }
-        return TrackBuildResult(
-            track = SabrPlaybackWindowTrack(
-                mime = format.mimeType.orEmpty(),
-                initUrl = "${SabrPlaybackPaths.mediaBasePath(holder.sessionToken)}/${format.itag}/init?generation=${holder.activeGeneration()}",
-                segments = segments,
-            ),
-            blockedBy = blockedBy,
-        )
+    suspend fun prefetch(call: ApplicationCall, sessionId: String) {
+        val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
+            ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid prefetch request"))
+        val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setPlayerTimeMs(request.playerTimeMs)
+        holder.applyClientState(request.bufferedRanges)
+        sabrSessionStore.startPump(holder)
+        sabrSessionStore.warmPlaybackAsync(holder)
+        val window = windowBuilder.build(holder, request)
+        val status = if (window.isReady) HttpStatusCode.OK else HttpStatusCode.Accepted
+        call.respond(status, holder.prefetchResponse(request, window))
     }
 
-    private fun CachedSabrSegment.toWindowSegment(holder: SabrSessionHolder, format: YoutubeSabrFormat): SabrPlaybackWindowSegment {
-        val startMs = startMs.coerceAtLeast(holder.session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L))
-        val durationMs = durationMs.takeIf { it > 0L }
-            ?: (holder.session.streamState.getSegmentEndMs(format, sequence) - startMs).coerceAtLeast(1L)
-        return SabrPlaybackWindowSegment(
-            url = "${SabrPlaybackPaths.mediaBasePath(holder.sessionToken)}/${format.itag}/segment/$sequence?generation=${holder.activeGeneration()}",
-            startMs = startMs,
-            durationMs = durationMs,
-        )
+    suspend fun segments(call: ApplicationCall, sessionId: String) {
+        val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
+            ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid segments request"))
+        val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.applyClientState(request.bufferedRanges)
+        val window = windowBuilder.build(holder, request)
+        if (window.isReady) return call.respond(HttpStatusCode.OK, window.response)
+        call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
     }
 
     private fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
@@ -113,10 +90,66 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             retryVideoItags = retryVideoItags(),
         )
 
+    private fun SabrSessionHolder.prefetchResponse(
+        request: SabrPlaybackWindowRequest,
+        window: SabrPlaybackWindowBuildResult,
+    ): SabrPlaybackPrefetchResponse = SabrPlaybackPrefetchResponse(
+        sessionId = sessionToken,
+        generation = activeGeneration(),
+        ready = window.isReady,
+        retryAfterMs = if (window.isReady) null else RETRY_AFTER_MS,
+        status = playbackState().name.lowercase(),
+        segmentsUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/segments",
+        stateUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/state",
+        blockedBy = if (window.isReady) null else SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending",
+        playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
+        readerHeadMs = readerHeadMs(),
+        readerTailMs = readerTailMs(),
+        bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
+        pendingRefetch = pendingRefetchRequest()?.summary(),
+        pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
+        terminalError = terminalFailure(),
+        recoveryAction = recoveryAction(),
+        retryVideoItags = retryVideoItags(),
+    )
+
+    private suspend fun validatedHolder(
+        call: ApplicationCall,
+        sessionId: String,
+        request: SabrPlaybackWindowRequest,
+    ): SabrSessionHolder? {
+        val holder = sabrSessionStore.lookupByToken(sessionId)
+            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+        if (!holder.matches(request)) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Window formats do not match session")).let { null }
+        }
+        if (request.generation != holder.activeGeneration()) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation")).let { null }
+        }
+        return holder
+    }
+
+    private suspend fun validatedHolder(
+        call: ApplicationCall,
+        sessionId: String,
+        request: SabrPlaybackPositionRequest,
+    ): SabrSessionHolder? {
+        val holder = sabrSessionStore.lookupByToken(sessionId)
+            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+        if (!holder.matches(request)) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Position formats do not match session")).let { null }
+        }
+        if (request.generation != holder.activeGeneration()) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation")).let { null }
+        }
+        return holder
+    }
+
     private fun SabrSessionHolder.matches(request: SabrPlaybackWindowRequest): Boolean =
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
-    private fun SabrSessionHolder.durationMs(): Long = maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
+    private fun SabrSessionHolder.matches(request: SabrPlaybackPositionRequest): Boolean =
+        request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
     private fun SabrSessionHolder.recoveryAction(): String? = terminalFailure()
         ?.takeIf { it.contains("status=3 protected no-media") }
@@ -132,26 +165,10 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             .toList()
     }
 
-    private fun YoutubeSabrFormat.trackName(): String = if (isAudio) "audio" else "video"
-
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
-
-    private data class WindowBuildResult(
-        val response: SabrPlaybackWindowReadyResponse,
-        val blockedBy: String?,
-    ) {
-        val audio: SabrPlaybackWindowTrack = response.audio
-        val video: SabrPlaybackWindowTrack = response.video
-    }
-
-    private data class TrackBuildResult(
-        val track: SabrPlaybackWindowTrack,
-        val blockedBy: String?,
-    )
 
     private companion object {
         const val RETRY_AFTER_MS = 500L
-        const val MAX_SEGMENTS_PER_TRACK = 12
         const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

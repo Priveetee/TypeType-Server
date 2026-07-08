@@ -32,7 +32,7 @@ class SabrSessionPumpTest {
         val request = SabrSegmentRequest.media(audio, 8)
         val expected = mediaSegment(140, 120_000L, 10_000L, sequence = 8)
         val session = mockk<YoutubeSabrSession>()
-        val streamState = mockk<YoutubeSabrStreamState>()
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
         every { session.getCachedSegment(request) } returns null
         every { session.isBeyondEnd(request) } returns false
@@ -67,7 +67,7 @@ class SabrSessionPumpTest {
         val request = SabrSegmentRequest.media(audio, 32)
         val expected = mediaSegment(140, 309_522L, 9_985L, sequence = 32)
         val session = mockk<YoutubeSabrSession>()
-        val streamState = mockk<YoutubeSabrStreamState>()
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
         every { session.getCachedSegment(request) } returns null
         every { session.isBeyondEnd(request) } returns false

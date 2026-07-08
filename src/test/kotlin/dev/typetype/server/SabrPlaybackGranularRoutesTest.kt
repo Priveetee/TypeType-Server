@@ -1,0 +1,165 @@
+package dev.typetype.server
+
+import dev.typetype.server.routes.SabrPlaybackWindowHandler
+import dev.typetype.server.services.CachedSabrSegment
+import dev.typetype.server.services.SabrSessionHolder
+import dev.typetype.server.services.SabrSessionKey
+import dev.typetype.server.services.SabrSessionStore
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.call
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
+import io.ktor.server.testing.testApplication
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import java.time.Instant
+
+class SabrPlaybackGranularRoutesTest {
+    @Test
+    fun `position updates player time without prefetching`() = testApplication {
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/position") {
+            contentType(ContentType.Application.Json)
+            setBody(positionBody(13_000L))
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"playerTimeMs\":13000"))
+        assertEquals(13_000L, holder.playerTimeMs())
+        verify(exactly = 0) { store.startPump(holder) }
+        verify(exactly = 0) { store.warmPlaybackAsync(holder) }
+    }
+
+    @Test
+    fun `segments returns pending without prefetching when window is partial`() = testApplication {
+        val store = partialStore()
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/segments") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("audio:140:2 pending"))
+        verify(exactly = 0) { store.startPump(holder) }
+        verify(exactly = 0) { store.warmPlaybackAsync(holder) }
+    }
+
+    @Test
+    fun `legacy window returns pending until the full requested window is cached`() = testApplication {
+        val store = partialStore()
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/window") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("audio:140:2 pending"))
+        verify(exactly = 1) { store.startPump(holder) }
+        verify(exactly = 1) { store.warmPlaybackAsync(holder) }
+    }
+
+    private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {
+        install(ContentNegotiation) { json() }
+        val handler = SabrPlaybackWindowHandler(store)
+        routing {
+            post("/sabr/playback/{sessionId}/position") { handler.position(call, call.parameters["sessionId"].orEmpty()) }
+            post("/sabr/playback/{sessionId}/segments") { handler.segments(call, call.parameters["sessionId"].orEmpty()) }
+            post("/sabr/playback/{sessionId}/window") { handler.post(call, call.parameters["sessionId"].orEmpty()) }
+        }
+    }
+
+    private fun partialStore(): SabrSessionStore {
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        coEvery { store.cachedSegment(any(), any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            if (request.sequenceNumber == 1) cachedSegment(request.format.itag) else null
+        }
+        return store
+    }
+
+    private fun holder(): SabrSessionHolder {
+        val audio = format(140, true)
+        val video = format(136, false)
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns state
+        every { state.setActiveTrackTypes(true, true) } returns Unit
+        every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
+        every { state.getSegmentStartMs(any(), any()) } answers { (secondArg<Int>() - 1) * 10_000L }
+        every { state.getSegmentEndMs(any(), any()) } answers { secondArg<Int>() * 10_000L }
+        every { state.getMinBufferedEndMs() } returns 10_000L
+        every { state.setStickyResolutionOverride(any()) } returns Unit
+        every { state.setWriteLastManualSelectedResolution(true) } returns Unit
+        every { state.setBufferedRangesOverride(null) } returns Unit
+        every { state.setBufferedRangesOverride(any()) } returns Unit
+        return SabrSessionHolder(
+            session = session,
+            info = mockk<YoutubeSabrInfo>(),
+            audioFormat = audio,
+            videoFormat = video,
+            sessionToken = "session-token",
+            key = SabrSessionKey("video", "user", 140, null, 136, 0L),
+            lastRequestAt = Instant.EPOCH,
+        )
+    }
+
+    private fun format(itag: Int, isAudio: Boolean): YoutubeSabrFormat {
+        val format = mockk<YoutubeSabrFormat>()
+        every { format.itag } returns itag
+        every { format.isAudio } returns isAudio
+        every { format.audioTrackId } returns null
+        every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
+        every { format.height } returns if (isAudio) 0 else 720
+        every { format.approxDurationMs } returns 900_000L
+        return format
+    }
+
+    private fun cachedSegment(itag: Int): CachedSabrSegment = CachedSabrSegment(
+        itag = itag,
+        sequence = 1,
+        init = false,
+        startMs = 0L,
+        durationMs = 10_000L,
+        mimeType = if (itag == 140) "audio/mp4" else "video/mp4",
+        bytesBase64 = "AA==",
+        byteLength = 1,
+    )
+
+    private fun positionBody(ms: Long): String =
+        """{"generation":0,"playerTimeMs":$ms,"videoItag":136,"audioItag":140}"""
+
+    private fun windowBody(): String =
+        """{"generation":0,"playerTimeMs":0,"videoItag":136,"audioItag":140,"bufferGoalMs":30000}"""
+}

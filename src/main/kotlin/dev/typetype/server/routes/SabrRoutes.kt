@@ -67,6 +67,21 @@ internal fun Route.sabrRoutes(
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
         playbackWindowHandler.post(call, sessionId)
     }
+    post("/sabr/playback/{sessionId}/position") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackWindowHandler.position(call, sessionId)
+    }
+    post("/sabr/playback/{sessionId}/prefetch") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackWindowHandler.prefetch(call, sessionId)
+    }
+    post("/sabr/playback/{sessionId}/segments") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        playbackWindowHandler.segments(call, sessionId)
+    }
     get("/sabr/playback/{sessionId}/manifest") {
         val sessionId = call.parameters["sessionId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))

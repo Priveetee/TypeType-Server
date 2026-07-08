@@ -133,8 +133,10 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                 }
                 if (holder.session.isBeyondEnd(request)) return@withLock null
                 holder.consumeMatchingSeek(request)
-                holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
-                    ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
+                withTargetedRequestShape(holder, request) {
+                    holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
+                        ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
+                }
             }
             if (segment != null) {
                 if (markServed) holder.markServed(segment)
