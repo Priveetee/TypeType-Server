@@ -20,5 +20,5 @@ object NewPipeInitializer {
         initialized = true
     }
 
-    private const val YOUTUBE_PLAYER_CLIENT = "web"
+    private const val YOUTUBE_PLAYER_CLIENT = "mweb"
 }
