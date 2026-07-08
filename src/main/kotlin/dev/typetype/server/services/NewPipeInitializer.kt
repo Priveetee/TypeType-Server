@@ -9,6 +9,7 @@ object NewPipeInitializer {
     @Volatile private var decoderServiceUrl: String? = null
 
     fun init(tokenServiceUrl: String? = null): Unit {
+        NewPipe.setYoutubePlayerClient(YOUTUBE_PLAYER_CLIENT)
         val normalizedUrl = tokenServiceUrl?.trim()?.takeIf { it.isNotBlank() }
         if (normalizedUrl != null && normalizedUrl != decoderServiceUrl) {
             YoutubeApiDecoder.setLocalDecoder(TypetypeTokenYoutubeJavaScriptDecoder(normalizedUrl))
@@ -18,4 +19,6 @@ object NewPipeInitializer {
         NewPipe.init(OkHttpDownloader.instance())
         initialized = true
     }
+
+    private const val YOUTUBE_PLAYER_CLIENT = "web"
 }
