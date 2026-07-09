@@ -39,6 +39,12 @@ internal object SabrInitializationData {
         memoryCache[key] = bytes
     }
 
+    fun ingestRemembered(format: YoutubeSabrFormat, holder: SabrSessionHolder): Boolean {
+        val key = cacheKey(format) ?: return false
+        val bytes = memoryCache[key] ?: return false
+        return holder.session.streamState.ingestInitializationData(format, bytes)
+    }
+
     suspend fun fetchFallback(holder: SabrSessionHolder, format: YoutubeSabrFormat, cache: CacheService? = null): ByteArray? {
         val key = cacheKey(format) ?: return null
         memoryCache[key]?.let { holder.session.streamState.ingestInitializationData(format, it); return it }

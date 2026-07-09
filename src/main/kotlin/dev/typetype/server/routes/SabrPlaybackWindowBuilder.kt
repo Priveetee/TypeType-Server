@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.CachedSabrSegment
+import dev.typetype.server.services.SabrInitializationData
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.playbackStartSequence
@@ -12,6 +13,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         holder: SabrSessionHolder,
         request: SabrPlaybackWindowRequest,
     ): SabrPlaybackWindowBuildResult {
+        SabrInitializationData.ingestRemembered(holder.audioFormat, holder)
+        SabrInitializationData.ingestRemembered(holder.videoFormat, holder)
         val audio = buildTrack(holder, holder.audioFormat, request)
         val video = buildTrack(holder, holder.videoFormat, request)
         val blocked = blockedTrack(audio, video)
