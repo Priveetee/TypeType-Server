@@ -109,8 +109,19 @@ internal class SabrSessionStore(
         holder.mediaRequestsAt(playerTimeMs).map { segmentCache.get(holder, it) }
             .takeIf { cached -> cached.all { it != null } }?.filterNotNull()
 
-    internal suspend fun cachedSegment(holder: SabrSessionHolder, request: SabrSegmentRequest): CachedSabrSegment? =
-        segmentCache.get(holder, request)
+    internal suspend fun cachedSegment(holder: SabrSessionHolder, request: SabrSegmentRequest): CachedSabrSegment? {
+        holder.session.getCachedSegment(request)?.let {
+            segmentCache.put(holder, it)
+            holder.clearSegmentDemand(request)
+            return it.toCachedSabrSegment(request.format.mimeType.orEmpty())
+        }
+        return segmentCache.get(holder, request)?.also { holder.clearSegmentDemand(request) }
+    }
+
+    internal fun requestSegmentDemand(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
+        holder.requestSegmentDemand(request)
+        startPump(holder)
+    }
 
     internal suspend fun fetchInfo(
         videoId: String,

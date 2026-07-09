@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.pendingSegmentDemandSummary
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -77,13 +78,20 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     ): SabrPlaybackWindowBuildResult {
         val window = windowBuilder.build(holder, request)
         val blockedRequest = window.blockedRequest ?: return window
-        sabrSessionStore.fetchPlaybackSegment(
-            holder = holder,
-            format = blockedRequest.format,
-            sequence = blockedRequest.sequenceNumber,
-            timeoutMs = TARGETED_PREFETCH_TIMEOUT_MS,
-        )
-        return windowBuilder.build(holder, request)
+        val requests = if (window.isReady) listOf(blockedRequest) else window.playableBlockedRequests.ifEmpty { listOf(blockedRequest) }
+        requests.forEach { sabrSessionStore.requestSegmentDemand(holder, it) }
+        if (window.isReady) return window
+        requests.forEach {
+            sabrSessionStore.fetchPlaybackSegment(
+                holder = holder,
+                format = it.format,
+                sequence = it.sequenceNumber,
+                timeoutMs = TARGETED_PREFETCH_TIMEOUT_MS,
+            )
+        }
+        val refreshed = windowBuilder.build(holder, request)
+        refreshed.blockedRequest?.let { sabrSessionStore.requestSegmentDemand(holder, it) }
+        return refreshed
     }
 
     private fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
@@ -100,6 +108,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
             pendingRefetch = pendingRefetchRequest()?.summary(),
             pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
+            pendingSegmentDemand = pendingSegmentDemandSummary(),
             terminalError = terminalFailure(),
             recoveryAction = recoveryAction(),
             retryVideoItags = retryVideoItags(),
@@ -123,6 +132,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
         pendingRefetch = pendingRefetchRequest()?.summary(),
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
+        pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure(),
         recoveryAction = recoveryAction(),
         retryVideoItags = retryVideoItags(),
@@ -183,8 +193,8 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 
     private companion object {
-        const val RETRY_AFTER_MS = 500L
-        const val TARGETED_PREFETCH_TIMEOUT_MS = 2_500L
+        const val RETRY_AFTER_MS = 150L
+        const val TARGETED_PREFETCH_TIMEOUT_MS = 900L
         const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

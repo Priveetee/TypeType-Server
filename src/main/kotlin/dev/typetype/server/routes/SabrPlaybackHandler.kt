@@ -186,7 +186,7 @@ internal class SabrPlaybackHandler(
     }
 
     private companion object {
-        const val PLAYBACK_SEGMENT_TIMEOUT_MS = 20_000L
-        const val RETRY_AFTER_MS = 1_000L
+        const val PLAYBACK_SEGMENT_TIMEOUT_MS = 4_000L
+        const val RETRY_AFTER_MS = 250L
     }
 }

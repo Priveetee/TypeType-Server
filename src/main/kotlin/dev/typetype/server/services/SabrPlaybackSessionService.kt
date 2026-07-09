@@ -4,6 +4,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
     suspend fun prepare(
@@ -91,8 +92,10 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.markServed(it, generation)
             return SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes)
         }
+        holder.requestSegmentDemand(request)
         val segment = sessionStore.fetchPlaybackSegment(holder, format, sequence, timeoutMs)
         return if (segment == null) SabrPlaybackSegmentResult.Retry(holder, REPOSITIONING) else {
+            holder.clearSegmentDemand(request)
             SabrPlaybackSegmentResult.Ready(format.mimeType.orEmpty(), segment.data)
         }
     }
@@ -103,12 +106,17 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             ?: SabrPlaybackSegmentResult.Stale(holder)
 
     private suspend fun prepareHolder(holder: SabrSessionHolder, startTimeMs: Long): SabrPlaybackPreparation {
+        val startedAt = System.currentTimeMillis()
         holder.setPlayerTimeMs(startTimeMs)
-        val ready = withTimeoutOrNull(PLAYBACK_READY_TIMEOUT_MS) {
-            sessionStore.preflightPlayback(holder, startTimeMs)
-        } == true
         sessionStore.startPump(holder)
-        return SabrPlaybackPreparation(holder, startTimeMs, ready)
+        sessionStore.warmPlaybackAsync(holder)
+        logger.info(
+            "sabr_playback_prepare videoId={} startTimeMs={} elapsedMs={} ready=false",
+            holder.key.videoId,
+            startTimeMs,
+            System.currentTimeMillis() - startedAt,
+        )
+        return SabrPlaybackPreparation(holder, startTimeMs, ready = false)
     }
 
     private fun SabrSessionHolder.matches(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): Boolean =
@@ -124,7 +132,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     }
 
     private companion object {
-        const val PLAYBACK_READY_TIMEOUT_MS = 20_000L
+        val logger = LoggerFactory.getLogger(SabrPlaybackSessionService::class.java)
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
     }

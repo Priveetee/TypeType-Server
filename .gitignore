@@ -46,6 +46,7 @@ local.properties
 # AI agent instructions — local only, never committed
 AGENTS.md
 Vision.md
+RESEARCH.MD
 
 # Frontend integration guide — local only, shared manually
 Backend.md

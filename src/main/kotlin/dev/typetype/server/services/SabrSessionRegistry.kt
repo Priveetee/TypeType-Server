@@ -23,6 +23,7 @@ internal class SabrSessionRegistry {
     fun remove(holder: SabrSessionHolder): Unit {
         sessions.remove(holder.key, holder)
         sessionsByToken.remove(holder.sessionToken, holder)
+        holder.clearSegmentDemands()
     }
 
     fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? {
@@ -77,11 +78,13 @@ internal class SabrSessionRegistry {
     fun clear() {
         sessions.clear()
         sessionsByToken.clear()
+        SabrSegmentDemandTracker.clearAll()
     }
 
     private fun remove(key: SabrSessionKey) {
         sessions.remove(key)?.let { holder ->
             sessionsByToken.remove(holder.sessionToken, holder)
+            holder.clearSegmentDemands()
         }
     }
 }

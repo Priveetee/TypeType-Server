@@ -13,6 +13,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     ): SabrPlaybackWindowBuildResult {
         val audio = buildTrack(holder, holder.audioFormat, request)
         val video = buildTrack(holder, holder.videoFormat, request)
+        val blocked = blockedTrack(audio, video)
         return SabrPlaybackWindowBuildResult(
             response = SabrPlaybackWindowReadyResponse(
                 sessionId = holder.sessionToken,
@@ -23,9 +24,24 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 audio = audio.track,
                 video = video.track,
             ),
-            blockedBy = audio.blockedBy ?: video.blockedBy,
-            blockedRequest = audio.blockedRequest ?: video.blockedRequest,
+            blockedBy = blocked?.blockedBy,
+            blockedRequest = blocked?.blockedRequest,
+            playableBlockedRequests = playableBlockedRequests(audio, video),
         )
+    }
+
+    private fun playableBlockedRequests(audio: TrackBuildResult, video: TrackBuildResult): List<SabrSegmentRequest> =
+        listOfNotNull(
+            audio.blockedRequest.takeIf { audio.track.segments.isEmpty() },
+            video.blockedRequest.takeIf { video.track.segments.isEmpty() },
+        )
+
+    private fun blockedTrack(audio: TrackBuildResult, video: TrackBuildResult): TrackBuildResult? = when {
+        audio.track.segments.isEmpty() && audio.blockedRequest != null -> audio
+        video.track.segments.isEmpty() && video.blockedRequest != null -> video
+        audio.blockedRequest != null -> audio
+        video.blockedRequest != null -> video
+        else -> null
     }
 
     private suspend fun buildTrack(
@@ -103,6 +119,7 @@ internal data class SabrPlaybackWindowBuildResult(
     val response: SabrPlaybackWindowReadyResponse,
     val blockedBy: String?,
     val blockedRequest: SabrSegmentRequest?,
+    val playableBlockedRequests: List<SabrSegmentRequest>,
 ) {
-    val isReady: Boolean = blockedBy == null && response.audio.segments.isNotEmpty() && response.video.segments.isNotEmpty()
+    val isReady: Boolean = response.audio.segments.isNotEmpty() && response.video.segments.isNotEmpty()
 }

@@ -43,6 +43,7 @@ internal data class SabrPlaybackStateResponse(
     val cachedBytes: Long,
     val pendingRefetch: String? = null,
     val pendingForwardSeek: String? = null,
+    val pendingSegmentDemand: String? = null,
     val terminalError: String? = null,
 )
 
@@ -103,6 +104,7 @@ internal data class SabrPlaybackPrefetchResponse(
     val bufferedEdgeMs: Long,
     val pendingRefetch: String? = null,
     val pendingForwardSeek: String? = null,
+    val pendingSegmentDemand: String? = null,
     val terminalError: String? = null,
     val recoveryAction: String? = null,
     val retryVideoItags: List<Int> = emptyList(),
@@ -147,6 +149,7 @@ internal data class SabrPlaybackWindowPreparingResponse(
     val bufferedEdgeMs: Long,
     val pendingRefetch: String? = null,
     val pendingForwardSeek: String? = null,
+    val pendingSegmentDemand: String? = null,
     val terminalError: String? = null,
     val recoveryAction: String? = null,
     val retryVideoItags: List<Int> = emptyList(),

@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.pendingSegmentDemandSummary
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -31,6 +32,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         cachedBytes = session.cachedBytes,
         pendingRefetch = pendingRefetchRequest()?.summary(),
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
+        pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure(),
     )
 

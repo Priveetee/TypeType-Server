@@ -46,6 +46,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
         holder.lastRequestAt = Instant.now()
         holder.session.getCachedSegment(request)?.let { segment ->
             if (markServed) holder.markServed(segment)
+            holder.clearSegmentDemand(request)
             segmentCache?.put(holder, segment)
             return segment
         }
@@ -110,7 +111,10 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
                 val fetched = runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }.getOrNull()
                 fetched?.also { if (markServed) holder.markServed(it) }
             }
-            if (segment != null) segmentCache?.put(holder, segment)
+            if (segment != null) {
+                holder.clearSegmentDemand(request)
+                segmentCache?.put(holder, segment)
+            }
             if (segment != null || holder.session.isBeyondEnd(request)) return segment
             pumps++
             delay(FETCH_RETRY_DELAY_MS)
@@ -140,6 +144,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
             }
             if (segment != null) {
                 if (markServed) holder.markServed(segment)
+                holder.clearSegmentDemand(request)
                 segmentCache?.put(holder, segment)
             }
             if (segment != null || holder.session.isBeyondEnd(request)) return segment

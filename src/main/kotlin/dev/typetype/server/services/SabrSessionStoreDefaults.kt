@@ -3,9 +3,9 @@ package dev.typetype.server.services
 import java.time.Duration
 
 internal object SabrSessionStoreDefaults {
-    const val INFO_TIMEOUT_MS = 20_000L
-    const val INFO_ATTEMPTS = 3
-    const val INFO_RETRY_DELAY_MS = 500L
+    const val INFO_TIMEOUT_MS = 8_000L
+    const val INFO_ATTEMPTS = 1
+    const val INFO_RETRY_DELAY_MS = 250L
 
     fun maxSessions(): Int =
         System.getenv("SABR_MAX_SESSIONS")?.toIntOrNull()?.coerceAtLeast(1) ?: 24

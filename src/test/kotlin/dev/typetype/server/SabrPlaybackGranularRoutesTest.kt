@@ -20,6 +20,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -54,7 +55,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `segments returns pending without prefetching when window is partial`() = testApplication {
+    fun `segments returns playable partial window without prefetching`() = testApplication {
         val store = partialStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -65,14 +66,14 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody())
         }
 
-        assertEquals(HttpStatusCode.Accepted, response.status)
-        assertTrue(response.bodyAsText().contains("audio:140:2 pending"))
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("segment/1"))
         verify(exactly = 0) { store.startPump(holder) }
         verify(exactly = 0) { store.warmPlaybackAsync(holder) }
     }
 
     @Test
-    fun `legacy window returns pending until the full requested window is cached`() = testApplication {
+    fun `window returns playable partial window and requests the next missing segment`() = testApplication {
         val store = partialStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -83,10 +84,47 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody())
         }
 
-        assertEquals(HttpStatusCode.Accepted, response.status)
-        assertTrue(response.bodyAsText().contains("audio:140:2 pending"))
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("segment/1"))
         verify(exactly = 1) { store.startPump(holder) }
         verify(exactly = 1) { store.warmPlaybackAsync(holder) }
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
+    }
+
+    @Test
+    fun `window targets missing first video before audio followup`() = testApplication {
+        val store = audioOnlyStore()
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/window") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("video:136:1 pending"))
+        verify(atLeast = 1) { store.requestSegmentDemand(holder, any()) }
+        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.videoFormat, 1, any()) }
+    }
+
+    @Test
+    fun `window targets first audio and video blockers together`() = testApplication {
+        val store = emptyStore()
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/window") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
+        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.audioFormat, 1, any()) }
+        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.videoFormat, 1, any()) }
     }
 
     private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {
@@ -108,12 +146,28 @@ class SabrPlaybackGranularRoutesTest {
         return store
     }
 
+    private fun audioOnlyStore(): SabrSessionStore {
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        coEvery { store.cachedSegment(any(), any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            if (request.format.itag == 140 && request.sequenceNumber == 1) cachedSegment(140) else null
+        }
+        return store
+    }
+
+    private fun emptyStore(): SabrSessionStore {
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        coEvery { store.cachedSegment(any(), any()) } returns null
+        return store
+    }
+
     private fun holder(): SabrSessionHolder {
         val audio = format(140, true)
         val video = format(136, false)
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
         every { state.getSegmentStartMs(any(), any()) } answers { (secondArg<Int>() - 1) * 10_000L }

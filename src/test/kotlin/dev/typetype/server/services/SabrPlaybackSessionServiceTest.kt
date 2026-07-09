@@ -20,7 +20,7 @@ import java.time.Instant
 
 class SabrPlaybackSessionServiceTest {
     @Test
-    fun `prepare sets target time and starts pump after preflight`() = runTest {
+    fun `prepare sets target time and warms asynchronously`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val info = mockk<YoutubeSabrInfo>()
@@ -28,8 +28,8 @@ class SabrPlaybackSessionServiceTest {
         val holder = holder(audio, video)
         val store = mockk<SabrSessionStore>()
         every { store.getOrCreate("video", "user", info, audio, video, prepared.initialToken, 88_168L, false) } returns holder
-        coEvery { store.preflightPlayback(holder, 88_168L) } returns false
         every { store.startPump(holder) } returns Unit
+        every { store.warmPlaybackAsync(holder) } returns Unit
 
         val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 88_168L)
 
@@ -37,8 +37,9 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(88_168L, result.startTimeMs)
         assertFalse(result.ready)
         assertEquals(88_168L, holder.playerTimeMs())
-        coVerify { store.preflightPlayback(holder, 88_168L) }
+        coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
         verify { store.startPump(holder) }
+        verify { store.warmPlaybackAsync(holder) }
     }
 
     @Test
@@ -162,6 +163,7 @@ class SabrPlaybackSessionServiceTest {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
         every { state.setActiveTrackTypes(true, true) } returns Unit
         return SabrSessionHolder(
             session = session,

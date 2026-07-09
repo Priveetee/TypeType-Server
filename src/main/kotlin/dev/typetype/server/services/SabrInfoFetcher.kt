@@ -20,10 +20,30 @@ internal class SabrInfoFetcher(
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
-        if (cachedFirst) playableCachedInfo(videoId, startTimeMs)?.let { return@withContext it }
-        fetchPlayableWithRetries(videoId, startTimeMs)?.let { return@withContext it }
-        if (startTimeMs > 0L) fetchPlayableWithRetries(videoId, 0L)?.let { return@withContext it }
-        playableCachedInfo(videoId, startTimeMs)
+        val startedAt = System.currentTimeMillis()
+        if (cachedFirst) playableCachedInfo(videoId, startTimeMs)?.let {
+            logFetch(videoId, startTimeMs, startedAt, "cache")
+            return@withContext it
+        }
+        fetchPlayableWithRetries(videoId, startTimeMs)?.let {
+            logFetch(videoId, startTimeMs, startedAt, "network")
+            return@withContext it
+        }
+        if (startTimeMs > 0L) fetchPlayableWithRetries(videoId, 0L)?.let {
+            logFetch(videoId, startTimeMs, startedAt, "network_start0")
+            return@withContext it
+        }
+        playableCachedInfo(videoId, startTimeMs)?.also { logFetch(videoId, startTimeMs, startedAt, "late_cache") }
+    }
+
+    private fun logFetch(videoId: String, startTimeMs: Long, startedAt: Long, source: String): Unit {
+        logger.info(
+            "sabr_info_fetch videoId={} startTimeMs={} source={} elapsedMs={}",
+            videoId,
+            startTimeMs,
+            source,
+            System.currentTimeMillis() - startedAt,
+        )
     }
 
     fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {

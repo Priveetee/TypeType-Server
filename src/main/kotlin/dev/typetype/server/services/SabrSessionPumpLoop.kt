@@ -79,6 +79,12 @@ internal class SabrSessionPumpLoop {
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
+        holder.nextSegmentDemand()?.let { request ->
+            val pumped = pumpDemand(holder, localization, request)
+            holder.session.getCachedSegment(request)?.let { holder.clearSegmentDemand(request) }
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            return pumped > 0
+        }
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
         if (isThrottled(holder)) {
             holder.setPlaybackState(SabrPlaybackState.THROTTLED)
@@ -96,6 +102,29 @@ internal class SabrSessionPumpLoop {
 
     private fun pumpUntilCached(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int =
         holder.session.pumpOnceStreamingUntilCached(localization, request)
+
+    private fun pumpDemand(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int {
+        val edgeMs = holder.session.streamState.getMinBufferedEndMs()
+        val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
+        holder.setReaderPosition(request.format, startMs)
+        return when {
+            startMs < edgeMs -> {
+                holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+                holder.session.prepareForRewind(request)
+                pumpUntilCached(holder, localization, request)
+            }
+            startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
+                holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+                holder.session.prepareForForwardJump(request)
+                pumpUntilCached(holder, localization, request)
+            }
+            else -> {
+                holder.setPlaybackState(SabrPlaybackState.REQUESTING)
+                holder.session.streamState.setPlayerTimeMs(maxOf(holder.playerTimeMs(), edgeMs))
+                pumpUntilCached(holder, localization, request)
+            }
+        }
+    }
 
     private fun prepareEviction(holder: SabrSessionHolder): Unit {
         holder.session.setPlayHeadMs((holder.readerTailMs() - SabrPumpPolicy.backBufferMs(holder)).coerceAtLeast(0L))
