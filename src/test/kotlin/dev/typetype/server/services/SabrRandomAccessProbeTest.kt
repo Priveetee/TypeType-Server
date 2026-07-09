@@ -1,15 +1,17 @@
 package dev.typetype.server.services
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import org.schabi.newpipe.extractor.stream.StreamInfo
 
 @EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
 @Tag("network")
@@ -32,39 +34,48 @@ class SabrRandomAccessProbeTest {
                     "videoItags=${videoItags.joinToString(",")} timeoutMs=$timeoutMs " +
                     "contract=stateful-pump"
             )
-            val prepared = store.fetchInfo(videoId, playerTimeMs) ?: error("SABR probe failed")
+            store.rememberExtractedInfo(videoId, extractSabrInfo(videoId))
+            val prepared = store.fetchInfo(videoId, playerTimeMs, cachedFirst = true) ?: error("SABR probe failed")
             val info = prepared.info
             val audio = requireAudioFormat(info.formats, audioItag)
             printSabrProbeFormat("audio", audio)
             for (videoItag in videoItags) {
                 val video = requireVideoFormat(info.formats, videoItag)
                 printSabrProbeFormat("video", video)
-                val holder = store.getOrCreate(
-                    videoId,
-                    "sabr-random-access-video-$videoItag",
-                    info,
-                    audio,
-                    video,
-                    prepared.initialToken,
-                    playerTimeMs,
+                val startedAt = System.nanoTime()
+                val preparation = SabrPlaybackSessionService(store).prepare(
+                    videoId = videoId,
+                    userId = "sabr-random-access-video-$videoItag",
+                    prepared = prepared,
+                    audio = audio,
+                    video = video,
+                    startTimeMs = playerTimeMs,
                 )
+                val holder = preparation.holder
                 assertInitData(store, holder, audio)
                 assertInitData(store, holder, video)
-                store.ensureWarmed(holder)
                 holder.setActiveTracks(videoActive = true, audioActive = true)
                 holder.setPlayerTimeMs(playerTimeMs)
-                holder.mediaRequestsAt(playerTimeMs).forEach { request ->
+                val requests = listOf(audio, video).map { format ->
+                    SabrSegmentRequest.media(format, holder.playbackStartSequence(format, playerTimeMs))
+                }
+                requests.forEach { request ->
                     println("pump target[$videoItag] ${sabrProbeRequestSummary(holder, request)}")
                 }
-                val startedAt = System.nanoTime()
                 val segments = withTimeoutOrNull(timeoutMs) {
-                    store.fetchMediaAt(holder, playerTimeMs)
+                    requests.map { request ->
+                        store.requestSegmentDemand(holder, request)
+                        awaitCachedSegment(store, holder, request)
+                    }
                 }
                 val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000L
                 println("pump[$videoItag] elapsedMs=$elapsedMs segments=${segments?.size ?: -1}")
-                segments.orEmpty().forEach { println("pump[$videoItag] ${sabrProbeSegmentHeader(it)}") }
-                if (segments == null) {
-                    printDirectFailure(holder, playerTimeMs, videoItag)
+                println("pump[$videoItag] trace=${holder.session.diagnosticTrace}")
+                segments.orEmpty().forEach {
+                    println(
+                        "pump[$videoItag] itag=${it.itag} seq=${it.sequence} startMs=${it.startMs} " +
+                            "durationMs=${it.durationMs} bytes=${it.length}"
+                    )
                 }
                 assertTrue(
                     segments.orEmpty().any { it.covers(video, playerTimeMs) },
@@ -80,21 +91,17 @@ class SabrRandomAccessProbeTest {
         }
     }
 
-    private suspend fun printDirectFailure(
+    private suspend fun awaitCachedSegment(
+        store: SabrSessionStore,
         holder: SabrSessionHolder,
-        playerTimeMs: Long,
-        videoItag: Int,
-    ): Unit {
-        val result = holder.pumpMutex.withLock {
-            runCatchingNonCancellation {
-                holder.mediaRequestsAt(playerTimeMs).map { request ->
-                    holder.session.fetchSegment(request, Localization("en", "US"))
-                }
-            }
+        request: SabrSegmentRequest,
+    ): CachedSabrSegment {
+        var segment = store.cachedSegment(holder, request)
+        while (segment == null) {
+            delay(50L)
+            segment = store.cachedSegment(holder, request)
         }
-        result.exceptionOrNull()?.let { error ->
-            println("pump[$videoItag] direct error ${error.javaClass.simpleName}: ${error.message}")
-        }
+        return segment
     }
 
     private suspend fun assertInitData(
@@ -104,6 +111,7 @@ class SabrRandomAccessProbeTest {
     ): Unit {
         val data = store.fetchInitializationData(holder, format)
         println("init itag=${format.itag} bytes=${data?.size ?: -1}")
+        if (data.isNullOrEmpty()) println("init trace=${holder.session.diagnosticTrace}")
         assertTrue(data?.isNotEmpty() == true, "init bytes for itag ${format.itag}")
     }
 
@@ -118,6 +126,20 @@ class SabrRandomAccessProbeTest {
                 .thenBy { it.bitrate })
             ?: error("No SABR audio format for itag $audioItag")
 
+    private fun extractSabrInfo(videoId: String): YoutubeSabrInfo {
+        val service = NewPipe.getServiceByUrl("https://www.youtube.com/watch?v=$videoId")
+        val linkHandler = service.streamLHFactory.fromUrl("https://www.youtube.com/watch?v=$videoId")
+        val extractor = service.getStreamExtractor(linkHandler)
+        extractor.fetchPage()
+        val streamInfo = StreamInfo.getInfo(extractor)
+        return sequence {
+            streamInfo.videoStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.videoOnlyStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.audioStreams.forEach { yield(it.deliveryMethodInfo) }
+        }.filterIsInstance<YoutubeSabrInfo>()
+            .first { it.videoId == videoId }
+    }
+
     private fun requireVideoFormat(
         formats: List<YoutubeSabrFormat>,
         videoItag: Int,
@@ -125,11 +147,10 @@ class SabrRandomAccessProbeTest {
         formats.firstOrNull { it.itag == videoItag && it.isVideo }
             ?: error("No SABR video format for itag $videoItag")
 
-    private fun SabrMediaSegment.covers(format: YoutubeSabrFormat, playerTimeMs: Long): Boolean {
-        val header = header
-        if (length <= 0 || header.isInitSegment || header.itag != format.itag) return false
-        val startMs = header.startMs
-        val durationMs = header.durationMs
+    private fun CachedSabrSegment.covers(format: YoutubeSabrFormat, playerTimeMs: Long): Boolean {
+        if (length <= 0 || init || itag != format.itag) return false
+        val startMs = this.startMs
+        val durationMs = this.durationMs
         return startMs >= 0 && durationMs > 0 &&
             playerTimeMs >= startMs && playerTimeMs < startMs + durationMs
     }

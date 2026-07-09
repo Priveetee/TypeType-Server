@@ -150,7 +150,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.session.prepareForInitialization(holder.audioFormat)
         }
         if (startTimeMs > 0L) {
-            holder.requestReposition(startTimeMs, holder.activeGeneration(), primeSession = true)
+            holder.requestReposition(startTimeMs, holder.activeGeneration())
         }
         if (preload) SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         sessionStore.startPump(holder)
@@ -170,7 +170,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     private fun SabrSessionHolder.requestReposition(
         playerTimeMs: Long,
         generation: Long,
-        primeSession: Boolean = false,
     ): Unit {
         val targetFormat = videoFormat
         val sequence = playbackStartSequence(targetFormat, playerTimeMs)
@@ -178,10 +177,8 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)
         if (startMs < session.streamState.getMinBufferedEndMs()) {
-            if (primeSession) session.prepareForRewind(request)
             requestRefetch(request)
         } else {
-            if (primeSession) session.prepareForForwardJump(request)
             requestForwardSeek(request)
         }
     }

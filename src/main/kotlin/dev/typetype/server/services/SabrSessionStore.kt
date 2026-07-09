@@ -62,7 +62,6 @@ internal class SabrSessionStore(
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
         val normalizedStartTimeMs = startTimeMs.coerceAtLeast(0L)
-        configureSelectedVideoHints(session, videoFormat)
         session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
@@ -155,7 +154,11 @@ internal class SabrSessionStore(
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
         SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
-        SabrInitializationData.fetch(format, initCache)?.let { holder.session.streamState.ingestInitializationData(format, it); return it }
+        val sourceFormat = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format
+        SabrInitializationData.fetch(sourceFormat, initCache)?.let {
+            holder.session.streamState.ingestInitializationData(format, it)
+            return it
+        }
         return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
     }
 
@@ -179,10 +182,4 @@ internal class SabrSessionStore(
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
-
-    private fun configureSelectedVideoHints(session: YoutubeSabrSession, videoFormat: YoutubeSabrFormat): Unit {
-        session.streamState.setStickyResolutionOverride(videoFormat.height.takeIf { it > 0 })
-        session.streamState.setWriteLastManualSelectedResolution(true)
-    }
-
 }

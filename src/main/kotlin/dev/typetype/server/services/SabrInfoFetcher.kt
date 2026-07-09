@@ -7,14 +7,18 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
 
 internal class SabrInfoFetcher(
     private val tokenClient: TypetypeTokenSabrTokenClient,
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
 ) {
+    private val extractedInfos = ConcurrentHashMap<String, YoutubeSabrInfo>()
+
     suspend fun fetchInfo(
         videoId: String,
         startTimeMs: Long = 0L,
@@ -48,8 +52,14 @@ internal class SabrInfoFetcher(
 
     fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
         if (!SabrPreparedInfo(info, null).hasAudioAndVideoFormats()) return
+        extractedInfos[videoId] = info
         infoCache.put(videoId, startTimeMs = 0L, SabrPreparedInfo(info, null))
     }
+
+    fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
+        extractedInfos[videoId]?.formats?.firstOrNull {
+            it.itag == target.itag && it.audioTrackId == target.audioTrackId && it.xtags == target.xtags
+        }
 
     private suspend fun fetchPlayableWithRetries(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
         repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
@@ -61,9 +71,11 @@ internal class SabrInfoFetcher(
     }
 
     private fun playableCachedInfo(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
-        val cached = infoCache.get(videoId, startTimeMs) ?: return null
+        val cachedAtStart = infoCache.get(videoId, startTimeMs)
+        val cached = cachedAtStart ?: if (startTimeMs > 0L) infoCache.get(videoId, startTimeMs = 0L) else null
+        cached ?: return null
         if (cached.hasAudioAndVideoFormats()) return cached
-        infoCache.remove(videoId, startTimeMs)
+        infoCache.remove(videoId, if (cachedAtStart == null) 0L else startTimeMs)
         return null
     }
 

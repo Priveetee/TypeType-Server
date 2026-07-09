@@ -65,15 +65,16 @@ internal class SabrSessionPumpLoop {
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
             logPumpStart(holder, "refetch", request)
-            val pumped = if (holder.session.requestNumber == 0) pumpOnce(holder, localization) else pumpOnceTargeted(holder, localization, request)
+            val pumped = pumpOnce(holder, localization)
             logPumpFinish(holder, "refetch", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+            holder.session.prepareForForwardJump(request)
             logPumpStart(holder, "forward_seek", request)
-            val pumped = if (holder.session.requestNumber == 0) pumpOnce(holder, localization) else pumpOnceTargeted(holder, localization, request)
+            val pumped = pumpUntilCached(holder, localization, request)
             logPumpFinish(holder, "forward_seek", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
@@ -150,32 +151,20 @@ internal class SabrSessionPumpLoop {
             startMs < edgeMs -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.session.prepareForRewind(request)
-                pumpUntilCachedTargeted(holder, localization, request)
+                pumpUntilCached(holder, localization, request)
             }
-            startMs > edgeMs && holder.playerTimeMs() >= startMs ||
-                startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
+            startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-                pumpUntilCachedTargeted(holder, localization, request)
+                holder.session.prepareForForwardJump(request)
+                pumpUntilCached(holder, localization, request)
             }
             else -> {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
                 holder.session.streamState.setPlayerTimeMs(maxOf(holder.playerTimeMs(), edgeMs))
-                pumpUntilCachedTargeted(holder, localization, request)
+                pumpUntilCached(holder, localization, request)
             }
         }
     }
-
-    private fun pumpOnceTargeted(
-        holder: SabrSessionHolder,
-        localization: Localization,
-        request: SabrSegmentRequest,
-    ): Int = withTargetedRequestShape(holder, request) { pumpOnce(holder, localization) }
-
-    private fun pumpUntilCachedTargeted(
-        holder: SabrSessionHolder,
-        localization: Localization,
-        request: SabrSegmentRequest,
-    ): Int = withTargetedRequestShape(holder, request) { pumpUntilCached(holder, localization, request) }
 
     private fun prepareEviction(holder: SabrSessionHolder): Unit {
         holder.session.setPlayHeadMs((holder.readerTailMs() - SabrPumpPolicy.backBufferMs(holder)).coerceAtLeast(0L))
