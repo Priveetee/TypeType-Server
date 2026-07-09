@@ -107,8 +107,8 @@ internal class SabrInfoFetcher(
             startTimeMs = startTimeMs,
             token = token,
             profile = profile,
-            poToken = token.videoBoundPoToken,
-            tokenKind = VIDEO_BOUND_TOKEN_KIND,
+            poToken = token.visitorBoundPoToken,
+            tokenKind = VISITOR_BOUND_TOKEN_KIND,
         )?.let { return it }
         if (token.visitorBoundPoToken == token.videoBoundPoToken) return null
         return fetchInfoForProfile(
@@ -116,8 +116,8 @@ internal class SabrInfoFetcher(
             startTimeMs = startTimeMs,
             token = token,
             profile = profile,
-            poToken = token.visitorBoundPoToken,
-            tokenKind = VISITOR_BOUND_TOKEN_KIND,
+            poToken = token.videoBoundPoToken,
+            tokenKind = VIDEO_BOUND_TOKEN_KIND,
         )
     }
 
