@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -16,8 +17,10 @@ import java.util.concurrent.ConcurrentHashMap
 internal class SabrInfoFetcher(
     private val tokenClient: TypetypeTokenSabrTokenClient,
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
+    sharedCache: CacheService? = null,
 ) {
     private val extractedInfos = ConcurrentHashMap<String, YoutubeSabrInfo>()
+    private val sharedInfoCache = SabrInfoSharedCache(sharedCache)
 
     suspend fun fetchInfo(
         videoId: String,
@@ -28,6 +31,11 @@ internal class SabrInfoFetcher(
         if (cachedFirst) playableCachedInfo(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "cache")
             return@withContext it
+        }
+        if (cachedFirst) sharedInfoCache.get(videoId)?.let { info ->
+            val prepared = rememberExtractedInfo(videoId, info, share = false)
+            logFetch(videoId, startTimeMs, startedAt, "shared_cache")
+            return@withContext prepared
         }
         fetchPlayableWithRetries(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "network")
@@ -50,10 +58,21 @@ internal class SabrInfoFetcher(
         )
     }
 
-    fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
-        if (!SabrPreparedInfo(info, null).hasAudioAndVideoFormats()) return
+    suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
+        rememberExtractedInfo(videoId, info, share = true)
+    }
+
+    private suspend fun rememberExtractedInfo(
+        videoId: String,
+        info: YoutubeSabrInfo,
+        share: Boolean,
+    ): SabrPreparedInfo {
+        val prepared = SabrPreparedInfo(info, null)
+        if (!prepared.hasAudioAndVideoFormats()) return prepared
         extractedInfos[videoId] = info
-        infoCache.put(videoId, startTimeMs = 0L, SabrPreparedInfo(info, null))
+        infoCache.put(videoId, startTimeMs = 0L, prepared)
+        if (share) sharedInfoCache.put(videoId, info)
+        return prepared
     }
 
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
