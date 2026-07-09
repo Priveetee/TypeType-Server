@@ -43,7 +43,7 @@ private fun SabrSessionHolder.companionFormat(format: YoutubeSabrFormat): Youtub
     if (format.isAudio) videoFormat else audioFormat
 
 private fun SabrSegmentRequest.trackMode(): Int =
-    YoutubeSabrStreamState.TRACK_MODE_VIDEO_AND_AUDIO
+    if (format.isAudio) YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY else YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
 
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
     format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
