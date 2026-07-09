@@ -110,7 +110,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `window targets first audio and video blockers together`() = testApplication {
+    fun `window queues first blockers without direct fetch after nonzero start`() = testApplication {
         val store = emptyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -125,8 +125,7 @@ class SabrPlaybackGranularRoutesTest {
         coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.videoFormat) }
         coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.audioFormat) }
         verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
-        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.audioFormat, 1, any()) }
-        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.videoFormat, 1, any()) }
+        coVerify(exactly = 0) { store.fetchPlaybackSegment(holder, any(), any(), any()) }
     }
 
     private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {
@@ -177,6 +176,7 @@ class SabrPlaybackGranularRoutesTest {
         every { state.getMinBufferedEndMs() } returns 10_000L
         every { state.setStickyResolutionOverride(any()) } returns Unit
         every { state.setWriteLastManualSelectedResolution(true) } returns Unit
+        every { state.setSelectVideoFormatBeforeAudio(any()) } returns Unit
         every { state.setBufferedRangesOverride(null) } returns Unit
         every { state.setBufferedRangesOverride(any()) } returns Unit
         return SabrSessionHolder(

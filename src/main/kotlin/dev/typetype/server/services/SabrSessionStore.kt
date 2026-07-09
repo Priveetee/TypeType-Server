@@ -84,6 +84,7 @@ internal class SabrSessionStore(
     }
 
     internal fun warmPlaybackAsync(holder: SabrSessionHolder) {
+        if (holder.playerTimeMs() > 0L) return
         if (holder.playbackState() == SabrPlaybackState.REQUESTING || holder.playbackState() == SabrPlaybackState.REPOSITIONING) return
         scope.launch { fetchMediaAt(holder, holder.playerTimeMs()) }
     }

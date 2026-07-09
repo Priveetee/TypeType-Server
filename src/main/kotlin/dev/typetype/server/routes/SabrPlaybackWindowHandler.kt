@@ -80,15 +80,9 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val blockedRequest = window.blockedRequest ?: return window
         val requests = if (window.isReady) listOf(blockedRequest) else window.playableBlockedRequests.ifEmpty { listOf(blockedRequest) }
         requests.forEach { sabrSessionStore.requestSegmentDemand(holder, it) }
+        if (request.playerTimeMs > 0L) return window
         if (window.isReady) return window
-        requests.forEach {
-            sabrSessionStore.fetchPlaybackSegment(
-                holder = holder,
-                format = it.format,
-                sequence = it.sequenceNumber,
-                timeoutMs = TARGETED_PREFETCH_TIMEOUT_MS,
-            )
-        }
+        requests.forEach { sabrSessionStore.fetchPlaybackSegment(holder, it.format, it.sequenceNumber, TARGETED_PREFETCH_TIMEOUT_MS) }
         val refreshed = windowBuilder.build(holder, request)
         refreshed.blockedRequest?.let { sabrSessionStore.requestSegmentDemand(holder, it) }
         return refreshed
