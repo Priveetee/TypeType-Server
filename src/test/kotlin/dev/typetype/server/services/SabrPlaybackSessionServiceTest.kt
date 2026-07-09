@@ -33,6 +33,8 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.getMinBufferedEndMs() } returns 80_000L
         val store = mockk<SabrSessionStore>()
         every { store.getOrCreate("video", "user", info, audio, video, prepared.initialToken, 88_168L, false) } returns holder
+        coEvery { store.fetchInitializationData(holder, video) } returns byteArrayOf(1)
+        coEvery { store.fetchInitializationData(holder, audio) } returns byteArrayOf(2)
         every { store.startPump(holder) } returns Unit
         every { store.warmPlaybackAsync(holder) } returns Unit
 

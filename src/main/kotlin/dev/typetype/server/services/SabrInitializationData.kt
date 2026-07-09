@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import java.security.MessageDigest
 import java.util.Base64
@@ -28,6 +29,22 @@ internal object SabrInitializationData {
             return bytes
         }
         val bytes = fetchRemote(format) ?: return null
+        memoryCache[key] = bytes
+        cache?.setBytes(key, bytes, CACHE_TTL_SECONDS)
+        return bytes
+    }
+
+    suspend fun fetchFallback(holder: SabrSessionHolder, format: YoutubeSabrFormat, cache: CacheService? = null): ByteArray? {
+        val key = cacheKey(format) ?: return null
+        memoryCache[key]?.let { holder.session.streamState.ingestInitializationData(format, it); return it }
+        cache?.getBytes(key)?.let { bytes ->
+            memoryCache[key] = bytes
+            holder.session.streamState.ingestInitializationData(format, bytes)
+            return bytes
+        }
+        val bytes = runCatchingNonCancellation {
+            holder.session.fetchInitializationDataFallback(format, Localization("en", "US"))
+        }.getOrNull() ?: return null
         memoryCache[key] = bytes
         cache?.setBytes(key, bytes, CACHE_TTL_SECONDS)
         return bytes

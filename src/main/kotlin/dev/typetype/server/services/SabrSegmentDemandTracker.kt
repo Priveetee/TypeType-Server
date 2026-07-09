@@ -28,6 +28,7 @@ internal object SabrSegmentDemandTracker {
     fun next(holder: SabrSessionHolder): SabrSegmentRequest? {
         val prefix = prefix(holder)
         var selected: SabrSegmentRequest? = null
+        var selectedStartMs = Long.MAX_VALUE
         var selectedSinceMs = Long.MAX_VALUE
         for ((key, value) in demands) {
             if (!key.startsWith(prefix)) continue
@@ -36,9 +37,11 @@ internal object SabrSegmentDemandTracker {
                 demands.remove(key)
                 continue
             }
+            val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
             val sinceMs = value.second
-            if (sinceMs < selectedSinceMs) {
+            if (startMs < selectedStartMs || startMs == selectedStartMs && sinceMs < selectedSinceMs) {
                 selected = request
+                selectedStartMs = startMs
                 selectedSinceMs = sinceMs
             }
         }

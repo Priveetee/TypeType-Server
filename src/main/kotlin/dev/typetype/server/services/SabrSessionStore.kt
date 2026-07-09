@@ -164,10 +164,8 @@ internal class SabrSessionStore(
     ): ByteArray? {
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
-        SabrInitializationData.fetch(format, initCache)?.let { bytes ->
-            holder.session.streamState.ingestInitializationData(format, bytes)
-            return bytes
-        }
+        SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
+        SabrInitializationData.fetch(format, initCache)?.let { holder.session.streamState.ingestInitializationData(format, it); return it }
         return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
     }
 

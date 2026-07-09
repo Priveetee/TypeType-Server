@@ -109,6 +109,10 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     private suspend fun prepareHolder(holder: SabrSessionHolder, startTimeMs: Long): SabrPlaybackPreparation {
         val startedAt = System.currentTimeMillis()
         holder.setPlayerTimeMs(startTimeMs)
+        withTimeoutOrNull(INITIALIZATION_PRELOAD_TIMEOUT_MS) {
+            sessionStore.fetchInitializationData(holder, holder.videoFormat)
+            sessionStore.fetchInitializationData(holder, holder.audioFormat)
+        }
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > 0L) holder.requestReposition(startTimeMs, holder.activeGeneration())
         sessionStore.startPump(holder)
@@ -138,6 +142,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val logger = LoggerFactory.getLogger(SabrPlaybackSessionService::class.java)
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
+        const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 2_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
     }
 }
