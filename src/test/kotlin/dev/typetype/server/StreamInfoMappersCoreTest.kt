@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.services.isSupportedPlaybackStream
 import dev.typetype.server.services.toAudioStreamItem
 import dev.typetype.server.services.toVideoStreamItem
 import io.mockk.every
@@ -112,5 +113,17 @@ class StreamInfoMappersCoreTest {
         assertEquals("sabr", mappedAudio.deliveryMethod)
         assertEquals("/sabr/manifest/dQw4w9WgXcQ", mappedAudio.manifestUrl)
         assertEquals("/sabr/session/dQw4w9WgXcQ?audioItag=140&audioTrackId=en.0", mappedAudio.sabrSessionUrl)
+    }
+
+    @Test
+    fun `sabr playback stream support accepts vp9 and av1 video`() {
+        val vp9 = testVideoStream(itag = 247, codec = "vp09.00.31.08").copy(
+            mimeType = "video/webm",
+            deliveryMethod = "sabr",
+        )
+        val av1 = testVideoStream(itag = 399, codec = "av01.0.08M.08").copy(deliveryMethod = "sabr")
+
+        assertEquals(true, vp9.isSupportedPlaybackStream())
+        assertEquals(true, av1.isSupportedPlaybackStream())
     }
 }

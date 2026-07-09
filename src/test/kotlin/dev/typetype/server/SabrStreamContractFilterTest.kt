@@ -52,6 +52,28 @@ class SabrStreamContractFilterTest {
         assertEquals(listOf(playableAudio), filtered.audioStreams)
     }
 
+    @Test
+    fun `filter keeps sabr vp9 and av1 video formats`() = runTest {
+        val audio = sabrFormat(itag = 140, isAudio = true, mimeType = "audio/mp4; codecs=\"mp4a.40.2\"")
+        val vp9 = sabrFormat(itag = 247, isAudio = false, mimeType = "video/webm; codecs=\"vp09.00.31.08\"")
+        val av1 = sabrFormat(itag = 399, isAudio = false, mimeType = "video/mp4; codecs=\"av01.0.08M.08\"")
+        val info = sabrInfo(listOf(audio, vp9, av1))
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.fetchInfo("video1", cachedFirst = true) } returns SabrPreparedInfo(info, token())
+        val vp9Stream = testVideoStream(itag = 247, codec = "vp09.00.31.08").copy(
+            mimeType = "video/webm",
+            deliveryMethod = "sabr",
+        )
+        val av1Stream = testVideoStream(itag = 399, codec = "av01.0.08M.08").copy(deliveryMethod = "sabr")
+
+        val filtered = testStreamResponse(
+            videoOnlyStreams = listOf(vp9Stream, av1Stream),
+            audioStreams = listOf(testAudioStream(itag = 140, deliveryMethod = "sabr")),
+        ).withPlayableSabrStreams("https://youtube.com/watch?v=video1", store)
+
+        assertEquals(listOf(vp9Stream, av1Stream), filtered.videoOnlyStreams)
+    }
+
     private fun sabrInfo(formats: List<YoutubeSabrFormat>): YoutubeSabrInfo {
         val info = mockk<YoutubeSabrInfo>()
         every { info.formats } returns formats

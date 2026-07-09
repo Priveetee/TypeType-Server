@@ -30,7 +30,11 @@ internal object SabrFormatSelector {
         isAudio && mimeType?.contains("mp4") == true && mimeType?.contains("mp4a") == true
 
     private fun YoutubeSabrFormat.isSupportedVideo(): Boolean =
-        isVideo && mimeType?.contains("mp4") == true && mimeType?.contains("avc1") == true
+        isVideo && videoCodec().let {
+            it.contains("avc1") || it.contains("vp9") || it.contains("vp09") || it.contains("av01")
+        }
+
+    private fun YoutubeSabrFormat.videoCodec(): String = mimeType.orEmpty().lowercase()
 
     private val audioComparator = compareBy<YoutubeSabrFormat> { it.isOriginalAudio }
         .thenBy { it.isPlainAudioVariant() }

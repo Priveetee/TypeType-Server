@@ -92,7 +92,11 @@ internal fun AudioStreamItem.isSupportedPlaybackStream(): Boolean =
     deliveryMethod != "sabr" || isSupportedSabrAudio()
 
 private fun VideoStreamItem.isSupportedSabrVideo(): Boolean =
-    mimeType.contains("mp4") && (codec?.contains("avc1") == true || mimeType.contains("avc1"))
+    videoCodec().let { codec ->
+        codec.contains("avc1") || codec.contains("vp9") || codec.contains("vp09") || codec.contains("av01")
+    }
 
 private fun AudioStreamItem.isSupportedSabrAudio(): Boolean =
     mimeType.contains("mp4") && (codec?.contains("mp4a") == true || mimeType.contains("mp4a"))
+
+private fun VideoStreamItem.videoCodec(): String = listOfNotNull(codec, mimeType).joinToString(" ").lowercase()
