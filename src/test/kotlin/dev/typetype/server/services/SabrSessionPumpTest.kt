@@ -34,7 +34,7 @@ class SabrSessionPumpTest {
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
-        every { session.getCachedSegment(request) } returns null
+        every { session.getCachedSegment(any()) } returns null
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
@@ -69,7 +69,7 @@ class SabrSessionPumpTest {
         val session = mockk<YoutubeSabrSession>()
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
-        every { session.getCachedSegment(request) } returns null
+        every { session.getCachedSegment(any()) } returns null
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
