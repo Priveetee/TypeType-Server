@@ -4,6 +4,7 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import dev.typetype.server.services.SabrSessionStore
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 internal suspend fun StreamResponse.withPlayableSabrStreams(
@@ -16,11 +17,22 @@ internal suspend fun StreamResponse.withPlayableSabrStreams(
         ?: return withoutSabrStreams()
     val hasAudio = SabrFormatSelector.audio(prepared.info, null, null, requireAac = true) != null
     if (!hasAudio) return withoutSabrStreams()
-    return copy(
-        videoStreams = videoStreams.filter { it.isPlayableSabrVideo(prepared.info) },
-        videoOnlyStreams = videoOnlyStreams.filter { it.isPlayableSabrVideo(prepared.info) },
+    val enriched = withMissingSabrVideoStreams(videoId, prepared.info)
+    return enriched.copy(
+        videoStreams = enriched.videoStreams.filter { it.isPlayableSabrVideo(prepared.info) },
+        videoOnlyStreams = enriched.videoOnlyStreams.filter { it.isPlayableSabrVideo(prepared.info) },
         audioStreams = audioStreams.filter { it.isPlayableSabrAudio(prepared.info) },
     )
+}
+
+private fun StreamResponse.withMissingSabrVideoStreams(videoId: String, info: YoutubeSabrInfo): StreamResponse {
+    val existing = (videoStreams + videoOnlyStreams).map { it.itag }.toSet()
+    val missing = info.formats.asSequence()
+        .filter { it.isVideo && it.itag !in existing }
+        .mapNotNull { it.toVideoStreamItem(videoId, info) }
+        .toList()
+    if (missing.isEmpty()) return this
+    return copy(videoOnlyStreams = videoOnlyStreams + missing)
 }
 
 private fun StreamResponse.hasSabrStreams(): Boolean =
@@ -40,5 +52,51 @@ private fun VideoStreamItem.isPlayableSabrVideo(info: YoutubeSabrInfo): Boolean 
 private fun AudioStreamItem.isPlayableSabrAudio(info: YoutubeSabrInfo): Boolean =
     deliveryMethod != SABR_DELIVERY_METHOD ||
     SabrFormatSelector.audio(info, itag, audioTrackId, requireAac = true) != null
+
+private fun YoutubeSabrFormat.toVideoStreamItem(videoId: String, info: YoutubeSabrInfo): VideoStreamItem? {
+    if (SabrFormatSelector.video(info, itag) == null) return null
+    val mime = mimeType?.takeIf { it.isNotBlank() } ?: return null
+    val container = mime.substringBefore(';').trim()
+    return VideoStreamItem(
+        url = "",
+        mimeType = container,
+        format = container.formatName(),
+        resolution = qualityLabel ?: heightLabel(),
+        bitrate = bitrate.takeIf { it > 0 },
+        codec = mime.codec(),
+        isVideoOnly = true,
+        itag = itag,
+        width = width.coerceAtLeast(0),
+        height = height.coerceAtLeast(0),
+        fps = 0,
+        contentLength = contentLength.coerceAtLeast(0L),
+        initStart = initRangeStart.coerceAtLeast(0L),
+        initEnd = initRangeEnd.coerceAtLeast(0L),
+        indexStart = 0L,
+        indexEnd = 0L,
+        deliveryMethod = SABR_DELIVERY_METHOD,
+        manifestUrl = "/sabr/manifest/$videoId",
+        sabrSessionUrl = "/sabr/session/$videoId?videoItag=$itag",
+    )
+}
+
+private fun YoutubeSabrFormat.heightLabel(): String = height.takeIf { it > 0 }?.let { "${it}p" } ?: ""
+
+private fun String.formatName(): String = when (lowercase()) {
+    "video/webm" -> "WEBM"
+    "video/mp4" -> "MPEG_4"
+    else -> substringAfter('/').uppercase()
+}
+
+private fun String.codec(): String? {
+    val marker = "codecs="
+    val start = indexOf(marker)
+    if (start < 0) return null
+    return substring(start + marker.length)
+        .substringBefore(';')
+        .trim()
+        .trim('"')
+        .takeIf { it.isNotBlank() }
+}
 
 private const val SABR_DELIVERY_METHOD = "sabr"
