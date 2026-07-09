@@ -109,7 +109,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `window queues first blockers without direct fetch after nonzero start`() = testApplication {
+    fun `window queues first blocker without direct fetch after nonzero start`() = testApplication {
         val store = emptyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -120,8 +120,10 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody(340_000L))
         }
 
+        val body = response.bodyAsText()
         assertEquals(HttpStatusCode.Accepted, response.status)
-        verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
+        assertTrue(body.contains("audio:140:1 pending"))
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
     }
 

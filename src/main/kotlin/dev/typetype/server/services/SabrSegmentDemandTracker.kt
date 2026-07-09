@@ -2,14 +2,16 @@ package dev.typetype.server.services
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 internal object SabrSegmentDemandTracker {
-    private val demands = ConcurrentHashMap<String, Pair<SabrSegmentRequest, Long>>()
+    private val demands = ConcurrentHashMap<String, SegmentDemand>()
+    private val order = AtomicLong()
 
     fun request(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
-        demands.putIfAbsent(key(holder, request), request to System.currentTimeMillis())
+        demands.putIfAbsent(key(holder, request), SegmentDemand(request, order.incrementAndGet()))
     }
 
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
@@ -28,21 +30,17 @@ internal object SabrSegmentDemandTracker {
     fun next(holder: SabrSessionHolder): SabrSegmentRequest? {
         val prefix = prefix(holder)
         var selected: SabrSegmentRequest? = null
-        var selectedStartMs = Long.MAX_VALUE
-        var selectedSinceMs = Long.MAX_VALUE
+        var selectedOrder = Long.MAX_VALUE
         for ((key, value) in demands) {
             if (!key.startsWith(prefix)) continue
-            val request = value.first
+            val request = value.request
             if (holder.session.getCachedSegment(request) != null) {
                 demands.remove(key)
                 continue
             }
-            val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
-            val sinceMs = value.second
-            if (startMs < selectedStartMs || startMs == selectedStartMs && sinceMs < selectedSinceMs) {
+            if (value.order < selectedOrder) {
                 selected = request
-                selectedStartMs = startMs
-                selectedSinceMs = sinceMs
+                selectedOrder = value.order
             }
         }
         return selected
@@ -54,6 +52,8 @@ internal object SabrSegmentDemandTracker {
         "${prefix(holder)}${request.format.itag}:${request.sequenceNumber}"
 
     private fun prefix(holder: SabrSessionHolder): String = "${holder.sessionToken}:${holder.activeGeneration()}:"
+
+    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long)
 }
 
 internal fun SabrSessionHolder.requestSegmentDemand(request: SabrSegmentRequest): Unit =

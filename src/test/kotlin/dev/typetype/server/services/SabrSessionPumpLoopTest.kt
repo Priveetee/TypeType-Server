@@ -29,10 +29,12 @@ class SabrSessionPumpLoopTest {
             every { session.evictPlayed() } returns Unit
             every { session.requestNumber } returns 9
             every { session.cachedBytes } returns 0L
-            every { session.getCachedSegment(request) } returns null
+            every { session.getCachedSegment(any()) } returns null
             every { streamState.getMinBufferedEndMs() } returns 329_492L
+            every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64
             every { streamState.getSegmentStartMs(audio, 35) } returns 340_000L
             every { streamState.getSegmentEndMs(audio, 34) } returns 339_476L
+            every { streamState.getSegmentEndMs(video, 63) } returns 333_800L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(null) } returns Unit
@@ -49,11 +51,11 @@ class SabrSessionPumpLoopTest {
             verify(exactly = 1) { session.prepareForForwardJump(request) }
             verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
             verifyOrder {
-                streamState.setSelectVideoFormatBeforeAudio(true)
+                streamState.setSelectVideoFormatBeforeAudio(false)
                 streamState.setBufferedRangesOverride(match { ranges ->
                     ranges.size == 2 &&
-                        ranges[0].summarize() == "itag=247:seq=2147483647-2147483647:time=0+2147483647:timescale=1000" &&
-                        ranges[1].summarize() == "itag=140:seq=1-34:time=0+339476:timescale=1000"
+                        ranges[0].summarize() == "itag=140:seq=1-34:time=0+339476:timescale=1000" &&
+                        ranges[1].summarize() == "itag=247:seq=1-63:time=0+333800:timescale=1000"
                 })
                 session.pumpOnceStreamingUntilCached(any(), request)
                 streamState.setBufferedRangesOverride(null)

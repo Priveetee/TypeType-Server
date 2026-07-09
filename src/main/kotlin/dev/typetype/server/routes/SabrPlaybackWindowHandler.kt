@@ -79,9 +79,8 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     ): SabrPlaybackWindowBuildResult {
         val window = windowBuilder.build(holder, request)
         val blockedRequest = window.blockedRequest ?: return window
-        val requests = if (window.isReady) listOf(blockedRequest) else window.playableBlockedRequests.ifEmpty { listOf(blockedRequest) }
         holder.clearSegmentDemands()
-        requests.forEach { sabrSessionStore.requestSegmentDemand(holder, it) }
+        sabrSessionStore.requestSegmentDemand(holder, blockedRequest)
         return window
     }
 

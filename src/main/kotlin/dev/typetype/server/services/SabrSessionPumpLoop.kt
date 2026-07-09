@@ -65,7 +65,7 @@ internal class SabrSessionPumpLoop {
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
             logPumpStart(holder, "refetch", request)
-            val pumped = pumpOnce(holder, localization)
+            val pumped = pumpOnceTargeted(holder, localization, request)
             logPumpFinish(holder, "refetch", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true

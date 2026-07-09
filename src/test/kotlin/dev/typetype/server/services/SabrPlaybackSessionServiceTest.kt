@@ -47,7 +47,7 @@ class SabrPlaybackSessionServiceTest {
         assertFalse(result.ready)
         assertEquals(88_168L, holder.playerTimeMs())
         val request = holder.consumeForwardSeek()
-        assertEquals(video.itag, request?.format?.itag)
+        assertEquals(audio.itag, request?.format?.itag)
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
         verify(exactly = 0) { holder.session.prepareForInitialization(any()) }
@@ -147,7 +147,9 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(1L, holder.activeGeneration())
         assertEquals(70_000L, holder.readerTailMs())
         assertEquals(90_000L, holder.requestedSeekTimeMs())
-        assertEquals(9, holder.consumeForwardSeek()?.sequenceNumber)
+        val request = holder.consumeForwardSeek()
+        assertEquals(audio.itag, request?.format?.itag)
+        assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(any(), any()) }
         verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
@@ -170,9 +172,9 @@ class SabrPlaybackSessionServiceTest {
         SabrPlaybackSessionService(store).seek(holder, prepared, audio, video, 120_000L)
 
         val request = holder.consumeForwardSeek()
-        assertEquals(video.itag, request?.format?.itag)
-        assertEquals(24, request?.sequenceNumber)
-        assertEquals(119_604L, holder.readerTailMs())
+        assertEquals(audio.itag, request?.format?.itag)
+        assertEquals(13, request?.sequenceNumber)
+        assertEquals(118_979L, holder.readerTailMs())
     }
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {

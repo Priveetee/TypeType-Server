@@ -27,15 +27,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             ),
             blockedBy = blocked?.blockedBy,
             blockedRequest = blocked?.blockedRequest,
-            playableBlockedRequests = playableBlockedRequests(audio, video),
         )
     }
-
-    private fun playableBlockedRequests(audio: TrackBuildResult, video: TrackBuildResult): List<SabrSegmentRequest> =
-        listOfNotNull(
-            audio.blockedRequest.takeIf { audio.track.segments.isEmpty() },
-            video.blockedRequest.takeIf { video.track.segments.isEmpty() },
-        )
 
     private fun blockedTrack(audio: TrackBuildResult, video: TrackBuildResult): TrackBuildResult? = when {
         audio.track.segments.isEmpty() && audio.blockedRequest != null -> audio
@@ -117,7 +110,6 @@ internal data class SabrPlaybackWindowBuildResult(
     val response: SabrPlaybackWindowReadyResponse,
     val blockedBy: String?,
     val blockedRequest: SabrSegmentRequest?,
-    val playableBlockedRequests: List<SabrSegmentRequest>,
 ) {
     val isReady: Boolean = response.audio.segments.isNotEmpty() && response.video.segments.isNotEmpty()
 }
