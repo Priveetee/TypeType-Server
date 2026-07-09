@@ -118,10 +118,12 @@ class SabrPlaybackGranularRoutesTest {
 
         val response = client.post("/sabr/playback/session-token/window") {
             contentType(ContentType.Application.Json)
-            setBody(windowBody())
+            setBody(windowBody(340_000L))
         }
 
         assertEquals(HttpStatusCode.Accepted, response.status)
+        coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.videoFormat) }
+        coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.audioFormat) }
         verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
         coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.audioFormat, 1, any()) }
         coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.videoFormat, 1, any()) }
@@ -214,6 +216,6 @@ class SabrPlaybackGranularRoutesTest {
     private fun positionBody(ms: Long): String =
         """{"generation":0,"playerTimeMs":$ms,"videoItag":136,"audioItag":140}"""
 
-    private fun windowBody(): String =
-        """{"generation":0,"playerTimeMs":0,"videoItag":136,"audioItag":140,"bufferGoalMs":30000}"""
+    private fun windowBody(playerTimeMs: Long = 0L): String =
+        """{"generation":0,"playerTimeMs":$playerTimeMs,"videoItag":136,"audioItag":140,"bufferGoalMs":30000}"""
 }
