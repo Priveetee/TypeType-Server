@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import org.slf4j.LoggerFactory
 
 internal inline fun <T> withTargetedRequestShape(
     holder: SabrSessionHolder,
@@ -14,14 +15,19 @@ internal inline fun <T> withTargetedRequestShape(
     val state = holder.session.streamState
     val requestStartMs = state.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
     val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
+    val ranges = listOf(request.targetRange(holder), companion.fullRange())
     state.setPlayerTimeMs(targetPlayerTimeMs)
     state.setRequestTrackMode(request.trackMode(), true, true)
     state.setSelectVideoFormatBeforeAudio(request.format.isAudio)
-    state.setBufferedRangesOverride(
-        listOf(
-            request.targetRange(holder),
-            companion.fullRange(),
-        )
+    state.setBufferedRangesOverride(ranges)
+    logger.info(
+        "sabr_target_shape videoId={} request={}:{} playerMs={} trackMode={} ranges={}",
+        holder.key.videoId,
+        request.format.itag,
+        request.sequenceNumber,
+        targetPlayerTimeMs,
+        request.trackMode(),
+        ranges.joinToString(separator = ";") { it.summarize() },
     )
     return try {
         block()
@@ -39,7 +45,7 @@ private fun SabrSegmentRequest.trackMode(): Int =
     if (format.isAudio) YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY else YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
 
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
-    format.bufferedRange(holder, holder.session.streamState.getMaxSegment(format).coerceAtLeast(0))
+    format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
 
 private fun SabrSegmentRequest.targetPlayerTimeMs(holder: SabrSessionHolder, startMs: Long): Long {
     val playerTimeMs = holder.playerTimeMs()
@@ -79,3 +85,5 @@ private fun YoutubeSabrFormat.fullRange(): SabrBufferedRange = SabrBufferedRange
 private const val SEEK_FORMAT_ORDER_MS = 1_000L
 private const val TARGET_SEGMENT_OFFSET_MS = 1_000L
 private const val TIMESCALE = 1_000
+
+private val logger = LoggerFactory.getLogger("SabrTargetRequestShape")
