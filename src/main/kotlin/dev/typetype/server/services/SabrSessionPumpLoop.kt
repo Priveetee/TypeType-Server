@@ -61,17 +61,11 @@ internal class SabrSessionPumpLoop {
 
     private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
         prepareEviction(holder)
-        if (holder.prepareStartupBootstrapPump()) {
-            logPumpStart(holder, "initial", null)
-            val pumped = pumpOnce(holder, localization)
-            logPumpFinish(holder, "initial", null, pumped)
-            return true
-        }
         holder.consumeRefetch()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
             logPumpStart(holder, "refetch", request)
-            val pumped = pumpOnceTargeted(holder, localization, request)
+            val pumped = if (holder.session.requestNumber == 0) pumpOnce(holder, localization) else pumpOnceTargeted(holder, localization, request)
             logPumpFinish(holder, "refetch", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
@@ -79,9 +73,15 @@ internal class SabrSessionPumpLoop {
         holder.consumeForwardSeek()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             logPumpStart(holder, "forward_seek", request)
-            val pumped = pumpOnceTargeted(holder, localization, request)
+            val pumped = if (holder.session.requestNumber == 0) pumpOnce(holder, localization) else pumpOnceTargeted(holder, localization, request)
             logPumpFinish(holder, "forward_seek", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
+            return true
+        }
+        if (holder.prepareStartupBootstrapPump()) {
+            logPumpStart(holder, "initial", null)
+            val pumped = pumpOnce(holder, localization)
+            logPumpFinish(holder, "initial", null, pumped)
             return true
         }
         holder.nextSegmentDemand()?.let { request ->
