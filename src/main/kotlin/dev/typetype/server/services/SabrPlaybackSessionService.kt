@@ -149,7 +149,9 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.session.prepareForInitialization(holder.videoFormat)
             holder.session.prepareForInitialization(holder.audioFormat)
         }
-        if (startTimeMs > 0L) holder.requestReposition(startTimeMs, holder.activeGeneration(), primeSession = true)
+        if (startTimeMs > 0L && holder.session.requestNumber > 0) {
+            holder.requestReposition(startTimeMs, holder.activeGeneration(), primeSession = true)
+        }
         if (preload) SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         sessionStore.startPump(holder)
         sessionStore.warmPlaybackAsync(holder)
