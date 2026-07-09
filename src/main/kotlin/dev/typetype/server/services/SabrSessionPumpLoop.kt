@@ -61,7 +61,7 @@ internal class SabrSessionPumpLoop {
 
     private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
         prepareEviction(holder)
-        if (holder.session.requestNumber == 0) {
+        if (holder.prepareStartupBootstrapPump()) {
             logPumpStart(holder, "initial", null)
             val pumped = pumpOnce(holder, localization)
             logPumpFinish(holder, "initial", null, pumped)
