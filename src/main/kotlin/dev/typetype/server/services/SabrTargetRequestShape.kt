@@ -15,7 +15,7 @@ internal inline fun <T> withTargetedRequestShape(
     val state = holder.session.streamState
     val requestStartMs = state.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
     val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
-    val ranges = listOf(request.targetRange(holder), companion.fullRange())
+    val ranges = listOf(request.targetRange(holder), companion.targetCompanionRange(holder, targetPlayerTimeMs))
     state.setPlayerTimeMs(targetPlayerTimeMs)
     state.setRequestTrackMode(request.trackMode(), true, true)
     state.setSelectVideoFormatBeforeAudio(request.format.isAudio)
@@ -47,6 +47,9 @@ private fun SabrSegmentRequest.trackMode(): Int =
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
     format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
 
+private fun YoutubeSabrFormat.targetCompanionRange(holder: SabrSessionHolder, targetPlayerTimeMs: Long): SabrBufferedRange =
+    bufferedRange(holder, (holder.playbackStartSequence(this, targetPlayerTimeMs) - 1).coerceAtLeast(0))
+
 private fun SabrSegmentRequest.targetPlayerTimeMs(holder: SabrSessionHolder, startMs: Long): Long {
     val playerTimeMs = holder.playerTimeMs()
     val endMs = holder.session.streamState.getSegmentEndMs(format, sequenceNumber).coerceAtLeast(0L)
@@ -69,17 +72,6 @@ private fun YoutubeSabrFormat.bufferedRange(holder: SabrSessionHolder, bufferedS
         TIMESCALE,
     )
 }
-
-private fun YoutubeSabrFormat.fullRange(): SabrBufferedRange = SabrBufferedRange(
-    itag,
-    lastModified,
-    xtags,
-    0L,
-    Int.MAX_VALUE.toLong(),
-    Int.MAX_VALUE,
-    Int.MAX_VALUE,
-    TIMESCALE,
-)
 
 private const val SEEK_FORMAT_ORDER_MS = 1_000L
 private const val TARGET_SEGMENT_OFFSET_MS = 1_000L
