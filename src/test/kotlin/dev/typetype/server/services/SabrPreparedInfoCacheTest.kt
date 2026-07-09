@@ -4,7 +4,6 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -39,15 +38,15 @@ class SabrPreparedInfoCacheTest {
     }
 
     @Test
-    fun `info fetcher reuses extracted sabr info without initial token`() = runTest {
-        val info = info(listOf(format(isAudio = true), format(isAudio = false)))
+    fun `info fetcher keeps extracted sabr info for initialization fallback`() = runTest {
+        val audio = format(isAudio = true)
+        val video = format(isAudio = false)
+        val info = info(listOf(audio, video))
         val fetcher = SabrInfoFetcher(mockk(relaxed = true))
 
         fetcher.rememberExtractedInfo("video", info)
-        val prepared = fetcher.fetchInfo("video", cachedFirst = true)
 
-        assertSame(info, prepared?.info)
-        assertNull(prepared?.initialToken)
+        assertSame(video, fetcher.initializationFormat("video", video))
     }
 
     private fun preparedInfo(formats: List<YoutubeSabrFormat>): SabrPreparedInfo {
@@ -64,6 +63,9 @@ class SabrPreparedInfoCacheTest {
         val format = mockk<YoutubeSabrFormat>()
         every { format.isAudio } returns isAudio
         every { format.isVideo } returns !isAudio
+        every { format.itag } returns if (isAudio) 140 else 137
+        every { format.audioTrackId } returns null
+        every { format.xtags } returns null
         return format
     }
 

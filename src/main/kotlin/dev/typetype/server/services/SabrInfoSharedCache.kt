@@ -9,8 +9,16 @@ import java.io.ObjectOutputStream
 import java.util.Base64
 
 internal class SabrInfoSharedCache(private val cache: CacheService?) {
-    suspend fun get(videoId: String): YoutubeSabrInfo? {
-        val encoded = runCatching { cache?.get(cacheKey(videoId)) }.getOrNull() ?: return null
+    suspend fun getPlayback(videoId: String): YoutubeSabrInfo? = get("sabr:info:v2:$videoId")
+
+    suspend fun getInitialization(videoId: String): YoutubeSabrInfo? = get("sabr:init-info:v1:$videoId")
+
+    suspend fun putPlayback(videoId: String, info: YoutubeSabrInfo): Unit = put("sabr:info:v2:$videoId", info)
+
+    suspend fun putInitialization(videoId: String, info: YoutubeSabrInfo): Unit = put("sabr:init-info:v1:$videoId", info)
+
+    private suspend fun get(key: String): YoutubeSabrInfo? {
+        val encoded = runCatching { cache?.get(key) }.getOrNull() ?: return null
         return runCatching {
             val bytes = Base64.getDecoder().decode(encoded)
             ObjectInputStream(ByteArrayInputStream(bytes)).use { input ->
@@ -19,17 +27,15 @@ internal class SabrInfoSharedCache(private val cache: CacheService?) {
         }.getOrNull()
     }
 
-    suspend fun put(videoId: String, info: YoutubeSabrInfo): Unit {
+    private suspend fun put(key: String, info: YoutubeSabrInfo): Unit {
         val target = cache ?: return
         val encoded = runCatching {
             val output = ByteArrayOutputStream()
             ObjectOutputStream(output).use { it.writeObject(info) }
             Base64.getEncoder().encodeToString(output.toByteArray())
         }.getOrNull() ?: return
-        runCatching { target.set(cacheKey(videoId), encoded, TTL_SECONDS) }
+        runCatching { target.set(key, encoded, TTL_SECONDS) }
     }
-
-    private fun cacheKey(videoId: String): String = "sabr:info:v1:$videoId"
 
     private companion object {
         const val TTL_SECONDS = 600L

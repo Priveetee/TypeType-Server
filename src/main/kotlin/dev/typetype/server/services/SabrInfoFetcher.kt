@@ -12,15 +12,13 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ConcurrentHashMap
 
 internal class SabrInfoFetcher(
     private val tokenClient: TypetypeTokenSabrTokenClient,
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
     sharedCache: CacheService? = null,
 ) {
-    private val extractedInfos = ConcurrentHashMap<String, YoutubeSabrInfo>()
-    private val sharedInfoCache = SabrInfoSharedCache(sharedCache)
+    private val repository = SabrInfoRepository(infoCache, sharedCache)
 
     suspend fun fetchInfo(
         videoId: String,
@@ -28,14 +26,15 @@ internal class SabrInfoFetcher(
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
         val startedAt = System.currentTimeMillis()
-        if (cachedFirst) playableCachedInfo(videoId, startTimeMs)?.let {
+        if (cachedFirst) repository.local(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "cache")
             return@withContext it
         }
-        if (cachedFirst) sharedInfoCache.get(videoId)?.let { info ->
-            val prepared = rememberExtractedInfo(videoId, info, share = false)
-            logFetch(videoId, startTimeMs, startedAt, "shared_cache")
-            return@withContext prepared
+        if (cachedFirst) tokenClient.fetch(videoId)?.let { token ->
+            repository.shared(videoId, token)?.let { prepared ->
+                logFetch(videoId, startTimeMs, startedAt, "shared_cache")
+                return@withContext prepared
+            }
         }
         fetchPlayableWithRetries(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "network")
@@ -45,7 +44,7 @@ internal class SabrInfoFetcher(
             logFetch(videoId, startTimeMs, startedAt, "network_start0")
             return@withContext it
         }
-        playableCachedInfo(videoId, startTimeMs)?.also { logFetch(videoId, startTimeMs, startedAt, "late_cache") }
+        repository.local(videoId, startTimeMs)?.also { logFetch(videoId, startTimeMs, startedAt, "late_cache") }
     }
 
     private fun logFetch(videoId: String, startTimeMs: Long, startedAt: Long, source: String): Unit {
@@ -59,42 +58,21 @@ internal class SabrInfoFetcher(
     }
 
     suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
-        rememberExtractedInfo(videoId, info, share = true)
-    }
-
-    private suspend fun rememberExtractedInfo(
-        videoId: String,
-        info: YoutubeSabrInfo,
-        share: Boolean,
-    ): SabrPreparedInfo {
-        val prepared = SabrPreparedInfo(info, null)
-        if (!prepared.hasAudioAndVideoFormats()) return prepared
-        extractedInfos[videoId] = info
-        infoCache.put(videoId, startTimeMs = 0L, prepared)
-        if (share) sharedInfoCache.put(videoId, info)
-        return prepared
+        repository.rememberInitialization(videoId, info)
+        fetchInfoOnce(videoId, startTimeMs = 0L, forceRefresh = false)
+            ?.takeIf { it.hasAudioAndVideoFormats() }
+            ?.let { repository.putPrepared(videoId, startTimeMs = 0L, it) }
     }
 
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
-        extractedInfos[videoId]?.formats?.firstOrNull {
-            it.itag == target.itag && it.audioTrackId == target.audioTrackId && it.xtags == target.xtags
-        }
+        repository.initializationFormat(videoId, target)
 
     private suspend fun fetchPlayableWithRetries(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
         repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
             fetchInfoOnce(videoId, startTimeMs, forceRefresh = attempt > 0)
-                ?.let { return infoCache.put(videoId, startTimeMs, it) }
+                ?.let { return repository.putPrepared(videoId, startTimeMs, it) }
             if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
         }
-        return null
-    }
-
-    private fun playableCachedInfo(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
-        val cachedAtStart = infoCache.get(videoId, startTimeMs)
-        val cached = cachedAtStart ?: if (startTimeMs > 0L) infoCache.get(videoId, startTimeMs = 0L) else null
-        cached ?: return null
-        if (cached.hasAudioAndVideoFormats()) return cached
-        infoCache.remove(videoId, if (cachedAtStart == null) 0L else startTimeMs)
         return null
     }
 
