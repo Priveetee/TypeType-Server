@@ -61,12 +61,6 @@ internal class SabrSessionPumpLoop {
 
     private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
         prepareEviction(holder)
-        if (holder.session.requestNumber == 0) {
-            logPumpStart(holder, "initial", null)
-            val pumped = pumpOnce(holder, localization)
-            logPumpFinish(holder, "initial", null, pumped)
-            return true
-        }
         holder.consumeRefetch()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
@@ -92,6 +86,12 @@ internal class SabrSessionPumpLoop {
             logPumpFinish(holder, "demand", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return pumped > 0
+        }
+        if (holder.session.requestNumber == 0) {
+            logPumpStart(holder, "initial", null)
+            val pumped = pumpOnce(holder, localization)
+            logPumpFinish(holder, "initial", null, pumped)
+            return true
         }
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
         if (isThrottled(holder)) {
