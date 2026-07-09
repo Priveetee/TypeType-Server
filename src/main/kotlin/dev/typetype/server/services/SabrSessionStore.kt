@@ -30,7 +30,7 @@ internal class SabrSessionStore(
     private val segmentCache = SabrSegmentCache(initCache)
     private val pump = SabrSessionPump(segmentCache)
     private val warmer = SabrPlaybackWarmer()
-    private val infoFetcher = SabrInfoFetcher(tokenClient)
+    private val infoFetcher = SabrInfoFetcher(tokenClient, sharedCache = initCache)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
     private val random = SecureRandom()
@@ -126,7 +126,7 @@ internal class SabrSessionStore(
         cachedFirst: Boolean = false,
     ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst)
 
-    internal fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
+    internal suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
         infoFetcher.rememberExtractedInfo(videoId, info)
 
     internal suspend fun fetchSegment(
@@ -153,12 +153,12 @@ internal class SabrSessionStore(
     ): ByteArray? {
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
-        SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
         val sourceFormat = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format
         SabrInitializationData.fetch(sourceFormat, initCache)?.let {
             holder.session.streamState.ingestInitializationData(format, it)
             return it
         }
+        SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
         return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
     }
 
