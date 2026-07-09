@@ -92,6 +92,10 @@ internal class SabrSessionHolder(
         requestedSeekTimeMs.set(ms.coerceAtLeast(0L))
     }
 
+    fun anchorReaderPositions(ms: Long, generation: Long = activeGeneration()): Unit {
+        for (itag in activeItags) readerPositions[ReaderTrackKey(generation, itag)] = ms.coerceAtLeast(0L)
+    }
+
     fun requestedSeekTimeMs(): Long? = requestedSeekTimeMs.get().takeIf { it >= 0L }
 
     fun isAudioActive(): Boolean = activeItags.contains(audioFormat.itag)
