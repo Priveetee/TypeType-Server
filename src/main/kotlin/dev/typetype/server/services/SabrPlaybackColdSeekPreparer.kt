@@ -14,6 +14,12 @@ internal class SabrPlaybackColdSeekPreparer(private val sessionStore: SabrSessio
         timeoutMs: Long,
     ): SabrSessionHolder {
         val (videoInit, audioInit) = SabrPlaybackInitializationPreloader.preload(sessionStore, holder, timeoutMs)
+        if (videoInit != null && audioInit != null) {
+            SabrInitializationData.remember(video, videoInit)
+            SabrInitializationData.remember(audio, audioInit)
+            holder.session.streamState.ingestInitializationData(video, videoInit)
+            holder.session.streamState.ingestInitializationData(audio, audioInit)
+        }
         if (holder.session.requestNumber == 0) return holder
         if (videoInit == null || audioInit == null) return holder
         sessionStore.release(holder)
@@ -27,8 +33,8 @@ internal class SabrPlaybackColdSeekPreparer(private val sessionStore: SabrSessio
             startTimeMs = startTimeMs,
             startPump = false,
         )
-        SabrInitializationData.remember(video, videoInit)
-        SabrInitializationData.remember(audio, audioInit)
+        fresh.session.streamState.ingestInitializationData(video, videoInit)
+        fresh.session.streamState.ingestInitializationData(audio, audioInit)
         return fresh
     }
 }
