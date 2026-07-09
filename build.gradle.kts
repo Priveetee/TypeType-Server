@@ -54,12 +54,18 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
 }
 val buildInfoVersion = version.toString().trim().takeUnless { it.isBlank() || it == "unspecified" } ?: "0.0.0-dev"
+fun gitRevisionOrUnknown(): String = runCatching {
+    providers.exec { commandLine("git", "rev-parse", "HEAD") }
+        .standardOutput
+        .asText
+        .get()
+        .trim()
+        .ifBlank { "unknown" }
+}.getOrElse { "unknown" }
+
 val buildInfoRevision = providers.environmentVariable("GITHUB_SHA")
-    .orElse(providers.exec {
-        commandLine("git", "rev-parse", "HEAD")
-        isIgnoreExitValue = true
-    }.standardOutput.asText.map { it.trim().ifBlank { "unknown" } })
-    .getOrElse("unknown")
+    .map { it.trim().ifBlank { "unknown" } }
+    .getOrElse(gitRevisionOrUnknown())
 val buildInfoShortRevision = buildInfoRevision.takeIf { it != "unknown" }?.take(12) ?: "unknown"
 val buildInfoBuildTime = providers.environmentVariable("BUILD_TIME")
     .orElse(providers.provider { Instant.now().toString() })

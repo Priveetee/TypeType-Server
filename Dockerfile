@@ -1,4 +1,6 @@
 FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk-alpine AS builder
+ARG GITHUB_SHA=unknown
+ENV GITHUB_SHA=$GITHUB_SHA
 WORKDIR /app
 COPY gradlew ./
 COPY gradle/ ./gradle/
