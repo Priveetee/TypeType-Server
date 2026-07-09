@@ -41,6 +41,7 @@ internal data class SabrPlaybackStateResponse(
     val readerTailMs: Long,
     val bufferedEdgeMs: Long,
     val cachedBytes: Long,
+    val requestNumber: Int,
     val pendingRefetch: String? = null,
     val pendingForwardSeek: String? = null,
     val pendingSegmentDemand: String? = null,

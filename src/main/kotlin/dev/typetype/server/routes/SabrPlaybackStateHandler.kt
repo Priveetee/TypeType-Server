@@ -30,6 +30,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         readerTailMs = readerTailMs(),
         bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
         cachedBytes = session.cachedBytes,
+        requestNumber = session.requestNumber,
         pendingRefetch = pendingRefetchRequest()?.summary(),
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         pendingSegmentDemand = pendingSegmentDemandSummary(),
