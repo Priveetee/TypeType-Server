@@ -39,7 +39,7 @@ private fun SabrSegmentRequest.trackMode(): Int =
     if (format.isAudio) YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY else YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
 
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
-    format.bufferedRange(holder, sequenceNumber)
+    format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
 
 private fun SabrSegmentRequest.targetPlayerTimeMs(holder: SabrSessionHolder, startMs: Long): Long {
     val playerTimeMs = holder.playerTimeMs()
