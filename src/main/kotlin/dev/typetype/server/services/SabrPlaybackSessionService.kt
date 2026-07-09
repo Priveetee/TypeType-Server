@@ -36,7 +36,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
                 audio = audio,
                 video = video,
                 startTimeMs = startTimeMs,
-                timeoutMs = INITIALIZATION_PRELOAD_TIMEOUT_MS,
+                timeoutMs = COLD_SEEK_INITIALIZATION_PRELOAD_TIMEOUT_MS,
             )
         } else {
             holder
@@ -184,6 +184,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 2_000L
+        const val COLD_SEEK_INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
     }
