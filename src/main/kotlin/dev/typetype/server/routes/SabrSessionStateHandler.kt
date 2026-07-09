@@ -79,6 +79,7 @@ internal class SabrSessionStateHandler(private val sabrSessionStore: SabrSession
             put("readerTailMs", holder.readerTailMs())
             put("minBufferedEndMs", state.getMinBufferedEndMs())
             put("pendingSeek", holder.hasPendingSeek())
+            put("diagnosticTrace", holder.session.diagnosticTrace)
             putJsonObject("tracks") {
                 putJsonObject("audio") { putTrack(holder, holder.audioFormat, holder.isAudioActive()) }
                 putJsonObject("video") { putTrack(holder, holder.videoFormat, holder.isVideoActive()) }

@@ -46,6 +46,7 @@ internal data class SabrPlaybackStateResponse(
     val pendingForwardSeek: String? = null,
     val pendingSegmentDemand: String? = null,
     val terminalError: String? = null,
+    val diagnosticTrace: String? = null,
 )
 
 @Serializable

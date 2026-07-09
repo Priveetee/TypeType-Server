@@ -35,6 +35,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure(),
+        diagnosticTrace = session.diagnosticTrace,
     )
 
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
