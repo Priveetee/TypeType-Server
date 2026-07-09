@@ -46,6 +46,9 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(88_168L, result.startTimeMs)
         assertFalse(result.ready)
         assertEquals(88_168L, holder.playerTimeMs())
+        val request = holder.consumeForwardSeek()
+        assertEquals(audio.itag, request?.format?.itag)
+        assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
         verify { store.startPump(holder) }
         verify { store.warmPlaybackAsync(holder) }

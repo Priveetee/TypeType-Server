@@ -166,8 +166,9 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         generation: Long,
         primeSession: Boolean = false,
     ): Unit {
-        val sequence = playbackStartSequence(videoFormat, playerTimeMs)
-        val request = SabrSegmentRequest.media(videoFormat, sequence)
+        val targetFormat = if (primeSession) audioFormat else videoFormat
+        val sequence = playbackStartSequence(targetFormat, playerTimeMs)
+        val request = SabrSegmentRequest.media(targetFormat, sequence)
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)
         if (startMs < session.streamState.getMinBufferedEndMs()) {
