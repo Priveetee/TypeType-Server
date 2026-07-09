@@ -19,7 +19,8 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
     }
     val result = runCatchingNonCancellation {
         prepareForTarget(request, targetPlayerTimeMs)
-        fetchSegment(request, localization)
+        pumpOnceStreamingUntilCached(localization, request)
+        getCachedSegment(request)
     }
     result.onFailure { error ->
         SabrPlaybackDiagnostics.record(holder, request, error.message)
@@ -42,13 +43,6 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
 
 private fun YoutubeSabrSession.prepareForTarget(request: SabrSegmentRequest, targetPlayerTimeMs: Long): Unit {
     if (request.isInitializationSegment) return
-    val edgeMs = streamState.getMinBufferedEndMs()
-    val startMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber)
-    when {
-        startMs < edgeMs -> prepareForRewind(request)
-        startMs > edgeMs + TARGET_SEGMENT_OFFSET_MS -> prepareForForwardJump(request)
-        else -> prepareForMediaSegment(request)
-    }
     streamState.setPlayerTimeMs(targetPlayerTimeMs.coerceAtLeast(0L))
 }
 

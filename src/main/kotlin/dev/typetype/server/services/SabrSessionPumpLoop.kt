@@ -78,7 +78,6 @@ internal class SabrSessionPumpLoop {
         }
         holder.consumeForwardSeek()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForForwardJump(request)
             logPumpStart(holder, "forward_seek", request)
             val pumped = pumpOnceTargeted(holder, localization, request)
             logPumpFinish(holder, "forward_seek", request, pumped)
@@ -156,7 +155,6 @@ internal class SabrSessionPumpLoop {
             startMs > edgeMs && holder.playerTimeMs() >= startMs ||
                 startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-                holder.session.prepareForForwardJump(request)
                 pumpUntilCachedTargeted(holder, localization, request)
             }
             else -> {
