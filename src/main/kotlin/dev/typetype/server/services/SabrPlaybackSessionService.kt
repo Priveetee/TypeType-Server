@@ -126,10 +126,10 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     private suspend fun prepareHolder(holder: SabrSessionHolder, startTimeMs: Long): SabrPlaybackPreparation {
         val startedAt = System.currentTimeMillis()
         holder.setPlayerTimeMs(startTimeMs)
-        preloadInitialization(holder)
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
-        if (startTimeMs > 0L) holder.requestReposition(startTimeMs, holder.activeGeneration())
+        if (startTimeMs > 0L) holder.requestReposition(startTimeMs, holder.activeGeneration(), primeSession = true)
+        preloadInitialization(holder)
         sessionStore.startPump(holder)
         sessionStore.warmPlaybackAsync(holder)
         logger.info(
@@ -155,12 +155,22 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         }
     }
 
-    private fun SabrSessionHolder.requestReposition(playerTimeMs: Long, generation: Long): Unit {
+    private fun SabrSessionHolder.requestReposition(
+        playerTimeMs: Long,
+        generation: Long,
+        primeSession: Boolean = false,
+    ): Unit {
         val sequence = playbackStartSequence(videoFormat, playerTimeMs)
         val request = SabrSegmentRequest.media(videoFormat, sequence)
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)
-        if (startMs < session.streamState.getMinBufferedEndMs()) requestRefetch(request) else requestForwardSeek(request)
+        if (startMs < session.streamState.getMinBufferedEndMs()) {
+            if (primeSession) session.prepareForRewind(request)
+            requestRefetch(request)
+        } else {
+            if (primeSession) session.prepareForForwardJump(request)
+            requestForwardSeek(request)
+        }
     }
 
     private companion object {
