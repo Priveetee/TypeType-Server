@@ -31,6 +31,7 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 9
         every { holder.session.streamState.getSegmentStartMs(any(), 7) } returns 68_000L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 0L
+        every { holder.session.requestNumber } returns 0
         every { holder.session.prepareForForwardJump(any()) } returns Unit
         val store = mockk<SabrSessionStore>()
         every { store.getOrCreate("video", "user", info, audio, video, prepared.initialToken, 88_168L, false) } returns holder

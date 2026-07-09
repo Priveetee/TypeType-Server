@@ -1,8 +1,5 @@
 package dev.typetype.server.services
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
@@ -10,6 +7,8 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
+    private val coldSeekPreparer = SabrPlaybackColdSeekPreparer(sessionStore)
+
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -28,7 +27,21 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             startTimeMs = startTimeMs,
             startPump = false,
         )
-        return prepareHolder(holder, startTimeMs)
+        val preparedHolder = if (startTimeMs > 0L) {
+            coldSeekPreparer.prepare(
+                holder = holder,
+                videoId = videoId,
+                userId = userId,
+                prepared = prepared,
+                audio = audio,
+                video = video,
+                startTimeMs = startTimeMs,
+                timeoutMs = INITIALIZATION_PRELOAD_TIMEOUT_MS,
+            )
+        } else {
+            holder
+        }
+        return prepareHolder(preparedHolder, startTimeMs, preload = startTimeMs <= 0L)
     }
 
     suspend fun seek(
@@ -123,13 +136,17 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             ?.let { SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes) }
             ?: SabrPlaybackSegmentResult.Stale(holder)
 
-    private suspend fun prepareHolder(holder: SabrSessionHolder, startTimeMs: Long): SabrPlaybackPreparation {
+    private suspend fun prepareHolder(
+        holder: SabrSessionHolder,
+        startTimeMs: Long,
+        preload: Boolean = true,
+    ): SabrPlaybackPreparation {
         val startedAt = System.currentTimeMillis()
         holder.setPlayerTimeMs(startTimeMs)
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
         if (startTimeMs > 0L) holder.requestReposition(startTimeMs, holder.activeGeneration(), primeSession = true)
-        preloadInitialization(holder)
+        if (preload) SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         sessionStore.startPump(holder)
         sessionStore.warmPlaybackAsync(holder)
         logger.info(
@@ -143,17 +160,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
 
     private fun SabrSessionHolder.matches(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): Boolean =
         audioFormat.itag == audio.itag && audioFormat.audioTrackId == audio.audioTrackId && videoFormat.itag == video.itag
-
-    private suspend fun preloadInitialization(holder: SabrSessionHolder): Unit {
-        withTimeoutOrNull(INITIALIZATION_PRELOAD_TIMEOUT_MS) {
-            coroutineScope {
-                val video = async(Dispatchers.IO) { sessionStore.fetchInitializationData(holder, holder.videoFormat) }
-                val audio = async(Dispatchers.IO) { sessionStore.fetchInitializationData(holder, holder.audioFormat) }
-                video.await()
-                audio.await()
-            }
-        }
-    }
 
     private fun SabrSessionHolder.requestReposition(
         playerTimeMs: Long,
@@ -181,18 +187,4 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
     }
-}
-
-internal data class SabrPlaybackPreparation(
-    val holder: SabrSessionHolder,
-    val startTimeMs: Long,
-    val ready: Boolean,
-)
-
-internal sealed class SabrPlaybackSegmentResult {
-    data class Ready(val mimeType: String, val bytes: ByteArray) : SabrPlaybackSegmentResult()
-    data class Retry(val holder: SabrSessionHolder, val status: String) : SabrPlaybackSegmentResult()
-    data class Stale(val holder: SabrSessionHolder) : SabrPlaybackSegmentResult()
-    data object InvalidSequence : SabrPlaybackSegmentResult()
-    data object InvalidGeneration : SabrPlaybackSegmentResult()
 }
