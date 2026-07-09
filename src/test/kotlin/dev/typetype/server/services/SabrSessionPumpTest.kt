@@ -37,6 +37,7 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(any()) } returns null
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.setActiveTrackTypes(false, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
         every { streamState.getSegmentStartMs(audio, 8) } returns 120_000L
         every { streamState.getSegmentStartMs(audio, 9) } returns 130_000L
@@ -72,6 +73,7 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(any()) } returns null
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.setActiveTrackTypes(false, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
         every { streamState.getSegmentStartMs(audio, 32) } returns 309_522L
         every { streamState.getSegmentStartMs(audio, 33) } returns 319_507L

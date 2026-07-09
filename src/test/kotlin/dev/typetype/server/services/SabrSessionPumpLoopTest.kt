@@ -34,8 +34,10 @@ class SabrSessionPumpLoopTest {
             every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64
             every { streamState.getSegmentStartMs(audio, 35) } returns 340_000L
             every { streamState.getSegmentEndMs(audio, 34) } returns 339_476L
+            every { streamState.getSegmentEndMs(audio, 35) } returns 349_461L
             every { streamState.getSegmentEndMs(video, 63) } returns 333_800L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
+            every { streamState.setActiveTrackTypes(false, true) } returns Unit
             every { streamState.setBufferedRangesOverride(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(null) } returns Unit
             every { streamState.setSelectVideoFormatBeforeAudio(any()) } returns Unit
@@ -51,6 +53,7 @@ class SabrSessionPumpLoopTest {
             verify(exactly = 1) { session.prepareForForwardJump(request) }
             verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
             verifyOrder {
+                streamState.setActiveTrackTypes(false, true)
                 streamState.setSelectVideoFormatBeforeAudio(false)
                 streamState.setBufferedRangesOverride(match { ranges ->
                     ranges.size == 2 &&
