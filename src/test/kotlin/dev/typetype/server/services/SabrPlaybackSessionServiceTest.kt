@@ -29,7 +29,7 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 88_168L) } returns 9
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 9
-        every { holder.session.streamState.getSegmentStartMs(any(), 7) } returns 68_000L
+        every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 68_000L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 0L
         every { holder.session.requestNumber } returns 0
         every { holder.session.prepareForForwardJump(any()) } returns Unit
@@ -131,7 +131,7 @@ class SabrPlaybackSessionServiceTest {
         val holder = holder(audio, video)
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(any(), 90_000L) } returns 9
-        every { holder.session.streamState.getSegmentStartMs(any(), 7) } returns 70_000L
+        every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 70_000L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 10_000L
         val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), token())
         val store = mockk<SabrSessionStore>()
@@ -143,7 +143,7 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(1L, holder.activeGeneration())
         assertEquals(70_000L, holder.readerTailMs())
         assertEquals(90_000L, holder.requestedSeekTimeMs())
-        assertEquals(7, holder.consumeForwardSeek()?.sequenceNumber)
+        assertEquals(9, holder.consumeForwardSeek()?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(any(), any()) }
         verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
@@ -156,7 +156,7 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 120_000L) } returns 24
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 120_000L) } returns 13
-        every { holder.session.streamState.getSegmentStartMs(video, 22) } returns 110_000L
+        every { holder.session.streamState.getSegmentStartMs(video, 24) } returns 119_604L
         every { holder.session.streamState.getSegmentStartMs(audio, 13) } returns 118_979L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 109_637L
         val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), token())
@@ -167,8 +167,8 @@ class SabrPlaybackSessionServiceTest {
 
         val request = holder.consumeForwardSeek()
         assertEquals(video.itag, request?.format?.itag)
-        assertEquals(22, request?.sequenceNumber)
-        assertEquals(110_000L, holder.readerTailMs())
+        assertEquals(24, request?.sequenceNumber)
+        assertEquals(119_604L, holder.readerTailMs())
     }
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
