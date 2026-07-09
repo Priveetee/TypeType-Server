@@ -32,7 +32,6 @@ class SabrSessionPumpLoopTest {
             every { session.getCachedSegment(request) } returns null
             every { streamState.getMinBufferedEndMs() } returns 329_492L
             every { streamState.getSegmentStartMs(audio, 35) } returns 340_000L
-            every { streamState.getSegmentStartMs(audio, 34) } returns 329_492L
             every { streamState.getSegmentEndMs(audio, 34) } returns 339_476L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(any()) } returns Unit
@@ -54,7 +53,7 @@ class SabrSessionPumpLoopTest {
                 streamState.setBufferedRangesOverride(match { ranges ->
                     ranges.size == 2 &&
                         ranges[0].summarize() == "itag=247:seq=2147483647-2147483647:time=0+2147483647:timescale=1000" &&
-                        ranges[1].summarize() == "itag=140:seq=34-34:time=0+9984:timescale=1000"
+                        ranges[1].summarize() == "itag=140:seq=1-34:time=0+339476:timescale=1000"
                 })
                 session.pumpOnceStreamingUntilCached(any(), request)
                 streamState.setBufferedRangesOverride(null)
