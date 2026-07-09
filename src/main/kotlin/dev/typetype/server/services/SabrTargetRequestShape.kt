@@ -15,7 +15,7 @@ internal inline fun <T> withTargetedRequestShape(
     val requestStartMs = state.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
     val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
     state.setPlayerTimeMs(targetPlayerTimeMs)
-    state.setRequestTrackMode(request.trackMode(), request.format.isAudio, request.format.isVideo)
+    state.setRequestTrackMode(request.trackMode(), true, true)
     state.setSelectVideoFormatBeforeAudio(request.format.isAudio)
     state.setBufferedRangesOverride(
         listOf(
