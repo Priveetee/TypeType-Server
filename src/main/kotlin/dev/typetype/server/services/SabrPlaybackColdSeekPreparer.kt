@@ -29,8 +29,6 @@ internal class SabrPlaybackColdSeekPreparer(private val sessionStore: SabrSessio
         )
         SabrInitializationData.remember(video, videoInit)
         SabrInitializationData.remember(audio, audioInit)
-        fresh.session.streamState.ingestInitializationData(video, videoInit)
-        fresh.session.streamState.ingestInitializationData(audio, audioInit)
         return fresh
     }
 }
