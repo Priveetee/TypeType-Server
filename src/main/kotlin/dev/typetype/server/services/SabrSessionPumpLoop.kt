@@ -12,7 +12,7 @@ import java.io.IOException
 
 internal class SabrSessionPumpLoop {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
-        val localization = Localization("en", "GB")
+        val localization = Localization("en", "US")
         var consecutiveIoErrors = 0
         while (isAlive()) {
             try {

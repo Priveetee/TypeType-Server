@@ -177,7 +177,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
     private fun SabrSessionHolder.recoveryAction(): String? = terminalFailure()
-        ?.takeIf { it.contains("status=3 protected no-media") }
+        ?.takeIf { it.contains("protected no-media") }
         ?.let { "retry_fresh_session_lower_video_itag" }
 
     private fun SabrSessionHolder.retryVideoItags(): List<Int> = if (recoveryAction() == null) emptyList() else {

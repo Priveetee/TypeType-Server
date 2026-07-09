@@ -11,7 +11,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
     private val loop = SabrSessionPumpLoop()
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
-        val localization = Localization("en", "GB")
+        val localization = Localization("en", "US")
         var pumps = 0
         holder.setPlaybackState(SabrPlaybackState.PREPARING)
         while (pumps < maxPumps && !isWarmEnough(holder) && !holder.session.isComplete) {
@@ -51,7 +51,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
             return segment
         }
         if (holder.session.isBeyondEnd(request)) return null
-        val localization = Localization("en", "GB")
+        val localization = Localization("en", "US")
         if (request.isInitializationSegment) {
             return fetchSabrInitializationSegment(holder, request, localization, segmentCache, markServed)
         }
@@ -60,7 +60,7 @@ internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = nul
 
     suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
         SabrSessionMediaFetcher.fetch(holder, playerTimeMs) { request ->
-            fetchTargeted(holder, request, Localization("en", "GB"), markServed = false)
+            fetchTargeted(holder, request, Localization("en", "US"), markServed = false)
         }?.also { segments ->
             segmentCache?.putAll(holder, segments)
             segments.forEach { holder.markPrepared(it) }

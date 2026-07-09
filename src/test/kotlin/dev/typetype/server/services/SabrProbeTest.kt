@@ -22,8 +22,8 @@ class SabrProbeTest {
     @Test
     fun probeSabr(): Unit {
         NewPipeInitializer.init()
-        val loc = Localization("en", "GB")
-        val country = ContentCountry("GB")
+        val loc = Localization("en", "US")
+        val country = ContentCountry("US")
         val tokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl)
         val profile = YoutubeSabrClientProfile.WEB
         val playerTimeMs = sabrProbePlayerTimeMs()

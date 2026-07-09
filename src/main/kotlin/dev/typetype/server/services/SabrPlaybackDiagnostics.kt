@@ -24,11 +24,12 @@ internal object SabrPlaybackDiagnostics {
     private fun String?.blockerSummary(): String = when {
         this == null -> "request failed"
         contains("status=3") -> "status=3 protected no-media"
-        contains("reload", ignoreCase = true) -> "reload requested"
-        contains("policy", ignoreCase = true) -> "policy-only response"
+        contains("status=2") && contains("policy=true") -> "status=2 policy protected no-media"
+        contains("reload=true", ignoreCase = true) -> "reload requested"
+        contains("policy=true", ignoreCase = true) -> "policy-only response"
         else -> this
     }
 
     private fun String?.isProtectedNoMedia(): Boolean =
-        this != null && contains("SABR protected no-media response") && contains("status=3")
+        this != null && contains("SABR protected no-media response")
 }
