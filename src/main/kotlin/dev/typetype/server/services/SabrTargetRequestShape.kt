@@ -56,16 +56,15 @@ private fun SabrSegmentRequest.targetPlayerTimeMs(holder: SabrSessionHolder, sta
 }
 
 private fun YoutubeSabrFormat.bufferedRange(holder: SabrSessionHolder, bufferedSequence: Int): SabrBufferedRange {
-    val startMs = holder.session.streamState.getSegmentStartMs(this, bufferedSequence).coerceAtLeast(0L)
     val endMs = holder.session.streamState.getSegmentEndMs(this, bufferedSequence)
-    val durationMs = (endMs - startMs).takeIf { it > 0L } ?: 1L
+    val durationMs = endMs.takeIf { it > 0L } ?: 1L
     return SabrBufferedRange(
         itag,
         lastModified,
         xtags,
-        startMs,
+        0L,
         durationMs,
-        bufferedSequence,
+        if (bufferedSequence > 0) 1 else 0,
         bufferedSequence,
         TIMESCALE,
     )
