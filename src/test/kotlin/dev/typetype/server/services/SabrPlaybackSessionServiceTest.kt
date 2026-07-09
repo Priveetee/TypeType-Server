@@ -50,6 +50,7 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(video.itag, request?.format?.itag)
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
+        verify(exactly = 0) { holder.session.prepareForInitialization(any()) }
         verify { store.startPump(holder) }
         verify { store.warmPlaybackAsync(holder) }
     }

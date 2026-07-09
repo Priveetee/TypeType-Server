@@ -37,13 +37,16 @@ class SabrSessionPumpLoopTest {
             every { streamState.setLastOnlyRange(audio, false) } returns Unit
             every { streamState.setFullyBuffered(video, true) } returns Unit
             every { streamState.setFullyBuffered(video, false) } returns Unit
+            every { session.prepareForForwardJump(request) } returns Unit
             every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
             val holder = holder(session, audio, video)
+            holder.setPlayerTimeMs(340_000L)
             holder.requestSegmentDemand(request)
             var rounds = 0
 
             SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 0L)
 
+            verify(exactly = 1) { session.prepareForForwardJump(request) }
             verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
             verifyOrder {
                 streamState.setLastOnlyRange(audio, true)

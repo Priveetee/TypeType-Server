@@ -153,7 +153,8 @@ internal class SabrSessionPumpLoop {
                 holder.session.prepareForRewind(request)
                 pumpUntilCachedTargeted(holder, localization, request)
             }
-            startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
+            startMs > edgeMs && holder.playerTimeMs() >= startMs ||
+                startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.session.prepareForForwardJump(request)
                 pumpUntilCachedTargeted(holder, localization, request)
