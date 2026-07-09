@@ -34,7 +34,9 @@ class SabrRandomAccessProbeTest {
                     "videoItags=${videoItags.joinToString(",")} timeoutMs=$timeoutMs " +
                     "contract=stateful-pump"
             )
-            store.rememberExtractedInfo(videoId, extractSabrInfo(videoId))
+            if (System.getenv("SABR_PROBE_EXTRACT_FIRST") != "false") {
+                store.rememberExtractedInfo(videoId, extractSabrInfo(videoId))
+            }
             val prepared = store.fetchInfo(videoId, playerTimeMs, cachedFirst = true) ?: error("SABR probe failed")
             val info = prepared.info
             val audio = requireAudioFormat(info.formats, audioItag)
@@ -111,7 +113,7 @@ class SabrRandomAccessProbeTest {
     ): Unit {
         val data = store.fetchInitializationData(holder, format)
         println("init itag=${format.itag} bytes=${data?.size ?: -1}")
-        if (data.isNullOrEmpty()) println("init trace=${holder.session.diagnosticTrace}")
+        if (data == null || data.isEmpty()) println("init trace=${holder.session.diagnosticTrace}")
         assertTrue(data?.isNotEmpty() == true, "init bytes for itag ${format.itag}")
     }
 
