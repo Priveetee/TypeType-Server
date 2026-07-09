@@ -46,13 +46,13 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         format: YoutubeSabrFormat,
         request: SabrPlaybackWindowRequest,
     ): TrackBuildResult {
-        val startSeq = holder.playbackStartSequence(format, request.playerTimeMs)
-        val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
+        val targetMs = request.playerTimeMs.coerceAtLeast(0L)
+        val goalEndMs = targetMs + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
-        var seq = startSeq
-        var coveredEndMs = request.playerTimeMs.coerceAtLeast(0L)
+        var seq = holder.playbackStartSequence(format, targetMs)
+        var coveredEndMs = targetMs
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
             val mediaRequest = SabrSegmentRequest.media(format, seq)
             val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
@@ -60,6 +60,10 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
                 blockedRequest = mediaRequest
                 break
+            }
+            if (segments.isEmpty() && segment.startMs > targetMs && seq > 1) {
+                seq = previousSequence(seq, segment, targetMs)
+                continue
             }
             segments += segment.toWindowSegment(holder, format)
             coveredEndMs = segment.startMs + segment.durationMs
@@ -78,6 +82,13 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             blockedBy = blockedBy,
             blockedRequest = blockedRequest,
         )
+    }
+
+    private fun previousSequence(sequence: Int, segment: CachedSabrSegment, targetMs: Long): Int {
+        val durationMs = segment.durationMs.coerceAtLeast(1L)
+        val leadMs = segment.startMs - targetMs
+        val count = ((leadMs + durationMs - 1L) / durationMs).coerceAtLeast(1L)
+        return (sequence - count.coerceAtMost((sequence - 1).toLong()).toInt()).coerceAtLeast(1)
     }
 
     private fun CachedSabrSegment.toWindowSegment(
