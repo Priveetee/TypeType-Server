@@ -40,6 +40,27 @@ class TypetypeTokenSabrTokenClientTest {
         assertEquals("true", url.queryParameter("refreshVideo"))
     }
 
+    @Test
+    fun providerForceRefreshUsesVisitorRefresh(): Unit {
+        val recorder = PotokenRequestRecorder()
+        val client = TypetypeTokenSabrTokenClient("https://token.example", recorder.client)
+        val provider = TypetypeTokenSabrPoTokenProvider(client)
+        val fetch = TypetypeTokenSabrPoTokenProvider::class.java.getDeclaredMethod(
+            "fetch",
+            String::class.java,
+            java.lang.Boolean.TYPE,
+        )
+
+        fetch.isAccessible = true
+        val token = fetch.invoke(provider, "video", true) as ByteArray?
+
+        assertNotNull(token)
+        val url = recorder.urls.single()
+        assertEquals("video", url.queryParameter("videoId"))
+        assertEquals("true", url.queryParameter("refresh"))
+        assertNull(url.queryParameter("refreshVideo"))
+    }
+
     private class PotokenRequestRecorder {
         val urls = mutableListOf<okhttp3.HttpUrl>()
         val client: OkHttpClient = OkHttpClient.Builder()
