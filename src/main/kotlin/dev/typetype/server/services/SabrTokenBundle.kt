@@ -10,6 +10,6 @@ internal class SabrTokenBundle(
 ) {
     val visitorPoToken: String = visitorBoundPoToken
     val visitorPoTokenBytes: ByteArray = visitorBoundPoTokenBytes
-    val streamingPoToken: String = videoBoundPoToken
-    val streamingPoTokenBytes: ByteArray = videoBoundPoTokenBytes
+    val streamingPoToken: String = visitorBoundPoToken
+    val streamingPoTokenBytes: ByteArray = visitorBoundPoTokenBytes
 }
