@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -41,7 +42,7 @@ class TypetypeTokenSabrTokenClientTest {
     }
 
     @Test
-    fun providerForceRefreshUsesFullAndVideoRefresh(): Unit {
+    fun providerForceRefreshUsesVisitorRefreshOnly(): Unit {
         val recorder = PotokenRequestRecorder()
         val client = TypetypeTokenSabrTokenClient("https://token.example", recorder.client)
         val provider = TypetypeTokenSabrPoTokenProvider(client)
@@ -55,10 +56,11 @@ class TypetypeTokenSabrTokenClientTest {
         val token = fetch.invoke(provider, "video", true) as ByteArray?
 
         assertNotNull(token)
+        assertArrayEquals(byteArrayOf(1), token)
         val url = recorder.urls.single()
         assertEquals("video", url.queryParameter("videoId"))
         assertEquals("true", url.queryParameter("refresh"))
-        assertEquals("true", url.queryParameter("refreshVideo"))
+        assertNull(url.queryParameter("refreshVideo"))
     }
 
     private class PotokenRequestRecorder {

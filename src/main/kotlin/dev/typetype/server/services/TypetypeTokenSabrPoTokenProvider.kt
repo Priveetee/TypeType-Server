@@ -20,7 +20,7 @@ internal class TypetypeTokenSabrPoTokenProvider(
     ): ByteArray? = fetch(info.videoId, forceRefresh)
 
     private fun fetch(videoId: String, forceRefresh: Boolean): ByteArray? {
-        if (!forceRefresh && initialToken?.videoId == videoId) return initialToken.videoBoundPoTokenBytes
-        return tokenClient.fetch(videoId, forceRefresh = forceRefresh, refreshVideo = forceRefresh)?.videoBoundPoTokenBytes
+        if (!forceRefresh && initialToken?.videoId == videoId) return initialToken.visitorBoundPoTokenBytes
+        return tokenClient.fetch(videoId, forceRefresh = forceRefresh)?.visitorBoundPoTokenBytes
     }
 }

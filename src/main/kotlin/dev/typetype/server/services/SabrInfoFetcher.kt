@@ -96,7 +96,7 @@ internal class SabrInfoFetcher(
                 profile,
                 LOCALIZATION,
                 CONTENT_COUNTRY,
-                token.visitorBoundPoToken,
+                token.videoBoundPoToken,
                 token.visitorData,
             )
         }
