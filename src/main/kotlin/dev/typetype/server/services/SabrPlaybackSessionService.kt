@@ -3,8 +3,8 @@ package dev.typetype.server.services
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
@@ -96,12 +96,26 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.markServed(it, generation)
             return SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes)
         }
-        holder.requestSegmentDemand(request)
-        val segment = sessionStore.fetchPlaybackSegment(holder, format, sequence, timeoutMs)
+        sessionStore.requestSegmentDemand(holder, request)
+        val segment = awaitCachedSegment(holder, request, timeoutMs)
         return if (segment == null) SabrPlaybackSegmentResult.Retry(holder, REPOSITIONING) else {
             holder.clearSegmentDemand(request)
-            SabrPlaybackSegmentResult.Ready(format.mimeType.orEmpty(), segment.data)
+            holder.markServed(segment, generation)
+            SabrPlaybackSegmentResult.Ready(segment.mimeType, segment.bytes)
         }
+    }
+
+    private suspend fun awaitCachedSegment(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        timeoutMs: Long,
+    ): CachedSabrSegment? = withTimeoutOrNull(timeoutMs) {
+        var segment = sessionStore.cachedSegment(holder, request)
+        while (segment == null && holder.terminalFailure() == null && holder.consumeNetworkFailure() == null) {
+            delay(SEGMENT_WAIT_MS)
+            segment = sessionStore.cachedSegment(holder, request)
+        }
+        segment
     }
 
     private suspend fun staleMedia(holder: SabrSessionHolder, request: SabrSegmentRequest): SabrPlaybackSegmentResult =
@@ -155,6 +169,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         const val REPOSITIONING = "repositioning"
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 2_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
+        const val SEGMENT_WAIT_MS = 250L
     }
 }
 

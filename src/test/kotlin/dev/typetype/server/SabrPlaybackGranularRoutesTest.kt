@@ -92,7 +92,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `window targets missing first video before audio followup`() = testApplication {
+    fun `window queues missing first video without direct fetch`() = testApplication {
         val store = audioOnlyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -106,7 +106,6 @@ class SabrPlaybackGranularRoutesTest {
         assertEquals(HttpStatusCode.Accepted, response.status)
         assertTrue(response.bodyAsText().contains("video:136:1 pending"))
         verify(atLeast = 1) { store.requestSegmentDemand(holder, any()) }
-        coVerify(exactly = 1) { store.fetchPlaybackSegment(holder, holder.videoFormat, 1, any()) }
     }
 
     @Test
@@ -124,7 +123,6 @@ class SabrPlaybackGranularRoutesTest {
         assertEquals(HttpStatusCode.Accepted, response.status)
         verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
-        coVerify(exactly = 0) { store.fetchPlaybackSegment(holder, any(), any(), any()) }
     }
 
     private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {

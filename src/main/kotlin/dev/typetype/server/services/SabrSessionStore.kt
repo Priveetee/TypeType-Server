@@ -29,9 +29,6 @@ internal class SabrSessionStore(
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache(initCache)
     private val pump = SabrSessionPump(segmentCache)
-    private val playbackFetcher = SabrPlaybackSegmentFetcher(
-        fetchSegment = { holder, request -> fetchSegment(holder, request) },
-    )
     private val warmer = SabrPlaybackWarmer()
     private val infoFetcher = SabrInfoFetcher(tokenClient)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -137,13 +134,6 @@ internal class SabrSessionStore(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
     ): SabrMediaSegment? = pump.fetchSegment(holder, request)
-
-    internal suspend fun fetchPlaybackSegment(
-        holder: SabrSessionHolder,
-        format: YoutubeSabrFormat,
-        sequence: Int,
-        timeoutMs: Long,
-    ): SabrMediaSegment? = playbackFetcher.fetch(holder, format, sequence, timeoutMs)
 
     internal suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
         pump.fetchMediaAt(holder, playerTimeMs)

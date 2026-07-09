@@ -82,12 +82,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val requests = if (window.isReady) listOf(blockedRequest) else window.playableBlockedRequests.ifEmpty { listOf(blockedRequest) }
         holder.clearSegmentDemands()
         requests.forEach { sabrSessionStore.requestSegmentDemand(holder, it) }
-        if (request.playerTimeMs > 0L) return window
-        if (window.isReady) return window
-        requests.forEach { sabrSessionStore.fetchPlaybackSegment(holder, it.format, it.sequenceNumber, TARGETED_PREFETCH_TIMEOUT_MS) }
-        val refreshed = windowBuilder.build(holder, request)
-        refreshed.blockedRequest?.let { sabrSessionStore.requestSegmentDemand(holder, it) }
-        return refreshed
+        return window
     }
 
     private fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
@@ -190,7 +185,6 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
 
     private companion object {
         const val RETRY_AFTER_MS = 150L
-        const val TARGETED_PREFETCH_TIMEOUT_MS = 900L
         const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

@@ -11,12 +11,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
+import java.util.Base64
 
 class SabrPlaybackSessionServiceTest {
     @Test
@@ -50,33 +50,34 @@ class SabrPlaybackSessionServiceTest {
     }
 
     @Test
-    fun `missing media segment is retryable`() = runTest {
+    fun `missing media segment is retryable without direct fetch`() = runTest {
         val audio = format(140, isAudio = true)
         val holder = holder(audio, format(137, isAudio = false))
         val store = mockk<SabrSessionStore>()
         coEvery { store.cachedSegment(holder, any()) } returns null
-        coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns null
+        every { store.requestSegmentDemand(holder, any()) } returns Unit
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.Retry(holder, "repositioning"), result)
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
     }
 
     @Test
-    fun `ready media segment returns bytes`() = runTest {
+    fun `cached media segment after demand returns bytes`() = runTest {
         val audio = format(140, isAudio = true)
         val holder = holder(audio, format(137, isAudio = false))
-        val segment = mockk<SabrMediaSegment>()
-        every { segment.data } returns byteArrayOf(1, 2, 3)
+        val segment = cachedSegment(140, 4, byteArrayOf(1, 2, 3))
         val store = mockk<SabrSessionStore>()
-        coEvery { store.cachedSegment(holder, any()) } returns null
-        coEvery { store.fetchPlaybackSegment(holder, audio, 4, 50L) } returns segment
+        coEvery { store.cachedSegment(holder, any()) } returnsMany listOf(null, segment)
+        every { store.requestSegmentDemand(holder, any()) } returns Unit
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         val ready = result as SabrPlaybackSegmentResult.Ready
         assertEquals("audio/mp4", ready.mimeType)
         assertArrayEquals(byteArrayOf(1, 2, 3), ready.bytes)
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
     }
 
     @Test
@@ -102,7 +103,7 @@ class SabrPlaybackSessionServiceTest {
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 0, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.InvalidSequence, result)
-        coVerify(exactly = 0) { store.fetchPlaybackSegment(any(), any(), any(), any()) }
+        verify(exactly = 0) { store.requestSegmentDemand(any(), any()) }
     }
 
     @Test
@@ -116,7 +117,7 @@ class SabrPlaybackSessionServiceTest {
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.Stale(holder), result)
-        coVerify(exactly = 0) { store.fetchPlaybackSegment(any(), any(), any(), any()) }
+        verify(exactly = 0) { store.requestSegmentDemand(any(), any()) }
         assertEquals(null, holder.consumeForwardSeek())
         assertEquals(null, holder.consumeRefetch())
     }
@@ -195,6 +196,17 @@ class SabrPlaybackSessionServiceTest {
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
     }
+
+    private fun cachedSegment(itag: Int, sequence: Int, bytes: ByteArray): CachedSabrSegment = CachedSabrSegment(
+        itag = itag,
+        sequence = sequence,
+        init = false,
+        startMs = sequence * 1_000L,
+        durationMs = 1_000L,
+        mimeType = "audio/mp4",
+        bytesBase64 = Base64.getEncoder().encodeToString(bytes),
+        byteLength = bytes.size,
+    )
 
     private fun token(): SabrTokenBundle = SabrTokenBundle(
         videoId = "video",
