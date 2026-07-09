@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.clearSegmentDemands
 import dev.typetype.server.services.pendingSegmentDemandSummary
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -79,6 +80,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val window = windowBuilder.build(holder, request)
         val blockedRequest = window.blockedRequest ?: return window
         val requests = if (window.isReady) listOf(blockedRequest) else window.playableBlockedRequests.ifEmpty { listOf(blockedRequest) }
+        holder.clearSegmentDemands()
         requests.forEach { sabrSessionStore.requestSegmentDemand(holder, it) }
         if (request.playerTimeMs > 0L) return window
         if (window.isReady) return window
