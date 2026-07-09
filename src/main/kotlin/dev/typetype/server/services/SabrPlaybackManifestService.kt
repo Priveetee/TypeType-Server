@@ -39,7 +39,7 @@ internal class SabrPlaybackManifestService {
     }
 
     private fun segmentAt(holder: SabrSessionHolder, format: YoutubeSabrFormat, ms: Long, maxSegment: Long): Int =
-        holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(format, ms)
+        holder.playbackStartSequence(format, ms)
             .coerceAtLeast(1)
             .coerceAtMost(maxSegment.toInt().coerceAtLeast(1))
 

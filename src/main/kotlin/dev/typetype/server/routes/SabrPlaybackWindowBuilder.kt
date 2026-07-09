@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.playbackStartSequence
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
@@ -49,10 +50,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         format: YoutubeSabrFormat,
         request: SabrPlaybackWindowRequest,
     ): TrackBuildResult {
-        val startSeq = holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(
-            format,
-            request.playerTimeMs.coerceAtLeast(0L),
-        ).coerceAtLeast(1)
+        val startSeq = holder.playbackStartSequence(format, request.playerTimeMs)
         val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null

@@ -156,7 +156,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     }
 
     private fun SabrSessionHolder.requestReposition(playerTimeMs: Long, generation: Long): Unit {
-        val sequence = session.streamState.getSegmentNumberAtOrAfterTimeMs(videoFormat, playerTimeMs).coerceAtLeast(1)
+        val sequence = playbackStartSequence(videoFormat, playerTimeMs)
         val request = SabrSegmentRequest.media(videoFormat, sequence)
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)

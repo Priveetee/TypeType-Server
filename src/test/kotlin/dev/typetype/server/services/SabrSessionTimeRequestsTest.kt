@@ -26,7 +26,25 @@ class SabrSessionTimeRequestsTest {
         val requests = holder.mediaRequestsAt(321_601L)
 
         assertEquals(listOf(137, 140), requests.map { it.format.itag })
-        assertEquals(listOf(64, 33), requests.map { it.sequenceNumber })
+        assertEquals(listOf(62, 33), requests.map { it.sequenceNumber })
+    }
+
+    @Test
+    fun `mediaRequestsAt prerolls video seek group but keeps audio exact`() {
+        val audio = sabrFormat(itag = 140, isAudio = true)
+        val video = sabrFormat(itag = 247, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        every { session.streamState } returns state
+        every { state.setActiveTrackTypes(any(), any()) } returns Unit
+        every { state.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 66
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 340_000L) } returns 35
+        val holder = holder(session, audio, video)
+
+        val requests = holder.mediaRequestsAt(340_000L)
+
+        assertEquals(listOf(247, 140), requests.map { it.format.itag })
+        assertEquals(listOf(64, 35), requests.map { it.sequenceNumber })
     }
 
     @Test
@@ -44,7 +62,7 @@ class SabrSessionTimeRequestsTest {
         val requests = holder.mediaRequestsAt(321_601L)
 
         assertEquals(listOf(137), requests.map { it.format.itag })
-        assertEquals(listOf(64), requests.map { it.sequenceNumber })
+        assertEquals(listOf(62), requests.map { it.sequenceNumber })
     }
 
     private fun sabrFormat(itag: Int, isAudio: Boolean): YoutubeSabrFormat {

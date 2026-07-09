@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrSessionHolder
+import dev.typetype.server.services.playbackStartSequence
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -59,7 +60,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
 
 private fun SabrSessionHolder.startSegment(format: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat): Int =
     key.startTimeMs.takeIf { it > 0L }
-        ?.let { session.streamState.getSegmentNumberAtOrAfterTimeMs(format, it).coerceAtLeast(1) }
+        ?.let { playbackStartSequence(format, it) }
         ?: 1
 
 internal val DASH_CONTENT_TYPE: ContentType = ContentType.parse("application/dash+xml")

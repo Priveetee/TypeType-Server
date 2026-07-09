@@ -19,8 +19,7 @@ private fun SabrSessionHolder.mediaRequestAt(
     playerTimeMs: Long,
     generation: Long,
 ): SabrSegmentRequest {
-    val timeSequence = session.streamState.getSegmentNumberAtOrAfterTimeMs(format, playerTimeMs.coerceAtLeast(0L))
-        .coerceAtLeast(1)
+    val timeSequence = playbackStartSequence(format, playerTimeMs)
     val sequence = lastServedSequence(format, generation)?.let { last ->
         if (timeSequence <= last) last + 1 else timeSequence
     } ?: timeSequence
