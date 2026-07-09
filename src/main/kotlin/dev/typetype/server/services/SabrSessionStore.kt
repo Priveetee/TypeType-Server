@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -85,6 +86,11 @@ internal class SabrSessionStore(
         scope.launch { fetchMediaAt(holder, holder.playerTimeMs()) }
     }
 
+    internal fun warmInitializationAsync(holder: SabrSessionHolder): Unit =
+        listOf(holder.videoFormat, holder.audioFormat).forEach { format ->
+            scope.launch { fetchDirectInitialization(holder, format) }
+        }
+
     internal fun lookup(videoId: String, userId: String, audioItag: Int, videoItag: Int): SabrSessionHolder? =
         registry.get(SabrSessionKey(videoId, userId, audioItag, null, videoItag, 0L))
 
@@ -160,6 +166,13 @@ internal class SabrSessionStore(
         }
         SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
         return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
+    }
+
+    private suspend fun fetchDirectInitialization(holder: SabrSessionHolder, format: YoutubeSabrFormat): Unit {
+        val source = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format
+        val data = SabrInitializationData.fetch(source, initCache) ?: return
+        SabrInitializationData.remember(format, data)
+        holder.pumpMutex.withLock { holder.session.streamState.ingestInitializationData(format, data) }
     }
 
     fun release() {

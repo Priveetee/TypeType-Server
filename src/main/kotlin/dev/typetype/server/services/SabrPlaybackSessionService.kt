@@ -7,8 +7,6 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
-    private val coldSeekPreparer = SabrPlaybackColdSeekPreparer(sessionStore)
-
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -27,21 +25,8 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             startTimeMs = startTimeMs,
             startPump = false,
         )
-        val preparedHolder = if (startTimeMs > 0L) {
-            coldSeekPreparer.prepare(
-                holder = holder,
-                videoId = videoId,
-                userId = userId,
-                prepared = prepared,
-                audio = audio,
-                video = video,
-                startTimeMs = startTimeMs,
-                timeoutMs = COLD_SEEK_INITIALIZATION_PRELOAD_TIMEOUT_MS,
-            )
-        } else {
-            holder
-        }
-        return prepareHolder(preparedHolder, startTimeMs, preload = startTimeMs <= 0L)
+        if (startTimeMs > 0L) sessionStore.warmInitializationAsync(holder)
+        return prepareHolder(holder, startTimeMs, preload = startTimeMs <= 0L)
     }
 
     suspend fun seek(
@@ -188,7 +173,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 2_000L
-        const val COLD_SEEK_INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
     }
