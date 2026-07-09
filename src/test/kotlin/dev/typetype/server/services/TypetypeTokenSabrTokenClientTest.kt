@@ -41,7 +41,7 @@ class TypetypeTokenSabrTokenClientTest {
     }
 
     @Test
-    fun providerForceRefreshUsesVideoRefresh(): Unit {
+    fun providerForceRefreshUsesFullAndVideoRefresh(): Unit {
         val recorder = PotokenRequestRecorder()
         val client = TypetypeTokenSabrTokenClient("https://token.example", recorder.client)
         val provider = TypetypeTokenSabrPoTokenProvider(client)
@@ -57,7 +57,7 @@ class TypetypeTokenSabrTokenClientTest {
         assertNotNull(token)
         val url = recorder.urls.single()
         assertEquals("video", url.queryParameter("videoId"))
-        assertNull(url.queryParameter("refresh"))
+        assertEquals("true", url.queryParameter("refresh"))
         assertEquals("true", url.queryParameter("refreshVideo"))
     }
 
