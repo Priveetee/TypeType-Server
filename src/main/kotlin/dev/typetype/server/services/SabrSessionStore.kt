@@ -22,7 +22,7 @@ internal class SabrSessionStore(
     tokenServiceUrl: String,
     private val maxSessions: Int = SabrSessionStoreDefaults.maxSessions(),
     private val idleEviction: Duration = SabrSessionStoreDefaults.idleEviction(),
-    private val pumpLoopIntervalMs: Long = 750,
+    private val pumpLoopIntervalMs: Long = 100,
     private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
     private val initCache: CacheService? = null,
 ) {

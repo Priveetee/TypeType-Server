@@ -68,14 +68,14 @@ internal class SabrSessionPumpLoop {
         holder.consumeRefetch()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
-            pumpUntilCached(holder, localization, request)
+            pumpOnce(holder, localization)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForForwardJump(request)
-            pumpUntilCached(holder, localization, request)
+            pumpOnce(holder, localization)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
