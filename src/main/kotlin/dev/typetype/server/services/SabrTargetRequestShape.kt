@@ -12,8 +12,9 @@ internal inline fun <T> withTargetedRequestShape(
     val companion = holder.companionFormat(request.format)
     val state = holder.session.streamState
     val requestStartMs = state.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
-    val targetTimeMs = requestStartMs.takeIf { it > 0L || request.sequenceNumber <= 1 } ?: holder.playerTimeMs()
-    val companionSequence = holder.companionSequence(companion, targetTimeMs)
+    val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
+    val companionSequence = holder.companionSequence(companion, targetPlayerTimeMs)
+    state.setPlayerTimeMs(targetPlayerTimeMs)
     state.setSelectVideoFormatBeforeAudio(!request.format.isAudio)
     state.setBufferedRangesOverride(
         listOf(
@@ -55,6 +56,14 @@ private fun SabrSessionHolder.cachedSequence(format: YoutubeSabrFormat, baseSequ
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
     format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
 
+private fun SabrSegmentRequest.targetPlayerTimeMs(holder: SabrSessionHolder, startMs: Long): Long {
+    val playerTimeMs = holder.playerTimeMs()
+    val endMs = holder.session.streamState.getSegmentEndMs(format, sequenceNumber).coerceAtLeast(0L)
+    if (endMs > startMs && playerTimeMs >= startMs && playerTimeMs < endMs) return playerTimeMs
+    if (endMs > startMs + 1L) return minOf(startMs + TARGET_SEGMENT_OFFSET_MS, endMs - 1L)
+    return startMs
+}
+
 private fun YoutubeSabrFormat.bufferedRange(holder: SabrSessionHolder, bufferedSequence: Int): SabrBufferedRange {
     val endMs = holder.session.streamState.getSegmentEndMs(this, bufferedSequence)
     val durationMs = endMs.takeIf { it > 0L } ?: 1L
@@ -72,4 +81,5 @@ private fun YoutubeSabrFormat.bufferedRange(holder: SabrSessionHolder, bufferedS
 
 private const val SEEK_FORMAT_ORDER_MS = 1_000L
 private const val COMPANION_CACHE_LOOKAHEAD = 4
+private const val TARGET_SEGMENT_OFFSET_MS = 1_000L
 private const val TIMESCALE = 1_000
