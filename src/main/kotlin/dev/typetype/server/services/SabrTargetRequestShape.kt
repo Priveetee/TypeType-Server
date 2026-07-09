@@ -14,18 +14,13 @@ internal inline fun <T> withTargetedRequestShape(
     val state = holder.session.streamState
     val requestStartMs = state.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
     val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
-    val trackMode = if (request.format.isAudio) {
-        YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY
-    } else {
-        YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
-    }
     state.setPlayerTimeMs(targetPlayerTimeMs)
-    state.setRequestTrackMode(trackMode, true, true)
+    state.setRequestTrackMode(YoutubeSabrStreamState.TRACK_MODE_VIDEO_AND_AUDIO, true, true)
     state.setSelectVideoFormatBeforeAudio(request.format.isAudio)
     state.setBufferedRangesOverride(
         listOf(
             request.targetRange(holder),
-            companion.fullRange(),
+            companion.bufferedRange(holder, holder.companionSequence(companion, targetPlayerTimeMs)),
         )
     )
     return try {
@@ -39,6 +34,25 @@ internal inline fun <T> withTargetedRequestShape(
 
 private fun SabrSessionHolder.companionFormat(format: YoutubeSabrFormat): YoutubeSabrFormat =
     if (format.isAudio) videoFormat else audioFormat
+
+private fun SabrSessionHolder.companionSequence(format: YoutubeSabrFormat, targetTimeMs: Long): Int = cachedSequence(
+    format,
+    maxOf(
+        (playbackStartSequence(format, targetTimeMs) - 1).coerceAtLeast(0),
+        lastServedSequence(format) ?: 0,
+    ),
+)
+
+private fun SabrSessionHolder.cachedSequence(format: YoutubeSabrFormat, baseSequence: Int): Int {
+    var sequence = baseSequence
+    while (sequence - baseSequence < COMPANION_CACHE_LOOKAHEAD) {
+        val nextSequence = sequence + 1
+        val request = SabrSegmentRequest.media(format, nextSequence)
+        if (session.getCachedSegment(request) == null) return sequence
+        sequence = nextSequence
+    }
+    return sequence
+}
 
 private fun SabrSegmentRequest.targetRange(holder: SabrSessionHolder): SabrBufferedRange =
     format.bufferedRange(holder, (sequenceNumber - 1).coerceAtLeast(0))
@@ -66,19 +80,7 @@ private fun YoutubeSabrFormat.bufferedRange(holder: SabrSessionHolder, bufferedS
     )
 }
 
-private fun YoutubeSabrFormat.fullRange(): SabrBufferedRange = SabrBufferedRange(
-    itag,
-    lastModified,
-    xtags,
-    0L,
-    MAX_RANGE_DURATION_MS,
-    MAX_RANGE_INDEX,
-    MAX_RANGE_INDEX,
-    TIMESCALE,
-)
-
 private const val SEEK_FORMAT_ORDER_MS = 1_000L
+private const val COMPANION_CACHE_LOOKAHEAD = 4
 private const val TARGET_SEGMENT_OFFSET_MS = 1_000L
-private const val MAX_RANGE_DURATION_MS = Int.MAX_VALUE.toLong()
-private const val MAX_RANGE_INDEX = Int.MAX_VALUE
 private const val TIMESCALE = 1_000
