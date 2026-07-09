@@ -1,14 +1,13 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
-internal inline fun withTargetedRequestShape(
+internal inline fun <T> withTargetedRequestShape(
     holder: SabrSessionHolder,
     request: SabrSegmentRequest,
-    block: () -> SabrMediaSegment?,
-): SabrMediaSegment? {
+    block: () -> T,
+): T {
     val companion = holder.companionFormat(request.format)
     holder.session.streamState.setLastOnlyRange(request.format, true)
     holder.session.streamState.setFullyBuffered(companion, true)
