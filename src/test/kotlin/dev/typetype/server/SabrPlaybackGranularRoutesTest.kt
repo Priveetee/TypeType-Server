@@ -122,9 +122,8 @@ class SabrPlaybackGranularRoutesTest {
         }
 
         assertEquals(HttpStatusCode.Accepted, response.status)
-        coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.videoFormat) }
-        coVerify(atLeast = 1) { store.fetchInitializationData(holder, holder.audioFormat) }
         verify(atLeast = 2) { store.requestSegmentDemand(holder, any()) }
+        coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
         coVerify(exactly = 0) { store.fetchPlaybackSegment(holder, any(), any(), any()) }
     }
 

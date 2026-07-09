@@ -3,7 +3,6 @@ package dev.typetype.server.routes
 import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
-import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
@@ -12,7 +11,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         holder: SabrSessionHolder,
         request: SabrPlaybackWindowRequest,
     ): SabrPlaybackWindowBuildResult {
-        warmTiming(holder, request.playerTimeMs)
         val audio = buildTrack(holder, holder.audioFormat, request)
         val video = buildTrack(holder, holder.videoFormat, request)
         val blocked = blockedTrack(audio, video)
@@ -30,14 +28,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             blockedRequest = blocked?.blockedRequest,
             playableBlockedRequests = playableBlockedRequests(audio, video),
         )
-    }
-
-    private suspend fun warmTiming(holder: SabrSessionHolder, playerTimeMs: Long): Unit {
-        if (playerTimeMs <= 0L) return
-        withTimeoutOrNull(TIMING_WARM_TIMEOUT_MS) {
-            sabrSessionStore.fetchInitializationData(holder, holder.videoFormat)
-            sabrSessionStore.fetchInitializationData(holder, holder.audioFormat)
-        }
     }
 
     private fun playableBlockedRequests(audio: TrackBuildResult, video: TrackBuildResult): List<SabrSegmentRequest> =
@@ -122,7 +112,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
 
     private companion object {
         const val MAX_SEGMENTS_PER_TRACK = 12
-        const val TIMING_WARM_TIMEOUT_MS = 1_500L
     }
 }
 
