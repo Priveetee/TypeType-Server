@@ -37,7 +37,6 @@ class SabrSessionPumpLoopTest {
             every { streamState.setLastOnlyRange(audio, false) } returns Unit
             every { streamState.setFullyBuffered(video, true) } returns Unit
             every { streamState.setFullyBuffered(video, false) } returns Unit
-            every { streamState.setRequestTrackMode(any(), true, true) } returns Unit
             every { streamState.setSelectVideoFormatBeforeAudio(any()) } returns Unit
             every { session.prepareForForwardJump(request) } returns Unit
             every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
@@ -51,7 +50,6 @@ class SabrSessionPumpLoopTest {
             verify(exactly = 1) { session.prepareForForwardJump(request) }
             verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
             verifyOrder {
-                streamState.setRequestTrackMode(YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY, true, true)
                 streamState.setSelectVideoFormatBeforeAudio(true)
                 streamState.setLastOnlyRange(audio, true)
                 streamState.setFullyBuffered(video, true)
