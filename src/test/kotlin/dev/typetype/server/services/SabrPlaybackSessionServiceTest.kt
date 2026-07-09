@@ -47,7 +47,7 @@ class SabrPlaybackSessionServiceTest {
         assertFalse(result.ready)
         assertEquals(88_168L, holder.playerTimeMs())
         val request = holder.consumeForwardSeek()
-        assertEquals(audio.itag, request?.format?.itag)
+        assertEquals(video.itag, request?.format?.itag)
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
         verify { store.startPump(holder) }
@@ -179,6 +179,7 @@ class SabrPlaybackSessionServiceTest {
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.prepareForInitialization(any()) } returns Unit
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.setSelectVideoFormatBeforeAudio(any()) } returns Unit
         return SabrSessionHolder(
