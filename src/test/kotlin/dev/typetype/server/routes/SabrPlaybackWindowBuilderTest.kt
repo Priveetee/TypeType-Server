@@ -48,7 +48,6 @@ class SabrPlaybackWindowBuilderTest {
                 else -> null
             }
         }
-
         val result = SabrPlaybackWindowBuilder(store).build(
             holder,
             SabrPlaybackWindowRequest(0L, 491_203L, 299, 140, bufferGoalMs = 1_000L),
@@ -165,6 +164,39 @@ class SabrPlaybackWindowBuilderTest {
         coVerify(exactly = 0) {
             store.cachedSegment(holder, match { !it.isInitializationSegment && it.sequenceNumber < 22 })
         }
+    }
+
+    @Test
+    fun `final indexed segments complete the window without requesting beyond end`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { streamState.getEndSegment(audio) } returns 90L
+        every { streamState.getEndSegment(video) } returns 100L
+        every { streamState.getSegmentEndMs(audio, 90) } returns 898_000L
+        every { streamState.getSegmentEndMs(video, 100) } returns 897_000L
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, any()) } returns 90
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, any()) } returns 100
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when (request.format.itag) {
+                140 -> cached(140, 90, 888_000L, 10_000L)
+                else -> cached(299, 100, 892_000L, 5_000L)
+            }
+        }
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 896_000L, 299, 140, bufferGoalMs = 30_000L),
+        )
+        assertTrue(result.isReady)
+        assertTrue(result.response.endOfStream)
+        assertEquals(898_000L, result.response.durationMs)
+        coVerify(exactly = 0) { store.cachedSegment(holder, match { it.sequenceNumber > 100 }) }
     }
 
     private fun holder(

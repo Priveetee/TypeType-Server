@@ -188,6 +188,7 @@ class SabrPlaybackGranularRoutesTest {
         every { session.getCachedSegment(any()) } returns null
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
+        every { state.getEndSegment(any()) } returns 0L
         every { state.getSegmentStartMs(any(), any()) } answers { (secondArg<Int>() - 1) * 10_000L }
         every { state.getSegmentEndMs(any(), any()) } answers { secondArg<Int>() * 10_000L }
         every { state.getMinBufferedEndMs() } returns 10_000L

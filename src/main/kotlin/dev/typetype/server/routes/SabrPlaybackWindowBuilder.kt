@@ -21,7 +21,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val audio = buildTrack(holder, holder.audioFormat, request, minOf(request.playerTimeMs, decodeStartMs))
         val blocked = blockedTrack(audio, video)
         val readyAheadMs = minOf(request.bufferGoalMs.coerceAtLeast(1L), MIN_READY_AHEAD_MS)
-        val readyEndMs = minOf(holder.durationMs(), request.playerTimeMs.coerceAtLeast(0L) + readyAheadMs)
+        val requestedReadyEndMs = request.playerTimeMs.coerceAtLeast(0L) + readyAheadMs
         return SabrPlaybackWindowBuildResult(
             response = SabrPlaybackWindowReadyResponse(
                 sessionId = holder.sessionToken,
@@ -29,12 +29,14 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 ready = true,
                 retryAfterMs = null,
                 durationMs = holder.durationMs(),
+                endOfStream = audio.atEnd && video.atEnd,
                 audio = audio.track,
                 video = video.track,
             ),
             blockedBy = blocked?.blockedBy,
             blockedRequest = blocked?.blockedRequest,
-            isReady = audio.covers(readyEndMs) && video.covers(readyEndMs),
+            isReady = audio.covers(holder.readyEndMs(holder.audioFormat, requestedReadyEndMs)) &&
+                video.covers(holder.readyEndMs(holder.videoFormat, requestedReadyEndMs)),
         )
     }
 
@@ -59,7 +61,13 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         var blockedRequest: SabrSegmentRequest? = null
         var seq = holder.playbackStartSequence(format, targetMs)
         var coveredEndMs = targetMs
+        val endSequence = holder.session.streamState.getEndSegment(format).toInt()
+        var atEnd = false
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
+            if (endSequence > 0 && seq > endSequence) {
+                atEnd = true
+                break
+            }
             val mediaRequest = SabrSegmentRequest.media(format, seq)
             val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
             val expectedStartMs = if (segments.isEmpty()) targetMs else coveredEndMs
@@ -83,10 +91,14 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             val windowSegment = segment.toWindowSegment(holder, format)
             segments += windowSegment
             coveredEndMs = windowSegment.startMs + windowSegment.durationMs
+            if (endSequence > 0 && seq >= endSequence) {
+                atEnd = true
+                break
+            }
             if (coveredEndMs >= goalEndMs) break
             seq++
         }
-        if (blockedBy == null && coveredEndMs < goalEndMs) {
+        if (blockedBy == null && coveredEndMs < goalEndMs && !atEnd) {
             blockedBy = "${format.trackName()}:${format.itag}:$seq window capped"
         }
         return TrackBuildResult(
@@ -98,6 +110,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             blockedBy = blockedBy,
             blockedRequest = blockedRequest,
             coveredEndMs = coveredEndMs,
+            atEnd = atEnd,
         )
     }
 
@@ -126,7 +139,22 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         )
     }
 
-    private fun SabrSessionHolder.durationMs(): Long = maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
+    private fun SabrSessionHolder.durationMs(): Long {
+        val audioEndMs = indexedEndMs(audioFormat)
+        val videoEndMs = indexedEndMs(videoFormat)
+        if (audioEndMs > 0L && videoEndMs > 0L) return maxOf(audioEndMs, videoEndMs)
+        return maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
+    }
+
+    private fun SabrSessionHolder.indexedEndMs(format: YoutubeSabrFormat): Long {
+        val endSequence = session.streamState.getEndSegment(format).toInt()
+        return if (endSequence > 0) session.streamState.getSegmentEndMs(format, endSequence) else 0L
+    }
+
+    private fun SabrSessionHolder.readyEndMs(format: YoutubeSabrFormat, requestedEndMs: Long): Long {
+        val durationMs = indexedEndMs(format).takeIf { it > 0L } ?: format.approxDurationMs.coerceAtLeast(0L)
+        return minOf(durationMs, requestedEndMs)
+    }
 
     private fun YoutubeSabrFormat.trackName(): String = if (isAudio) "audio" else "video"
 
@@ -144,8 +172,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val blockedBy: String?,
         val blockedRequest: SabrSegmentRequest?,
         val coveredEndMs: Long,
+        val atEnd: Boolean,
     ) {
-        fun covers(requiredEndMs: Long): Boolean = track.segments.isNotEmpty() && coveredEndMs >= requiredEndMs
+        fun covers(requiredEndMs: Long): Boolean = (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
     }
 
     private companion object {

@@ -119,6 +119,7 @@ internal data class SabrPlaybackWindowReadyResponse(
     val ready: Boolean,
     val retryAfterMs: Long?,
     val durationMs: Long,
+    val endOfStream: Boolean,
     val audio: SabrPlaybackWindowTrack,
     val video: SabrPlaybackWindowTrack,
 )
