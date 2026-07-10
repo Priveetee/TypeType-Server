@@ -3,7 +3,9 @@ package dev.typetype.server.services
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -12,7 +14,42 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SabrSessionPumpLoopTest {
+    @Test
+    fun `non target media response keeps demand loop paced`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, isAudio = true)
+            val video = format(299, isAudio = false)
+            val request = SabrSegmentRequest.media(video, 98)
+            val session = mockk<YoutubeSabrSession>()
+            val streamState = mockk<YoutubeSabrStreamState>()
+            every { session.streamState } returns streamState
+            every { streamState.setActiveTrackTypes(true, true) } returns Unit
+            every { session.setPlayHeadMs(any()) } returns Unit
+            every { session.evictPlayed() } returns Unit
+            every { session.requestNumber } returns 12
+            every { session.cachedBytes } returns 6_607_100L
+            every { session.diagnosticTrace } returns ""
+            every { session.getCachedSegment(any()) } returns null
+            every { streamState.getMinBufferedEndMs() } returns 487_134L
+            every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
+            every { streamState.setPlayerTimeMs(any()) } returns Unit
+            every { session.pumpOnceStreamingUntilCached(any(), request) } returns 5
+            val holder = holder(session, audio, video)
+            holder.setPlayerTimeMs(491_203L)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
+
+            assertEquals(100L, testScheduler.currentTime)
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
     @Test
     fun `segment demand pumps requested segment without forward jump`() = runTest {
         SabrSegmentDemandTracker.clearAll()
@@ -28,6 +65,7 @@ class SabrSessionPumpLoopTest {
             every { session.evictPlayed() } returns Unit
             every { session.requestNumber } returns 9
             every { session.cachedBytes } returns 0L
+            every { session.diagnosticTrace } returns ""
             every { session.getCachedSegment(any()) } returns null
             every { streamState.getMinBufferedEndMs() } returns 329_492L
             every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64

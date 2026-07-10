@@ -90,10 +90,16 @@ internal class SabrSessionPumpLoop(
         holder.nextSegmentDemand()?.let { request ->
             logPumpStart(holder, "demand", request)
             val pumped = pumpDemand(holder, localization, request)
-            holder.session.getCachedSegment(request)?.let { holder.clearSegmentDemand(request) }
+            val requestedCached = holder.session.getCachedSegment(request) != null
+            val rebased = if (requestedCached) null else holder.session.findCachedMediaAt(
+                format = request.format,
+                targetMs = holder.playerTimeMs(),
+                predictedSequence = request.sequenceNumber,
+            )
+            if (requestedCached || rebased != null) holder.clearSegmentDemand(request)
             logPumpFinish(holder, "demand", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
-            return pumped > 0
+            return requestedCached
         }
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
         if (isThrottled(holder)) {

@@ -4,6 +4,7 @@ import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrInitializationData
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.findCachedMediaAt
 import dev.typetype.server.services.playbackStartSequence
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -56,11 +57,20 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
         var seq = holder.playbackStartSequence(format, targetMs)
+        var rebased = false
         var coveredEndMs = targetMs
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
             val mediaRequest = SabrSegmentRequest.media(format, seq)
             val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
             if (segment == null) {
+                if (segments.isEmpty() && !rebased) {
+                    val authoritative = holder.session.findCachedMediaAt(format, targetMs, seq)
+                    if (authoritative != null) {
+                        seq = authoritative.header.sequenceNumber
+                        rebased = true
+                        continue
+                    }
+                }
                 blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
                 blockedRequest = mediaRequest
                 break
