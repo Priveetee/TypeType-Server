@@ -7,6 +7,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
@@ -32,10 +34,14 @@ class SabrSessionPumpLoopTest {
             every { session.requestNumber } returns 12
             every { session.cachedBytes } returns 6_607_100L
             every { session.diagnosticTrace } returns ""
-            every { session.getCachedSegment(any()) } returns null
+            val rebased = mediaSegment(sequence = 101, startMs = 488_200L, durationMs = 6_500L)
+            every { session.getCachedSegment(any()) } answers {
+                firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 101 }?.let { rebased }
+            }
             every { streamState.getMinBufferedEndMs() } returns 487_134L
             every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
+            every { streamState.jumpBufferedTo(video, 101) } returns Unit
             every { session.pumpOnceStreamingUntilCached(any(), request) } returns 5
             val holder = holder(session, audio, video)
             holder.setPlayerTimeMs(491_203L)
@@ -45,6 +51,8 @@ class SabrSessionPumpLoopTest {
             SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
 
             assertEquals(100L, testScheduler.currentTime)
+            assertEquals(null, holder.pendingSegmentDemandSummary())
+            verify(exactly = 1) { streamState.jumpBufferedTo(video, 101) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }
@@ -115,6 +123,16 @@ class SabrSessionPumpLoopTest {
         every { format.lastModified } returns if (isAudio) AUDIO_LAST_MODIFIED else VIDEO_LAST_MODIFIED
         every { format.xtags } returns null
         return format
+    }
+
+    private fun mediaSegment(sequence: Int, startMs: Long, durationMs: Long): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>()
+        every { header.sequenceNumber } returns sequence
+        every { header.startMs } returns startMs
+        every { header.durationMs } returns durationMs
+        val segment = mockk<SabrMediaSegment>()
+        every { segment.header } returns header
+        return segment
     }
 
     private companion object {

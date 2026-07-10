@@ -111,7 +111,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
     ): SabrPlaybackWindowSegment {
-        val startMs = startMs.coerceAtLeast(holder.session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L))
+        val startMs = startMs.takeIf { it >= 0L }
+            ?: holder.session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L)
         val durationMs = durationMs.takeIf { it > 0L }
             ?: (holder.session.streamState.getSegmentEndMs(format, sequence) - startMs).coerceAtLeast(1L)
         return SabrPlaybackWindowSegment(

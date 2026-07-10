@@ -52,7 +52,9 @@ class SabrPlaybackWindowBuilderTest {
         )
 
         assertTrue(result.isReady)
-        assertEquals("/api/sabr/playback/session/299/segment/101?generation=0", result.response.video.segments.single().url)
+        val videoSegment = result.response.video.segments.single()
+        assertEquals("/api/sabr/playback/session/299/segment/101?generation=0", videoSegment.url)
+        assertEquals(488_200L, videoSegment.startMs)
     }
 
     private fun holder(
