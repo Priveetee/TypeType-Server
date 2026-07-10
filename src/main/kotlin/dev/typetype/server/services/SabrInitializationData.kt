@@ -87,9 +87,9 @@ internal object SabrInitializationData {
         val start = format.initRangeStart
         val end = format.initRangeEnd
         if (start < 0L || end < start) return null
-        val raw = listOf(format.itag, format.lastModified, format.xtags.orEmpty(), start, end, url)
+        val raw = listOf(format.itag, format.lastModified, format.xtags.orEmpty(), start, end)
             .joinToString("|")
-        return "sabr:init:v1:${sha256(raw)}"
+        return "sabr:init:v2:${sha256(raw)}"
     }
 
     private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
