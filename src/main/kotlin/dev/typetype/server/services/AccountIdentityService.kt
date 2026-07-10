@@ -47,8 +47,8 @@ class AccountIdentityService {
     }
 
     private suspend fun update(userId: String, identity: NormalizedIdentity): AccountIdentityUpdateResult = DatabaseFactory.query {
-        val exists = UsersTable.selectAll().where { UsersTable.id eq userId }.empty().not()
-        if (!exists) return@query AccountIdentityUpdateResult.UserNotFound
+        val current = UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()
+            ?: return@query AccountIdentityUpdateResult.UserNotFound
         val taken = UsersTable.selectAll().where {
             (UsersTable.email.lowerCase() eq identity.email) and (UsersTable.id neq userId)
         }.empty().not()
@@ -56,6 +56,9 @@ class AccountIdentityService {
         UsersTable.update({ UsersTable.id eq userId }) {
             it[email] = identity.email
             it[name] = identity.name
+            if (!current[UsersTable.email].equals(identity.email, ignoreCase = true)) {
+                it[verified] = false
+            }
             it[updatedAt] = System.currentTimeMillis()
         }
         AccountIdentityUpdateResult.Updated
