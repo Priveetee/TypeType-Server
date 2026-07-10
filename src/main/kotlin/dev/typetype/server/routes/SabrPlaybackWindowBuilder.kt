@@ -20,7 +20,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val decodeStartMs = video.track.segments.firstOrNull()?.startMs ?: request.playerTimeMs
         val audio = buildTrack(holder, holder.audioFormat, request, minOf(request.playerTimeMs, decodeStartMs))
         val blocked = blockedTrack(audio, video)
-        val readyEndMs = minOf(holder.durationMs(), request.playerTimeMs.coerceAtLeast(0L) + MIN_READY_AHEAD_MS)
+        val readyAheadMs = minOf(request.bufferGoalMs.coerceAtLeast(1L), MIN_READY_AHEAD_MS)
+        val readyEndMs = minOf(holder.durationMs(), request.playerTimeMs.coerceAtLeast(0L) + readyAheadMs)
         return SabrPlaybackWindowBuildResult(
             response = SabrPlaybackWindowReadyResponse(
                 sessionId = holder.sessionToken,
@@ -141,7 +142,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
 
     private companion object {
         const val MAX_SEGMENTS_PER_TRACK = 12
-        const val MIN_READY_AHEAD_MS = 1_000L
+        const val MIN_READY_AHEAD_MS = 10_000L
     }
 }
 

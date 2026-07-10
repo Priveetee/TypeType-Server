@@ -10,6 +10,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -60,6 +61,41 @@ class SabrPlaybackWindowBuilderTest {
         verify(exactly = 1) { streamState.jumpBufferedTo(video, 101) }
     }
 
+    @Test
+    fun `window waits for enough media to outlast manifest refresh`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 401, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 300_000L) } returns 60
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 296_600L) } returns 30
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        var completeWindow = false
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 401 && request.sequenceNumber == 60 -> cached(401, 60, 296_600L, 6_900L)
+                request.format.itag == 401 && request.sequenceNumber == 61 && completeWindow ->
+                    cached(401, 61, 303_500L, 6_100L)
+                request.format.itag == 401 && request.sequenceNumber == 62 && completeWindow ->
+                    cached(401, 62, 309_600L, 3_134L)
+                request.format.itag == 140 && request.sequenceNumber == 30 -> cached(140, 30, 289_552L, 9_985L)
+                request.format.itag == 140 && request.sequenceNumber == 31 -> cached(140, 31, 299_537L, 9_985L)
+                request.format.itag == 140 && request.sequenceNumber == 32 && completeWindow ->
+                    cached(140, 32, 309_522L, 9_985L)
+                else -> null
+            }
+        }
+        val request = SabrPlaybackWindowRequest(0L, 300_000L, 401, 140, bufferGoalMs = 30_000L)
+        val builder = SabrPlaybackWindowBuilder(store)
+
+        assertFalse(builder.build(holder, request).isReady)
+        completeWindow = true
+        assertTrue(builder.build(holder, request).isReady)
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
@@ -70,7 +106,7 @@ class SabrPlaybackWindowBuilderTest {
         audioFormat = audio,
         videoFormat = video,
         sessionToken = "session",
-        key = SabrSessionKey("video", "user", 140, null, 299, 0L),
+        key = SabrSessionKey("video", "user", 140, null, video.itag, 0L),
         lastRequestAt = Instant.EPOCH,
     )
 
