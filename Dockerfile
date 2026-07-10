@@ -5,7 +5,7 @@ WORKDIR /app
 COPY gradlew ./
 COPY gradle/ ./gradle/
 RUN ./gradlew --version --no-daemon -q
-COPY build.gradle.kts settings.gradle.kts* ./
+COPY build.gradle.kts gradle.properties settings.gradle.kts* ./
 RUN ./gradlew dependencies --no-daemon -q || true
 COPY src/ ./src/
 RUN ./gradlew shadowJar --no-daemon -q

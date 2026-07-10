@@ -9,7 +9,11 @@ plugins {
 
 apply(from = "gradle/openapi-validation.gradle.kts")
 group = "dev.typetype"
-version = "0.0.1"
+val applicationVersion = providers.gradleProperty("appVersion").get()
+require(Regex("""(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?""").matches(applicationVersion)) {
+    "appVersion must be a valid semantic version"
+}
+version = applicationVersion
 application {
     mainClass.set("dev.typetype.server.ApplicationKt")
 }
