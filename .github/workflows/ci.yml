@@ -23,4 +23,4 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Build
-        run: ./gradlew build
+        run: ./gradlew build --max-workers=8
