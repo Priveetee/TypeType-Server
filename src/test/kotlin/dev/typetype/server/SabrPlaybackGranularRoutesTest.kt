@@ -55,6 +55,24 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
+    fun `position ignores buffered ranges from the previous video format`() = testApplication {
+        val store = mockk<SabrSessionStore>(relaxed = true)
+        val holder = holder()
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/position") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"generation":0,"playerTimeMs":13000,"videoItag":136,"audioItag":140,"bufferedRanges":[{"itag":298,"startMs":0,"endMs":12000}]}"""
+            )
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"playerTimeMs\":13000"))
+    }
+
+    @Test
     fun `segments returns playable partial window without prefetching`() = testApplication {
         val store = partialStore()
         val holder = holder()

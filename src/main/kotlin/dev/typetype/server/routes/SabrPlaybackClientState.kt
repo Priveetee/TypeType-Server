@@ -11,7 +11,11 @@ internal fun SabrSessionHolder.applyClientState(bufferedRanges: List<SabrPlaybac
 }
 
 private fun SabrPlaybackBufferedRange.toSabrBufferedRange(holder: SabrSessionHolder): SabrBufferedRange? {
-    val format = holder.info.findFormatByItag(itag) ?: return null
+    val format = when (itag) {
+        holder.audioFormat.itag -> holder.audioFormat
+        holder.videoFormat.itag -> holder.videoFormat
+        else -> return null
+    }
     val start = startMs.coerceAtLeast(0L)
     val end = endMs.coerceAtLeast(start + 1L)
     val startSeq = startSequence ?: holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(format, start)
