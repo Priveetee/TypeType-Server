@@ -5,6 +5,7 @@ import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -119,6 +120,51 @@ class SabrPlaybackWindowBuilderTest {
 
         assertEquals(listOf(36, 37, 38, 39, 41), result.response.video.segments.map { it.url.sequenceFromUrl() })
         verify(exactly = 1) { streamState.jumpBufferedTo(video, 41) }
+    }
+
+    @Test
+    fun `window continues after client buffered edge without refetching played media`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 315, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 209_676L) } returns 41
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 209_676L) } returns 22
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 315 && request.sequenceNumber == 41 -> cached(315, 41, 209_676L, 5_672L)
+                request.format.itag == 315 && request.sequenceNumber == 42 -> cached(315, 42, 215_348L, 5_672L)
+                request.format.itag == 140 && request.sequenceNumber == 22 -> cached(140, 22, 209_676L, 9_985L)
+                else -> null
+            }
+        }
+        val ranges = listOf(
+            SabrPlaybackBufferedRange(315, 179_312L, 209_676L),
+            SabrPlaybackBufferedRange(140, 179_312L, 209_676L),
+        )
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(
+                generation = 0L,
+                playerTimeMs = 187_000L,
+                videoItag = 315,
+                audioItag = 140,
+                bufferGoalMs = 30_000L,
+                backBufferMs = 10_000L,
+                bufferedRanges = ranges,
+            ),
+        )
+
+        assertEquals(41, result.response.video.segments.first().url.sequenceFromUrl())
+        assertEquals(22, result.response.audio.segments.first().url.sequenceFromUrl())
+        coVerify(exactly = 0) {
+            store.cachedSegment(holder, match { !it.isInitializationSegment && it.sequenceNumber < 22 })
+        }
     }
 
     private fun holder(

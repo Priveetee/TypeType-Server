@@ -52,7 +52,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         request: SabrPlaybackWindowRequest,
         requestedStartMs: Long,
     ): TrackBuildResult {
-        val targetMs = requestedStartMs.coerceAtLeast(0L)
+        val targetMs = request.bufferedEndFor(format, requestedStartMs).coerceAtLeast(0L)
         val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
@@ -129,6 +129,15 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     private fun SabrSessionHolder.durationMs(): Long = maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
 
     private fun YoutubeSabrFormat.trackName(): String = if (isAudio) "audio" else "video"
+
+    private fun SabrPlaybackWindowRequest.bufferedEndFor(format: YoutubeSabrFormat, requestedStartMs: Long): Long {
+        val startMs = requestedStartMs.coerceAtLeast(0L)
+        return bufferedRanges.asSequence()
+            .filter { it.itag == format.itag && it.startMs <= startMs && it.endMs > startMs }
+            .maxOfOrNull { it.endMs }
+            ?.coerceAtLeast(startMs)
+            ?: startMs
+    }
 
     private data class TrackBuildResult(
         val track: SabrPlaybackWindowTrack,
