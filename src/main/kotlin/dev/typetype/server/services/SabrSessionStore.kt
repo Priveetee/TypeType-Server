@@ -60,7 +60,7 @@ internal class SabrSessionStore(
             videoFormat.itag,
             startTimeMs.coerceAtLeast(0L),
         )
-        registry.get(key)?.let { return it }
+        registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)

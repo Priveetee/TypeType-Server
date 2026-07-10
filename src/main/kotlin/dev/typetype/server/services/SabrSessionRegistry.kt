@@ -13,6 +13,13 @@ internal class SabrSessionRegistry {
         return holder
     }
 
+    fun getReusable(key: SabrSessionKey): SabrSessionHolder? {
+        val holder = get(key) ?: return null
+        if (holder.terminalFailure() == null && holder.playbackState() != SabrPlaybackState.NETWORK_FAILED) return holder
+        remove(holder)
+        return null
+    }
+
     fun put(key: SabrSessionKey, holder: SabrSessionHolder) {
         sessions[key] = holder
         sessionsByToken[holder.sessionToken] = holder

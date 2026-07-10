@@ -51,6 +51,41 @@ class SabrSessionRegistryTest {
         assertSame(holder, registry.lookupByToken("token-playback"))
     }
 
+    @Test
+    fun `healthy session remains reusable`() {
+        val registry = SabrSessionRegistry()
+        val key = key("healthy")
+        val holder = holder("healthy", Instant.EPOCH)
+        registry.put(key, holder)
+
+        assertSame(holder, registry.getReusable(key))
+        assertSame(holder, registry.lookupByToken("token-healthy"))
+    }
+
+    @Test
+    fun `terminal session is removed instead of reused`() {
+        val registry = SabrSessionRegistry()
+        val key = key("terminal")
+        val holder = holder("terminal", Instant.EPOCH)
+        registry.put(key, holder)
+        holder.failTerminal("upstream unauthorized")
+
+        assertNull(registry.getReusable(key))
+        assertNull(registry.lookupByToken("token-terminal"))
+    }
+
+    @Test
+    fun `network failed session is removed instead of reused`() {
+        val registry = SabrSessionRegistry()
+        val key = key("network")
+        val holder = holder("network", Instant.EPOCH)
+        registry.put(key, holder)
+        holder.recordNetworkFailure("connection reset")
+
+        assertNull(registry.getReusable(key))
+        assertNull(registry.lookupByToken("token-network"))
+    }
+
     private fun key(id: String): SabrSessionKey = SabrSessionKey(id, "user", 140, null, 137, 0L)
 
     private fun holder(videoId: String, lastRequestAt: Instant): SabrSessionHolder {
