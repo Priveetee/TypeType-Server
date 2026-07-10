@@ -67,6 +67,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                     val authoritative = holder.session.findCachedMediaAt(format, targetMs, seq)
                     if (authoritative != null) {
                         seq = authoritative.header.sequenceNumber
+                        holder.session.streamState.jumpBufferedTo(format, seq)
                         rebased = true
                         continue
                     }

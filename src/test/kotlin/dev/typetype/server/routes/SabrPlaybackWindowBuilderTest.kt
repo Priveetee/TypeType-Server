@@ -7,6 +7,7 @@ import dev.typetype.server.services.SabrSessionStore
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -55,6 +56,7 @@ class SabrPlaybackWindowBuilderTest {
         val videoSegment = result.response.video.segments.single()
         assertEquals("/api/sabr/playback/session/299/segment/101?generation=0", videoSegment.url)
         assertEquals(488_200L, videoSegment.startMs)
+        verify(exactly = 1) { streamState.jumpBufferedTo(video, 101) }
     }
 
     private fun holder(
