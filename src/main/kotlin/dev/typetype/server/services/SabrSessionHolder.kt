@@ -27,6 +27,7 @@ internal class SabrSessionHolder(
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
+    private val unauthorizedRefreshAttempted = AtomicBoolean(false)
     private val activeGeneration = AtomicLong(0L)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     private val playbackState = AtomicReference(SabrPlaybackState.IDLE)
@@ -63,6 +64,8 @@ internal class SabrSessionHolder(
     }
 
     fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
+
+    fun markUnauthorizedRefreshAttempted(): Boolean = unauthorizedRefreshAttempted.compareAndSet(false, true)
 
     fun setLastServedSequence(itag: Int, sequence: Int): Unit =
         setLastServedSequence(itag, sequence, activeGeneration())

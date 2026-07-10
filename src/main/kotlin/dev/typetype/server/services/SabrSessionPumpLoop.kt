@@ -10,7 +10,9 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.slf4j.LoggerFactory
 import java.io.IOException
 
-internal class SabrSessionPumpLoop {
+internal class SabrSessionPumpLoop(
+    private val unauthorizedRecovery: SabrUnauthorizedResponseRecovery = SabrUnauthorizedResponseRecovery { null },
+) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "US")
         var consecutiveIoErrors = 0
@@ -137,11 +139,17 @@ internal class SabrSessionPumpLoop {
         )
     }
 
-    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization): Int =
-        holder.session.pumpOnceStreaming(localization)
+    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization): Int {
+        val pumped = holder.session.pumpOnceStreaming(localization)
+        unauthorizedRecovery.verify(holder)
+        return pumped
+    }
 
-    private fun pumpUntilCached(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int =
-        holder.session.pumpOnceStreamingUntilCached(localization, request)
+    private fun pumpUntilCached(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int {
+        val pumped = holder.session.pumpOnceStreamingUntilCached(localization, request)
+        unauthorizedRecovery.verify(holder)
+        return pumped
+    }
 
     private fun pumpDemand(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()

@@ -7,8 +7,11 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import java.time.Instant
 
-internal class SabrSessionPump(private val segmentCache: SabrSegmentCache? = null) {
-    private val loop = SabrSessionPumpLoop()
+internal class SabrSessionPump(
+    private val segmentCache: SabrSegmentCache? = null,
+    refreshPoToken: (String) -> ByteArray? = { null },
+) {
+    private val loop = SabrSessionPumpLoop(SabrUnauthorizedResponseRecovery(refreshPoToken))
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "US")
