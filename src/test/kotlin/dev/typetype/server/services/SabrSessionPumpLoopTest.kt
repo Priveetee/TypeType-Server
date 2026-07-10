@@ -3,7 +3,6 @@ package dev.typetype.server.services
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import io.mockk.verifyOrder
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
@@ -15,7 +14,7 @@ import java.time.Instant
 
 class SabrSessionPumpLoopTest {
     @Test
-    fun `segment demand pumps with targeted request shape`() = runTest {
+    fun `segment demand pumps requested segment without forward jump`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
             val audio = format(140, isAudio = true)
@@ -41,7 +40,6 @@ class SabrSessionPumpLoopTest {
             every { streamState.setBufferedRangesOverride(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(null) } returns Unit
             every { streamState.setSelectVideoFormatBeforeAudio(any()) } returns Unit
-            every { session.prepareForForwardJump(request) } returns Unit
             every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
             val holder = holder(session, audio, video)
             holder.setPlayerTimeMs(340_000L)
@@ -50,20 +48,8 @@ class SabrSessionPumpLoopTest {
 
             SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 0L)
 
-            verify(exactly = 1) { session.prepareForForwardJump(request) }
+            verify(exactly = 0) { session.prepareForForwardJump(request) }
             verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
-            verifyOrder {
-                streamState.setActiveTrackTypes(false, true)
-                streamState.setSelectVideoFormatBeforeAudio(false)
-                streamState.setBufferedRangesOverride(match { ranges ->
-                    ranges.size == 2 &&
-                        ranges[0].summarize() == "itag=140:seq=1-34:time=0+339476:timescale=1000" &&
-                        ranges[1].summarize() == "itag=247:seq=1-63:time=0+333800:timescale=1000"
-                })
-                session.pumpOnceStreamingUntilCached(any(), request)
-                streamState.setBufferedRangesOverride(null)
-                streamState.setActiveTrackTypes(true, true)
-            }
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

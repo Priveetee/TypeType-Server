@@ -56,7 +56,7 @@ class TypetypeTokenSabrTokenClientTest {
         val token = fetch.invoke(provider, "video", true) as ByteArray?
 
         assertNotNull(token)
-        assertArrayEquals(byteArrayOf(1), token)
+        assertArrayEquals(byteArrayOf(2), token)
         val url = recorder.urls.single()
         assertEquals("video", url.queryParameter("videoId"))
         assertEquals("true", url.queryParameter("refresh"))

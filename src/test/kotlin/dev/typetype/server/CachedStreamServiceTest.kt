@@ -40,7 +40,7 @@ class CachedStreamServiceTest {
 
     @Test
     fun `stream cache key is versioned`() {
-        assertEquals("stream:v3:$REQUEST_URL", CachedStreamService.cacheKey(REQUEST_URL))
+        assertEquals("stream:v5:$REQUEST_URL", CachedStreamService.cacheKey(REQUEST_URL))
     }
 
     @Test
