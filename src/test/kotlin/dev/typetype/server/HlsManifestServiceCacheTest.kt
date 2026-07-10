@@ -4,6 +4,7 @@ import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.HlsManifestService
+import dev.typetype.server.services.OkHttpProxyService
 import dev.typetype.server.services.StreamService
 import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
@@ -21,6 +22,7 @@ class HlsManifestServiceCacheTest {
         var calls = 0
         val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
             calls += 1
+            assertEquals(OkHttpProxyService.YOUTUBE_MWEB_USER_AGENT, chain.request().header("User-Agent"))
             Response.Builder()
                 .request(chain.request())
                 .protocol(Protocol.HTTP_1_1)
