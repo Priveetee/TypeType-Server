@@ -15,6 +15,7 @@ class HlsManifestService(
     private val httpClient: OkHttpClient,
     cache: CacheService? = null,
     private val signManifestUrl: ((String) -> String)? = null,
+    private val attestedYoutubeHls: suspend (String) -> String? = { null },
 ) {
     private val manifestCache = cache?.let(::HlsManifestCache)
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<String>>>()
@@ -36,7 +37,7 @@ class HlsManifestService(
         result: ExtractionResult<StreamResponse>,
         signManifestLinks: Boolean = false,
     ): ExtractionResult<String> {
-        val manifestUrl = when (val resolved = resolveHlsUrl(result)) {
+        val manifestUrl = when (val resolved = resolveHlsUrl(result, allowAttestedYoutubeHls = true)) {
             is ExtractionResult.Success -> resolved.data
             is ExtractionResult.BadRequest -> return resolved
             is ExtractionResult.Failure -> return resolved
@@ -70,12 +71,18 @@ class HlsManifestService(
 
     private suspend fun resolveHlsUrl(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
-        return resolveHlsUrl(result)
+        return resolveHlsUrl(result, allowAttestedYoutubeHls = isYoutubeUrl(videoUrl))
     }
 
-    private fun resolveHlsUrl(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
+    private suspend fun resolveHlsUrl(
+        result: ExtractionResult<StreamResponse>,
+        allowAttestedYoutubeHls: Boolean = false,
+    ): ExtractionResult<String> {
         if (result is ExtractionResult.BadRequest) return result
         if (result !is ExtractionResult.Success) return ExtractionResult.Failure("No HLS stream available for this video")
+        if (allowAttestedYoutubeHls && result.data.isLive) {
+            attestedYoutubeHls(result.data.id)?.let { return ExtractionResult.Success(it) }
+        }
         val hls = result.data.hlsUrl
         return if (hls.isNotBlank()) ExtractionResult.Success(hls) else ExtractionResult.Failure("No HLS stream available for this video")
     }

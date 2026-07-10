@@ -30,6 +30,7 @@ import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
+import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
@@ -93,7 +94,14 @@ internal class ExtractionServiceRegistry(
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
-    val hlsManifestService = HlsManifestService(streamService, proxyHttpClient, cache, hlsManifestUrlSigner)
+    private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
+    val hlsManifestService = HlsManifestService(
+        streamService,
+        proxyHttpClient,
+        cache,
+        hlsManifestUrlSigner,
+        tokenYoutubeSessionClient::fetchHlsManifestUrl,
+    )
     val youtubeSessionHlsManifestService = hlsTokenService?.let { tokenService ->
         youtubeSessionStreamService?.let {
             YoutubeSessionHlsManifestService(youtubeSessionService, it, hlsManifestService, tokenService)
