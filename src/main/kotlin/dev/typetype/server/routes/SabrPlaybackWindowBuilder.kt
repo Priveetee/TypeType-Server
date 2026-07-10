@@ -62,16 +62,16 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
             val mediaRequest = SabrSegmentRequest.media(format, seq)
             val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
-            if (segment == null) {
-                if (segments.isEmpty() && !rebased) {
-                    val authoritative = holder.session.findCachedMediaAt(format, targetMs, seq)
-                    if (authoritative != null) {
-                        seq = authoritative.header.sequenceNumber
-                        holder.session.streamState.jumpBufferedTo(format, seq)
-                        rebased = true
-                        continue
-                    }
+            if (segments.isEmpty() && !rebased && (segment == null || !segment.covers(targetMs))) {
+                val authoritative = holder.session.findCachedMediaAt(format, targetMs, seq)
+                if (authoritative != null) {
+                    seq = authoritative.header.sequenceNumber
+                    holder.session.streamState.jumpBufferedTo(format, seq)
+                    rebased = true
+                    continue
                 }
+            }
+            if (segment == null) {
                 blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
                 blockedRequest = mediaRequest
                 break
@@ -107,6 +107,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val count = ((leadMs + durationMs - 1L) / durationMs).coerceAtLeast(1L)
         return (sequence - count.coerceAtMost((sequence - 1).toLong()).toInt()).coerceAtLeast(1)
     }
+
+    private fun CachedSabrSegment.covers(targetMs: Long): Boolean =
+        startMs >= 0L && durationMs > 0L && targetMs >= startMs && targetMs < startMs + durationMs
 
     private fun CachedSabrSegment.toWindowSegment(
         holder: SabrSessionHolder,

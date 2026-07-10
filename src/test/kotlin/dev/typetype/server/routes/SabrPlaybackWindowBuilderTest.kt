@@ -40,6 +40,7 @@ class SabrPlaybackWindowBuilderTest {
         coEvery { store.cachedSegment(holder, any()) } answers {
             val request = secondArg<SabrSegmentRequest>()
             when {
+                request.format.itag == 299 && request.sequenceNumber == 98 -> cached(299, 98, 474_000L, 4_000L)
                 request.format.itag == 299 && request.sequenceNumber == 101 -> cached(299, 101, 488_200L, 6_500L)
                 request.format.itag == 140 && request.sequenceNumber == 49 -> cached(140, 49, 479_259L, 9_985L)
                 request.format.itag == 140 && request.sequenceNumber == 50 -> cached(140, 50, 489_244L, 9_985L)
