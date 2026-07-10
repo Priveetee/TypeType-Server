@@ -16,6 +16,7 @@ import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.UsersTable
+import dev.typetype.server.db.tables.UserAvatarsTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
@@ -46,6 +47,7 @@ object DatabaseFactory {
         transaction {
             SchemaUtils.create(
                 UsersTable,
+                UserAvatarsTable,
                 SessionsTable,
                 AdminSettingsTable,
                 HistoryTable,

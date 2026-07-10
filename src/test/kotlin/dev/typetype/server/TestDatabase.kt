@@ -24,6 +24,7 @@ import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
+import dev.typetype.server.db.tables.UserAvatarsTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
@@ -98,6 +99,7 @@ object TestDatabase {
         SearchHistoryTable.deleteAll()
         SessionsTable.deleteAll()
         PasswordResetTable.deleteAll()
+        UserAvatarsTable.deleteAll()
         UsersTable.deleteAll()
         AdminSettingsTable.deleteAll()
         AllowedChannelsTable.deleteAll()

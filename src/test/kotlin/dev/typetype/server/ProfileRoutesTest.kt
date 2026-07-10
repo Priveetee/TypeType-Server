@@ -2,14 +2,15 @@ package dev.typetype.server
 
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.routes.profileRoutes
+import dev.typetype.server.routes.customAvatarRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.CustomAvatarService
 import dev.typetype.server.services.ProfileService
 import io.ktor.client.request.delete
 import io.ktor.client.request.headers
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -33,6 +34,7 @@ class ProfileRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val profileService = ProfileService()
     private val avatarService = AvatarService()
+    private val customAvatarService = CustomAvatarService()
 
     companion object {
         @BeforeAll
@@ -60,7 +62,7 @@ class ProfileRoutesTest {
     fun `PUT emoji avatar stores normalized OpenMoji code`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { profileRoutes(profileService, avatarService, auth) }
+            routing { profileRoutes(profileService, avatarService, customAvatarService, auth) }
         }
 
         val response = client.put("/profile/avatar/emoji") {
@@ -77,19 +79,20 @@ class ProfileRoutesTest {
     }
 
     @Test
-    fun `PUT custom avatar is disabled in emoji-only mode`() = testApplication {
+    fun `PUT custom avatar stores GIF upload`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { profileRoutes(profileService, avatarService, auth) }
+            routing { customAvatarRoutes(customAvatarService, auth) }
         }
 
         val response = client.put("/profile/avatar/custom") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""{"imageUrl":"https://cdn.test/avatar.gif"}""")
+            headers.append(HttpHeaders.ContentType, "image/gif")
+            setBody("GIF89a-avatar".encodeToByteArray())
         }
-        assertEquals(HttpStatusCode.Gone, response.status)
-        assertEquals("{\"error\":\"AVATAR_MODE_EMOJI_ONLY\",\"code\":\"error\",\"requestId\":null}", response.bodyAsText())
+        assertEquals(HttpStatusCode.OK, response.status)
+        val row = transaction { UsersTable.selectAll().where { UsersTable.id eq TEST_USER_ID }.single() }
+        assertEquals("custom", row[UsersTable.avatarType])
     }
 
     @Test
@@ -104,7 +107,7 @@ class ProfileRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { profileRoutes(profileService, avatarService, auth) }
+            routing { profileRoutes(profileService, avatarService, customAvatarService, auth) }
         }
 
         val response = client.delete("/profile/avatar") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }

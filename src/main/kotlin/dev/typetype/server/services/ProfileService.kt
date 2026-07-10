@@ -39,19 +39,6 @@ class ProfileService {
         }
     }
 
-    suspend fun setCustomAvatar(userId: String, imageUrl: String, avatarService: AvatarService): Boolean {
-        if (!avatarService.isAllowedCustomUrl(imageUrl)) return false
-        val now = System.currentTimeMillis()
-        return DatabaseFactory.query {
-            UsersTable.update({ UsersTable.id eq userId }) {
-                it[avatarType] = "custom"
-                it[avatarCode] = null
-                it[avatarUrl] = imageUrl
-                it[updatedAt] = now
-            } > 0
-        }
-    }
-
     suspend fun clearAvatar(userId: String): Boolean = DatabaseFactory.query {
         UsersTable.update({ UsersTable.id eq userId }) {
             it[avatarType] = null

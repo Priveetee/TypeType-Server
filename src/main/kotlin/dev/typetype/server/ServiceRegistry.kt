@@ -1,6 +1,7 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AccountIdentityService
 import dev.typetype.server.services.AdminManagedAccessService
 import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
@@ -8,6 +9,8 @@ import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.CustomAvatarService
+import dev.typetype.server.services.DeArrowService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
@@ -42,6 +45,9 @@ internal class ServiceRegistry(
     }
 
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
+    val accountIdentityService = AccountIdentityService()
+    val customAvatarService = CustomAvatarService()
+    val deArrowService = DeArrowService(cache)
     private val extraction = ExtractionServiceRegistry(
         cache,
         subtitleServiceUrl,

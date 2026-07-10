@@ -32,5 +32,6 @@ data class SettingsItem(
     val hideComments: Boolean = false,
     val hideShorts: Boolean = false,
     val disableWatchHistory: Boolean = false,
+    val deArrowEnabled: Boolean = false,
     val accessMode: String = "unrestricted",
 )

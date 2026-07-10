@@ -4,6 +4,7 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.routes.profileRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.CustomAvatarService
 import dev.typetype.server.services.ProfileService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -31,6 +32,7 @@ class ProfileInfoRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val profileService = ProfileService()
     private val avatarService = AvatarService()
+    private val customAvatarService = CustomAvatarService()
 
     companion object {
         @BeforeAll
@@ -58,7 +60,7 @@ class ProfileInfoRoutesTest {
     fun `PUT profile updates publicUsername and bio`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { profileRoutes(profileService, avatarService, auth) }
+            routing { profileRoutes(profileService, avatarService, customAvatarService, auth) }
         }
         val response = client.put("/profile") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -85,7 +87,7 @@ class ProfileInfoRoutesTest {
         }
         application {
             install(ContentNegotiation) { json() }
-            routing { profileRoutes(profileService, avatarService, auth) }
+            routing { profileRoutes(profileService, avatarService, customAvatarService, auth) }
         }
         val response = client.get("/profile/public/public.profile")
         assertEquals(HttpStatusCode.OK, response.status)
