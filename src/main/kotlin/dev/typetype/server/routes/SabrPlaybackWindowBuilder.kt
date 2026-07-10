@@ -15,8 +15,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     ): SabrPlaybackWindowBuildResult {
         SabrInitializationData.ingestRemembered(holder.audioFormat, holder)
         SabrInitializationData.ingestRemembered(holder.videoFormat, holder)
-        val audio = buildTrack(holder, holder.audioFormat, request)
-        val video = buildTrack(holder, holder.videoFormat, request)
+        val video = buildTrack(holder, holder.videoFormat, request, request.playerTimeMs)
+        val decodeStartMs = video.track.segments.firstOrNull()?.startMs ?: request.playerTimeMs
+        val audio = buildTrack(holder, holder.audioFormat, request, minOf(request.playerTimeMs, decodeStartMs))
         val blocked = blockedTrack(audio, video)
         return SabrPlaybackWindowBuildResult(
             response = SabrPlaybackWindowReadyResponse(
@@ -45,9 +46,10 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
         request: SabrPlaybackWindowRequest,
+        requestedStartMs: Long,
     ): TrackBuildResult {
-        val targetMs = request.playerTimeMs.coerceAtLeast(0L)
-        val goalEndMs = targetMs + request.bufferGoalMs.coerceAtLeast(1L)
+        val targetMs = requestedStartMs.coerceAtLeast(0L)
+        val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
