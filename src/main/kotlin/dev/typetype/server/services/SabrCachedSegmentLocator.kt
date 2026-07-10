@@ -24,7 +24,11 @@ private fun YoutubeSabrSession.cachedMedia(format: YoutubeSabrFormat, sequence: 
 
 private fun SabrMediaSegment.covers(targetMs: Long): Boolean {
     val startMs = header.startMs
-    return startMs >= 0L && header.durationMs > 0L && targetMs >= startMs && targetMs < startMs + header.durationMs
+    return startMs >= 0L &&
+        header.durationMs > 0L &&
+        targetMs >= startMs - TIMING_TOLERANCE_MS &&
+        targetMs < startMs + header.durationMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24
+private const val TIMING_TOLERANCE_MS = 2L

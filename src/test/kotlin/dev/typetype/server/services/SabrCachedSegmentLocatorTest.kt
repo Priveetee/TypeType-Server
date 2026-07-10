@@ -30,6 +30,25 @@ class SabrCachedSegmentLocatorTest {
         assertSame(segment, found)
     }
 
+    @Test
+    fun `finds next cached sequence across millisecond timing gap`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 41, startMs = 202_302L, durationMs = 5_672L)
+        every { format.itag } returns 315
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 41 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 202_301L,
+            predictedSequence = 40,
+        )
+
+        assertSame(segment, found)
+    }
+
     private fun segment(sequence: Int, startMs: Long, durationMs: Long): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>()
         every { header.sequenceNumber } returns sequence

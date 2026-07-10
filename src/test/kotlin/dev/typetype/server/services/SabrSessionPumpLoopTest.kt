@@ -39,6 +39,7 @@ class SabrSessionPumpLoopTest {
                 firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 101 }?.let { rebased }
             }
             every { streamState.getMinBufferedEndMs() } returns 487_134L
+            every { streamState.getBufferedEndMs(video) } returns 491_203L
             every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.jumpBufferedTo(video, 101) } returns Unit
@@ -76,6 +77,7 @@ class SabrSessionPumpLoopTest {
             every { session.diagnosticTrace } returns ""
             every { session.getCachedSegment(any()) } returns null
             every { streamState.getMinBufferedEndMs() } returns 329_492L
+            every { streamState.getBufferedEndMs(audio) } returns 349_461L
             every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64
             every { streamState.getSegmentStartMs(audio, 35) } returns 340_000L
             every { streamState.getSegmentEndMs(audio, 34) } returns 339_476L

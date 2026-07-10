@@ -58,17 +58,16 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
         var seq = holder.playbackStartSequence(format, targetMs)
-        var rebased = false
         var coveredEndMs = targetMs
         while (segments.size < MAX_SEGMENTS_PER_TRACK) {
             val mediaRequest = SabrSegmentRequest.media(format, seq)
             val segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
-            if (segments.isEmpty() && !rebased && (segment == null || !segment.covers(targetMs))) {
-                val authoritative = holder.session.findCachedMediaAt(format, targetMs, seq)
+            val expectedStartMs = if (segments.isEmpty()) targetMs else coveredEndMs
+            if (segment == null || segments.isEmpty() && !segment.covers(targetMs)) {
+                val authoritative = holder.session.findCachedMediaAt(format, expectedStartMs, seq)
                 if (authoritative != null) {
                     seq = authoritative.header.sequenceNumber
                     holder.session.streamState.jumpBufferedTo(format, seq)
-                    rebased = true
                     continue
                 }
             }

@@ -85,6 +85,42 @@ class SabrPlaybackWindowBuilderTest {
         assertTrue(SabrPlaybackWindowBuilder(store).build(holder, request).isReady)
     }
 
+    @Test
+    fun `window skips missing sequence when next segment is time contiguous`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 315, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 180_000L) } returns 36
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 179_312L) } returns 18
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.format.itag == 315 && it.sequenceNumber == 41 }
+                ?.let { mediaSegment(sequence = 41, startMs = 202_302L, durationMs = 5_672L) }
+        }
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 315 && request.sequenceNumber in 36..39 ->
+                    cached(315, request.sequenceNumber, 179_312L + (request.sequenceNumber - 36) * 5_747L, 5_747L)
+                request.format.itag == 315 && request.sequenceNumber == 41 -> cached(315, 41, 202_302L, 5_672L)
+                request.format.itag == 140 && request.sequenceNumber in 18..21 ->
+                    cached(140, request.sequenceNumber, 169_738L + (request.sequenceNumber - 18) * 9_985L, 9_985L)
+                else -> null
+            }
+        }
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 180_000L, 315, 140, bufferGoalMs = 25_000L),
+        )
+
+        assertEquals(listOf(36, 37, 38, 39, 41), result.response.video.segments.map { it.url.sequenceFromUrl() })
+        verify(exactly = 1) { streamState.jumpBufferedTo(video, 41) }
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
@@ -129,4 +165,6 @@ class SabrPlaybackWindowBuilderTest {
         bytesBase64 = "AA==",
         byteLength = 1,
     )
+
+    private fun String.sequenceFromUrl(): Int = substringAfter("/segment/").substringBefore('?').toInt()
 }

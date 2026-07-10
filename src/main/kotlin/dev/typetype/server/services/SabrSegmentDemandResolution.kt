@@ -6,7 +6,7 @@ internal fun SabrSessionHolder.resolveSegmentDemand(request: SabrSegmentRequest)
     val requestedCached = session.getCachedSegment(request) != null
     val rebased = if (requestedCached) null else session.findCachedMediaAt(
         format = request.format,
-        targetMs = playerTimeMs(),
+        targetMs = session.streamState.getBufferedEndMs(request.format),
         predictedSequence = request.sequenceNumber,
     )
     if (rebased != null) {
