@@ -105,7 +105,7 @@ class SabrPlaybackGranularRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("segment/1"))
         verify(exactly = 1) { store.startPump(holder) }
-        verify(exactly = 0) { store.warmPlaybackAsync(holder) }
+        verify(exactly = 1) { store.warmPlaybackAsync(holder) }
         verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
     }
 
