@@ -19,6 +19,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val decodeStartMs = video.track.segments.firstOrNull()?.startMs ?: request.playerTimeMs
         val audio = buildTrack(holder, holder.audioFormat, request, minOf(request.playerTimeMs, decodeStartMs))
         val blocked = blockedTrack(audio, video)
+        val readyEndMs = minOf(holder.durationMs(), request.playerTimeMs.coerceAtLeast(0L) + MIN_READY_AHEAD_MS)
         return SabrPlaybackWindowBuildResult(
             response = SabrPlaybackWindowReadyResponse(
                 sessionId = holder.sessionToken,
@@ -31,6 +32,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             ),
             blockedBy = blocked?.blockedBy,
             blockedRequest = blocked?.blockedRequest,
+            isReady = audio.covers(readyEndMs) && video.covers(readyEndMs),
         )
     }
 
@@ -67,8 +69,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 seq = previousSequence(seq, segment, targetMs)
                 continue
             }
-            segments += segment.toWindowSegment(holder, format)
-            coveredEndMs = segment.startMs + segment.durationMs
+            val windowSegment = segment.toWindowSegment(holder, format)
+            segments += windowSegment
+            coveredEndMs = windowSegment.startMs + windowSegment.durationMs
             if (coveredEndMs >= goalEndMs) break
             seq++
         }
@@ -83,6 +86,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             ),
             blockedBy = blockedBy,
             blockedRequest = blockedRequest,
+            coveredEndMs = coveredEndMs,
         )
     }
 
@@ -115,10 +119,14 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val track: SabrPlaybackWindowTrack,
         val blockedBy: String?,
         val blockedRequest: SabrSegmentRequest?,
-    )
+        val coveredEndMs: Long,
+    ) {
+        fun covers(requiredEndMs: Long): Boolean = track.segments.isNotEmpty() && coveredEndMs >= requiredEndMs
+    }
 
     private companion object {
         const val MAX_SEGMENTS_PER_TRACK = 12
+        const val MIN_READY_AHEAD_MS = 1_000L
     }
 }
 
@@ -126,6 +134,5 @@ internal data class SabrPlaybackWindowBuildResult(
     val response: SabrPlaybackWindowReadyResponse,
     val blockedBy: String?,
     val blockedRequest: SabrSegmentRequest?,
-) {
-    val isReady: Boolean = response.audio.segments.isNotEmpty() && response.video.segments.isNotEmpty()
-}
+    val isReady: Boolean,
+)
