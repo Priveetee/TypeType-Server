@@ -86,7 +86,7 @@ class HlsManifestService(
             runCatching {
                 val request = Request.Builder()
                     .url(manifestUrl)
-                    .header("User-Agent", OkHttpProxyService.YOUTUBE_MWEB_USER_AGENT)
+                    .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
                     .build()
                 httpClient.newCall(request).execute()
             }.fold(
