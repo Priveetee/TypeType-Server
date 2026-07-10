@@ -28,7 +28,7 @@ internal class SabrSessionStore(
     private val initCache: CacheService? = null,
 ) {
     private val registry = SabrSessionRegistry()
-    private val segmentCache = SabrSegmentCache(initCache)
+    private val segmentCache = SabrSegmentCache()
     private val pump = SabrSessionPump(segmentCache) { videoId ->
         tokenClient.fetch(videoId, forceRefresh = true, refreshVideo = true)?.streamingPoTokenBytes
     }

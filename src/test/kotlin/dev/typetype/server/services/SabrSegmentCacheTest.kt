@@ -1,9 +1,7 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.cache.CacheService
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -18,9 +16,8 @@ import java.time.Instant
 
 class SabrSegmentCacheTest {
     @Test
-    fun `cache stores and reads segment metadata and bytes`() = runTest {
-        val cache = MemoryCacheService()
-        val segmentCache = SabrSegmentCache(cache)
+    fun `cache stores and reads segment metadata and bytes`() {
+        val segmentCache = SabrSegmentCache()
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
@@ -37,34 +34,6 @@ class SabrSegmentCacheTest {
         assertEquals(9985L, cached.durationMs)
         assertEquals("audio/mp4", cached.mimeType)
         assertArrayEquals(byteArrayOf(1, 2, 3), cached.bytes)
-    }
-
-    @Test
-    fun `cache uses session memory without dragonfly`() = runTest {
-        val segmentCache = SabrSegmentCache(null)
-        val audio = format(140, isAudio = true)
-        val video = format(137, isAudio = false)
-        val holder = holder(audio, video)
-        val segment = segment(itag = 137, sequence = 2, bytes = byteArrayOf(9, 8))
-        val request = SabrSegmentRequest.media(video, 2)
-
-        segmentCache.put(holder, segment)
-        val cached = segmentCache.get(holder, request)
-
-        requireNotNull(cached)
-        assertEquals(137, cached.itag)
-        assertArrayEquals(byteArrayOf(9, 8), cached.bytes)
-    }
-
-    private class MemoryCacheService : CacheService {
-        private val values = mutableMapOf<String, String>()
-        override suspend fun get(key: String): String? = values[key]
-        override suspend fun set(key: String, value: String, ttlSeconds: Long) {
-            values[key] = value
-        }
-        override suspend fun delete(key: String) {
-            values.remove(key)
-        }
     }
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
