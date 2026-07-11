@@ -4,6 +4,7 @@ import dev.typetype.server.services.HomeRecommendationCursor
 import dev.typetype.server.services.HomeRecommendationCursorCodec
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HomeRecommendationCursorCodecTest {
@@ -32,6 +33,7 @@ class HomeRecommendationCursorCodecTest {
             )
         )
         val decoded = HomeRecommendationCursorCodec.decode(encoded)
+        assertTrue(encoded.startsWith("z."))
         assertEquals(40, decoded?.subscriptionIndex)
         assertEquals(12, decoded?.discoveryIndex)
         assertEquals(2, decoded?.subscriptionRun)
@@ -55,5 +57,16 @@ class HomeRecommendationCursorCodecTest {
     @Test
     fun `decode invalid cursor returns null`() {
         assertNull(HomeRecommendationCursorCodec.decode("not_base64"))
+    }
+
+    @Test
+    fun `large cursor stays below practical request limits`() {
+        val cursor = HomeRecommendationCursor(
+            recentUrls = (1..80).map { "https://www.youtube.com/watch?v=${it.toString().padStart(11, '0')}" },
+            creatorMomentum = (1..40).associate { "https://www.youtube.com/channel/channel-$it" to it },
+        )
+        val encoded = HomeRecommendationCursorCodec.encode(cursor)
+        assertTrue(encoded.length < 2_048)
+        assertEquals(cursor, HomeRecommendationCursorCodec.decode(encoded))
     }
 }

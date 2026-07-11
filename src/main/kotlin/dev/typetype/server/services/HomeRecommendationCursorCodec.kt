@@ -3,7 +3,11 @@ package dev.typetype.server.services
 import dev.typetype.server.cache.CacheJson
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.Base64
+import java.util.zip.DeflaterOutputStream
+import java.util.zip.InflaterInputStream
 
 object HomeRecommendationCursorCodec {
     private const val MULTI_PATTERN = """\{"s":(\d+),"d":(\d+)}"""
@@ -13,9 +17,7 @@ object HomeRecommendationCursorCodec {
         if (rawCursor.isNullOrBlank()) {
             return HomeRecommendationCursor()
         }
-        val decoded = runCatching {
-            Base64.getUrlDecoder().decode(rawCursor).toString(Charsets.UTF_8)
-        }.getOrNull() ?: return null
+        val decoded = decodePayload(rawCursor) ?: return null
         val full = runCatching {
             CacheJson.decodeFromString<HomeRecommendationCursorPayload>(decoded)
         }.getOrNull()
@@ -88,6 +90,27 @@ object HomeRecommendationCursorCodec {
                 de = cursor.personaState.deepEvidence,
             )
         )
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))
+        val compressed = ByteArrayOutputStream().use { output ->
+            DeflaterOutputStream(output).use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+            output.toByteArray()
+        }
+        return COMPRESSED_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(compressed)
     }
+
+    private fun decodePayload(rawCursor: String): String? {
+        val compressed = rawCursor.startsWith(COMPRESSED_PREFIX)
+        val encoded = if (compressed) rawCursor.removePrefix(COMPRESSED_PREFIX) else rawCursor
+        val bytes = runCatching { Base64.getUrlDecoder().decode(encoded) }.getOrNull() ?: return null
+        if (!compressed) return bytes.toString(Charsets.UTF_8)
+        return runCatching {
+            InflaterInputStream(ByteArrayInputStream(bytes)).use { input ->
+                val decoded = input.readNBytes(MAX_DECODED_BYTES + 1)
+                require(decoded.size <= MAX_DECODED_BYTES)
+                decoded.toString(Charsets.UTF_8)
+            }
+        }.getOrNull()
+    }
+
+    private const val COMPRESSED_PREFIX = "z."
+    private const val MAX_DECODED_BYTES = 32 * 1024
 }
