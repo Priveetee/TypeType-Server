@@ -54,7 +54,7 @@ class SabrPlaybackSessionServiceTest {
         verify(exactly = 0) { holder.session.prepareForInitialization(any()) }
         verify { store.warmInitializationAsync(holder) }
         verify { store.startPump(holder) }
-        verify { store.warmPlaybackAsync(holder) }
+        verify(exactly = 0) { store.warmPlaybackAsync(holder) }
     }
 
     @Test

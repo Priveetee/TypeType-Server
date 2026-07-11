@@ -22,7 +22,6 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         holder.setPlayerTimeMs(request.playerTimeMs)
         holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
-        sabrSessionStore.warmPlaybackAsync(holder)
 
         val window = buildWithTargetedPrefetch(holder, request)
         if (window.isReady) {
@@ -56,7 +55,6 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         holder.setPlayerTimeMs(request.playerTimeMs)
         holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
-        sabrSessionStore.warmPlaybackAsync(holder)
         val window = buildWithTargetedPrefetch(holder, request)
         val status = if (window.isReady) HttpStatusCode.OK else HttpStatusCode.Accepted
         call.respond(status, holder.prefetchResponse(request, window))

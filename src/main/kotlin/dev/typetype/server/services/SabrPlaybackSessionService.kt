@@ -133,7 +133,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.requestReposition(startTimeMs, holder.activeGeneration())
         }
         sessionStore.startPump(holder)
-        sessionStore.warmPlaybackAsync(holder)
         logger.info(
             "sabr_playback_prepare videoId={} startTimeMs={} elapsedMs={} ready=false",
             holder.key.videoId,
