@@ -96,25 +96,6 @@ class SabrSessionPumpLoopTest {
     }
 
     @Test
-    fun `download demand keeps exact missing segment pending`() {
-        SabrSegmentDemandTracker.clearAll()
-        try {
-            val audio = format(140, isAudio = true)
-            val video = format(299, isAudio = false)
-            val request = SabrSegmentRequest.media(video, 29)
-            val session = mockk<YoutubeSabrSession>(relaxed = true)
-            every { session.getCachedSegment(request) } returns null
-            val holder = holder(session, audio, video, SabrSessionPurpose.DOWNLOAD)
-            holder.requestSegmentDemand(request)
-
-            assertEquals(false, holder.resolveSegmentDemand(request))
-            assertEquals("299:29", holder.pendingSegmentDemandSummary())
-        } finally {
-            SabrSegmentDemandTracker.clearAll()
-        }
-    }
-
-    @Test
     fun `segment demand pumps requested segment without forward jump`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
@@ -189,14 +170,13 @@ class SabrSessionPumpLoopTest {
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
-        purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
     ): SabrSessionHolder = SabrSessionHolder(
         session = session,
         info = mockk<YoutubeSabrInfo>(),
         audioFormat = audio,
         videoFormat = video,
         sessionToken = "session-token",
-        key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L, purpose),
+        key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
         lastRequestAt = Instant.EPOCH,
     )
 
