@@ -11,7 +11,8 @@ interface DeArrowRemote {
 }
 
 class DeArrowClient(private val client: OkHttpClient = OkHttpClient()) : DeArrowRemote {
-    override suspend fun branding(videoId: String): String? = get("https://sponsor.ajay.app/api/branding?videoID=$videoId")?.decodeToString()
+    override suspend fun branding(videoId: String): String? =
+        get("https://sponsor.ajay.app/api/branding?videoID=$videoId&fetchAll=true")?.decodeToString()
 
     override suspend fun thumbnail(videoId: String, timestamp: Double): ByteArray? =
         get("https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=$videoId&time=$timestamp")

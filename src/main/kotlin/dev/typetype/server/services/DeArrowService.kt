@@ -3,6 +3,8 @@ package dev.typetype.server.services
 import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.DeArrowItem
+import dev.typetype.server.models.DeArrowThumbnailCandidate
+import dev.typetype.server.models.DeArrowTitleCandidate
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.doubleOrNull
@@ -18,12 +20,12 @@ class DeArrowService(
 ) {
     suspend fun get(videoId: String): DeArrowItem? {
         if (!isValidVideoId(videoId)) return null
-        cache.get("dearrow:branding:$videoId")?.let {
+        cache.get("dearrow:branding:v2:$videoId")?.let {
             return runCatching { CacheJson.decodeFromString(DeArrowItem.serializer(), it) }.getOrNull()
         }
         val item = client.branding(videoId)?.let { parse(videoId, it) } ?: DeArrowItem(videoId)
         cache.set(
-            "dearrow:branding:$videoId",
+            "dearrow:branding:v2:$videoId",
             CacheJson.encodeToString(DeArrowItem.serializer(), item),
             BRANDING_TTL_SECONDS,
         )
@@ -42,23 +44,65 @@ class DeArrowService(
 
     private fun parse(videoId: String, raw: String): DeArrowItem {
         val root = runCatching { CacheJson.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return DeArrowItem(videoId)
-        val title = bestEntry(root["titles"] as? JsonArray)?.get("title")?.jsonPrimitive?.content
-        val thumbnail = bestEntry(root["thumbnails"] as? JsonArray)
-        val timestamp = thumbnail?.get("timestamp")?.jsonPrimitive?.doubleOrNull
+        val titles = titleCandidates(root["titles"] as? JsonArray)
+        val thumbnails = thumbnailCandidates(videoId, root["thumbnails"] as? JsonArray)
+        val title = titles.firstOrNull { it.accepted() && !it.original }?.title
+        val timestamp = thumbnails.firstOrNull { it.accepted() && !it.original }?.timestamp
             ?: randomTimestamp(root)
         val thumbnailUrl = timestamp?.takeIf { it > 0.0 }?.let { "/dearrow/thumbnail?videoId=$videoId&time=$it" }
-        val normalizedTitle = title?.replace(TITLE_MARKER_REGEX, "")?.takeIf { it.isNotBlank() }
-        return DeArrowItem(videoId = videoId, title = normalizedTitle, thumbnailUrl = thumbnailUrl)
+        return DeArrowItem(
+            videoId = videoId,
+            title = title,
+            thumbnailUrl = thumbnailUrl,
+            titles = titles,
+            thumbnails = thumbnails,
+            randomTime = root["randomTime"]?.jsonPrimitive?.doubleOrNull,
+            videoDuration = root["videoDuration"]?.jsonPrimitive?.doubleOrNull,
+        )
     }
 
-    private fun bestEntry(entries: JsonArray?): JsonObject? = entries
+    private fun entries(entries: JsonArray?): List<JsonObject> = entries
         ?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
-        ?.firstOrNull { entry ->
-            val original = entry["original"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
-            val locked = entry["locked"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
-            val votes = entry["votes"]?.jsonPrimitive?.intOrNull ?: -1
-            !original && (locked || votes >= 0)
+        .orEmpty()
+
+    private fun titleCandidates(entries: JsonArray?): List<DeArrowTitleCandidate> = entries(entries).mapNotNull { entry ->
+        val title = entry["title"]?.jsonPrimitive?.content
+            ?.replace(TITLE_MARKER_REGEX, "")
+            ?.takeIf { it.isNotBlank() }
+            ?: return@mapNotNull null
+        DeArrowTitleCandidate(
+            title = title,
+            original = entry.original(),
+            votes = entry.votes(),
+            locked = entry.locked(),
+            uuid = entry.uuid(),
+        )
+    }
+
+    private fun thumbnailCandidates(videoId: String, entries: JsonArray?): List<DeArrowThumbnailCandidate> =
+        entries(entries).map { entry ->
+            val timestamp = entry["timestamp"]?.jsonPrimitive?.doubleOrNull
+            DeArrowThumbnailCandidate(
+                timestamp = timestamp,
+                thumbnailUrl = timestamp?.takeIf { it > 0.0 }?.let { "/dearrow/thumbnail?videoId=$videoId&time=$it" },
+                original = entry.original(),
+                votes = entry.votes(),
+                locked = entry.locked(),
+                uuid = entry.uuid(),
+            )
         }
+
+    private fun JsonObject.original(): Boolean = this["original"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
+
+    private fun JsonObject.locked(): Boolean = this["locked"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
+
+    private fun JsonObject.votes(): Int = this["votes"]?.jsonPrimitive?.intOrNull ?: -1
+
+    private fun JsonObject.uuid(): String = this["UUID"]?.jsonPrimitive?.content.orEmpty()
+
+    private fun DeArrowTitleCandidate.accepted(): Boolean = locked || votes >= 0
+
+    private fun DeArrowThumbnailCandidate.accepted(): Boolean = locked || votes >= 0
 
     private fun randomTimestamp(root: JsonObject): Double? {
         val duration = root["videoDuration"]?.jsonPrimitive?.doubleOrNull ?: return null

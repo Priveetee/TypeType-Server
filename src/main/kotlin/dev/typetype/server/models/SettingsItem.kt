@@ -33,5 +33,8 @@ data class SettingsItem(
     val hideShorts: Boolean = false,
     val disableWatchHistory: Boolean = false,
     val deArrowEnabled: Boolean = false,
+    val deArrowTitleMode: String = "dearrow",
+    val deArrowThumbnailMode: String = "dearrow_or_random",
+    val deArrowTrustMode: String = "accepted",
     val accessMode: String = "unrestricted",
 )
