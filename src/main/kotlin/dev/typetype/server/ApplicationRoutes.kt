@@ -65,8 +65,8 @@ internal fun Application.installApplicationRoutes(
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
         installStreamRoutes(svc, authService, adminSettingsService)
+        rateLimit(DEARROW_ZONE) { deArrowRoutes(svc.deArrowService) }
         rateLimit(EXTRACTION_ZONE) {
-            deArrowRoutes(svc.deArrowService)
             searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
             trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)

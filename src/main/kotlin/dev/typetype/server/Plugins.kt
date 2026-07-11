@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
 
 private const val EXTRACTION_RATE_LIMIT = 60
+private const val DEARROW_RATE_LIMIT = 600
 private const val STREAMS_RATE_LIMIT = 360
 private const val CHANNEL_RATE_LIMIT = 180
 private const val PROXY_RATE_LIMIT = 6000
@@ -31,6 +32,7 @@ private const val MAX_WEBSOCKET_FRAME_BYTES = 64L * 1024L * 1024L
 private val RATE_LIMIT_WINDOW = 1.minutes
 
 val EXTRACTION_ZONE = RateLimitName("extraction")
+val DEARROW_ZONE = RateLimitName("dearrow")
 val STREAMS_ZONE = RateLimitName("streams")
 val CHANNEL_ZONE = RateLimitName("channel")
 val PROXY_ZONE = RateLimitName("proxy")
@@ -65,6 +67,10 @@ fun Application.configurePlugins(authService: AuthService) {
     install(RateLimit) {
         register(EXTRACTION_ZONE) {
             rateLimiter(limit = EXTRACTION_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
+            requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
+        }
+        register(DEARROW_ZONE) {
+            rateLimiter(limit = DEARROW_RATE_LIMIT, refillPeriod = RATE_LIMIT_WINDOW)
             requestKey { call -> call.request.headers["X-Real-IP"] ?: call.request.local.remoteHost }
         }
         register(STREAMS_ZONE) {
