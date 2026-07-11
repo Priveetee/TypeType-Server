@@ -4,7 +4,6 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
-import dev.typetype.server.services.clearSegmentDemands
 import dev.typetype.server.services.pendingSegmentDemandSummary
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -79,7 +78,6 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     ): SabrPlaybackWindowBuildResult {
         val window = windowBuilder.build(holder, request)
         val blockedRequest = window.blockedRequest ?: return window
-        holder.clearSegmentDemands()
         sabrSessionStore.requestSegmentDemand(holder, blockedRequest)
         return window
     }
@@ -183,7 +181,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 
     private companion object {
-        const val RETRY_AFTER_MS = 150L
+        const val RETRY_AFTER_MS = 500L
         const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

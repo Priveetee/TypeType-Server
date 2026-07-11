@@ -9,6 +9,7 @@ import dev.typetype.server.services.markServed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
@@ -44,10 +45,20 @@ internal class SabrSegmentHandler(
             holder.markServed(cached)
             return call.respondSabrMediaBytes(cached.mimeType, cached.bytes)
         }
-        val segment = withTimeoutOrNull(20_000L) { sabrSessionStore.fetchSegment(holder, request) }
+        val segment = withTimeoutOrNull(SEGMENT_TIMEOUT_MS) {
+            var fetched = sabrSessionStore.fetchSegment(holder, request)
+            while (fetched == null && holder.terminalFailure() == null) {
+                delay(SEGMENT_RETRY_MS)
+                fetched = sabrSessionStore.fetchSegment(holder, request)
+            }
+            fetched
+        }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
         holder.markServed(segment)
         call.respondSabrMediaBytes(format.mimeType.orEmpty(), segment.data)
     }
 
 }
+
+private const val SEGMENT_TIMEOUT_MS = 60_000L
+private const val SEGMENT_RETRY_MS = 500L
