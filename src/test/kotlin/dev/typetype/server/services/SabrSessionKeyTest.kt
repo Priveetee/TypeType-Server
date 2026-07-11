@@ -18,4 +18,19 @@ class SabrSessionKeyTest {
 
         assertNotEquals(english, french)
     }
+
+    @Test
+    fun `session purpose isolates playback and downloads`() {
+        val playback = SabrSessionKey(
+            videoId = "dqWhXeGQkgU",
+            userId = "user-1",
+            audioItag = 140,
+            audioTrackId = null,
+            videoItag = 137,
+            startTimeMs = 0L,
+            purpose = SabrSessionPurpose.PLAYBACK,
+        )
+
+        assertNotEquals(playback, playback.copy(purpose = SabrSessionPurpose.DOWNLOAD))
+    }
 }

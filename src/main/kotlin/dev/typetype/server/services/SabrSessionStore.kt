@@ -14,10 +14,8 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
-import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
-import java.util.Base64
 
 internal class SabrSessionStore(
     tokenServiceUrl: String,
@@ -36,7 +34,6 @@ internal class SabrSessionStore(
     private val infoFetcher = SabrInfoFetcher(tokenClient, sharedCache = initCache)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
-    private val random = SecureRandom()
 
     init {
         runCatching { NewPipeInitializer.init() }
@@ -51,6 +48,7 @@ internal class SabrSessionStore(
         initialToken: SabrTokenBundle? = null,
         startTimeMs: Long = 0L,
         startPump: Boolean = true,
+        purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
     ): SabrSessionHolder {
         val key = SabrSessionKey(
             videoId,
@@ -59,6 +57,7 @@ internal class SabrSessionStore(
             audioFormat.audioTrackId,
             videoFormat.itag,
             startTimeMs.coerceAtLeast(0L),
+            purpose,
         )
         registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
@@ -69,7 +68,7 @@ internal class SabrSessionStore(
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
             ?.let { session.streamState.setPoToken(it) }
-        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, newSessionToken(), key, Instant.now())
+        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, SabrSessionTokenGenerator.newToken(), key, Instant.now())
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
         if (startPump) startPump(holder)
@@ -192,9 +191,4 @@ internal class SabrSessionStore(
         }
     }
 
-    private fun newSessionToken(): String {
-        val bytes = ByteArray(32)
-        random.nextBytes(bytes)
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-    }
 }

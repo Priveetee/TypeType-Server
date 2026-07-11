@@ -34,7 +34,19 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.requestNumber } returns 0
         every { holder.session.prepareForForwardJump(any()) } returns Unit
         val store = mockk<SabrSessionStore>()
-        every { store.getOrCreate("video", "user", info, audio, video, prepared.initialToken, 88_168L, false) } returns holder
+        every {
+            store.getOrCreate(
+                "video",
+                "user",
+                info,
+                audio,
+                video,
+                prepared.initialToken,
+                88_168L,
+                false,
+                SabrSessionPurpose.PLAYBACK,
+            )
+        } returns holder
         coEvery { store.fetchInitializationData(holder, video) } returns byteArrayOf(1)
         coEvery { store.fetchInitializationData(holder, audio) } returns byteArrayOf(2)
         every { store.startPump(holder) } returns Unit
@@ -153,7 +165,7 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(video.itag, request?.format?.itag)
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(any(), any()) }
-        verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
