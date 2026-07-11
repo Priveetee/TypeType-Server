@@ -168,7 +168,9 @@ internal class SabrSessionPumpLoop(
             }
             else -> {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-                holder.session.streamState.setPlayerTimeMs(maxOf(holder.playerTimeMs(), edgeMs))
+                holder.session.streamState.setPlayerTimeMs(
+                    maxOf(holder.playerTimeMs(), edgeMs - SabrPumpPolicy.SERVER_AHEAD_MARGIN_MS),
+                )
                 pumpUntilCached(holder, localization, request)
             }
         }

@@ -123,6 +123,33 @@ class SabrSessionPumpLoopTest {
         }
     }
 
+    @Test
+    fun `near edge demand keeps PipePipe server ahead margin`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, isAudio = true)
+            val video = format(299, isAudio = false)
+            val request = SabrSegmentRequest.media(video, 28)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            every { session.streamState } returns streamState
+            every { session.getCachedSegment(any()) } returns null
+            every { session.requestNumber } returns 7
+            every { streamState.getMinBufferedEndMs() } returns 121_440L
+            every { streamState.getSegmentStartMs(video, 28) } returns 136_620L
+            every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 0L)
+
+            verify(exactly = 1) { streamState.setPlayerTimeMs(105_440L) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
