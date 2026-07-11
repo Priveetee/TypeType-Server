@@ -14,7 +14,7 @@ internal object SabrManifestBuilder {
         sessionToken: String,
         startSegmentAudio: Int = 1,
         startSegmentVideo: Int = 1,
-        mediaBasePath: String = "/api/sabr/$videoId",
+        mediaBasePath: String = "../$videoId",
         extraSegmentQuery: String = "",
     ): String = SabrDashManifestBuilder.build(
         videoId = videoId,
@@ -37,7 +37,7 @@ internal object SabrManifestBuilder {
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
         startSegmentAudio: Int = 1,
-        mediaBasePath: String = "/api/sabr/$videoId",
+        mediaBasePath: String = "../$videoId",
     ): String = SabrDashManifestBuilder.buildAudioOnly(
         videoId,
         audio,

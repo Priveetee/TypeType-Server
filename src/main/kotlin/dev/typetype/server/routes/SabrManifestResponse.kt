@@ -15,7 +15,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
     videoId: String,
     audioOnly: Boolean,
     hls: Boolean,
-    mediaBasePath: String = "/api/sabr/$videoId",
+    mediaBasePath: String = "../$videoId",
 ): Unit {
     val state = holder.session.streamState
     val endAudio = state.getEndSegment(holder.audioFormat)

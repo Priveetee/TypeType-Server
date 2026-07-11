@@ -14,7 +14,7 @@ internal object SabrDashManifestBuilder {
         sessionToken: String,
         startSegmentAudio: Int = 1,
         startSegmentVideo: Int = 1,
-        mediaBasePath: String = "/api/sabr/$videoId",
+        mediaBasePath: String = "../$videoId",
         extraSegmentQuery: String = "",
     ): String {
         val sb = StringBuilder()
@@ -31,7 +31,7 @@ internal object SabrDashManifestBuilder {
         streamState: YoutubeSabrStreamState,
         sessionToken: String,
         startSegmentAudio: Int = 1,
-        mediaBasePath: String = "/api/sabr/$videoId",
+        mediaBasePath: String = "../$videoId",
     ): String {
         val sb = StringBuilder()
         appendHeader(sb, SabrManifestTiming.audioDurationSec(audio, streamState))

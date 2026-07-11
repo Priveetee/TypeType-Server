@@ -10,7 +10,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 
 class SabrDashManifestBuilderTest {
     @Test
-    fun `dash manifest uses root relative sabr media urls`() {
+    fun `dash manifest uses manifest relative sabr media urls`() {
         val audio = format(140, "audio/mp4; codecs=\"mp4a.40.2\"", isAudio = true)
         val video = format(137, "video/mp4; codecs=\"avc1.640028\"", isAudio = false)
         val state = streamState(audio, video)
@@ -25,9 +25,9 @@ class SabrDashManifestBuilderTest {
             sessionToken = "session-token",
         )
 
-        assertTrue(manifest.contains("sourceURL=\"/api/sabr/dHqmN-5jVKY/137/init?session=session-token\""))
-        assertTrue(manifest.contains("media=\"/api/sabr/dHqmN-5jVKY/140/segment/1?session=session-token\""))
-        assertFalse(manifest.contains("../dHqmN-5jVKY"))
+        assertTrue(manifest.contains("sourceURL=\"../dHqmN-5jVKY/137/init?session=session-token\""))
+        assertTrue(manifest.contains("media=\"../dHqmN-5jVKY/140/segment/1?session=session-token\""))
+        assertFalse(manifest.contains("/api/sabr/dHqmN-5jVKY"))
     }
 
     @Test
@@ -48,10 +48,10 @@ class SabrDashManifestBuilderTest {
             startSegmentVideo = 4,
         )
 
-        assertFalse(manifest.contains("/api/sabr/tRDCFwgcN0s/137/segment/3?"))
-        assertTrue(manifest.contains("/api/sabr/tRDCFwgcN0s/137/segment/4?session=session-token"))
-        assertFalse(manifest.contains("/api/sabr/tRDCFwgcN0s/140/segment/2?"))
-        assertTrue(manifest.contains("/api/sabr/tRDCFwgcN0s/140/segment/3?session=session-token"))
+        assertFalse(manifest.contains("../tRDCFwgcN0s/137/segment/3?"))
+        assertTrue(manifest.contains("../tRDCFwgcN0s/137/segment/4?session=session-token"))
+        assertFalse(manifest.contains("../tRDCFwgcN0s/140/segment/2?"))
+        assertTrue(manifest.contains("../tRDCFwgcN0s/140/segment/3?session=session-token"))
     }
 
     @Test
