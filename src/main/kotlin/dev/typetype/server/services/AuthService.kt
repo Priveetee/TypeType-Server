@@ -25,8 +25,8 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
         val userId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
 
-        val isFirstUser = transaction { UsersTable.selectAll().empty() }
-        val role = if (isFirstUser) "admin" else "user"
+        val needsAdmin = !hasAdmin()
+        val role = if (needsAdmin) "admin" else "user"
 
         transaction {
             UsersTable.insert {
@@ -93,6 +93,10 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
     }
 
     fun hasUsers(): Boolean = hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+
+    fun hasAdmin(): Boolean = hasUsersProbe?.invoke() ?: transaction {
+        UsersTable.selectAll().where { UsersTable.role eq "admin" }.empty().not()
+    }
 
     companion object {
         private const val GUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000L

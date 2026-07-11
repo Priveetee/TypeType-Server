@@ -34,7 +34,7 @@ class InstanceService(
             shortRevision = BuildInfo.SHORT_REVISION,
             buildTime = BuildInfo.BUILD_TIME,
             apiVersion = INSTANCE_API_VERSION,
-            registrationAllowed = settings.allowRegistration || !authService.hasUsers(),
+            registrationAllowed = settings.allowRegistration || !authService.hasAdmin(),
             guestAllowed = settings.allowGuest,
             supportedServices = VALID_SERVICE_IDS.sorted(),
             minClientVersion = InstanceMinClientVersion(android = settings.minAndroidClientVersion.normalizeOptionalText()),

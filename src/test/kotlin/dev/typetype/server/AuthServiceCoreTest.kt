@@ -31,17 +31,31 @@ class AuthServiceCoreTest {
     fun `register sets first admin and second user`() {
         val service = AuthService("test-secret")
         assertFalse(service.hasUsers())
+        assertFalse(service.hasAdmin())
 
         val session1 = service.register("first@test.local", "secret-1", "First")
         val user1 = service.verify(session1.accessToken)
         assertNotNull(user1)
-        assertEquals("admin", user1?.let { roleOf(it) })
+        val firstUserId = user1 ?: error("missing first user")
+        assertEquals("admin", roleOf(firstUserId))
         assertTrue(service.hasUsers())
+        assertTrue(service.hasAdmin())
 
         val session2 = service.register("second@test.local", "secret-2", "Second")
         val user2 = service.verify(session2.accessToken)
         assertNotNull(user2)
         assertEquals("user", user2?.let { roleOf(it) })
+
+        transaction {
+            UsersTable.update({ UsersTable.id eq firstUserId }) {
+                it[role] = "user"
+            }
+        }
+        assertFalse(service.hasAdmin())
+
+        val session3 = service.register("third@test.local", "secret-3", "Third")
+        val user3 = service.verify(session3.accessToken)
+        assertEquals("admin", user3?.let { roleOf(it) })
     }
 
     @Test
