@@ -11,7 +11,10 @@ internal object SabrSegmentDemandTracker {
     fun request(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
-        demands.putIfAbsent(key(holder, request), SegmentDemand(request, order.incrementAndGet()))
+        val prefix = prefix(holder)
+        val requestKey = key(holder, request)
+        demands.keys.removeIf { it.startsWith(prefix) && it != requestKey }
+        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet()))
     }
 
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {

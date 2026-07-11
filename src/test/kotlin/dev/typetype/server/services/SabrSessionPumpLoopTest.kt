@@ -19,13 +19,33 @@ import java.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrSessionPumpLoopTest {
     @Test
+    fun `new blocker replaces stale segment demand`() {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, isAudio = true)
+            val video = format(299, isAudio = false)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            every { session.getCachedSegment(any()) } returns null
+            val holder = holder(session, audio, video)
+
+            holder.requestSegmentDemand(SabrSegmentRequest.media(audio, 42))
+            holder.requestSegmentDemand(SabrSegmentRequest.media(audio, 22))
+
+            assertEquals("140:22", holder.pendingSegmentDemandSummary())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
     fun `non target media response keeps demand loop paced`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
             val audio = format(140, isAudio = true)
             val video = format(299, isAudio = false)
             val request = SabrSegmentRequest.media(video, 98)
-            val session = mockk<YoutubeSabrSession>()
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            every { session.streamState } returns mockk(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>()
             every { session.streamState } returns streamState
             every { streamState.setActiveTrackTypes(true, true) } returns Unit
