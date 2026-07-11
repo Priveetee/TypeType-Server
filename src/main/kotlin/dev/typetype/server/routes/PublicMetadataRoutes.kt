@@ -23,6 +23,7 @@ fun Route.publicMetadataRoutes(instanceProvider: suspend () -> InstanceResponse)
         call.response.headers.append(HttpHeaders.CacheControl, INSTANCE_CACHE_CONTROL)
         call.respond(
             VersionResponse(
+                service = "server",
                 version = BuildInfo.VERSION,
                 revision = BuildInfo.REVISION,
                 shortRevision = BuildInfo.SHORT_REVISION,
