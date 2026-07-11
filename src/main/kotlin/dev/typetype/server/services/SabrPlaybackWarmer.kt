@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 internal class SabrPlaybackWarmer {
     suspend fun preflight(store: SabrSessionStore, holder: SabrSessionHolder, playerTimeMs: Long): Boolean {
         holder.setActiveTracks(videoActive = true, audioActive = true)
+        store.ensureWarmed(holder)
         val videoInit = store.fetchInitializationData(holder, holder.videoFormat) ?: return false
         val audioInit = store.fetchInitializationData(holder, holder.audioFormat) ?: return false
         if (videoInit.isEmpty() || audioInit.isEmpty()) return false
