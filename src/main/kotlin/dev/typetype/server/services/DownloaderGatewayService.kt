@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import java.util.concurrent.TimeUnit
 
 data class DownloaderGatewayResponse(
     val status: Int,
@@ -19,6 +20,8 @@ class DownloaderGatewayService(
     private val baseUrl: String,
     private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build(),
 ) {
+    private val streamClient = client.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+
     fun forward(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): DownloaderGatewayResponse {
         openForward(method, path, query, headers, body).use { response ->
             val responseHeaders = response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
@@ -32,6 +35,20 @@ class DownloaderGatewayService(
     }
 
     fun openForward(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): Response {
+        return execute(client, method, path, query, headers, body)
+    }
+
+    fun openStream(method: String, path: String, query: String?, headers: Map<String, String>, body: ByteArray?): Response =
+        execute(streamClient, method, path, query, headers, body)
+
+    private fun execute(
+        httpClient: OkHttpClient,
+        method: String,
+        path: String,
+        query: String?,
+        headers: Map<String, String>,
+        body: ByteArray?,
+    ): Response {
         val url = buildUrl(path, query)
         val requestBody = if (hasBody(method)) {
             val mediaType = headers["Content-Type"]?.toMediaTypeOrNull()
@@ -44,7 +61,7 @@ class DownloaderGatewayService(
         headers.forEach { (name, value) -> if (shouldForwardRequestHeader(name)) requestBuilder.addHeader(name, value) }
         currentRequestId()?.let { requestBuilder.header(REQUEST_ID_HEADER, it) }
 
-        return client.newCall(requestBuilder.build()).execute()
+        return httpClient.newCall(requestBuilder.build()).execute()
     }
 
     fun openFetchAbsolute(url: String, headers: Map<String, String>): Response {

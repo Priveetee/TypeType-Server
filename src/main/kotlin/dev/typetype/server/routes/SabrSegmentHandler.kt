@@ -45,6 +45,7 @@ internal class SabrSegmentHandler(
             holder.markServed(cached)
             return call.respondSabrMediaBytes(cached.mimeType, cached.bytes)
         }
+        sabrSessionStore.requestSegmentDemand(holder, request)
         val segment = withTimeoutOrNull(SEGMENT_TIMEOUT_MS) {
             var fetched = sabrSessionStore.fetchSegment(holder, request)
             while (fetched == null && holder.terminalFailure() == null) {
