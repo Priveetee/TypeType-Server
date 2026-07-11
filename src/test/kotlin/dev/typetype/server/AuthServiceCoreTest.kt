@@ -38,6 +38,8 @@ class AuthServiceCoreTest {
         assertNotNull(user1)
         val firstUserId = user1 ?: error("missing first user")
         assertEquals("admin", roleOf(firstUserId))
+        assertEquals("First", usernameOf(firstUserId))
+        assertNotNull(service.login("first", "secret-1"))
         assertTrue(service.hasUsers())
         assertTrue(service.hasAdmin())
 
@@ -101,5 +103,9 @@ class AuthServiceCoreTest {
 
     private fun roleOf(userId: String): String? = transaction {
         UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()?.get(UsersTable.role)
+    }
+
+    private fun usernameOf(userId: String): String? = transaction {
+        UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()?.get(UsersTable.publicUsername)
     }
 }

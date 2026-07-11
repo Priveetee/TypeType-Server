@@ -27,6 +27,7 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
 
         val needsAdmin = !hasAdmin()
         val role = if (needsAdmin) "admin" else "user"
+        val publicUsername = name.trim().takeIf(ProfileService::isValidPublicUsername)
 
         transaction {
             UsersTable.insert {
@@ -34,6 +35,7 @@ open class AuthService(private val jwtSecret: String, private val hasUsersProbe:
                 it[UsersTable.email] = email
                 it[UsersTable.passwordHash] = hashed
                 it[UsersTable.name] = name
+                it[UsersTable.publicUsername] = publicUsername
                 it[UsersTable.role] = role
                 it[UsersTable.createdAt] = now
                 it[UsersTable.updatedAt] = now
