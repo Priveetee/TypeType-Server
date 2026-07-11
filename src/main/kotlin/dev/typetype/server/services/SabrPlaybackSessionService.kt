@@ -25,8 +25,8 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             startTimeMs = startTimeMs,
             startPump = false,
         )
-        if (startTimeMs > 0L) sessionStore.warmInitializationAsync(holder)
-        return prepareHolder(holder, startTimeMs, preload = startTimeMs <= 0L)
+        sessionStore.warmInitializationAsync(holder)
+        return prepareHolder(holder, startTimeMs)
     }
 
     suspend fun seek(
@@ -124,20 +124,14 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     private suspend fun prepareHolder(
         holder: SabrSessionHolder,
         startTimeMs: Long,
-        preload: Boolean = true,
     ): SabrPlaybackPreparation {
         val startedAt = System.currentTimeMillis()
         holder.setPlayerTimeMs(startTimeMs)
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
-        if (startTimeMs > 0L && preload) {
-            holder.session.prepareForInitialization(holder.videoFormat)
-            holder.session.prepareForInitialization(holder.audioFormat)
-        }
         if (startTimeMs > 0L) {
             holder.requestReposition(startTimeMs, holder.activeGeneration())
         }
-        if (preload) SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         sessionStore.startPump(holder)
         sessionStore.warmPlaybackAsync(holder)
         logger.info(
@@ -172,7 +166,6 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val logger = LoggerFactory.getLogger(SabrPlaybackSessionService::class.java)
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
-        const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 2_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
     }
