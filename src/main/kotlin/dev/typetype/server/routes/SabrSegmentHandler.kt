@@ -47,16 +47,16 @@ internal class SabrSegmentHandler(
         }
         sabrSessionStore.requestSegmentDemand(holder, request)
         val segment = withTimeoutOrNull(SEGMENT_TIMEOUT_MS) {
-            var fetched = sabrSessionStore.fetchSegment(holder, request)
+            var fetched = sabrSessionStore.cachedSegment(holder, request)
             while (fetched == null && holder.terminalFailure() == null) {
                 delay(SEGMENT_RETRY_MS)
-                fetched = sabrSessionStore.fetchSegment(holder, request)
+                fetched = sabrSessionStore.cachedSegment(holder, request)
             }
             fetched
         }
             ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("Segment not available"))
         holder.markServed(segment)
-        call.respondSabrMediaBytes(format.mimeType.orEmpty(), segment.data)
+        call.respondSabrMediaBytes(segment.mimeType, segment.bytes)
     }
 
 }
