@@ -25,6 +25,16 @@ fun Route.deArrowRoutes(service: DeArrowService) {
         val bytes = service.thumbnail(videoId, timestamp)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("Thumbnail not found"))
         call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=604800")
-        call.respondBytes(bytes, ContentType.Image.JPEG)
+        call.respondBytes(bytes, deArrowThumbnailContentType(bytes))
     }
+}
+
+internal fun deArrowThumbnailContentType(bytes: ByteArray): ContentType = if (
+    bytes.size >= 12 &&
+    bytes.copyOfRange(0, 4).decodeToString() == "RIFF" &&
+    bytes.copyOfRange(8, 12).decodeToString() == "WEBP"
+) {
+    ContentType.parse("image/webp")
+} else {
+    ContentType.Image.JPEG
 }
