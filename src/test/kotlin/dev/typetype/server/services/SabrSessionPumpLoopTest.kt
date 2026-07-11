@@ -38,6 +38,22 @@ class SabrSessionPumpLoopTest {
     }
 
     @Test
+    fun `fresh pump waits for a reader demand`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.requestNumber } returns 0
+        every { session.streamState } returns mockk(relaxed = true)
+        val holder = holder(session, audio, video)
+        var rounds = 0
+
+        SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
+
+        verify(exactly = 0) { session.pumpOnceStreaming(any()) }
+        assertEquals(100L, testScheduler.currentTime)
+    }
+
+    @Test
     fun `non target media response keeps demand loop paced`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {

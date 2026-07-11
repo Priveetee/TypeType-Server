@@ -81,12 +81,6 @@ internal class SabrSessionPumpLoop(
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
-        if (holder.prepareStartupBootstrapPump()) {
-            logPumpStart(holder, "initial", null)
-            val pumped = pumpOnce(holder, localization)
-            logPumpFinish(holder, "initial", null, pumped)
-            return true
-        }
         holder.nextSegmentDemand()?.let { request ->
             logPumpStart(holder, "demand", request)
             val pumped = pumpDemand(holder, localization, request)
@@ -95,6 +89,7 @@ internal class SabrSessionPumpLoop(
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return requestedCached
         }
+        if (holder.session.requestNumber == 0) return false
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
         if (isThrottled(holder)) {
             holder.setPlaybackState(SabrPlaybackState.THROTTLED)
