@@ -96,6 +96,7 @@ internal class SabrManifestHandler(
         }
         val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs, purpose)
         if (audioOnly) {
+            holder.setActiveTracks(videoActive = false, audioActive = true)
             sabrSessionStore.ensureWarmed(holder)
         } else if (!bothFormatsKnown(holder)) {
             val readyHolder = preflightOrRecreate(videoId, userId, prepared, audio, video, startTimeMs, purpose, holder)
