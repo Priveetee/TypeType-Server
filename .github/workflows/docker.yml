@@ -26,12 +26,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Verify release version
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Resolve build metadata
+        id: build-info
         run: |
-          app_version="$(sed -n 's/^appVersion=//p' gradle.properties)"
-          test -n "$app_version"
-          test "v$app_version" = "$GITHUB_REF_NAME"
+          base_version="$(sed -n 's/^appVersion=//p' gradle.properties)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            channel="${GITHUB_REF_NAME//[^0-9A-Za-z-]/-}"
+            version="$base_version-$channel.$GITHUB_RUN_NUMBER"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
@@ -75,7 +81,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            APP_VERSION=${{ steps.build-info.outputs.version }}
             GITHUB_SHA=${{ github.sha }}
+            BUILD_TIME=${{ steps.build-info.outputs.build-time }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -120,4 +128,4 @@ jobs:
           TYPE_TYPE_DEPLOY_USER: ${{ secrets.TYPE_TYPE_DEPLOY_USER }}
         run: |
           ssh -i ~/.ssh/typetype_deploy_key -p "$TYPE_TYPE_DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$TYPE_TYPE_DEPLOY_USER@$TYPE_TYPE_DEPLOY_HOST" "/usr/local/sbin/typetype-beta-update"
-          curl --fail --silent --show-error https://beta.typetype.video/api/health
+          curl --fail --retry 12 --retry-delay 2 --retry-all-errors --silent --show-error https://beta.typetype.video/api/health
