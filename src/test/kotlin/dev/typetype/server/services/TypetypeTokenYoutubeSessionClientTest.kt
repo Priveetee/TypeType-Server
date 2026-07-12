@@ -42,6 +42,7 @@ class TypetypeTokenYoutubeSessionClientTest {
             {
               "visitorData":"visitor-data",
               "serverAbrStreamingUrl":"https://example.com/sabr",
+              "rawServerAbrStreamingUrl":"https://example.com/raw-sabr",
               "videoPlaybackUstreamerConfig":"ustreamer-config",
               "adaptiveFormats":[
                 {
@@ -89,7 +90,7 @@ class TypetypeTokenYoutubeSessionClientTest {
 
         assertNotNull(info)
         assertEquals("video-id", info?.videoId)
-        assertEquals("https://example.com/sabr", info?.serverAbrStreamingUrl)
+        assertEquals("https://example.com/raw-sabr", info?.serverAbrStreamingUrl)
         assertEquals(2, info?.formats?.size)
         assertTrue(info?.formats?.any { it.itag == 137 && it.initRangeEnd == 9281L } == true)
         assertTrue(info?.formats?.any { it.itag == 140 && it.audioTrackId == "fr-FR.4" } == true)

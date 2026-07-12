@@ -29,7 +29,12 @@ internal class TypetypeTokenYoutubeSessionClient(
                 .put(
                     "streamingData",
                     JSONObject()
-                        .put("serverAbrStreamingUrl", session.getString("serverAbrStreamingUrl"))
+                        .put(
+                            "serverAbrStreamingUrl",
+                            session.optString("rawServerAbrStreamingUrl").ifBlank {
+                                session.getString("serverAbrStreamingUrl")
+                            },
+                        )
                         .put("adaptiveFormats", session.getJSONArray("adaptiveFormats")),
                 )
                 .put(
