@@ -1,12 +1,15 @@
 package dev.typetype.server.services
 
 import java.net.URLEncoder
+import java.net.URI
 import java.nio.charset.StandardCharsets
 
 internal fun isManifestUrl(url: String): Boolean {
-    if (!url.startsWith("http")) return false
-    if (url.contains("/file/seg.ts")) return false
-    return url.contains("manifest.googlevideo.com") || url.endsWith(".m3u8")
+    val uri = runCatching { URI(url) }.getOrNull() ?: return false
+    if (uri.scheme != "http" && uri.scheme != "https") return false
+    if (uri.path.contains("/file/seg.ts")) return false
+    val host = uri.host?.lowercase().orEmpty()
+    return host == "manifest.googlevideo.com" || uri.path.endsWith(".m3u8", ignoreCase = true)
 }
 
 internal fun rewriteYouTubeHlsManifest(

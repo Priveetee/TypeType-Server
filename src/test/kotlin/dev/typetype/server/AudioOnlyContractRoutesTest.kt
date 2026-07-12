@@ -6,6 +6,7 @@ import dev.typetype.server.routes.audioOnlyContractRoutes
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.StreamService
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -97,6 +98,34 @@ class AudioOnlyContractRoutesTest {
 
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("No audio-only stream is available"))
+    }
+
+    @Test
+    fun `GET audio-only signs NicoNico HLS playlist`() = testApplication {
+        val hls = testAudioStream(
+            url = "https://delivery.domand.nicovideo.jp/media/audio.m3u8?session=abc#cookie=value",
+        )
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(hls))
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                audioOnlyContractRoutes(
+                    streamService,
+                    tokenService,
+                    publicHlsManifestTokenService = PublicHlsManifestTokenService("test-secret"),
+                )
+            }
+        }
+
+        val response = client.get("/streams/audio-only?url=https://www.nicovideo.jp/watch/sm1")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"src\":\"/streams/hls-manifest?token="))
+        assertTrue(body.contains("\"kind\":\"hls\""))
+        assertFalse(body.contains("delivery.domand.nicovideo.jp"))
     }
 
     @Test
