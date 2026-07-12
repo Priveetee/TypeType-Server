@@ -11,9 +11,7 @@ internal object SabrSegmentDemandTracker {
     fun request(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
-        val prefix = prefix(holder)
         val requestKey = key(holder, request)
-        demands.keys.removeIf { it.startsWith(prefix) && it != requestKey }
         demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet()))
     }
 
@@ -22,7 +20,7 @@ internal object SabrSegmentDemandTracker {
     }
 
     fun clear(holder: SabrSessionHolder): Unit {
-        val prefix = prefix(holder)
+        val prefix = holderPrefix(holder)
         demands.keys.removeIf { it.startsWith(prefix) }
     }
 
@@ -33,6 +31,7 @@ internal object SabrSegmentDemandTracker {
     fun next(holder: SabrSessionHolder): SabrSegmentRequest? {
         val prefix = prefix(holder)
         var selected: SabrSegmentRequest? = null
+        var selectedStartMs = Long.MAX_VALUE
         var selectedOrder = Long.MAX_VALUE
         for ((key, value) in demands) {
             if (!key.startsWith(prefix)) continue
@@ -41,8 +40,12 @@ internal object SabrSegmentDemandTracker {
                 demands.remove(key)
                 continue
             }
-            if (value.order < selectedOrder) {
+            val startMs = holder.session.streamState
+                .getSegmentStartMs(request.format, request.sequenceNumber)
+                .coerceAtLeast(0L)
+            if (startMs < selectedStartMs || startMs == selectedStartMs && value.order < selectedOrder) {
                 selected = request
+                selectedStartMs = startMs
                 selectedOrder = value.order
             }
         }
@@ -54,7 +57,9 @@ internal object SabrSegmentDemandTracker {
     private fun key(holder: SabrSessionHolder, request: SabrSegmentRequest): String =
         "${prefix(holder)}${request.format.itag}:${request.sequenceNumber}"
 
-    private fun prefix(holder: SabrSessionHolder): String = "${holder.sessionToken}:${holder.activeGeneration()}:"
+    private fun prefix(holder: SabrSessionHolder): String = "${holderPrefix(holder)}${holder.activeGeneration()}:"
+
+    private fun holderPrefix(holder: SabrSessionHolder): String = "${holder.sessionToken}:"
 
     private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long)
 }

@@ -1,12 +1,18 @@
 package dev.typetype.server.services
 
 internal object SabrPumpPolicy {
-    const val IDLE_POLL_MS = 400L
+    const val IDLE_POLL_MS = 100L
     const val ERROR_RETRY_MS = 1_000L
     const val MAX_CONSECUTIVE_IO_ERRORS = 5
     const val READAHEAD_CUSHION_MS = 10_000L
+    const val STARTUP_READAHEAD_CUSHION_MS = 6_000L
+    const val STARTUP_BURST_READAHEAD_CUSHION_MS = 25_000L
+    const val STARTUP_BURST_MS = 25_000L
+    const val SEEK_READAHEAD_CUSHION_MS = 5_000L
+    const val SEEK_MODE_MS = 8_000L
+    const val MIN_SERVER_READAHEAD_CUSHION_MS = 3_000L
     const val SERVER_AHEAD_MARGIN_MS = 16_000L
-    const val MAX_AHEAD_BYTES = 100L * 1024L * 1024L
+    const val MAX_AHEAD_BYTES = 24L * 1024L * 1024L
     const val BACK_BUFFER_MS = 12_000L
     const val MIN_BACK_BUFFER_MS = 2_000L
     const val BACK_BUFFER_BYTES = 4L * 1024L * 1024L

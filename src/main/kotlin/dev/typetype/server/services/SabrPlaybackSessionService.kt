@@ -57,6 +57,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         playerTimeMs: Long,
         audioOnly: Boolean = false,
     ): SabrPlaybackPreparation {
+        holder.clearSegmentDemands()
         val generation = holder.advancePlaybackGeneration(playerTimeMs)
         holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
         holder.setRequestedSeekTimeMs(playerTimeMs)

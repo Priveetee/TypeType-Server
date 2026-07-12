@@ -7,7 +7,6 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.slf4j.LoggerFactory
 import java.io.IOException
 
 internal class SabrSessionPumpLoop(
@@ -15,10 +14,11 @@ internal class SabrSessionPumpLoop(
 ) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "US")
+        val runtime = SabrPumpRuntime()
         var consecutiveIoErrors = 0
         while (isAlive()) {
             try {
-                val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization) }
+                val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
                 consecutiveIoErrors = 0
                 delay(if (immediate) 0L else intervalMs)
             } catch (error: CancellationException) {
@@ -40,17 +40,7 @@ internal class SabrSessionPumpLoop(
                 holder.failTerminal(error.message)
                 return
             } catch (error: Exception) {
-                logger.warn(
-                    "sabr_pump event=round_failed videoId={} state={} requestNumber={} edgeMs={} cachedBytes={} errorType={} error={}",
-                    holder.key.videoId,
-                    holder.playbackState(),
-                    holder.session.requestNumber,
-                    holder.session.streamState.getMinBufferedEndMs(),
-                    holder.session.cachedBytes,
-                    error.javaClass.simpleName,
-                    error.message,
-                    error,
-                )
+                SabrPumpLogger.failure(holder, error)
                 delay(SabrPumpPolicy.ERROR_RETRY_MS)
             }
         }
@@ -61,92 +51,83 @@ internal class SabrSessionPumpLoop(
         }
     }
 
-    private suspend fun pumpRound(holder: SabrSessionHolder, localization: Localization): Boolean {
+    private suspend fun pumpRound(
+        holder: SabrSessionHolder,
+        localization: Localization,
+        runtime: SabrPumpRuntime,
+    ): Boolean {
         prepareEviction(holder)
         holder.consumeRefetch()?.let { request ->
+            runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
-            logPumpStart(holder, "refetch", request)
-            val pumped = pumpOnce(holder, localization)
-            logPumpFinish(holder, "refetch", request, pumped)
+            SabrPumpLogger.start(holder, "refetch", request)
+            val pumped = pumpOnce(holder, localization, runtime)
+            SabrPumpLogger.finish(holder, "refetch", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
+            runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForForwardJump(request)
-            logPumpStart(holder, "forward_seek", request)
-            val pumped = pumpUntilCached(holder, localization, request)
-            logPumpFinish(holder, "forward_seek", request, pumped)
+            SabrPumpLogger.start(holder, "forward_seek", request)
+            val pumped = pumpUntilCached(holder, localization, request, runtime)
+            SabrPumpLogger.finish(holder, "forward_seek", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.nextSegmentDemand()?.let { request ->
-            logPumpStart(holder, "demand", request)
-            val pumped = pumpDemand(holder, localization, request)
+            runtime.activateSeekMode()
+            SabrPumpLogger.start(holder, "demand", request)
+            val pumped = pumpDemand(holder, localization, request, runtime)
             val requestedCached = holder.resolveSegmentDemand(request)
-            logPumpFinish(holder, "demand", request, pumped)
+            SabrPumpLogger.finish(holder, "demand", request, pumped)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return requestedCached
         }
         if (holder.session.requestNumber == 0) return false
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
-        if (isThrottled(holder)) {
+        if (runtime.isThrottled(holder)) {
             holder.setPlaybackState(SabrPlaybackState.THROTTLED)
             return false
         }
         holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-        holder.session.streamState.setPlayerTimeMs(holder.session.streamState.getMinBufferedEndMs())
-        pumpOnce(holder, localization)
+        val edgeMs = holder.session.streamState.getMinBufferedEndMs()
+        holder.session.streamState.setPlayerTimeMs(runtime.requestPlayerTimeMs(holder, edgeMs))
+        pumpOnce(holder, localization, runtime)
         holder.setPlaybackState(SabrPlaybackState.IDLE)
         return false
     }
 
-    private fun logPumpStart(holder: SabrSessionHolder, event: String, request: SabrSegmentRequest?): Unit {
-        logger.info(
-            "sabr_pump event={}_start videoId={} request={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
-            event,
-            holder.key.videoId,
-            request?.summary(),
-            holder.playbackState(),
-            holder.session.requestNumber,
-            holder.session.streamState.getMinBufferedEndMs(),
-            holder.readerHeadMs(),
-            holder.readerTailMs(),
-            holder.session.cachedBytes,
-        )
+    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
+        return try {
+            holder.session.pumpOnceStreaming(localization).also { unauthorizedRecovery.verify(holder) }
+        } finally {
+            runtime.recordRequest()
+        }
     }
 
-    private fun logPumpFinish(holder: SabrSessionHolder, event: String, request: SabrSegmentRequest?, pumped: Int): Unit {
-        logger.info(
-            "sabr_pump event={}_finish videoId={} request={} pumped={} cached={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
-            event,
-            holder.key.videoId,
-            request?.summary(),
-            pumped,
-            request?.let { holder.session.getCachedSegment(it) != null },
-            holder.playbackState(),
-            holder.session.requestNumber,
-            holder.session.streamState.getMinBufferedEndMs(),
-            holder.readerHeadMs(),
-            holder.readerTailMs(),
-            holder.session.cachedBytes,
-        )
+    private fun pumpUntilCached(
+        holder: SabrSessionHolder,
+        localization: Localization,
+        request: SabrSegmentRequest,
+        runtime: SabrPumpRuntime,
+    ): Int {
+        return try {
+            holder.session.pumpOnceStreamingUntilCached(localization, request)
+                .also { unauthorizedRecovery.verify(holder) }
+        } finally {
+            runtime.recordRequest()
+        }
     }
 
-    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization): Int {
-        val pumped = holder.session.pumpOnceStreaming(localization)
-        unauthorizedRecovery.verify(holder)
-        return pumped
-    }
-
-    private fun pumpUntilCached(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int {
-        val pumped = holder.session.pumpOnceStreamingUntilCached(localization, request)
-        unauthorizedRecovery.verify(holder)
-        return pumped
-    }
-
-    private fun pumpDemand(holder: SabrSessionHolder, localization: Localization, request: SabrSegmentRequest): Int {
+    private fun pumpDemand(
+        holder: SabrSessionHolder,
+        localization: Localization,
+        request: SabrSegmentRequest,
+        runtime: SabrPumpRuntime,
+    ): Int {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
         val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         holder.setReaderPosition(request.format, startMs)
@@ -154,19 +135,17 @@ internal class SabrSessionPumpLoop(
             startMs < edgeMs -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.session.prepareForRewind(request)
-                pumpUntilCached(holder, localization, request)
+                pumpUntilCached(holder, localization, request, runtime)
             }
             startMs > edgeMs + DEMAND_FORWARD_JUMP_MS -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.session.prepareForForwardJump(request)
-                pumpUntilCached(holder, localization, request)
+                pumpUntilCached(holder, localization, request, runtime)
             }
             else -> {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-                holder.session.streamState.setPlayerTimeMs(
-                    maxOf(holder.playerTimeMs(), edgeMs - SabrPumpPolicy.SERVER_AHEAD_MARGIN_MS),
-                )
-                pumpUntilCached(holder, localization, request)
+                holder.session.streamState.setPlayerTimeMs(runtime.demandPlayerTimeMs(holder, edgeMs))
+                pumpUntilCached(holder, localization, request, runtime)
             }
         }
     }
@@ -176,15 +155,4 @@ internal class SabrSessionPumpLoop(
         holder.session.evictPlayed()
     }
 
-    private fun isThrottled(holder: SabrSessionHolder): Boolean {
-        val edgeMs = holder.session.streamState.getMinBufferedEndMs()
-        return edgeMs - holder.readerHeadMs() > SabrPumpPolicy.READAHEAD_CUSHION_MS ||
-            holder.session.cachedBytes > SabrPumpPolicy.MAX_AHEAD_BYTES
-    }
-
-    private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
-
-    private companion object {
-        val logger = LoggerFactory.getLogger(SabrSessionPumpLoop::class.java)
-    }
 }
