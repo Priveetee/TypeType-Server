@@ -13,6 +13,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HlsManifestServiceCacheTest {
@@ -78,6 +79,34 @@ class HlsManifestServiceCacheTest {
             ),
             requestedUrls,
         )
+    }
+
+    @Test
+    fun `NicoNico manifests use signed cookie and proxy segments`() = runTest {
+        val requests = mutableListOf<Pair<String, String?>>()
+        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+            requests += chain.request().url.toString() to chain.request().header("Cookie")
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("#EXTM3U\nsegment.cmfa".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
+                .build()
+        }).build()
+        val service = HlsManifestService(NoopStreamService, client)
+
+        val result = service.hlsManifest(
+            "https://delivery.domand.nicovideo.jp/media/audio.m3u8?session=abc#cookie=domand_bid%3Dbid-value&length=1"
+        )
+
+        assertEquals(
+            listOf("https://delivery.domand.nicovideo.jp/media/audio.m3u8?session=abc" to "domand_bid=bid-value"),
+            requests,
+        )
+        assertTrue(result is ExtractionResult.Success)
+        assertTrue((result as ExtractionResult.Success).data.contains("../proxy?url="))
+        assertTrue(result.data.contains("domand_bid=bid-value"))
     }
 }
 

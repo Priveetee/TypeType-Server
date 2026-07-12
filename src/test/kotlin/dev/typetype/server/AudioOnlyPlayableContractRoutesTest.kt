@@ -19,6 +19,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -71,6 +72,21 @@ class AudioOnlyPlayableContractRoutesTest {
         assertFalse(body.contains("manifest.googlevideo.com"))
     }
 
+    @Test
+    fun `GET audio-only does not probe Bilibili progressive streams`() = testApplication {
+        val audio = testAudioStream(url = BILIBILI_AUDIO_URL, bitrate = 128, itag = 30232)
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(audioStreams = listOf(audio))
+        )
+        installFullApp()
+
+        val response = client.get("/streams/audio-only?url=https://www.bilibili.com/video/BV1test")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"kind\":\"progressive\""))
+        coVerify(exactly = 0) { proxyService.pipe(any(), any(), any()) }
+    }
+
     private fun io.ktor.server.testing.ApplicationTestBuilder.installFullApp(): Unit = application {
         install(ContentNegotiation) { json() }
         routing {
@@ -97,5 +113,6 @@ class AudioOnlyPlayableContractRoutesTest {
         const val HLS_URL = "https://manifest.googlevideo.com/api/manifest/hls/test"
         const val BLOCKED_AUDIO_URL = "https://example.googlevideo.com/blocked-audio"
         const val PLAYABLE_AUDIO_URL = "https://example.googlevideo.com/playable-audio"
+        const val BILIBILI_AUDIO_URL = "https://upos-hz-mirrorakam.akamaized.net/audio.m4s"
     }
 }

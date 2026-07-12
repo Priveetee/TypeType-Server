@@ -15,6 +15,7 @@ import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.isYoutubeUrl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -47,7 +48,9 @@ fun Route.audioOnlyContractRoutes(
             access.userId,
             preferOriginal,
             preferredLocale,
-            progressivePlayable = { stream -> proxyService?.isPlayableProgressiveAudio(stream) ?: true },
+            progressivePlayable = { stream ->
+                if (isYoutubeUrl(url)) proxyService?.isPlayableProgressiveAudio(stream) ?: true else true
+            },
         )) {
             is ExtractionResult.Success -> {
                 if (!access.profile.allowsUploader(result.data.response.uploaderUrl, result.data.response.uploaderName)) {

@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 
 class HlsManifestService(
@@ -89,11 +90,16 @@ class HlsManifestService(
 
     private suspend fun fetchAndRewrite(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
-            validateProxyUrl(manifestUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
+            val hashIndex = manifestUrl.indexOf('#')
+            val fetchUrl = if (hashIndex >= 0) manifestUrl.substring(0, hashIndex) else manifestUrl
+            val fragment = if (hashIndex >= 0) manifestUrl.substring(hashIndex + 1) else ""
+            val domandBid = fragment.takeIf { it.isNotBlank() }?.let(::parseNicoCookie)
+            validateProxyUrl(fetchUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val request = Request.Builder()
-                    .url(manifestUrl)
+                    .url(fetchUrl)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
+                    .apply { if (domandBid != null) header("Cookie", "domand_bid=$domandBid") }
                     .build()
                 httpClient.newCall(request).execute()
             }.fold(
@@ -105,12 +111,21 @@ class HlsManifestService(
                     } else {
                         val text = body.string()
                         response.close()
-                        ExtractionResult.Success(rewriteYouTubeHlsManifest(text) { target ->
-                            if (signManifestLinks) signManifestUrl?.invoke(target) ?: toHlsProxyUrl(target) else toHlsProxyUrl(target)
-                        })
+                        val rewritten = if (isNicoNicoManifest(fetchUrl)) {
+                            rewriteNicoManifest(text, fetchUrl, domandBid, "../proxy")
+                        } else {
+                            rewriteYouTubeHlsManifest(text) { target ->
+                                if (signManifestLinks) signManifestUrl?.invoke(target) ?: toHlsProxyUrl(target)
+                                else toHlsProxyUrl(target)
+                            }
+                        }
+                        ExtractionResult.Success(rewritten)
                     }
                 },
                 onFailure = { ExtractionResult.Failure(it.message ?: "HLS manifest fetch failed") }
             )
         }
+
+    private fun isNicoNicoManifest(url: String): Boolean =
+        runCatching { URI(url).host.orEmpty().endsWith("nicovideo.jp") }.getOrDefault(false)
 }
