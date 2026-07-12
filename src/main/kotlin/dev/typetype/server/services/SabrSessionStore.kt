@@ -90,7 +90,7 @@ internal class SabrSessionStore(
     }
 
     internal fun warmInitializationAsync(holder: SabrSessionHolder): Unit =
-        listOf(holder.videoFormat, holder.audioFormat).forEach { format ->
+        SabrInitializationPolicy.warmFormats(holder.key.audioOnly, holder.audioFormat, holder.videoFormat).forEach { format ->
             scope.launch { fetchDirectInitialization(holder, format) }
         }
 
@@ -150,7 +150,7 @@ internal class SabrSessionStore(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
     ): ByteArray? {
-        if (format.isAudio && holder.playerTimeMs() > 0L) {
+        if (SabrInitializationPolicy.requiresVideoFirst(holder.key.audioOnly, format.isAudio, holder.playerTimeMs())) {
             fetchInitializationSegmentData(holder, holder.videoFormat)
         }
         return fetchInitializationSegmentData(holder, format)
