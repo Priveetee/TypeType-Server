@@ -28,6 +28,7 @@ import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
+import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
@@ -76,7 +77,10 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache, it)
     }
-    val streamService = CachedStreamService(YoutubeScopedStreamService(pipePipeStreamService), cache)
+    val streamService = CachedStreamService(
+        YoutubeScopedStreamService(SabrFallbackStreamService(pipePipeStreamService, sabrSessionStore)),
+        cache,
+    )
     val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
     val trendingService = CachedTrendingService(
         YoutubeScopedTrendingService(PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient))),
