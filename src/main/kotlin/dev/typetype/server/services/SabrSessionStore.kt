@@ -49,6 +49,7 @@ internal class SabrSessionStore(
         startTimeMs: Long = 0L,
         startPump: Boolean = true,
         purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
+        audioOnly: Boolean = false,
     ): SabrSessionHolder {
         val key = SabrSessionKey(
             videoId,
@@ -58,6 +59,7 @@ internal class SabrSessionStore(
             videoFormat.itag,
             startTimeMs.coerceAtLeast(0L),
             purpose,
+            audioOnly,
         )
         registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)

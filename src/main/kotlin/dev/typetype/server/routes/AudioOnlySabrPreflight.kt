@@ -41,6 +41,7 @@ private suspend fun SabrSessionStore.sabrAudioOnlyUnplayableReasonWithinTimeout(
         video,
         prepared.initialToken,
         startPump = false,
+        audioOnly = true,
     )
     holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = fetchInitializationData(holder, audio) ?: return "SABR audio initialization failed"

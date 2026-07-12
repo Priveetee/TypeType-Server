@@ -8,4 +8,5 @@ internal data class SabrSessionKey(
     val videoItag: Int,
     val startTimeMs: Long,
     val purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
+    val audioOnly: Boolean = false,
 )

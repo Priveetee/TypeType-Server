@@ -46,6 +46,7 @@ class SabrPlaybackSessionServiceTest {
                 88_168L,
                 false,
                 SabrSessionPurpose.PLAYBACK,
+                false,
             )
         } returns holder
         coEvery { store.fetchInitializationData(holder, video) } returns byteArrayOf(1)
@@ -167,7 +168,7 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(video.itag, request?.format?.itag)
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(any(), any()) }
-        verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { store.getOrCreate(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test

@@ -94,7 +94,7 @@ internal class SabrManifestHandler(
         } else {
             SabrSessionPurpose.MANIFEST
         }
-        val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs, purpose)
+        val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs, purpose, audioOnly)
         if (audioOnly) {
             holder.setActiveTracks(videoActive = false, audioActive = true)
             sabrSessionStore.ensureWarmed(holder)
@@ -141,6 +141,7 @@ internal class SabrManifestHandler(
         video: YoutubeSabrFormat,
         startTimeMs: Long,
         purpose: SabrSessionPurpose,
+        audioOnly: Boolean = false,
     ): SabrSessionHolder = sabrSessionStore.getOrCreate(
         videoId,
         userId,
@@ -151,6 +152,7 @@ internal class SabrManifestHandler(
         startTimeMs,
         startPump = false,
         purpose = purpose,
+        audioOnly = audioOnly,
     )
 
     private suspend fun handleHlsPlaylist(call: ApplicationCall, videoId: String, playlist: String) {

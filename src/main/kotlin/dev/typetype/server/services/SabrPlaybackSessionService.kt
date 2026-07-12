@@ -26,6 +26,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             startTimeMs = startTimeMs,
             startPump = false,
             purpose = SabrSessionPurpose.PLAYBACK,
+            audioOnly = audioOnly,
         )
         sessionStore.warmInitializationAsync(holder)
         return prepareHolder(holder, startTimeMs, audioOnly)

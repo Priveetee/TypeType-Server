@@ -86,6 +86,7 @@ private suspend fun SabrSessionStore.fetchAudioBytesFromFreshHolder(
         prepared.initialToken,
         startTimeMs = targetMs,
         startPump = false,
+        audioOnly = true,
     )
     freshHolder.setActiveTracks(videoActive = true, audioActive = true)
     fetchMediaAt(freshHolder, targetMs)?.firstOrNull { segment ->

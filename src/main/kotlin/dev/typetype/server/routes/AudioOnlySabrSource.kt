@@ -35,6 +35,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlySource(
         video,
         prepared.initialToken,
         startPump = false,
+        audioOnly = true,
     )
     holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = sabrSessionStore.fetchInitializationData(holder, audio)
@@ -69,6 +70,7 @@ internal suspend fun ApplicationCall.respondSabrAudioOnlyHead(
         video,
         prepared.initialToken,
         startPump = false,
+        audioOnly = true,
     )
     holder.setActiveTracks(videoActive = true, audioActive = true)
     val init = sabrSessionStore.fetchInitializationData(holder, audio)
