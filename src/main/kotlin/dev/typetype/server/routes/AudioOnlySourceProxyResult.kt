@@ -5,8 +5,8 @@ import dev.typetype.server.models.ProxyResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Headers
 
-internal fun Headers.audioOnlyRangeHeader(): String {
-    val range = get(HttpHeaders.Range) ?: return initialAudioRange(0)
+internal fun Headers.audioOnlyRangeHeader(): String? {
+    val range = get(HttpHeaders.Range) ?: return null
     val openStart = Regex("^bytes=(\\d+)-$").matchEntire(range.trim())?.groupValues?.get(1)?.toLongOrNull()
     return if (openStart == null) range else initialAudioRange(openStart)
 }
