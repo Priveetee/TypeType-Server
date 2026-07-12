@@ -54,6 +54,7 @@ class AudioOnlySourceRoutesTest {
         }
 
         assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertEquals("audio/mp4", response.headers[HttpHeaders.ContentType])
         assertEquals("bytes 0-3/5000000", response.headers[HttpHeaders.ContentRange])
         assertEquals("\u0001\u0002\u0003\u0004", response.bodyAsText())
         coVerify { proxyService.pipe("https://example.googlevideo.com/audio-ja", "bytes=0-3", null) }
@@ -68,7 +69,7 @@ class AudioOnlySourceRoutesTest {
         coEvery { proxyService.pipe(any(), any(), any()) } returns ExtractionResult.Success(
             ProxyResponse(
                 status = 200,
-                contentType = "audio/mp4",
+                contentType = "video/mp4",
                 contentLength = 4,
                 contentRange = null,
                 acceptRanges = "bytes",
@@ -82,6 +83,7 @@ class AudioOnlySourceRoutesTest {
         val response = client.get("/streams/audio-only/source?token=$token")
 
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("audio/mp4", response.headers[HttpHeaders.ContentType])
         coVerify { proxyService.pipe("https://example.googlevideo.com/audio-en", null, null) }
     }
 

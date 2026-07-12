@@ -116,7 +116,7 @@ internal fun Route.audioOnlySourceRoutes(
                     call.respondSabrAudioOnlySource(store, source.token, result.data)
                 }
                 else -> call.respondProxyResult(
-                    proxyService.pipe(
+                    result = proxyService.pipe(
                         url = result.data.stream.url,
                         rangeHeader = proxyService.resolveAudioOnlyRangeHeader(
                             call.request.headers,
@@ -125,7 +125,8 @@ internal fun Route.audioOnlySourceRoutes(
                         ),
                         domandBid = null,
                     )
-                        .ensureProgressiveAudio()
+                        .ensureProgressiveAudio(),
+                    contentTypeOverride = result.data.stream.mimeType,
                 )
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
