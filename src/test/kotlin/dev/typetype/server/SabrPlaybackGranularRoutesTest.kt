@@ -145,6 +145,23 @@ class SabrPlaybackGranularRoutesTest {
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
     }
 
+    @Test
+    fun `terminal non ump response invalidates info and requests fresh session`() = testApplication {
+        val store = emptyStore()
+        val holder = holder()
+        holder.failTerminal("Expected UMP response, got content type: text/plain; charset=UTF-8")
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/window") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        assertTrue(response.bodyAsText().contains("\"recoveryAction\":\"retry_fresh_session\""))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
     private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {
         install(ContentNegotiation) { json() }
         val handler = SabrPlaybackWindowHandler(store)

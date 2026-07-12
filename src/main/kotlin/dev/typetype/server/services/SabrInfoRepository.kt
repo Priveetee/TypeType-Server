@@ -35,6 +35,11 @@ internal class SabrInfoRepository(
         sharedInfos.putInitialization(videoId, info)
     }
 
+    suspend fun invalidatePlayback(videoId: String): Unit {
+        preparedInfos.remove(videoId)
+        sharedInfos.removePlayback(videoId)
+    }
+
     suspend fun putPrepared(
         videoId: String,
         startTimeMs: Long,

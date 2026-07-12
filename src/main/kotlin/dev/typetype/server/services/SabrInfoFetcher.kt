@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 
 internal class SabrInfoFetcher(
     private val tokenClient: TypetypeTokenSabrTokenClient,
+    private val sessionClient: TypetypeTokenYoutubeSessionClient? = null,
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
     sharedCache: CacheService? = null,
 ) {
@@ -64,6 +65,8 @@ internal class SabrInfoFetcher(
             ?.let { repository.putPrepared(videoId, startTimeMs = 0L, it) }
     }
 
+    suspend fun invalidatePlayback(videoId: String): Unit = repository.invalidatePlayback(videoId)
+
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
         repository.initializationFormat(videoId, target)
 
@@ -87,6 +90,9 @@ internal class SabrInfoFetcher(
                         forceRefresh,
                     )
                 }
+            sessionClient?.fetchSabrInfo(videoId)
+                ?.takeIf { SabrPreparedInfo(it, token).hasAudioAndVideoFormats() }
+                ?.let { return@withTimeoutOrNull SabrPreparedInfo(it, token) }
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
                 fetchInfoForProfileWithTokenFallback(videoId, startTimeMs, token, profile)
                     ?.takeIf { it.hasAudioAndVideoFormats() }

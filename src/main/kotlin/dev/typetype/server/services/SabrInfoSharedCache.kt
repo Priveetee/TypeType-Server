@@ -17,6 +17,10 @@ internal class SabrInfoSharedCache(private val cache: CacheService?) {
 
     suspend fun putInitialization(videoId: String, info: YoutubeSabrInfo): Unit = put("sabr:init-info:v1:$videoId", info)
 
+    suspend fun removePlayback(videoId: String): Unit {
+        runCatching { cache?.delete("sabr:info:v2:$videoId") }
+    }
+
     private suspend fun get(key: String): YoutubeSabrInfo? {
         val encoded = runCatching { cache?.get(key) }.getOrNull() ?: return null
         return runCatching {

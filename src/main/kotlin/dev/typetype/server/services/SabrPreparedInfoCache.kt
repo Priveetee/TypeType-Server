@@ -23,6 +23,10 @@ internal class SabrPreparedInfoCache(
         items.remove(Key(videoId, startBucket(startTimeMs)))
     }
 
+    fun remove(videoId: String): Unit {
+        items.keys.removeIf { it.videoId == videoId }
+    }
+
     fun put(videoId: String, startTimeMs: Long, value: SabrPreparedInfo): SabrPreparedInfo {
         items[Key(videoId, startBucket(startTimeMs))] = Entry(value, Instant.now())
         return value

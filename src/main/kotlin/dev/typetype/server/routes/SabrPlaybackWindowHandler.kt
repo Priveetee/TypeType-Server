@@ -84,7 +84,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         return window
     }
 
-    private fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
+    private suspend fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
         SabrPlaybackWindowPreparingResponse(
             sessionId = sessionToken,
             generation = activeGeneration(),
@@ -104,7 +104,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             retryVideoItags = retryVideoItags(),
         )
 
-    private fun SabrSessionHolder.prefetchResponse(
+    private suspend fun SabrSessionHolder.prefetchResponse(
         request: SabrPlaybackWindowRequest,
         window: SabrPlaybackWindowBuildResult,
     ): SabrPlaybackPrefetchResponse = SabrPlaybackPrefetchResponse(
@@ -166,11 +166,17 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     private fun SabrSessionHolder.matches(request: SabrPlaybackPositionRequest): Boolean =
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
-    private fun SabrSessionHolder.recoveryAction(): String? = terminalFailure()
-        ?.takeIf { it.contains("protected no-media") }
-        ?.let { "retry_fresh_session_lower_video_itag" }
+    private suspend fun SabrSessionHolder.recoveryAction(): String? {
+        val failure = terminalFailure() ?: return null
+        if (failure.contains("Expected UMP response", ignoreCase = true)) {
+            sabrSessionStore.invalidatePlaybackInfo(key.videoId)
+            return "retry_fresh_session"
+        }
+        return failure.takeIf { it.contains("protected no-media") }
+            ?.let { "retry_fresh_session_lower_video_itag" }
+    }
 
-    private fun SabrSessionHolder.retryVideoItags(): List<Int> = if (recoveryAction() == null) emptyList() else {
+    private fun SabrSessionHolder.retryVideoItags(): List<Int> = if (!terminalFailure().orEmpty().contains("protected no-media")) emptyList() else {
         info.formats.asSequence()
             .filter { it.isVideo && it.itag != videoFormat.itag }
             .sortedByDescending { it.bitrate }

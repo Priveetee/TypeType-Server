@@ -23,6 +23,7 @@ internal class SabrSessionStore(
     private val idleEviction: Duration = SabrSessionStoreDefaults.idleEviction(),
     private val pumpLoopIntervalMs: Long = 100,
     private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
+    private val sessionClient: TypetypeTokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(tokenServiceUrl),
     private val initCache: CacheService? = null,
 ) {
     private val registry = SabrSessionRegistry()
@@ -31,7 +32,7 @@ internal class SabrSessionStore(
         tokenClient.fetch(videoId, forceRefresh = true, refreshVideo = true)?.streamingPoTokenBytes
     }
     private val warmer = SabrPlaybackWarmer()
-    private val infoFetcher = SabrInfoFetcher(tokenClient, sharedCache = initCache)
+    private val infoFetcher = SabrInfoFetcher(tokenClient, sessionClient, sharedCache = initCache)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
 
@@ -137,6 +138,8 @@ internal class SabrSessionStore(
 
     internal suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
         infoFetcher.rememberExtractedInfo(videoId, info)
+
+    internal suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
 
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
