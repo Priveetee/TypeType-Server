@@ -19,6 +19,48 @@ internal fun StreamResponse.withSabrFallback(videoId: String, info: YoutubeSabrI
     )
 }
 
+internal fun TokenYoutubeSession.toFallbackStreamResponse(videoId: String): StreamResponse = StreamResponse(
+    id = videoId,
+    title = title,
+    uploaderName = author,
+    uploaderUrl = channelId.takeIf { it.isNotBlank() }?.let { "https://www.youtube.com/channel/$it" }.orEmpty(),
+    uploaderAvatarUrl = "",
+    thumbnailUrl = thumbnailUrl.ifBlank { "https://i.ytimg.com/vi/$videoId/hq720.jpg" },
+    description = description,
+    duration = durationMs.coerceAtLeast(0L) / 1000L,
+    viewCount = viewCount.coerceAtLeast(0L),
+    likeCount = -1L,
+    dislikeCount = -1L,
+    uploadDate = "",
+    uploaded = -1L,
+    uploaderSubscriberCount = -1L,
+    uploaderVerified = false,
+    category = "",
+    license = "",
+    visibility = "public",
+    tags = tags,
+    streamType = if (isLive) "live_stream" else "video_stream",
+    isLive = isLive,
+    isPostLive = false,
+    isLiveContent = isLiveContent,
+    hasLiveManifest = isLive,
+    isShortFormContent = false,
+    requiresMembership = false,
+    startPosition = 0L,
+    streamSegments = emptyList(),
+    hlsUrl = "",
+    dashMpdUrl = "",
+    videoStreams = emptyList(),
+    audioStreams = emptyList(),
+    originalAudioTrackId = null,
+    preferredDefaultAudioTrackId = null,
+    videoOnlyStreams = emptyList(),
+    subtitles = emptyList(),
+    previewFrames = emptyList(),
+    sponsorBlockSegments = emptyList(),
+    relatedStreams = emptyList(),
+).withSabrFallback(videoId, info)
+
 private fun YoutubeSabrFormat.toFallbackVideo(videoId: String): VideoStreamItem? {
     val type = mimeType?.takeIf { it.isNotBlank() } ?: return null
     val container = type.substringBefore(';').trim()

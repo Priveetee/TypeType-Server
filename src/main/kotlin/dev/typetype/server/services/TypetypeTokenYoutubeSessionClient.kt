@@ -23,40 +23,27 @@ internal class TypetypeTokenYoutubeSessionClient(
         ?.ifBlank { null }
 
     suspend fun fetchSabrInfo(videoId: String): YoutubeSabrInfo? = fetchSession(videoId)?.let { session ->
-        runCatching {
-            val playerResponse = JSONObject()
-                .put("responseContext", JSONObject().put("visitorData", session.getString("visitorData")))
-                .put(
-                    "streamingData",
-                    JSONObject()
-                        .put(
-                            "serverAbrStreamingUrl",
-                            session.optString("rawServerAbrStreamingUrl").ifBlank {
-                                session.getString("serverAbrStreamingUrl")
-                            },
-                        )
-                        .put("adaptiveFormats", session.getJSONArray("adaptiveFormats")),
-                )
-                .put(
-                    "playerConfig",
-                    JSONObject().put(
-                        "mediaCommonConfig",
-                        JSONObject().put(
-                            "mediaUstreamerRequestConfig",
-                            JSONObject().put(
-                                "videoPlaybackUstreamerConfig",
-                                session.getString("videoPlaybackUstreamerConfig"),
-                            ),
-                        ),
-                    ),
-                )
-            YoutubeSabrProbe.fromPlayerResponse(
-                videoId,
-                YoutubeSabrClientProfile.MWEB,
-                YoutubeParsingHelper.generateContentPlaybackNonce(),
-                JsonParser.`object`().from(playerResponse.toString()),
-            )
-        }.getOrNull()
+        session.toSabrInfo(videoId)
+    }
+
+    suspend fun fetchPlaybackSession(videoId: String): TokenYoutubeSession? = fetchSession(videoId)?.let { session ->
+        val info = session.toSabrInfo(videoId) ?: return@let null
+        val metadata = session.optJSONObject("metadata") ?: JSONObject()
+        TokenYoutubeSession(
+            info = info,
+            title = metadata.optString("title", session.optString("title")),
+            author = metadata.optString("author"),
+            channelId = metadata.optString("channelId"),
+            description = metadata.optString("description"),
+            durationMs = metadata.optLong("durationMs", session.optLong("durationMs")),
+            viewCount = metadata.optLong("viewCount"),
+            thumbnailUrl = metadata.optString("thumbnailUrl"),
+            tags = metadata.optJSONArray("tags")?.let { tags ->
+                List(tags.length()) { index -> tags.optString(index) }.filter { it.isNotBlank() }
+            }.orEmpty(),
+            isLive = metadata.optBoolean("isLive"),
+            isLiveContent = metadata.optBoolean("isLiveContent"),
+        )
     }
 
     private suspend fun fetchSession(videoId: String): JSONObject? = withContext(Dispatchers.IO) {
@@ -69,4 +56,34 @@ internal class TypetypeTokenYoutubeSessionClient(
             }
         }.getOrNull()
     }
+
+    private fun JSONObject.toSabrInfo(videoId: String): YoutubeSabrInfo? = runCatching {
+        val playerResponse = JSONObject()
+            .put("responseContext", JSONObject().put("visitorData", getString("visitorData")))
+            .put(
+                "streamingData",
+                JSONObject()
+                    .put(
+                        "serverAbrStreamingUrl",
+                        optString("rawServerAbrStreamingUrl").ifBlank { getString("serverAbrStreamingUrl") },
+                    )
+                    .put("adaptiveFormats", getJSONArray("adaptiveFormats")),
+            )
+            .put(
+                "playerConfig",
+                JSONObject().put(
+                    "mediaCommonConfig",
+                    JSONObject().put(
+                        "mediaUstreamerRequestConfig",
+                        JSONObject().put("videoPlaybackUstreamerConfig", getString("videoPlaybackUstreamerConfig")),
+                    ),
+                ),
+            )
+        YoutubeSabrProbe.fromPlayerResponse(
+            videoId,
+            YoutubeSabrClientProfile.MWEB,
+            YoutubeParsingHelper.generateContentPlaybackNonce(),
+            JsonParser.`object`().from(playerResponse.toString()),
+        )
+    }.getOrNull()
 }

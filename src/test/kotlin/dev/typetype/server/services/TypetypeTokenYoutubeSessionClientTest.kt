@@ -44,6 +44,18 @@ class TypetypeTokenYoutubeSessionClientTest {
               "serverAbrStreamingUrl":"https://example.com/sabr",
               "rawServerAbrStreamingUrl":"https://example.com/raw-sabr",
               "videoPlaybackUstreamerConfig":"ustreamer-config",
+              "metadata":{
+                "title":"Fallback title",
+                "author":"Fallback channel",
+                "channelId":"channel-id",
+                "description":"Fallback description",
+                "durationMs":3554000,
+                "viewCount":42,
+                "thumbnailUrl":"https://example.com/thumb.jpg",
+                "tags":["tag-one","tag-two"],
+                "isLive":false,
+                "isLiveContent":false
+              },
               "adaptiveFormats":[
                 {
                   "itag":137,
@@ -94,5 +106,13 @@ class TypetypeTokenYoutubeSessionClientTest {
         assertEquals(2, info?.formats?.size)
         assertTrue(info?.formats?.any { it.itag == 137 && it.initRangeEnd == 9281L } == true)
         assertTrue(info?.formats?.any { it.itag == 140 && it.audioTrackId == "fr-FR.4" } == true)
+
+        val session = client.fetchPlaybackSession("video-id")
+
+        assertNotNull(session)
+        assertEquals("Fallback title", session?.title)
+        assertEquals("Fallback channel", session?.author)
+        assertEquals(3_554_000L, session?.durationMs)
+        assertEquals(listOf("tag-one", "tag-two"), session?.tags)
     }
 }

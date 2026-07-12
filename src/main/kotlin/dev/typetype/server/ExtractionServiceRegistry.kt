@@ -74,11 +74,12 @@ internal class ExtractionServiceRegistry(
     )
     val youtubeSessionService = YoutubeSessionService(youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret))
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
+    private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(pipePipeStreamService, youtubeSessionService, cache, it)
     }
     val streamService = CachedStreamService(
-        YoutubeScopedStreamService(SabrFallbackStreamService(pipePipeStreamService, sabrSessionStore)),
+        YoutubeScopedStreamService(SabrFallbackStreamService(pipePipeStreamService, sabrSessionStore, tokenYoutubeSessionClient)),
         cache,
     )
     val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
@@ -98,7 +99,6 @@ internal class ExtractionServiceRegistry(
     val nicoVideoProxyService = NicoVideoProxyService()
     val manifestService = CachedManifestService(ManifestService(streamService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
-    private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     val hlsManifestService = HlsManifestService(
         streamService,
         proxyHttpClient,
