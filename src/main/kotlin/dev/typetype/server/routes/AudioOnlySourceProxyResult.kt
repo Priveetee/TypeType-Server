@@ -5,10 +5,15 @@ import dev.typetype.server.models.ProxyResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Headers
 
-internal fun Headers.audioOnlyRangeHeader(): String? {
+internal fun Headers.audioOnlyRangeHeader(contentLength: Long?): String? {
     val range = get(HttpHeaders.Range) ?: return null
     val openStart = Regex("^bytes=(\\d+)-$").matchEntire(range.trim())?.groupValues?.get(1)?.toLongOrNull()
-    return if (openStart == null) range else initialAudioRange(openStart)
+    if (openStart == null) return range
+    return if (contentLength != null && contentLength in 1..COMPLETE_AUDIO_ONLY_BYTES && openStart < contentLength) {
+        "bytes=$openStart-${contentLength - 1L}"
+    } else {
+        initialAudioRange(openStart)
+    }
 }
 
 internal fun audioOnlyProbeRangeHeader(): String = initialAudioRange(0)
@@ -31,3 +36,4 @@ private fun initialAudioRange(start: Long): String =
     "bytes=$start-${start + INITIAL_AUDIO_ONLY_BYTES - 1}"
 
 private const val INITIAL_AUDIO_ONLY_BYTES = 1024 * 1024
+private const val COMPLETE_AUDIO_ONLY_BYTES = 4 * 1024 * 1024

@@ -117,7 +117,11 @@ internal fun Route.audioOnlySourceRoutes(
                     call.respondSabrAudioOnlySource(store, source.token, result.data)
                 }
                 else -> call.respondProxyResult(
-                    proxyService.pipe(result.data.stream.url, call.request.headers.audioOnlyRangeHeader(), null)
+                    proxyService.pipe(
+                        url = result.data.stream.url,
+                        rangeHeader = call.request.headers.audioOnlyRangeHeader(result.data.stream.contentLength),
+                        domandBid = null,
+                    )
                         .ensureProgressiveAudio()
                 )
             }
