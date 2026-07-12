@@ -20,7 +20,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
@@ -102,7 +101,7 @@ internal fun Route.audioOnlySourceRoutes(
             )
             return@head call.respondSabrAudioOnlyHead(store, result.token, result.result.data)
         }
-        call.respondAudioOnlyHead(result)
+        call.respondAudioOnlyHead(result, proxyService)
     }
     get("/streams/audio-only/source") {
         val source = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo, sabrSessionStore)
@@ -119,7 +118,11 @@ internal fun Route.audioOnlySourceRoutes(
                 else -> call.respondProxyResult(
                     proxyService.pipe(
                         url = result.data.stream.url,
-                        rangeHeader = call.request.headers.audioOnlyRangeHeader(result.data.stream.contentLength),
+                        rangeHeader = proxyService.resolveAudioOnlyRangeHeader(
+                            call.request.headers,
+                            result.data.stream.url,
+                            result.data.stream.contentLength,
+                        ),
                         domandBid = null,
                     )
                         .ensureProgressiveAudio()
@@ -164,34 +167,6 @@ private suspend fun ApplicationCall.resolveAudioOnlySource(
             selectedAudioTrackId = token.selectedAudioTrackId,
         ),
     )
-}
-
-private suspend fun ApplicationCall.respondAudioOnlyHead(source: AudioOnlySourceResolution): Unit {
-    when (val result = source.result) {
-        is ExtractionResult.Success -> {
-            response.headers.append(HttpHeaders.CacheControl, "no-store")
-            val length = result.data.stream.contentLength.takeIf { it > 0 && result.data.kind == AudioOnlyStreamKind.Progressive }
-            val range = length?.let { parseAudioOnlyByteRange(request.headers[HttpHeaders.Range], it) }
-            if (range is AudioOnlyByteRange.Satisfiable) {
-                response.headers.append(HttpHeaders.AcceptRanges, "bytes")
-                response.headers.append(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/${range.total}")
-                respondOutputStream(
-                    containerMime(result.data.stream.mimeType),
-                    HttpStatusCode.PartialContent,
-                    range.last - range.first + 1L,
-                ) {}
-            } else if (range is AudioOnlyByteRange.Unsatisfiable) {
-                response.headers.append(HttpHeaders.AcceptRanges, "bytes")
-                response.headers.append(HttpHeaders.ContentRange, "bytes */${range.total}")
-                respond(HttpStatusCode.RequestedRangeNotSatisfiable)
-            } else {
-                response.headers.append(HttpHeaders.AcceptRanges, if (length == null) "none" else "bytes")
-                respondOutputStream(containerMime(result.data.stream.mimeType), HttpStatusCode.OK, length ?: 0L) {}
-            }
-        }
-        is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
-    }
 }
 
 private fun String?.toBooleanParam(): Boolean = equals("true", ignoreCase = true)
