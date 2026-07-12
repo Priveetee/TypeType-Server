@@ -54,7 +54,7 @@ class SabrPlaybackWindowBuilderTest {
         )
 
         assertTrue(result.isReady)
-        val videoSegment = result.response.video.segments.single()
+        val videoSegment = requireNotNull(result.response.video).segments.single()
         assertEquals("/api/sabr/playback/session/299/segment/101?generation=0", videoSegment.url)
         assertEquals(488_200L, videoSegment.startMs)
         verify(exactly = 1) { streamState.jumpBufferedTo(video, 101) }
@@ -117,7 +117,7 @@ class SabrPlaybackWindowBuilderTest {
             SabrPlaybackWindowRequest(0L, 180_000L, 315, 140, bufferGoalMs = 25_000L),
         )
 
-        assertEquals(listOf(36, 37, 38, 39, 41), result.response.video.segments.map { it.url.sequenceFromUrl() })
+        assertEquals(listOf(36, 37, 38, 39, 41), requireNotNull(result.response.video).segments.map { it.url.sequenceFromUrl() })
         verify(exactly = 1) { streamState.jumpBufferedTo(video, 41) }
     }
 
@@ -159,7 +159,7 @@ class SabrPlaybackWindowBuilderTest {
             ),
         )
 
-        assertEquals(41, result.response.video.segments.first().url.sequenceFromUrl())
+        assertEquals(41, requireNotNull(result.response.video).segments.first().url.sequenceFromUrl())
         assertEquals(22, result.response.audio.segments.first().url.sequenceFromUrl())
         coVerify(exactly = 0) {
             store.cachedSegment(holder, match { !it.isInitializationSegment && it.sequenceNumber < 22 })

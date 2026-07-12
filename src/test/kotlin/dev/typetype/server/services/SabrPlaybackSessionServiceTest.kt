@@ -27,6 +27,7 @@ class SabrPlaybackSessionServiceTest {
         val prepared = SabrPreparedInfo(info, token())
         val holder = holder(audio, video)
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
+        every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 88_168L) } returns 9
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 9
         every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 68_000L
@@ -148,6 +149,7 @@ class SabrPlaybackSessionServiceTest {
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
+        every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(any(), 90_000L) } returns 9
         every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 70_000L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 10_000L
@@ -174,6 +176,7 @@ class SabrPlaybackSessionServiceTest {
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
+        every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 120_000L) } returns 24
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 120_000L) } returns 13
         every { holder.session.streamState.getSegmentStartMs(video, 24) } returns 119_604L
@@ -193,11 +196,11 @@ class SabrPlaybackSessionServiceTest {
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
         every { session.prepareForInitialization(any()) } returns Unit
-        every { state.setActiveTrackTypes(true, true) } returns Unit
+        every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.setSelectVideoFormatBeforeAudio(any()) } returns Unit
         return SabrSessionHolder(
             session = session,

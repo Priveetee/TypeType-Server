@@ -19,6 +19,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid window request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
 
+        holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
         holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
@@ -34,6 +35,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackPositionRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid position request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
         holder.applyClientState(request.bufferedRanges)
         call.respond(
@@ -52,6 +54,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid prefetch request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
         holder.applyClientState(request.bufferedRanges)
         sabrSessionStore.startPump(holder)
@@ -64,6 +67,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid segments request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.applyClientState(request.bufferedRanges)
         val window = windowBuilder.build(holder, request)
         if (window.isReady) return call.respond(HttpStatusCode.OK, window.response)

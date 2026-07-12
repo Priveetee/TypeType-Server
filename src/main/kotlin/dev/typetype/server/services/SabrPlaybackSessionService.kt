@@ -14,6 +14,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
         startTimeMs: Long,
+        audioOnly: Boolean = false,
     ): SabrPlaybackPreparation {
         val holder = sessionStore.getOrCreate(
             videoId = videoId,
@@ -27,7 +28,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             purpose = SabrSessionPurpose.PLAYBACK,
         )
         sessionStore.warmInitializationAsync(holder)
-        return prepareHolder(holder, startTimeMs)
+        return prepareHolder(holder, startTimeMs, audioOnly)
     }
 
     suspend fun seek(
@@ -36,8 +37,9 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
         playerTimeMs: Long,
+        audioOnly: Boolean = false,
     ): SabrPlaybackPreparation {
-        if (source.matches(audio, video)) return seekExisting(source, playerTimeMs)
+        if (source.matches(audio, video)) return seekExisting(source, playerTimeMs, audioOnly)
         return prepare(
             videoId = source.key.videoId,
             userId = source.key.userId,
@@ -45,11 +47,17 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             audio = audio,
             video = video,
             startTimeMs = playerTimeMs,
+            audioOnly = audioOnly,
         )
     }
 
-    fun seekExisting(holder: SabrSessionHolder, playerTimeMs: Long): SabrPlaybackPreparation {
+    fun seekExisting(
+        holder: SabrSessionHolder,
+        playerTimeMs: Long,
+        audioOnly: Boolean = false,
+    ): SabrPlaybackPreparation {
         val generation = holder.advancePlaybackGeneration(playerTimeMs)
+        holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
         holder.setRequestedSeekTimeMs(playerTimeMs)
         holder.session.streamState.setSelectVideoFormatBeforeAudio(playerTimeMs > SEEK_FORMAT_ORDER_MS)
         holder.requestReposition(playerTimeMs, generation)
@@ -125,8 +133,10 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     private suspend fun prepareHolder(
         holder: SabrSessionHolder,
         startTimeMs: Long,
+        audioOnly: Boolean,
     ): SabrPlaybackPreparation {
         val startedAt = System.currentTimeMillis()
+        holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
         holder.setPlayerTimeMs(startTimeMs)
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
@@ -150,7 +160,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         playerTimeMs: Long,
         generation: Long,
     ): Unit {
-        val targetFormat = videoFormat
+        val targetFormat = if (isVideoActive()) videoFormat else audioFormat
         val sequence = playbackStartSequence(targetFormat, playerTimeMs)
         val request = SabrSegmentRequest.media(targetFormat, sequence)
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)

@@ -42,7 +42,9 @@ internal class SabrPlaybackHandler(
             audio = audio,
             video = video,
             startTimeMs = startTimeMs,
+            audioOnly = request.audioOnly,
         )
+        preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         respondPrepared(call, preparation.holder, videoId, preparation.startTimeMs, preparation.ready)
     }
 
@@ -68,7 +70,9 @@ internal class SabrPlaybackHandler(
             audio = audio,
             video = video,
             startTimeMs = playerTimeMs,
+            audioOnly = request.audioOnly,
         )
+        preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         respondPrepared(call, preparation.holder, preparation.holder.key.videoId, preparation.startTimeMs, preparation.ready)
     }
 
@@ -140,6 +144,7 @@ internal class SabrPlaybackHandler(
             audioTrackId = body?.audioTrackId ?: request.queryParameters["audioTrackId"],
             startTimeMs = body?.startTimeMs ?: request.queryParameters["startTimeMs"]?.toLongOrNull(),
             playerTimeMs = body?.playerTimeMs ?: request.queryParameters["playerTimeMs"]?.toLongOrNull(),
+            audioOnly = body?.audioOnly ?: request.queryParameters["audioOnly"]?.toBooleanStrictOrNull() ?: false,
         )
     }
 

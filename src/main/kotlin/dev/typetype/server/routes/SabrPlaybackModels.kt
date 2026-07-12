@@ -9,6 +9,7 @@ internal data class SabrPlaybackRequest(
     val audioTrackId: String? = null,
     val startTimeMs: Long? = null,
     val playerTimeMs: Long? = null,
+    val audioOnly: Boolean = false,
 )
 
 @Serializable
@@ -59,6 +60,7 @@ internal data class SabrPlaybackWindowRequest(
     val bufferGoalMs: Long = 30_000L,
     val backBufferMs: Long = 30_000L,
     val bufferedRanges: List<SabrPlaybackBufferedRange> = emptyList(),
+    val audioOnly: Boolean = false,
 )
 
 @Serializable
@@ -69,6 +71,7 @@ internal data class SabrPlaybackPositionRequest(
     val audioItag: Int,
     val audioTrackId: String? = null,
     val bufferedRanges: List<SabrPlaybackBufferedRange> = emptyList(),
+    val audioOnly: Boolean = false,
 )
 
 @Serializable
@@ -121,7 +124,7 @@ internal data class SabrPlaybackWindowReadyResponse(
     val durationMs: Long,
     val endOfStream: Boolean,
     val audio: SabrPlaybackWindowTrack,
-    val video: SabrPlaybackWindowTrack,
+    val video: SabrPlaybackWindowTrack? = null,
 )
 
 @Serializable
