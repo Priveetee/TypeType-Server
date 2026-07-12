@@ -167,6 +167,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val request = SabrSegmentRequest.media(targetFormat, sequence)
         val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         setReaderPosition(request.format, startMs, generation)
+        if (session.getCachedSegment(request) != null) return
         if (startMs < session.streamState.getMinBufferedEndMs()) {
             requestRefetch(request)
         } else {

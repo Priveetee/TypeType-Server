@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
@@ -193,6 +194,29 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(video.itag, request?.format?.itag)
         assertEquals(24, request?.sequenceNumber)
         assertEquals(119_604L, holder.readerTailMs())
+    }
+
+    @Test
+    fun `audio only switch keeps cached target without rewind`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video)
+        every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
+        every { holder.session.streamState.setSelectVideoFormatBeforeAudio(false) } returns Unit
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 299L) } returns 1
+        every { holder.session.streamState.getSegmentStartMs(audio, 1) } returns 0L
+        every { holder.session.getCachedSegment(match { it.format.itag == 140 && it.sequenceNumber == 1 }) } returns
+            mockk<SabrMediaSegment>()
+        val store = mockk<SabrSessionStore>()
+        every { store.startPump(holder) } returns Unit
+
+        SabrPlaybackSessionService(store).seekExisting(holder, playerTimeMs = 299L, audioOnly = true)
+
+        assertEquals(1L, holder.activeGeneration())
+        assertEquals(0L, holder.readerTailMs())
+        assertEquals(null, holder.consumeRefetch())
+        assertEquals(null, holder.consumeForwardSeek())
+        verify { holder.session.streamState.setActiveTrackTypes(false, true) }
     }
 
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
