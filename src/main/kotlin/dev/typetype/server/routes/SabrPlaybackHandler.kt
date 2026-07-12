@@ -63,13 +63,12 @@ internal class SabrPlaybackHandler(
         ) ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
         val video = SabrFormatSelector.video(prepared.info, request.videoItag ?: holder.videoFormat.itag)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
-        val preparation = playbackService.prepare(
-            videoId = holder.key.videoId,
-            userId = holder.key.userId,
+        val preparation = playbackService.seek(
+            source = holder,
             prepared = prepared,
             audio = audio,
             video = video,
-            startTimeMs = playerTimeMs,
+            playerTimeMs = playerTimeMs,
             audioOnly = request.audioOnly,
         )
         preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
