@@ -70,7 +70,7 @@ class StreamRoutesTest {
     }
 
     @Test
-    fun `GET streams returns 422 when final response has no playable source`() = testApplication {
+    fun `GET sabr streams returns 422 when final response has no playable source`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(testStreamResponse())
         application {
@@ -88,7 +88,7 @@ class StreamRoutesTest {
             }
         }
 
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test")
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)

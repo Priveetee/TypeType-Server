@@ -1,7 +1,30 @@
 Streams:
   get:
     tags: [extraction]
-    summary: Extract SABR stream metadata
+    summary: Extract classic stream metadata with the historical provider-neutral contract
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream metadata containing no SABR sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeSabrStreams:
+  get:
+    tags: [extraction]
+    summary: Extract YouTube SABR stream metadata
     parameters:
       - name: url
         in: query
@@ -21,8 +44,6 @@ Streams:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
-YoutubeSabrStreams:
-  $ref: '#/Streams'
 YoutubeSabrBootstrap:
   get:
     tags: [extraction]

@@ -29,6 +29,7 @@ fun Route.streamRoutes(
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     legacyStreamService: StreamService = streamService,
+    genericLegacyStreamService: StreamService = legacyStreamService,
     nicoNicoStreamService: StreamService = legacyStreamService,
     bilibiliStreamService: StreamService = legacyStreamService,
     sabrBootstrapStreamService: StreamService = streamService,
@@ -42,18 +43,16 @@ fun Route.streamRoutes(
         publicHlsManifestTokenService = publicHlsManifestTokenService,
         sabrStreamContractFilter = sabrStreamContractFilter,
     )
-    listOf("/streams", "/streams/youtube/sabr").forEach {
-        streamRoute(it, StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
-    }
+    streamRoute("/streams", StreamDeliveryMode.GenericLegacy, genericLegacyStreamService, dependencies)
+    streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
     streamRoute(
         "/streams/youtube/sabr/bootstrap",
         StreamDeliveryMode.YoutubeSabr,
         sabrBootstrapStreamService,
         dependencies.copy(youtubeSessionStreamInfo = null),
     )
-    listOf("/streams/legacy", "/streams/youtube/legacy").forEach {
-        streamRoute(it, StreamDeliveryMode.YoutubeLegacy, legacyStreamService, dependencies)
-    }
+    streamRoute("/streams/legacy", StreamDeliveryMode.GenericLegacy, genericLegacyStreamService, dependencies)
+    streamRoute("/streams/youtube/legacy", StreamDeliveryMode.YoutubeLegacy, legacyStreamService, dependencies)
     streamRoute("/streams/niconico", StreamDeliveryMode.NicoNico, nicoNicoStreamService, dependencies)
     streamRoute("/streams/bilibili", StreamDeliveryMode.BiliBili, bilibiliStreamService, dependencies)
 }
@@ -138,7 +137,7 @@ private suspend fun fetchYoutubeSession(
     deliveryMode: StreamDeliveryMode,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
 ): ExtractionResult<StreamResponse>? =
-    if (deliveryMode.isYoutube() && userId != null && youtubeSessionStreamInfo != null) {
+    if (deliveryMode.usesYoutubeSession(url) && userId != null && youtubeSessionStreamInfo != null) {
         youtubeSessionStreamInfo(userId, url)
     } else {
         null

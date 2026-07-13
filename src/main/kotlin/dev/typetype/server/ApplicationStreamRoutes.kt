@@ -23,6 +23,7 @@ internal fun Route.installStreamRoutes(
         streamRoutes(
             streamService = svc.youtubeSabrStreamService,
             legacyStreamService = svc.legacyStreamService,
+            genericLegacyStreamService = svc.streamService,
             nicoNicoStreamService = svc.nicoNicoStreamService,
             bilibiliStreamService = svc.bilibiliStreamService,
             sabrBootstrapStreamService = svc.youtubeSabrBootstrapStreamService,

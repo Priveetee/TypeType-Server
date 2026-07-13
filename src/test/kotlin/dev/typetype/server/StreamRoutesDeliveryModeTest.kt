@@ -27,8 +27,35 @@ import org.junit.jupiter.api.Test
 class StreamRoutesDeliveryModeTest {
     private val sabrService: StreamService = mockk()
     private val legacyService: StreamService = mockk()
+    private val genericLegacyService: StreamService = mockk()
     private val nicoNicoService: StreamService = mockk()
     private val bilibiliService: StreamService = mockk()
+
+    @Test
+    fun `generic streams endpoint preserves classic contract`() = testApplication {
+        coEvery { genericLegacyService.getStreamInfo(any()) } returns ExtractionResult.Success(mixedResponse())
+        application { installRoutes() }
+
+        val response = client.get("/streams?url=$VIDEO_URL")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"itag\":18"))
+        assertFalse(body.contains("\"deliveryMethod\":\"sabr\""))
+        coVerify(exactly = 1) { genericLegacyService.getStreamInfo(VIDEO_URL) }
+        coVerify(exactly = 0) { sabrService.getStreamInfo(any()) }
+    }
+
+    @Test
+    fun `generic legacy endpoint remains provider neutral`() = testApplication {
+        coEvery { genericLegacyService.getStreamInfo(any()) } returns ExtractionResult.Success(testStreamResponse())
+        application { installRoutes() }
+
+        val response = client.get("/streams/legacy?url=$NICONICO_URL")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 1) { genericLegacyService.getStreamInfo(NICONICO_URL) }
+    }
 
     @Test
     fun `legacy endpoint uses isolated service and strips sabr streams`() = testApplication {
@@ -41,7 +68,7 @@ class StreamRoutesDeliveryModeTest {
             }
         }
 
-        val response = client.get("/streams/legacy?url=$VIDEO_URL")
+        val response = client.get("/streams/youtube/legacy?url=$VIDEO_URL")
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -58,7 +85,7 @@ class StreamRoutesDeliveryModeTest {
             .copy(hlsUrl = "/streams/hls-manifest?token=legacy")
         application { installRoutes(session = { _, _ -> ExtractionResult.Success(hls) }) }
 
-        val response = client.get("/streams/legacy?url=$VIDEO_URL") {
+        val response = client.get("/streams/youtube/legacy?url=$VIDEO_URL") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
 
@@ -79,7 +106,7 @@ class StreamRoutesDeliveryModeTest {
             })
         }
 
-        val response = client.get("/streams?url=$VIDEO_URL") {
+        val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
 
@@ -96,7 +123,7 @@ class StreamRoutesDeliveryModeTest {
         coEvery { sabrService.getStreamInfo(any()) } returns ExtractionResult.Success(mixedResponse())
         application { installRoutes(session = { _, _ -> ExtractionResult.Success(hls) }) }
 
-        val response = client.get("/streams?url=$VIDEO_URL") {
+        val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         val body = response.bodyAsText()
@@ -113,7 +140,7 @@ class StreamRoutesDeliveryModeTest {
         coEvery { legacyService.getStreamInfo(any()) } returns ExtractionResult.Success(sabrResponse())
         application { installRoutes() }
 
-        val response = client.get("/streams/legacy?url=$VIDEO_URL")
+        val response = client.get("/streams/youtube/legacy?url=$VIDEO_URL")
 
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
@@ -126,7 +153,7 @@ class StreamRoutesDeliveryModeTest {
         )
         application { installRoutes() }
 
-        val response = client.get("/streams?url=$VIDEO_URL")
+        val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL")
 
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
@@ -172,6 +199,7 @@ class StreamRoutesDeliveryModeTest {
                 authService = AuthService.fixed(TEST_USER_ID),
                 youtubeSessionStreamInfo = session,
                 legacyStreamService = legacyService,
+                genericLegacyStreamService = genericLegacyService,
                 nicoNicoStreamService = nicoNicoService,
                 bilibiliStreamService = bilibiliService,
                 sabrStreamContractFilter = sabrFilter,
