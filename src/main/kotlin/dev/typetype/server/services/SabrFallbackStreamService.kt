@@ -2,26 +2,29 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 internal class SabrFallbackStreamService(
     private val delegate: StreamService,
     private val sessionStore: SabrSessionStore,
     private val tokenSessionClient: TypetypeTokenYoutubeSessionClient,
 ) : StreamService {
-    override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+    override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = coroutineScope {
+        if (!isYoutubeUrl(url)) return@coroutineScope delegate.getStreamInfo(url)
+        val videoId = youtubeVideoId(url)
+        val prepared = videoId?.let { async { sessionStore.fetchInfo(it, cachedFirst = true) } }
         val result = delegate.getStreamInfo(url)
-        if (!isYoutubeUrl(url)) return result
         val response = (result as? ExtractionResult.Success)?.data
         if (response == null) {
-            if (result !is ExtractionResult.Failure) return result
-            val videoId = youtubeVideoId(url) ?: return result
-            val session = tokenSessionClient.fetchPlaybackSession(videoId) ?: return result
-            return ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
+            if (result !is ExtractionResult.Failure || videoId == null) return@coroutineScope result
+            prepared?.await()
+            val session = tokenSessionClient.fetchPlaybackSession(videoId) ?: return@coroutineScope result
+            return@coroutineScope ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
         }
-        if (response.hasPlayableStreams()) return result
-        val videoId = youtubeVideoId(url) ?: return result
-        val prepared = sessionStore.fetchInfo(videoId, cachedFirst = true) ?: return result
-        return ExtractionResult.Success(response.withSabrFallback(videoId, prepared.info))
+        val playable = prepared?.await()
+        if (response.hasPlayableStreams() || videoId == null || playable == null) return@coroutineScope result
+        ExtractionResult.Success(response.withSabrFallback(videoId, playable.info))
     }
 }
 

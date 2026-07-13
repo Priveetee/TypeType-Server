@@ -33,7 +33,7 @@ class SabrSessionStoreTest {
         val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
             ?: info.findBestAudioFormat()
         val video = info.formats.firstOrNull { it.itag == videoItag && it.isVideo }
-            ?: info.findBestVideoFormat()
+            ?: info.findLowestVideoFormat()
         println("probe picked: audio=${audio?.itag} video=${video?.itag}")
         check(audio != null && video != null)
         printSabrProbeFormat("audio", audio)

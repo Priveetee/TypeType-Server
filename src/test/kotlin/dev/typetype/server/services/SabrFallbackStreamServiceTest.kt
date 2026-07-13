@@ -36,18 +36,19 @@ class SabrFallbackStreamServiceTest {
     }
 
     @Test
-    fun `keeps already playable extraction without token request`() = runTest {
+    fun `prepares sabr while keeping already playable extraction`() = runTest {
         val delegate = mockk<StreamService>()
         val sessionStore = mockk<SabrSessionStore>()
         val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
         val response = testStreamResponse()
         coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Success(response)
+        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns preparedInfo()
         val service = SabrFallbackStreamService(delegate, sessionStore, tokenSessionClient)
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
         assertEquals(ExtractionResult.Success(response), result)
-        coVerify(exactly = 0) { sessionStore.fetchInfo(any(), any(), any()) }
+        coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
         coVerify(exactly = 0) { tokenSessionClient.fetchPlaybackSession(any()) }
     }
 
@@ -57,6 +58,7 @@ class SabrFallbackStreamServiceTest {
         val sessionStore = mockk<SabrSessionStore>()
         val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
         coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Failure("MWEB player response is not valid")
+        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns preparedInfo()
         coEvery { tokenSessionClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession()
         val service = SabrFallbackStreamService(delegate, sessionStore, tokenSessionClient)
 
@@ -70,7 +72,7 @@ class SabrFallbackStreamServiceTest {
         assertEquals(3554L, response.duration)
         assertEquals(listOf(137), response.videoOnlyStreams.map { it.itag })
         assertEquals(listOf(140), response.audioStreams.map { it.itag })
-        coVerify(exactly = 0) { sessionStore.fetchInfo(any(), any(), any()) }
+        coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
     }
 
     private fun preparedInfo(): SabrPreparedInfo {

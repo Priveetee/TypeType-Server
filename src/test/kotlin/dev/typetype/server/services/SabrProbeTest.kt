@@ -71,7 +71,7 @@ class SabrProbeTest {
                 val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
                     ?: info.findBestAudioFormat()
                 val video = info.formats.firstOrNull { it.itag == videoItags.first() && it.isVideo }
-                    ?: info.findBestVideoFormat()
+                    ?: info.findLowestVideoFormat()
                 println("selected pair: audio=${audio?.itag} video=${video?.itag}")
                 if (audio == null || video == null) {
                     println("no usable audio/video pair — skipping session")
