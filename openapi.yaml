@@ -21,6 +21,7 @@ paths:
   /streams: { $ref: ./openapi/paths/streams.yaml#/Streams }
   /streams/legacy: { $ref: ./openapi/paths/streams.yaml#/LegacyStreams }
   /streams/youtube/sabr: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrStreams }
+  /streams/youtube/sabr/bootstrap: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrBootstrap }
   /streams/youtube/legacy: { $ref: ./openapi/paths/streams.yaml#/YoutubeLegacyStreams }
   /streams/niconico: { $ref: ./openapi/paths/streams.yaml#/NicoNicoStreams }
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }

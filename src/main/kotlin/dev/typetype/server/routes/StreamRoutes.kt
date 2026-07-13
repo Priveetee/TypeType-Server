@@ -31,6 +31,7 @@ fun Route.streamRoutes(
     legacyStreamService: StreamService = streamService,
     nicoNicoStreamService: StreamService = legacyStreamService,
     bilibiliStreamService: StreamService = legacyStreamService,
+    sabrBootstrapStreamService: StreamService = streamService,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 ): Unit {
     val dependencies = StreamRouteDependencies(
@@ -44,6 +45,12 @@ fun Route.streamRoutes(
     listOf("/streams", "/streams/youtube/sabr").forEach {
         streamRoute(it, StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
     }
+    streamRoute(
+        "/streams/youtube/sabr/bootstrap",
+        StreamDeliveryMode.YoutubeSabr,
+        sabrBootstrapStreamService,
+        dependencies.copy(youtubeSessionStreamInfo = null),
+    )
     listOf("/streams/legacy", "/streams/youtube/legacy").forEach {
         streamRoute(it, StreamDeliveryMode.YoutubeLegacy, legacyStreamService, dependencies)
     }

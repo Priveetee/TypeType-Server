@@ -31,6 +31,3 @@ internal class SabrFallbackStreamService(
 private fun StreamResponse.hasPlayableStreams(): Boolean =
     videoStreams.isNotEmpty() || videoOnlyStreams.isNotEmpty() || audioStreams.isNotEmpty() ||
         hlsUrl.isNotBlank() || dashMpdUrl.isNotBlank()
-
-private fun youtubeVideoId(url: String): String? =
-    Regex("(?:[?&]v=|/shorts/|youtu\\.be/)([A-Za-z0-9_-]{6,})").find(url)?.groupValues?.get(1)
