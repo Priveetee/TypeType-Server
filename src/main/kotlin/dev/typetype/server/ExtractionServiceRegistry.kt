@@ -34,6 +34,7 @@ import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubePlayerClient
+import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
@@ -79,13 +80,13 @@ internal class ExtractionServiceRegistry(
         BilibiliRelatedService(),
         sabrSessionStore::rememberExtractedInfo,
     )
-    private val classicPublicStreamService = YoutubePlayerClientStreamService(
+    private val classicPublicStreamService = YoutubePlayerClientFallbackStreamService(
         classicPipePipeStreamService,
-        YoutubePlayerClient.ANDROID_VR,
+        listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.ANDROID_VR),
     )
-    private val classicAuthenticatedStreamService = YoutubePlayerClientStreamService(
+    private val classicAuthenticatedStreamService = YoutubePlayerClientFallbackStreamService(
         classicPipePipeStreamService,
-        YoutubePlayerClient.TV_DOWNGRADED,
+        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.WEB_SAFARI),
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,
@@ -100,7 +101,7 @@ internal class ExtractionServiceRegistry(
     val legacyStreamService = CachedStreamService(
         YoutubeScopedStreamService(classicPublicStreamService),
         cache,
-        "stream-youtube-legacy:v2",
+        "stream-youtube-legacy:v3",
     )
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
@@ -111,7 +112,7 @@ internal class ExtractionServiceRegistry(
     )
     val nicoNicoStreamService = CachedStreamService(classicPipePipeStreamService, cache, "stream-niconico:v1")
     val bilibiliStreamService = CachedStreamService(classicPipePipeStreamService, cache, "stream-bilibili:v1")
-    val streamService = CachedStreamService(classicPublicStreamService, cache, "stream-classic:v1")
+    val streamService = CachedStreamService(classicPublicStreamService, cache, "stream-classic:v2")
     val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
     val trendingService = CachedTrendingService(
         YoutubeScopedTrendingService(PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient))),
