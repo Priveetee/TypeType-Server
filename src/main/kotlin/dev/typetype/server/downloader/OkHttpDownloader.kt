@@ -33,7 +33,7 @@ class OkHttpDownloader private constructor(
             return OkHttpDownloader(client, streamingClient)
         }
 
-        private const val STREAMING_READ_TIMEOUT_MS = 5_000L
+        private const val STREAMING_READ_TIMEOUT_MS = 30_000L
     }
 
     override fun execute(request: ExtractorRequest): Response {
