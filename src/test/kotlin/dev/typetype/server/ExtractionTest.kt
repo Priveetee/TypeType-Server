@@ -28,6 +28,7 @@ class ExtractionTest {
 
     private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient(), "http://localhost:8081"), BilibiliRelatedService())
     private val classicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.ANDROID_VR)
+    private val tvClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.TV_SIMPLY)
     private val safariClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.WEB_SAFARI)
 
     @BeforeAll
@@ -73,6 +74,16 @@ class ExtractionTest {
         val data = (result as ExtractionResult.Success).data
         val streams = data.videoStreams + data.videoOnlyStreams
         assertTrue(streams.isNotEmpty() || data.hlsUrl.isNotEmpty())
+        assertTrue(streams.none { it.deliveryMethod == "sabr" })
+    }
+
+    @Test
+    fun `YouTube classic TV path has playable streams without SABR`() = kotlinx.coroutines.runBlocking {
+        val result = tvClassicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        assertTrue(result is ExtractionResult.Success)
+        val data = (result as ExtractionResult.Success).data
+        val streams = data.videoStreams + data.videoOnlyStreams
+        assertTrue(streams.isNotEmpty())
         assertTrue(streams.none { it.deliveryMethod == "sabr" })
     }
 
