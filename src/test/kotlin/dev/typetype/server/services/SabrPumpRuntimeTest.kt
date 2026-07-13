@@ -59,7 +59,7 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
-    fun `stalled demand refetches every ten seconds`() {
+    fun `stalled demand refetches then fails at deadline`() {
         var now = 1_000L
         val runtime = SabrPumpRuntime { now }
 
@@ -68,10 +68,19 @@ class SabrPumpRuntimeTest {
         assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
         now += 1L
         assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", 0, false))
-        now += 9_999L
+        now += 4_999L
         assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
         now += 1L
-        assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", 0, false))
+        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 0, false))
+    }
+
+    @Test
+    fun `three responses without demanded segment fail demand`() {
+        val runtime = SabrPumpRuntime { 1_000L }
+
+        assertEquals(SabrDemandRecoveryAction.READVERTISE_TRACK, runtime.demandRecoveryAction("140:44", 1, false))
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 1, false))
+        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 1, false))
     }
 
     private fun holder(

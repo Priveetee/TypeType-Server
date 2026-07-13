@@ -65,6 +65,8 @@ internal class SabrSessionHolder(
 
     fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
 
+    fun markPumpStopped(): Unit = pumpStarted.set(false)
+
     fun markUnauthorizedRefreshAttempted(): Boolean = unauthorizedRefreshAttempted.compareAndSet(false, true)
 
     fun setLastServedSequence(itag: Int, sequence: Int): Unit =

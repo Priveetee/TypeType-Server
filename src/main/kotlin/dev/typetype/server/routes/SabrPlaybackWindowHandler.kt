@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
 internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessionStore) {
     private val windowBuilder = SabrPlaybackWindowBuilder(sabrSessionStore)
+    private val recovery = SabrPlaybackRecovery(sabrSessionStore)
 
     suspend fun post(call: ApplicationCall, sessionId: String) {
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
@@ -100,8 +101,8 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
             pendingSegmentDemand = pendingSegmentDemandSummary(),
             terminalError = terminalFailure(),
-            recoveryAction = recoveryAction(),
-            retryVideoItags = retryVideoItags(),
+            recoveryAction = recovery.action(this),
+            retryVideoItags = recovery.retryVideoItags(this),
         )
 
     private suspend fun SabrSessionHolder.prefetchResponse(
@@ -124,8 +125,8 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure(),
-        recoveryAction = recoveryAction(),
-        retryVideoItags = retryVideoItags(),
+        recoveryAction = recovery.action(this),
+        retryVideoItags = recovery.retryVideoItags(this),
     )
 
     private suspend fun validatedHolder(
@@ -166,30 +167,9 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
     private fun SabrSessionHolder.matches(request: SabrPlaybackPositionRequest): Boolean =
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
-    private suspend fun SabrSessionHolder.recoveryAction(): String? {
-        val failure = terminalFailure() ?: return null
-        if (failure.contains("Expected UMP response", ignoreCase = true)) {
-            sabrSessionStore.invalidatePlaybackInfo(key.videoId)
-            return "retry_fresh_session"
-        }
-        return failure.takeIf { it.contains("protected no-media") }
-            ?.let { "retry_fresh_session_lower_video_itag" }
-    }
-
-    private fun SabrSessionHolder.retryVideoItags(): List<Int> = if (!terminalFailure().orEmpty().contains("protected no-media")) emptyList() else {
-        info.formats.asSequence()
-            .filter { it.isVideo && it.itag != videoFormat.itag }
-            .sortedByDescending { it.bitrate }
-            .map { it.itag }
-            .distinct()
-            .take(MAX_RETRY_VIDEO_ITAGS)
-            .toList()
-    }
-
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 
     private companion object {
         const val RETRY_AFTER_MS = 500L
-        const val MAX_RETRY_VIDEO_ITAGS = 5
     }
 }

@@ -4,4 +4,5 @@ internal enum class SabrDemandRecoveryAction {
     WAIT,
     READVERTISE_TRACK,
     REFETCH,
+    FAIL,
 }

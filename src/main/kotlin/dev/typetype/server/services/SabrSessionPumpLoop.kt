@@ -17,7 +17,7 @@ internal class SabrSessionPumpLoop(
         val localization = Localization("en", "US")
         val runtime = SabrPumpRuntime()
         var consecutiveIoErrors = 0
-        while (isAlive()) {
+        while (isAlive() && holder.playbackState() != SabrPlaybackState.TERMINAL) {
             try {
                 val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
                 consecutiveIoErrors = 0
@@ -89,7 +89,9 @@ internal class SabrSessionPumpLoop(
                 resolved = resolved,
             )
             val recovering = recoverDemand(holder, request, action, runtime)
-            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            if (holder.playbackState() != SabrPlaybackState.TERMINAL) {
+                holder.setPlaybackState(SabrPlaybackState.IDLE)
+            }
             return resolved || recovering
         }
         if (holder.session.requestNumber == 0) return false
@@ -181,6 +183,11 @@ internal class SabrSessionPumpLoop(
             holder.session.prepareForRewind(request)
             SabrPumpLogger.recovery(holder, action, request)
             true
+        }
+        SabrDemandRecoveryAction.FAIL -> {
+            holder.clearSegmentDemand(request)
+            holder.failTerminal("SABR demand stalled for ${request.summary()}")
+            false
         }
     }
 

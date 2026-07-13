@@ -79,9 +79,7 @@ internal class SabrSessionStore(
     }
 
     internal fun startPump(holder: SabrSessionHolder) {
-        if (holder.markPumpStarted()) {
-            scope.launch { pump.pumpLoop({ registry.contains(holder.key) }, holder, pumpLoopIntervalMs) }
-        }
+        scope.launchSabrPump(pump, registry, holder, pumpLoopIntervalMs)
     }
 
     internal fun warmPlaybackAsync(holder: SabrSessionHolder) {
