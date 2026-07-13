@@ -21,7 +21,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
 
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
-        holder.applyClientState(request.bufferedRanges)
+        holder.applyClientPreferences()
         sabrSessionStore.startPump(holder)
 
         val window = buildWithTargetedPrefetch(holder, request)
@@ -37,7 +37,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val holder = validatedHolder(call, sessionId, request) ?: return
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
-        holder.applyClientState(request.bufferedRanges)
+        holder.applyClientPreferences()
         call.respond(
             SabrPlaybackPositionResponse(
                 sessionId = holder.sessionToken,
@@ -56,7 +56,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val holder = validatedHolder(call, sessionId, request) ?: return
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(request.playerTimeMs)
-        holder.applyClientState(request.bufferedRanges)
+        holder.applyClientPreferences()
         sabrSessionStore.startPump(holder)
         val window = buildWithTargetedPrefetch(holder, request)
         val status = if (window.isReady) HttpStatusCode.OK else HttpStatusCode.Accepted
@@ -68,7 +68,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid segments request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
-        holder.applyClientState(request.bufferedRanges)
+        holder.applyClientPreferences()
         val window = windowBuilder.build(holder, request)
         if (window.isReady) return call.respond(HttpStatusCode.OK, window.response)
         call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))

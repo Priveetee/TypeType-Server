@@ -55,21 +55,23 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `position ignores buffered ranges from the previous video format`() = testApplication {
+    fun `position keeps browser ranges out of the upstream sabr state`() = testApplication {
         val store = mockk<SabrSessionStore>(relaxed = true)
         val holder = holder()
+        val streamState = holder.session.streamState
         every { store.lookupByToken("session-token") } returns holder
         installApp(store)
 
         val response = client.post("/sabr/playback/session-token/position") {
             contentType(ContentType.Application.Json)
             setBody(
-                """{"generation":0,"playerTimeMs":13000,"videoItag":136,"audioItag":140,"bufferedRanges":[{"itag":298,"startMs":0,"endMs":12000}]}"""
+                """{"generation":0,"playerTimeMs":13000,"videoItag":136,"audioItag":140,"bufferedRanges":[{"itag":136,"startMs":0,"endMs":12000},{"itag":140,"startMs":0,"endMs":9985}]}"""
             )
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"playerTimeMs\":13000"))
+        verify(exactly = 0) { streamState.setBufferedRangesOverride(any()) }
     }
 
     @Test
