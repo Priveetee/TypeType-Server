@@ -12,6 +12,7 @@ internal fun SabrSessionHolder.resolveSegmentDemand(request: SabrSegmentRequest)
     if (rebased != null) {
         session.streamState.jumpBufferedTo(request.format, rebased.header.sequenceNumber)
     }
-    if (requestedCached || rebased != null) clearSegmentDemand(request)
-    return requestedCached
+    val resolved = requestedCached || rebased != null
+    if (resolved) clearSegmentDemand(request)
+    return resolved
 }

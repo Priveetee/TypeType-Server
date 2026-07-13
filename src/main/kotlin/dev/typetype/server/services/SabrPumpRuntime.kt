@@ -4,6 +4,10 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     private val startedAtMs = clock()
     private var lastRequestMs = 0L
     private var seekModeUntilMs = 0L
+    private var demandKey: String? = null
+    private var demandSinceMs = 0L
+    private var demandTrackReadvertised = false
+    private var lastDemandRefetchMs = -1L
 
     fun activateSeekMode(): Unit {
         seekModeUntilMs = clock() + SabrPumpPolicy.SEEK_MODE_MS
@@ -18,6 +22,36 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
 
     fun demandPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         cappedServerAheadPlayerTimeMs(holder, edgeMs)
+
+    fun demandRecoveryAction(
+        requestKey: String,
+        targetTrackSegmentCount: Int,
+        resolved: Boolean,
+    ): SabrDemandRecoveryAction {
+        if (resolved) {
+            resetDemandRecovery()
+            return SabrDemandRecoveryAction.WAIT
+        }
+        val now = clock()
+        if (demandKey != requestKey) {
+            demandKey = requestKey
+            demandSinceMs = now
+            demandTrackReadvertised = false
+            lastDemandRefetchMs = -1L
+        }
+        if (targetTrackSegmentCount > 0 && !demandTrackReadvertised) {
+            demandTrackReadvertised = true
+            return SabrDemandRecoveryAction.READVERTISE_TRACK
+        }
+        val stalledMs = now - demandSinceMs
+        if (stalledMs >= SabrPumpPolicy.DEMAND_RECOVERY_AFTER_NO_PROGRESS_MS &&
+            (lastDemandRefetchMs < 0L || now - lastDemandRefetchMs >= SabrPumpPolicy.DEMAND_RECOVERY_RETRY_MS)
+        ) {
+            lastDemandRefetchMs = now
+            return SabrDemandRecoveryAction.REFETCH
+        }
+        return SabrDemandRecoveryAction.WAIT
+    }
 
     fun isThrottled(holder: SabrSessionHolder): Boolean {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
@@ -52,4 +86,11 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     private fun isStartupBurst(): Boolean = clock() - startedAtMs < SabrPumpPolicy.STARTUP_BURST_MS
 
     private fun isSeekMode(): Boolean = clock() < seekModeUntilMs
+
+    private fun resetDemandRecovery(): Unit {
+        demandKey = null
+        demandSinceMs = 0L
+        demandTrackReadvertised = false
+        lastDemandRefetchMs = -1L
+    }
 }

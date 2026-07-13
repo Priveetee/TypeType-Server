@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.io.IOException
 
 internal class SabrSessionPumpLoop(
@@ -20,7 +21,7 @@ internal class SabrSessionPumpLoop(
             try {
                 val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
                 consecutiveIoErrors = 0
-                delay(if (immediate) 0L else intervalMs)
+                delay(if (immediate) 0L else demandDelayMs(holder, intervalMs))
             } catch (error: CancellationException) {
                 throw error
             } catch (error: IOException) {
@@ -73,18 +74,23 @@ internal class SabrSessionPumpLoop(
             holder.session.prepareForForwardJump(request)
             SabrPumpLogger.start(holder, "forward_seek", request)
             val pumped = pumpUntilCached(holder, localization, request, runtime)
-            SabrPumpLogger.finish(holder, "forward_seek", request, pumped)
+            SabrPumpLogger.finish(holder, "forward_seek", request, pumped.segmentCount)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return true
         }
         holder.nextSegmentDemand()?.let { request ->
-            runtime.activateSeekMode()
             SabrPumpLogger.start(holder, "demand", request)
-            val pumped = pumpDemand(holder, localization, request, runtime)
-            val requestedCached = holder.resolveSegmentDemand(request)
-            SabrPumpLogger.finish(holder, "demand", request, pumped)
+            val result = pumpDemand(holder, localization, request, runtime)
+            val resolved = holder.resolveSegmentDemand(request)
+            SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
+            val action = runtime.demandRecoveryAction(
+                requestKey = request.summary(),
+                targetTrackSegmentCount = result.targetTrackSegmentCount,
+                resolved = resolved,
+            )
+            val recovering = recoverDemand(holder, request, action, runtime)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
-            return requestedCached
+            return resolved || recovering
         }
         if (holder.session.requestNumber == 0) return false
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
@@ -113,9 +119,9 @@ internal class SabrSessionPumpLoop(
         localization: Localization,
         request: SabrSegmentRequest,
         runtime: SabrPumpRuntime,
-    ): Int {
+    ): YoutubeSabrSession.DemandResponseResult {
         return try {
-            holder.session.pumpOnceStreamingUntilCached(localization, request)
+            holder.session.pumpOnceStreamingForDemand(localization, request)
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
@@ -127,7 +133,7 @@ internal class SabrSessionPumpLoop(
         localization: Localization,
         request: SabrSegmentRequest,
         runtime: SabrPumpRuntime,
-    ): Int {
+    ): YoutubeSabrSession.DemandResponseResult {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
         val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
         holder.setReaderPosition(request.format, startMs)
@@ -154,5 +160,34 @@ internal class SabrSessionPumpLoop(
         holder.session.setPlayHeadMs((holder.readerTailMs() - SabrPumpPolicy.backBufferMs(holder)).coerceAtLeast(0L))
         holder.session.evictPlayed()
     }
+
+    private fun recoverDemand(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        action: SabrDemandRecoveryAction,
+        runtime: SabrPumpRuntime,
+    ): Boolean = when (action) {
+        SabrDemandRecoveryAction.WAIT -> false
+        SabrDemandRecoveryAction.READVERTISE_TRACK -> {
+            runtime.activateSeekMode()
+            holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+            holder.session.prepareForMissingSegment(request)
+            SabrPumpLogger.recovery(holder, action, request)
+            true
+        }
+        SabrDemandRecoveryAction.REFETCH -> {
+            runtime.activateSeekMode()
+            holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+            holder.session.prepareForRewind(request)
+            SabrPumpLogger.recovery(holder, action, request)
+            true
+        }
+    }
+
+    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long =
+        if (holder.pendingSegmentDemandSummary() == null) intervalMs
+        else maxOf(intervalMs, holder.session.demandBackoffRemainingMs)
+
+    private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 
 }

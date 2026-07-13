@@ -52,5 +52,19 @@ internal object SabrPumpLogger {
         )
     }
 
+    fun recovery(holder: SabrSessionHolder, action: SabrDemandRecoveryAction, request: SabrSegmentRequest): Unit {
+        logger.info(
+            "sabr_pump event=demand_recovery videoId={} request={} action={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
+            holder.key.videoId,
+            request.summary(),
+            action,
+            holder.session.requestNumber,
+            holder.session.streamState.getMinBufferedEndMs(),
+            holder.readerHeadMs(),
+            holder.readerTailMs(),
+            holder.session.cachedBytes,
+        )
+    }
+
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 }

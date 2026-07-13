@@ -58,6 +58,22 @@ class SabrPumpRuntimeTest {
         assertEquals(34_000L, runtime.demandPlayerTimeMs(holder, edgeMs = 50_000L))
     }
 
+    @Test
+    fun `stalled demand refetches every ten seconds`() {
+        var now = 1_000L
+        val runtime = SabrPumpRuntime { now }
+
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
+        now += 9_999L
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
+        now += 1L
+        assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", 0, false))
+        now += 9_999L
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
+        now += 1L
+        assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", 0, false))
+    }
+
     private fun holder(
         policy: SabrNextRequestPolicy,
         playerTimeMs: Long,

@@ -87,7 +87,7 @@ class SabrSessionPumpLoopTest {
             every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.jumpBufferedTo(video, 101) } returns Unit
-            every { session.pumpOnceStreamingUntilCached(any(), request) } returns 5
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns demandResult(5, 0)
             val holder = holder(session, audio, video)
             holder.setPlayerTimeMs(491_203L)
             holder.requestSegmentDemand(request)
@@ -95,7 +95,7 @@ class SabrSessionPumpLoopTest {
 
             SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
 
-            assertEquals(100L, testScheduler.currentTime)
+            assertEquals(0L, testScheduler.currentTime)
             assertEquals(null, holder.pendingSegmentDemandSummary())
             verify(exactly = 1) { streamState.jumpBufferedTo(video, 101) }
         } finally {
@@ -132,7 +132,7 @@ class SabrSessionPumpLoopTest {
             every { streamState.setBufferedRangesOverride(any()) } returns Unit
             every { streamState.setBufferedRangesOverride(null) } returns Unit
             every { streamState.setSelectVideoFormatBeforeAudio(any()) } returns Unit
-            every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns demandResult(0, 0)
             val holder = holder(session, audio, video)
             holder.setPlayerTimeMs(340_000L)
             holder.requestSegmentDemand(request)
@@ -141,7 +141,7 @@ class SabrSessionPumpLoopTest {
             SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 0L)
 
             verify(exactly = 0) { session.prepareForForwardJump(request) }
-            verify(exactly = 1) { session.pumpOnceStreamingUntilCached(any(), request) }
+            verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }
@@ -161,7 +161,7 @@ class SabrSessionPumpLoopTest {
             every { session.requestNumber } returns 7
             every { streamState.getMinBufferedEndMs() } returns 121_440L
             every { streamState.getSegmentStartMs(video, 28) } returns 136_620L
-            every { session.pumpOnceStreamingUntilCached(any(), request) } returns 0
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns demandResult(0, 0)
             val holder = holder(session, audio, video)
             holder.requestSegmentDemand(request)
             var rounds = 0
@@ -206,6 +206,16 @@ class SabrSessionPumpLoopTest {
         val segment = mockk<SabrMediaSegment>()
         every { segment.header } returns header
         return segment
+    }
+
+    private fun demandResult(
+        segmentCount: Int,
+        targetTrackSegmentCount: Int,
+    ): YoutubeSabrSession.DemandResponseResult {
+        val result = mockk<YoutubeSabrSession.DemandResponseResult>()
+        every { result.segmentCount } returns segmentCount
+        every { result.targetTrackSegmentCount } returns targetTrackSegmentCount
+        return result
     }
 
     private companion object {
