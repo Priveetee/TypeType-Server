@@ -34,6 +34,7 @@ internal class TypetypeTokenYoutubeSessionClient(
             title = metadata.optString("title", session.optString("title")),
             author = metadata.optString("author"),
             channelId = metadata.optString("channelId"),
+            channelAvatarUrl = metadata.optString("channelAvatarUrl"),
             description = metadata.optString("description"),
             durationMs = metadata.optLong("durationMs", session.optLong("durationMs")),
             viewCount = metadata.optLong("viewCount"),

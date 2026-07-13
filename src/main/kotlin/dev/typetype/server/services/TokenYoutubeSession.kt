@@ -7,6 +7,7 @@ internal data class TokenYoutubeSession(
     val title: String,
     val author: String,
     val channelId: String,
+    val channelAvatarUrl: String,
     val description: String,
     val durationMs: Long,
     val viewCount: Long,

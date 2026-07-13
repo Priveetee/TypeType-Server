@@ -48,6 +48,7 @@ class TypetypeTokenYoutubeSessionClientTest {
                 "title":"Fallback title",
                 "author":"Fallback channel",
                 "channelId":"channel-id",
+                "channelAvatarUrl":"https://example.com/avatar.jpg",
                 "description":"Fallback description",
                 "durationMs":3554000,
                 "viewCount":42,
@@ -112,6 +113,7 @@ class TypetypeTokenYoutubeSessionClientTest {
         assertNotNull(session)
         assertEquals("Fallback title", session?.title)
         assertEquals("Fallback channel", session?.author)
+        assertEquals("https://example.com/avatar.jpg", session?.channelAvatarUrl)
         assertEquals(3_554_000L, session?.durationMs)
         assertEquals(listOf("tag-one", "tag-two"), session?.tags)
     }

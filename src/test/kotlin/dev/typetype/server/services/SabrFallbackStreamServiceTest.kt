@@ -66,6 +66,7 @@ class SabrFallbackStreamServiceTest {
         assertEquals(VIDEO_ID, response.id)
         assertEquals("Fallback title", response.title)
         assertEquals("Fallback channel", response.uploaderName)
+        assertEquals("https://example.com/avatar.jpg", response.uploaderAvatarUrl)
         assertEquals(3554L, response.duration)
         assertEquals(listOf(137), response.videoOnlyStreams.map { it.itag })
         assertEquals(listOf(140), response.audioStreams.map { it.itag })
@@ -105,6 +106,7 @@ class SabrFallbackStreamServiceTest {
             title = "Fallback title",
             author = "Fallback channel",
             channelId = "channel-id",
+            channelAvatarUrl = "https://example.com/avatar.jpg",
             description = "Fallback description",
             durationMs = 3_554_000L,
             viewCount = 42L,

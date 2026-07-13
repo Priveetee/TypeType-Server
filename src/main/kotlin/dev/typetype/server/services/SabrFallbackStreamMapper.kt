@@ -24,7 +24,7 @@ internal fun TokenYoutubeSession.toFallbackStreamResponse(videoId: String): Stre
     title = title,
     uploaderName = author,
     uploaderUrl = channelId.takeIf { it.isNotBlank() }?.let { "https://www.youtube.com/channel/$it" }.orEmpty(),
-    uploaderAvatarUrl = "",
+    uploaderAvatarUrl = channelAvatarUrl,
     thumbnailUrl = thumbnailUrl.ifBlank { "https://i.ytimg.com/vi/$videoId/hq720.jpg" },
     description = description,
     duration = durationMs.coerceAtLeast(0L) / 1000L,
