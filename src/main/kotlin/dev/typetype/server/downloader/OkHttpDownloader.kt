@@ -14,15 +14,26 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.localization.Localization
 import java.util.concurrent.TimeUnit
 
-class OkHttpDownloader private constructor(private val client: OkHttpClient) : Downloader() {
+class OkHttpDownloader private constructor(
+    private val client: OkHttpClient,
+    private val streamingClient: OkHttpClient,
+) : Downloader() {
 
     companion object {
-        fun instance(): OkHttpDownloader = OkHttpDownloader(
-            OkHttpClient.Builder()
+        fun instance(): OkHttpDownloader = create(STREAMING_READ_TIMEOUT_MS)
+
+        internal fun create(streamingReadTimeoutMs: Long): OkHttpDownloader {
+            val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
-        )
+            val streamingClient = client.newBuilder()
+                .readTimeout(streamingReadTimeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+            return OkHttpDownloader(client, streamingClient)
+        }
+
+        private const val STREAMING_READ_TIMEOUT_MS = 5_000L
     }
 
     override fun execute(request: ExtractorRequest): Response {
@@ -70,7 +81,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
             .localization(localization)
             .build()
         val httpRequest = buildOkHttpRequest(request)
-        val httpResponse = client.newCall(httpRequest).execute()
+        val httpResponse = streamingClient.newCall(httpRequest).execute()
         if (httpResponse.code == 429) {
             httpResponse.close()
             throw ReCaptchaException("reCaptcha required", url)

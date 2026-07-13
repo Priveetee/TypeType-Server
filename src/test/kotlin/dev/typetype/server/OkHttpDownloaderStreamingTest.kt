@@ -6,9 +6,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 class OkHttpDownloaderStreamingTest {
     @Test
@@ -41,6 +44,30 @@ class OkHttpDownloaderStreamingTest {
             assertTrue(latch.await(3, TimeUnit.SECONDS))
             assertEquals("payload", receivedBody.get())
             assertEquals("sabr", receivedHeader.get())
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `postStreaming times out stalled response bodies independently`() {
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/stalled") { exchange ->
+            exchange.sendResponseHeaders(200, 4L)
+            Thread.sleep(500)
+            runCatching { exchange.responseBody.use { it.write("late".toByteArray()) } }
+        }
+        server.start()
+        try {
+            val started = TimeSource.Monotonic.markNow()
+            val error = runCatching {
+                OkHttpDownloader.create(100).postStreaming(url(server, "/stalled"), null, null, null).use {
+                    it.body().readBytes()
+                }
+            }.exceptionOrNull()
+
+            assertTrue(error is SocketTimeoutException)
+            assertTrue(started.elapsedNow() < 2.seconds)
         } finally {
             server.stop(0)
         }
