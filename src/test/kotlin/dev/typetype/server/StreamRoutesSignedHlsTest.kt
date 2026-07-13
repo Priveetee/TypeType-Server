@@ -49,7 +49,7 @@ class StreamRoutesSignedHlsTest {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(publicHlsStream())
         installApp()
 
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test") {
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         val body = response.bodyAsText()

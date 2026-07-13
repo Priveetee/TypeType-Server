@@ -40,7 +40,7 @@ class StreamRoutesTest {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test")
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
     }
