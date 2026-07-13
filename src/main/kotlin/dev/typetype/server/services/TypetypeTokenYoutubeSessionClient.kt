@@ -1,17 +1,21 @@
 package dev.typetype.server.services
 
 import com.grack.nanojson.JsonParser
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import java.io.IOException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.coroutines.resume
 
 internal class TypetypeTokenYoutubeSessionClient(
     private val tokenServiceUrl: String,
@@ -47,15 +51,25 @@ internal class TypetypeTokenYoutubeSessionClient(
         )
     }
 
-    private suspend fun fetchSession(videoId: String): JSONObject? = withContext(Dispatchers.IO) {
+    private suspend fun fetchSession(videoId: String): JSONObject? {
         val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
         val url = "${tokenServiceUrl.trimEnd('/')}/youtube/sabr/session?videoId=$encodedVideoId&client=MWEB"
-        runCatching {
-            client.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
-                if (!response.isSuccessful) return@use null
-                JSONObject(response.body.string())
-            }
-        }.getOrNull()
+        return suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(Request.Builder().url(url).get().build())
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resume(null)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val session = response.use {
+                        if (!it.isSuccessful) null else runCatching { JSONObject(it.body.string()) }.getOrNull()
+                    }
+                    if (continuation.isActive) continuation.resume(session)
+                }
+            })
+        }
     }
 
     private fun JSONObject.toSabrInfo(videoId: String): YoutubeSabrInfo? = runCatching {

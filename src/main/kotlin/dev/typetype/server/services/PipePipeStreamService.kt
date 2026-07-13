@@ -8,6 +8,7 @@ import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
@@ -44,9 +45,11 @@ internal class PipePipeStreamService(
                     val service = NewPipe.getServiceByUrl(url)
                     val linkHandler = service.streamLHFactory.fromUrl(url)
                     val extractor: StreamExtractor = service.getStreamExtractor(linkHandler)
-                    withTimeout(30_000L) { extractor.fetchPage() }
+                    withTimeout(30_000L) { runPipePipeCall { extractor.fetchPage() } }
                     coroutineScope {
-                        val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
+                        val streamInfoDeferred = async {
+                            withTimeout(30_000L) { runPipePipeCall { StreamInfo.getInfo(extractor) } }
+                        }
                         val segmentsDeferred = async { resolveSegments(extractor) }
                         val streamInfo = streamInfoDeferred.await()
                         rememberSabrInfo(streamInfo)
@@ -100,7 +103,9 @@ internal class PipePipeStreamService(
         cacheKey: String,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
         val segments = runCatching {
-            withTimeout(15_000L) { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
+            withTimeout(15_000L) {
+                runPipePipeCall { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
+            }
         }.getOrElse { emptyArray() }
         runCatching {
             val items = segments.map { it.toSegmentItem() }
@@ -113,3 +118,6 @@ internal class PipePipeStreamService(
         const val SPONSORBLOCK_TTL_SECONDS = 21600L
     }
 }
+
+internal suspend fun <T> runPipePipeCall(block: () -> T): T =
+    runInterruptible(context = Dispatchers.IO, block = block)
