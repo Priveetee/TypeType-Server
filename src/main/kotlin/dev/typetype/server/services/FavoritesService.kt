@@ -13,6 +13,14 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class FavoritesService {
 
+    suspend fun get(userId: String, videoUrl: String): FavoriteItem? = DatabaseFactory.query {
+        FavoritesTable.selectAll()
+            .where { FavoritesTable.userId eq userId and (FavoritesTable.videoUrl eq videoUrl) }
+            .limit(1)
+            .firstOrNull()
+            ?.toItem()
+    }
+
     suspend fun getAll(userId: String): List<FavoriteItem> = DatabaseFactory.query {
         FavoritesTable.selectAll()
             .where { FavoritesTable.userId eq userId }

@@ -18,6 +18,13 @@ fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthS
             call.respond(favoritesService.getAll(userId))
         }
     }
+    get("/favorites/{videoUrl...}") {
+        call.withJwtAuth(authService) { userId ->
+            val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            val favorite = favoritesService.get(userId, videoUrl)
+            if (favorite == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found")) else call.respond(favorite)
+        }
+    }
     post("/favorites/{videoUrl...}") {
         call.withJwtAuth(authService) { userId ->
             val videoUrl = call.urlTailParameter("videoUrl") ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))

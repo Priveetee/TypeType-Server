@@ -73,6 +73,25 @@ class FavoritesRoutesTest {
     }
 
     @Test
+    fun `GET favorite returns only requested item`() = withApp {
+        service.add(TEST_USER_ID, "https://yt.com/v=test")
+        service.add(TEST_USER_ID, "https://yt.com/v=other")
+        val response = client.get("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"videoUrl\":\"https://yt.com/v=test\""))
+    }
+
+    @Test
+    fun `GET favorite returns 404 when not found`() = withApp {
+        val response = client.get("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dmissing") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
     fun `DELETE favorites returns 204 when found`() = withApp {
         service.add(TEST_USER_ID, "https://yt.com/v=test")
         assertEquals(HttpStatusCode.NoContent, client.delete("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dtest") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
