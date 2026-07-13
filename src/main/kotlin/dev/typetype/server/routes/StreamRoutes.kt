@@ -28,23 +28,58 @@ fun Route.streamRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
+    legacyStreamService: StreamService = streamService,
+    nicoNicoStreamService: StreamService = legacyStreamService,
+    bilibiliStreamService: StreamService = legacyStreamService,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 ): Unit {
-    get("/streams") {
+    val dependencies = StreamRouteDependencies(
+        authService = authService,
+        youtubeSessionStreamInfo = youtubeSessionStreamInfo,
+        accessControlService = accessControlService,
+        adminSettingsService = adminSettingsService,
+        publicHlsManifestTokenService = publicHlsManifestTokenService,
+        sabrStreamContractFilter = sabrStreamContractFilter,
+    )
+    listOf("/streams", "/streams/youtube/sabr").forEach {
+        streamRoute(it, StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
+    }
+    listOf("/streams/legacy", "/streams/youtube/legacy").forEach {
+        streamRoute(it, StreamDeliveryMode.YoutubeLegacy, legacyStreamService, dependencies)
+    }
+    streamRoute("/streams/niconico", StreamDeliveryMode.NicoNico, nicoNicoStreamService, dependencies)
+    streamRoute("/streams/bilibili", StreamDeliveryMode.BiliBili, bilibiliStreamService, dependencies)
+}
+
+private fun Route.streamRoute(
+    path: String,
+    deliveryMode: StreamDeliveryMode,
+    streamService: StreamService,
+    dependencies: StreamRouteDependencies,
+): Unit {
+    get(path) {
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
-
-        val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
-        val userId = access.userId
-        val sessionResult = if (
-            userId != null &&
-            youtubeSessionStreamInfo != null
-        ) {
-            youtubeSessionStreamInfo(userId, url)
-        } else {
-            null
+        if (!deliveryMode.accepts(url)) {
+            return@get call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("URL does not match stream endpoint", "provider_mismatch"),
+            )
         }
-        val publicResult = if (sessionResult.hasPlayableStreams()) null else streamService.getStreamInfo(url)
+
+        val access = call.accessProfileOrRespond(
+            dependencies.authService,
+            dependencies.accessControlService,
+            dependencies.adminSettingsService,
+        ) ?: return@get
+        val userId = access.userId
+        val sessionResult = fetchYoutubeSession(userId, url, deliveryMode, dependencies.youtubeSessionStreamInfo)
+            .forDeliveryMode(deliveryMode)
+        val publicResult = if (sessionResult.hasPlayableSource()) {
+            null
+        } else {
+            streamService.getStreamInfo(url)
+        }
         val usedYoutubeSession = sessionResult != null
         val accessProfile = access.profile
         when (val result = publicResult.resolveWith(sessionResult)) {
@@ -52,14 +87,21 @@ fun Route.streamRoutes(
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
-                val filtered = result.data
-                    .withSabrManifestUrls()
+                val selected = if (deliveryMode.isSabr()) {
+                    result.data.withSabrManifestUrls().onlySabrStreams()
+                } else {
+                    result.data.withoutSabrStreams()
+                }
+                val filtered = selected
                     .filterAllowed(accessProfile)
-                    .withSignedPublicHlsUrl(userId != null && !access.allowGuest, publicHlsManifestTokenService)
-                val data = if (sabrStreamContractFilter == null) {
+                    .withSignedPublicHlsUrl(
+                        userId != null && !access.allowGuest,
+                        dependencies.publicHlsManifestTokenService,
+                    )
+                val data = if (!deliveryMode.isSabr() || dependencies.sabrStreamContractFilter == null) {
                     filtered
                 } else {
-                    sabrStreamContractFilter(url, filtered)
+                    dependencies.sabrStreamContractFilter.invoke(url, filtered)
                 }
                 if (!data.hasPlayableSource()) {
                     return@get call.respond(
@@ -81,6 +123,26 @@ fun Route.streamRoutes(
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
         }
     }
+}
+
+private suspend fun fetchYoutubeSession(
+    userId: String?,
+    url: String,
+    deliveryMode: StreamDeliveryMode,
+    youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
+): ExtractionResult<StreamResponse>? =
+    if (deliveryMode.isYoutube() && userId != null && youtubeSessionStreamInfo != null) {
+        youtubeSessionStreamInfo(userId, url)
+    } else {
+        null
+    }
+
+private fun ExtractionResult<StreamResponse>?.forDeliveryMode(
+    deliveryMode: StreamDeliveryMode,
+): ExtractionResult<StreamResponse>? = when {
+    this !is ExtractionResult.Success -> this
+    deliveryMode.isSabr() -> ExtractionResult.Success(data.withSabrManifestUrls().onlySabrStreams())
+    else -> ExtractionResult.Success(data.withoutSabrStreams())
 }
 
 private fun ExtractionResult<StreamResponse>?.resolveWith(
@@ -105,8 +167,8 @@ private fun StreamResponse.mergeWithPublic(public: StreamResponse): StreamRespon
         audioStreams = audioStreams.ifEmpty { public.audioStreams },
     )
 
-private fun ExtractionResult<StreamResponse>?.hasPlayableStreams(): Boolean =
-    this is ExtractionResult.Success && data.playableStreamCount() > 0
+private fun ExtractionResult<StreamResponse>?.hasPlayableSource(): Boolean =
+    this is ExtractionResult.Success && data.hasPlayableSource()
 
 private fun StreamResponse.hasPlayableSource(): Boolean =
     playableStreamCount() > 0 || hlsUrl.isNotBlank() || dashMpdUrl.isNotBlank()

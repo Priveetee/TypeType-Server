@@ -56,6 +56,10 @@ internal class ServiceRegistry(
     )
     val youtubeSessionService = extraction.youtubeSessionService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
+    val legacyStreamService = extraction.legacyStreamService
+    val youtubeSabrStreamService = extraction.youtubeSabrStreamService
+    val nicoNicoStreamService = extraction.nicoNicoStreamService
+    val bilibiliStreamService = extraction.bilibiliStreamService
     val streamService = extraction.streamService
     val searchService = extraction.searchService
     val trendingService = extraction.trendingService

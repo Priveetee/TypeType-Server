@@ -1,7 +1,7 @@
 Streams:
   get:
     tags: [extraction]
-    summary: Extract full stream metadata
+    summary: Extract SABR stream metadata
     parameters:
       - name: url
         in: query
@@ -9,10 +9,77 @@ Streams:
         schema: { type: string }
     responses:
       '200':
-        description: Stream metadata and playable streams.
+        description: Stream metadata containing only SABR sources.
         headers:
           X-Request-ID:
             $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeSabrStreams:
+  $ref: '#/Streams'
+LegacyStreams:
+  get:
+    tags: [extraction]
+    summary: Extract classic DASH, HLS, or progressive stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream metadata containing no SABR sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeLegacyStreams:
+  $ref: '#/LegacyStreams'
+NicoNicoStreams:
+  get:
+    tags: [extraction]
+    summary: Extract NicoNico stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: NicoNico stream metadata containing no SABR sources.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+BiliBiliStreams:
+  get:
+    tags: [extraction]
+    summary: Extract BiliBili stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: BiliBili stream metadata containing no SABR sources.
         content:
           application/json:
             schema:

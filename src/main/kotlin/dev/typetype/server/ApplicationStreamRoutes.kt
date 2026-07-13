@@ -21,7 +21,10 @@ internal fun Route.installStreamRoutes(
 ) {
     rateLimit(STREAMS_ZONE) {
         streamRoutes(
-            streamService = svc.streamService,
+            streamService = svc.youtubeSabrStreamService,
+            legacyStreamService = svc.legacyStreamService,
+            nicoNicoStreamService = svc.nicoNicoStreamService,
+            bilibiliStreamService = svc.bilibiliStreamService,
             authService = authService,
             accessControlService = svc.accessControlService,
             youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->

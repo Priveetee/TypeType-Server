@@ -35,15 +35,23 @@ private fun StreamResponse.withMissingSabrVideoStreams(videoId: String, info: Yo
     return copy(videoOnlyStreams = videoOnlyStreams + missing)
 }
 
-private fun StreamResponse.hasSabrStreams(): Boolean =
+internal fun StreamResponse.hasSabrStreams(): Boolean =
     videoStreams.any { it.deliveryMethod == SABR_DELIVERY_METHOD } ||
         videoOnlyStreams.any { it.deliveryMethod == SABR_DELIVERY_METHOD } ||
         audioStreams.any { it.deliveryMethod == SABR_DELIVERY_METHOD }
 
-private fun StreamResponse.withoutSabrStreams(): StreamResponse = copy(
+internal fun StreamResponse.withoutSabrStreams(): StreamResponse = copy(
     videoStreams = videoStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
     videoOnlyStreams = videoOnlyStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
     audioStreams = audioStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
+)
+
+internal fun StreamResponse.onlySabrStreams(): StreamResponse = copy(
+    hlsUrl = "",
+    dashMpdUrl = "",
+    videoStreams = videoStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
+    videoOnlyStreams = videoOnlyStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
+    audioStreams = audioStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
 )
 
 private fun VideoStreamItem.isPlayableSabrVideo(info: YoutubeSabrInfo): Boolean =
