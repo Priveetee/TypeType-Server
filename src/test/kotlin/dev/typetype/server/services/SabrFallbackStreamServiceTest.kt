@@ -105,6 +105,7 @@ class SabrFallbackStreamServiceTest {
         val prepared = preparedInfo()
         return TokenYoutubeSession(
             info = prepared.info,
+            token = null,
             title = "Fallback title",
             author = "Fallback channel",
             channelId = "channel-id",

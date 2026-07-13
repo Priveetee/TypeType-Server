@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 internal data class TokenYoutubeSession(
     val info: YoutubeSabrInfo,
+    val token: SabrTokenBundle?,
     val title: String,
     val author: String,
     val channelId: String,

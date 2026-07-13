@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -65,18 +66,55 @@ class SabrPreparedInfoCacheTest {
     }
 
     @Test
-    fun `info fetcher prefers token session metadata`() = runTest {
+    fun `info fetcher consumes token session metadata and tokens atomically`() = runTest {
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
         val sessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
         val info = info(listOf(format(isAudio = true), format(isAudio = false)))
-        every { tokenClient.fetch("video", forceRefresh = false) } returns token()
-        coEvery { sessionClient.fetchSabrInfo("video") } returns info
+        val token = token()
+        coEvery { sessionClient.fetchPlaybackSession("video") } returns tokenSession(info, token)
         val fetcher = SabrInfoFetcher(tokenClient, sessionClient)
 
         val result = fetcher.fetchInfo("video")
 
         assertSame(info, result?.info)
-        coVerify(exactly = 1) { sessionClient.fetchSabrInfo("video") }
+        assertSame(token, result?.initialToken)
+        coVerify(exactly = 1) { sessionClient.fetchPlaybackSession("video") }
+        verify(exactly = 0) { tokenClient.fetch(any(), any(), any()) }
+    }
+
+    @Test
+    fun `info fetcher accepts legacy token session only with matching visitor data`() = runTest {
+        val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
+        val sessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
+        val info = info(listOf(format(isAudio = true), format(isAudio = false)))
+        val token = token()
+        coEvery { sessionClient.fetchPlaybackSession("video") } returns tokenSession(info, null)
+        every { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) } returns token
+        val fetcher = SabrInfoFetcher(tokenClient, sessionClient)
+
+        val result = fetcher.fetchInfo("video")
+
+        assertSame(info, result?.info)
+        assertSame(token, result?.initialToken)
+        verify(exactly = 1) { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) }
+    }
+
+    @Test
+    fun `info fetcher rejects mismatched session token generation`() = runTest {
+        val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
+        val sessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
+        val info = info(listOf(format(isAudio = true), format(isAudio = false)))
+        val mismatched = token(visitorData = "other-visitor")
+        val fallback = token()
+        coEvery { sessionClient.fetchPlaybackSession("video") } returns tokenSession(info, mismatched)
+        every { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) } returns fallback
+        val fetcher = SabrInfoFetcher(tokenClient, sessionClient)
+
+        val result = fetcher.fetchInfo("video")
+
+        assertSame(info, result?.info)
+        assertSame(fallback, result?.initialToken)
+        verify(exactly = 1) { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) }
     }
 
     private fun preparedInfo(formats: List<YoutubeSabrFormat>): SabrPreparedInfo {
@@ -86,8 +124,25 @@ class SabrPreparedInfoCacheTest {
     private fun info(formats: List<YoutubeSabrFormat>): YoutubeSabrInfo {
         val info = mockk<YoutubeSabrInfo>()
         every { info.formats } returns formats
+        every { info.visitorData } returns "visitor-data"
         return info
     }
+
+    private fun tokenSession(info: YoutubeSabrInfo, token: SabrTokenBundle?): TokenYoutubeSession = TokenYoutubeSession(
+        info = info,
+        token = token,
+        title = "",
+        author = "",
+        channelId = "",
+        channelAvatarUrl = "",
+        description = "",
+        durationMs = 0L,
+        viewCount = 0L,
+        thumbnailUrl = "",
+        tags = emptyList(),
+        isLive = false,
+        isLiveContent = false,
+    )
 
     private fun format(isAudio: Boolean): YoutubeSabrFormat {
         val format = mockk<YoutubeSabrFormat>()
@@ -99,11 +154,11 @@ class SabrPreparedInfoCacheTest {
         return format
     }
 
-    private fun token(): SabrTokenBundle = SabrTokenBundle(
+    private fun token(visitorData: String = "visitor-data"): SabrTokenBundle = SabrTokenBundle(
         videoId = "video",
         visitorBoundPoToken = "visitor",
         visitorBoundPoTokenBytes = byteArrayOf(1),
-        visitorData = "visitor-data",
+        visitorData = visitorData,
         videoBoundPoToken = "video",
         videoBoundPoTokenBytes = byteArrayOf(2),
     )

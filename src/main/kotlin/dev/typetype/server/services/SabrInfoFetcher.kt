@@ -81,7 +81,16 @@ internal class SabrInfoFetcher(
 
     private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long, forceRefresh: Boolean): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val token = tokenClient.fetch(videoId, forceRefresh = forceRefresh)
+            val refreshedToken = if (forceRefresh) tokenClient.fetch(videoId, forceRefresh = true) else null
+            val tokenSession = sessionClient?.fetchPlaybackSession(videoId)
+            tokenSession?.token
+                ?.takeIf { it.visitorData == tokenSession.info.visitorData }
+                ?.let { sessionToken ->
+                    SabrPreparedInfo(tokenSession.info, sessionToken)
+                        .takeIf { it.hasAudioAndVideoFormats() }
+                        ?.let { return@withTimeoutOrNull it }
+                }
+            val token = refreshedToken ?: tokenClient.fetch(videoId)
                 ?: return@withTimeoutOrNull null.also {
                     logger.warn(
                         "sabr_probe event=token_missing videoId={} startTimeMs={} forceRefresh={}",
@@ -90,9 +99,11 @@ internal class SabrInfoFetcher(
                         forceRefresh,
                     )
                 }
-            sessionClient?.fetchSabrInfo(videoId)
-                ?.takeIf { SabrPreparedInfo(it, token).hasAudioAndVideoFormats() }
-                ?.let { return@withTimeoutOrNull SabrPreparedInfo(it, token) }
+            tokenSession
+                ?.takeIf { it.info.visitorData == token.visitorData }
+                ?.let { SabrPreparedInfo(it.info, token) }
+                ?.takeIf { it.hasAudioAndVideoFormats() }
+                ?.let { return@withTimeoutOrNull it }
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
                 fetchInfoForProfileWithTokenFallback(videoId, startTimeMs, token, profile)
                     ?.takeIf { it.hasAudioAndVideoFormats() }

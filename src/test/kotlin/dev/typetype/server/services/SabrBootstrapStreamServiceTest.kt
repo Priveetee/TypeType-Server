@@ -63,6 +63,7 @@ class SabrBootstrapStreamServiceTest {
 
     private fun tokenSession(info: YoutubeSabrInfo): TokenYoutubeSession = TokenYoutubeSession(
         info = info,
+        token = null,
         title = "Bootstrap title",
         author = "Bootstrap channel",
         channelId = "channel-id",

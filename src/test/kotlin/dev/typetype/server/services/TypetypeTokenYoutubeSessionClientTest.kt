@@ -41,6 +41,8 @@ class TypetypeTokenYoutubeSessionClientTest {
         val body = """
             {
               "visitorData":"visitor-data",
+              "poToken":"AQ",
+              "streamingPot":"Ag",
               "serverAbrStreamingUrl":"https://example.com/sabr",
               "rawServerAbrStreamingUrl":"https://example.com/raw-sabr",
               "videoPlaybackUstreamerConfig":"ustreamer-config",
@@ -116,5 +118,10 @@ class TypetypeTokenYoutubeSessionClientTest {
         assertEquals("https://example.com/avatar.jpg", session?.channelAvatarUrl)
         assertEquals(3_554_000L, session?.durationMs)
         assertEquals(listOf("tag-one", "tag-two"), session?.tags)
+        assertEquals("visitor-data", session?.token?.visitorData)
+        assertEquals("AQ", session?.token?.visitorBoundPoToken)
+        assertEquals("Ag", session?.token?.videoBoundPoToken)
+        assertTrue(session?.token?.visitorBoundPoTokenBytes?.contentEquals(byteArrayOf(1)) == true)
+        assertTrue(session?.token?.videoBoundPoTokenBytes?.contentEquals(byteArrayOf(2)) == true)
     }
 }

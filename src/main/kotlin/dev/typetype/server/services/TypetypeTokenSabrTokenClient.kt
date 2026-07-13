@@ -5,7 +5,6 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 
 internal class TypetypeTokenSabrTokenClient(
     private val tokenServiceUrl: String,
@@ -19,7 +18,11 @@ internal class TypetypeTokenSabrTokenClient(
                     System.err.println("[TypetypeTokenSabrTokenClient] /potoken HTTP ${resp.code} for $videoId")
                     return null
                 }
-                decode(videoId, JSONObject(resp.body.string()))
+                SabrTokenBundle.fromResponse(videoId, JSONObject(resp.body.string())).also {
+                    if (it == null) {
+                        System.err.println("[TypetypeTokenSabrTokenClient] incomplete token response for $videoId")
+                    }
+                }
             }
         } catch (e: Exception) {
             System.err.println("[TypetypeTokenSabrTokenClient] fetch failed for $videoId: ${e.message}")
@@ -27,33 +30,10 @@ internal class TypetypeTokenSabrTokenClient(
         }
     }
 
-    private fun decode(videoId: String, json: JSONObject): SabrTokenBundle? {
-        val visitorBoundPoToken = json.optString("visitorBoundPoToken").ifBlank { json.optString("poToken") }
-        val visitorData = json.optString("visitorData")
-        val videoBoundPoToken = json.optString("videoBoundPoToken").ifBlank { json.optString("streamingPot") }
-        if (visitorBoundPoToken.isBlank() || visitorData.isBlank() || videoBoundPoToken.isBlank()) {
-            System.err.println("[TypetypeTokenSabrTokenClient] incomplete token response for $videoId")
-            return null
-        }
-        return SabrTokenBundle(
-            videoId = videoId,
-            visitorBoundPoToken = visitorBoundPoToken,
-            visitorBoundPoTokenBytes = base64UrlDecode(visitorBoundPoToken),
-            visitorData = visitorData,
-            videoBoundPoToken = videoBoundPoToken,
-            videoBoundPoTokenBytes = base64UrlDecode(videoBoundPoToken),
-        )
-    }
-
     private fun buildUrl(videoId: String, forceRefresh: Boolean, refreshVideo: Boolean): String {
         val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
         return "${tokenServiceUrl.trimEnd('/')}/potoken?videoId=$encodedVideoId" +
             (if (forceRefresh) "&refresh=true" else "") +
             (if (refreshVideo) "&refreshVideo=true" else "")
-    }
-
-    private fun base64UrlDecode(s: String): ByteArray {
-        val padded = s + "=".repeat((4 - s.length % 4) % 4)
-        return Base64.getUrlDecoder().decode(padded)
     }
 }

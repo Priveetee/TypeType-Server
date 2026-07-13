@@ -35,6 +35,7 @@ internal class TypetypeTokenYoutubeSessionClient(
         val metadata = session.optJSONObject("metadata") ?: JSONObject()
         TokenYoutubeSession(
             info = info,
+            token = SabrTokenBundle.fromResponse(videoId, session),
             title = metadata.optString("title", session.optString("title")),
             author = metadata.optString("author"),
             channelId = metadata.optString("channelId"),
