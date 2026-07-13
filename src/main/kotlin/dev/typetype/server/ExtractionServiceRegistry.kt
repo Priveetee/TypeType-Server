@@ -82,7 +82,7 @@ internal class ExtractionServiceRegistry(
     )
     private val classicPublicStreamService = YoutubePlayerClientFallbackStreamService(
         classicPipePipeStreamService,
-        listOf(YoutubePlayerClient.TV_SIMPLY, YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.ANDROID_VR),
+        listOf(YoutubePlayerClient.ANDROID_VR, YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_SIMPLY),
     )
     private val classicAuthenticatedStreamService = YoutubePlayerClientFallbackStreamService(
         classicPipePipeStreamService,
@@ -101,7 +101,7 @@ internal class ExtractionServiceRegistry(
     val legacyStreamService = CachedStreamService(
         YoutubeScopedStreamService(classicPublicStreamService),
         cache,
-        "stream-youtube-legacy:v4",
+        "stream-youtube-legacy:v5",
     )
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
