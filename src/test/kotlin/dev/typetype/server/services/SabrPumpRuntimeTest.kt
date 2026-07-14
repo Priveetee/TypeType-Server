@@ -59,12 +59,13 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
-    fun `demand deadline includes network delay and local retries`() {
-        var now = 16_000L
+    fun `slow response without media stays recoverable for watchdog`() {
+        var now = 1_000L
         val runtime = SabrPumpRuntime { now }
-        runtime.beginDemand("140:44", startedAtMs = 1_000L)
+        runtime.beginDemand("140:44")
+        now += SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS
 
-        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 0, false))
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
     }
 
     @Test

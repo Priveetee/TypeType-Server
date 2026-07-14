@@ -108,7 +108,7 @@ class SabrPlaybackGranularRoutesTest {
         assertTrue(response.bodyAsText().contains("segment/1"))
         verify(exactly = 1) { store.startPump(holder) }
         verify(exactly = 0) { store.warmPlaybackAsync(holder) }
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
     }
 
     @Test
@@ -125,7 +125,7 @@ class SabrPlaybackGranularRoutesTest {
 
         assertEquals(HttpStatusCode.Accepted, response.status)
         assertTrue(response.bodyAsText().contains("video:136:1 pending"))
-        verify(atLeast = 1) { store.requestSegmentDemand(holder, any()) }
+        verify(atLeast = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
     }
 
     @Test
@@ -143,7 +143,7 @@ class SabrPlaybackGranularRoutesTest {
         val body = response.bodyAsText()
         assertEquals(HttpStatusCode.Accepted, response.status)
         assertTrue(body.contains("audio:140:1 pending"))
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
     }
 

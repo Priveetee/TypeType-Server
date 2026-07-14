@@ -4,12 +4,18 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
@@ -17,6 +23,137 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrPumpLauncherTest {
+    @Test
+    fun `watchdog ignores companion progress for missing demand`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val pump = mockk<SabrSessionPump>()
+            val registry = mockk<SabrSessionRegistry>()
+            val holder = holder()
+            val request = SabrSegmentRequest.media(holder.audioFormat, 50)
+            var companionBufferedEndMs = 0L
+            every { holder.session.getCachedSegment(any()) } returns null
+            every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } returns 0L
+            every { holder.session.streamState.getBufferedEndMs(holder.videoFormat) } answers { companionBufferedEndMs }
+            every { registry.contains(holder.key) } returns true
+            holder.requestSegmentDemand(request)
+            coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
+            val watchdog = SabrDemandWatchdog(
+                clock = { testScheduler.currentTime },
+                intervalMs = 100L,
+            )
+
+            launchSabrPump(pump, registry, holder, 100L, watchdog)
+            runCurrent()
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 100L)
+            runCurrent()
+            companionBufferedEndMs = 10_000L
+            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
+            advanceTimeBy(100L)
+            runCurrent()
+            advanceUntilIdle()
+
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+            assertEquals("SABR demand stalled for 140:50", holder.terminalFailure())
+            assertNull(holder.pendingSegmentDemandSummary())
+            holder.requestSegmentDemand(SabrSegmentRequest.media(holder.audioFormat, 51))
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            assertNull(holder.pendingSegmentDemandSummary())
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `watchdog resets stall deadline when media progresses`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val pump = mockk<SabrSessionPump>()
+            val registry = mockk<SabrSessionRegistry>()
+            val holder = holder()
+            val request = SabrSegmentRequest.media(holder.audioFormat, 50)
+            var targetBufferedEndMs = 0L
+            every { holder.session.getCachedSegment(any()) } returns null
+            every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } answers { targetBufferedEndMs }
+            every { registry.contains(holder.key) } returns true
+            holder.requestSegmentDemand(request)
+            coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
+            val watchdog = SabrDemandWatchdog(
+                clock = { testScheduler.currentTime },
+                intervalMs = 100L,
+            )
+
+            launchSabrPump(pump, registry, holder, 100L, watchdog)
+            runCurrent()
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 100L)
+            runCurrent()
+            targetBufferedEndMs = 10_000L
+            advanceTimeBy(100L)
+            runCurrent()
+            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 1L)
+            runCurrent()
+            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
+            advanceTimeBy(1L)
+            runCurrent()
+            advanceUntilIdle()
+
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+            assertEquals("SABR demand stalled for 140:50", holder.terminalFailure())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `stale generation cannot register a segment demand`() {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val holder = holder()
+            val request = SabrSegmentRequest.media(holder.audioFormat, 50)
+            val staleGeneration = holder.activeGeneration()
+            every { holder.session.getCachedSegment(any()) } returns null
+            holder.advancePlaybackGeneration(1_000L)
+
+            holder.requestSegmentDemand(request, staleGeneration)
+
+            assertNull(holder.pendingSegmentDemandSummary())
+            holder.requestSegmentDemand(request, holder.activeGeneration())
+            assertEquals("140:50", holder.pendingSegmentDemandSummary())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `terminal failure always has a message`() {
+        val holder = holder()
+
+        holder.failTerminal(null)
+
+        assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+        assertEquals("SABR terminal failure", holder.terminalFailure())
+    }
+
+    @Test
+    fun `first fatal playback cause wins`() {
+        val networkHolder = holder()
+        val terminalHolder = holder()
+
+        networkHolder.recordNetworkFailure("network")
+        networkHolder.failTerminal("terminal")
+        terminalHolder.failTerminal("terminal")
+        terminalHolder.recordNetworkFailure("network")
+
+        assertEquals(SabrPlaybackState.NETWORK_FAILED, networkHolder.playbackState())
+        assertEquals("network", networkHolder.networkFailure())
+        assertNull(networkHolder.terminalFailure())
+        assertEquals(SabrPlaybackState.TERMINAL, terminalHolder.playbackState())
+        assertEquals("terminal", terminalHolder.terminalFailure())
+        assertNull(terminalHolder.networkFailure())
+    }
+
     @Test
     fun `failed network pump keeps a non-null failure and remains stopped`() = runTest {
         val pump = mockk<SabrSessionPump>()

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -20,6 +21,9 @@ import java.time.Instant
 import java.util.Base64
 
 class SabrPlaybackSessionServiceTest {
+    @AfterEach
+    fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
+
     @Test
     fun `prepare sets target time and warms asynchronously`() = runTest {
         val audio = format(140, isAudio = true)
@@ -78,12 +82,12 @@ class SabrPlaybackSessionServiceTest {
         val holder = holder(audio, format(137, isAudio = false))
         val store = mockk<SabrSessionStore>()
         coEvery { store.cachedSegment(holder, any()) } returns null
-        every { store.requestSegmentDemand(holder, any()) } returns Unit
+        every { store.requestSegmentDemand(holder, any(), 0L) } returns Unit
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.Retry(holder, "repositioning"), result)
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), 0L) }
     }
 
     @Test
@@ -93,14 +97,14 @@ class SabrPlaybackSessionServiceTest {
         val segment = cachedSegment(140, 4, byteArrayOf(1, 2, 3))
         val store = mockk<SabrSessionStore>()
         coEvery { store.cachedSegment(holder, any()) } returnsMany listOf(null, segment)
-        every { store.requestSegmentDemand(holder, any()) } returns Unit
+        every { store.requestSegmentDemand(holder, any(), 0L) } returns Unit
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         val ready = result as SabrPlaybackSegmentResult.Ready
         assertEquals("audio/mp4", ready.mimeType)
         assertArrayEquals(byteArrayOf(1, 2, 3), ready.bytes)
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any()) }
+        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), 0L) }
     }
 
     @Test
@@ -126,7 +130,7 @@ class SabrPlaybackSessionServiceTest {
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 0, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.InvalidSequence, result)
-        verify(exactly = 0) { store.requestSegmentDemand(any(), any()) }
+        verify(exactly = 0) { store.requestSegmentDemand(any(), any(), any()) }
     }
 
     @Test
@@ -140,7 +144,7 @@ class SabrPlaybackSessionServiceTest {
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
         assertEquals(SabrPlaybackSegmentResult.Stale(holder), result)
-        verify(exactly = 0) { store.requestSegmentDemand(any(), any()) }
+        verify(exactly = 0) { store.requestSegmentDemand(any(), any(), any()) }
         assertEquals(null, holder.consumeForwardSeek())
         assertEquals(null, holder.consumeRefetch())
     }
@@ -173,7 +177,7 @@ class SabrPlaybackSessionServiceTest {
     }
 
     @Test
-    fun `same format seek repositions to latest track segment`() = runTest {
+    fun `same format seek keeps video as paired seek anchor`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
@@ -193,7 +197,7 @@ class SabrPlaybackSessionServiceTest {
         val request = holder.consumeForwardSeek()
         assertEquals(video.itag, request?.format?.itag)
         assertEquals(24, request?.sequenceNumber)
-        assertEquals(119_604L, holder.readerTailMs())
+        assertEquals(118_979L, holder.readerTailMs())
     }
 
     @Test

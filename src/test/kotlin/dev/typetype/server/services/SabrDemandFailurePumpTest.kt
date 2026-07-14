@@ -3,10 +3,17 @@ package dev.typetype.server.services
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -14,6 +21,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrDemandFailurePumpTest {
@@ -47,7 +55,7 @@ class SabrDemandFailurePumpTest {
     }
 
     @Test
-    fun `empty responses terminate demand after PipePipe deadline`() = runTest {
+    fun `cancelling pump interrupts a blocked demand call`() = runBlocking {
         SabrSegmentDemandTracker.clearAll()
         try {
             val audio = format(140, true)
@@ -56,27 +64,30 @@ class SabrDemandFailurePumpTest {
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
             every { session.streamState } returns streamState
-            every { session.requestNumber } returns 3
             every { session.getCachedSegment(any()) } returns null
             every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
             every { streamState.getMinBufferedEndMs() } returns 499_233L
+            val entered = CompletableDeferred<Unit>()
+            val interrupted = AtomicBoolean(false)
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                entered.complete(Unit)
+                try {
+                    Thread.sleep(60_000L)
+                    emptyResult()
+                } catch (error: InterruptedException) {
+                    interrupted.set(true)
+                    throw error
+                }
+            }
             val holder = holder(session, audio, video)
             holder.requestSegmentDemand(request)
-            val identity = requireNotNull(holder.segmentDemandIdentity(request))
-            var now = requireNotNull(holder.segmentDemandStartedAt(request, identity))
-            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
-                now += 5_000L
-                emptyResult()
-            }
-            val loop = SabrSessionPumpLoop(runtimeFactory = { SabrPumpRuntime { now } })
-            var rounds = 0
+            val job = launch(Dispatchers.IO) { SabrSessionPump().pumpLoop({ true }, holder, intervalMs = 0L) }
 
-            loop.run({ rounds++ < 3 }, holder, intervalMs = 0L)
+            entered.await()
+            withTimeout(2_000L) { job.cancelAndJoin() }
 
-            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
-            assertEquals("SABR demand stalled for 140:50", holder.terminalFailure())
-            assertNull(holder.pendingSegmentDemandSummary())
-            verify(exactly = 3) { session.pumpOnceStreamingForDemand(any(), request) }
+            assertTrue(interrupted.get())
+            verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

@@ -66,7 +66,7 @@ class SabrRandomAccessProbeTest {
                 }
                 val segments = withTimeoutOrNull(timeoutMs) {
                     requests.map { request ->
-                        store.requestSegmentDemand(holder, request)
+                        store.requestSegmentDemand(holder, request, holder.activeGeneration())
                         awaitCachedSegment(store, holder, request)
                     }
                 }
