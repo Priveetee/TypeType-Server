@@ -46,6 +46,42 @@ class SabrDemandFailurePumpTest {
         }
     }
 
+    @Test
+    fun `empty responses terminate demand after PipePipe deadline`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(audio, 50)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            every { session.streamState } returns streamState
+            every { session.requestNumber } returns 3
+            every { session.getCachedSegment(any()) } returns null
+            every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
+            every { streamState.getMinBufferedEndMs() } returns 499_233L
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            var now = requireNotNull(holder.segmentDemandStartedAt(request, identity))
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                now += 5_000L
+                emptyResult()
+            }
+            val loop = SabrSessionPumpLoop(runtimeFactory = { SabrPumpRuntime { now } })
+            var rounds = 0
+
+            loop.run({ rounds++ < 3 }, holder, intervalMs = 0L)
+
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+            assertEquals("SABR demand stalled for 140:50", holder.terminalFailure())
+            assertNull(holder.pendingSegmentDemandSummary())
+            verify(exactly = 3) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
@@ -72,6 +108,13 @@ class SabrDemandFailurePumpTest {
         val result = mockk<YoutubeSabrSession.DemandResponseResult>()
         every { result.segmentCount } returns 7
         every { result.targetTrackSegmentCount } returns 1
+        return result
+    }
+
+    private fun emptyResult(): YoutubeSabrSession.DemandResponseResult {
+        val result = mockk<YoutubeSabrSession.DemandResponseResult>()
+        every { result.segmentCount } returns 0
+        every { result.targetTrackSegmentCount } returns 0
         return result
     }
 }
