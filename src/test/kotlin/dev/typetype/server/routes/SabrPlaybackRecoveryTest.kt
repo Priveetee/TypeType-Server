@@ -10,6 +10,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 class SabrPlaybackRecoveryTest {
     @Test
@@ -23,5 +25,74 @@ class SabrPlaybackRecoveryTest {
 
         assertEquals("retry_fresh_session", recovery.action(holder))
         coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
+    @Test
+    fun `protected no-media retries only known strictly lower video ranks`() {
+        val current = format(itag = 137, width = 1920, height = 1080, bitrate = 4_000_000)
+        val formats = listOf(
+            format(itag = 313, width = 3840, height = 2160, bitrate = 15_000_000),
+            format(itag = 399, width = 1920, height = 1080, bitrate = 5_000_000),
+            current,
+            format(itag = 248, width = 1920, height = 1080, bitrate = 3_000_000),
+            format(itag = 247, width = 1920, height = 1080, bitrate = 4_000_000),
+            format(itag = 136, width = 1280, height = 720, bitrate = 2_500_000),
+            format(itag = 136, width = 854, height = 480, bitrate = 1_000_000),
+            format(itag = 135, width = 854, height = 480, bitrate = 1_000_000),
+            format(itag = 134, width = 0, height = 360, bitrate = 500_000),
+            format(itag = 140, width = 0, height = 0, bitrate = 128_000, isVideo = false),
+        )
+        val recovery = SabrPlaybackRecovery(mockk())
+
+        assertEquals(listOf(248, 136, 135), recovery.retryVideoItags(holder(current, formats)))
+    }
+
+    @Test
+    fun `protected no-media excludes retries when current rank is unknown`() {
+        val current = format(itag = 137, width = 1920, height = 0, bitrate = 4_000_000)
+        val lower = format(itag = 136, width = 1280, height = 720, bitrate = 2_500_000)
+        val recovery = SabrPlaybackRecovery(mockk())
+
+        assertEquals(emptyList<Int>(), recovery.retryVideoItags(holder(current, listOf(current, lower))))
+    }
+
+    @Test
+    fun `non protected failure has no retry video itags`() {
+        val current = format(itag = 137, width = 1920, height = 1080, bitrate = 4_000_000)
+        val lower = format(itag = 136, width = 1280, height = 720, bitrate = 2_500_000)
+        val holder = holder(current, listOf(current, lower), "SABR demand stalled for 140:39")
+        val recovery = SabrPlaybackRecovery(mockk())
+
+        assertEquals(emptyList<Int>(), recovery.retryVideoItags(holder))
+    }
+
+    private fun holder(
+        current: YoutubeSabrFormat,
+        formats: List<YoutubeSabrFormat>,
+        failure: String = "video:${current.itag}:12 status=3 protected no-media",
+    ): SabrSessionHolder {
+        val info = mockk<YoutubeSabrInfo>()
+        every { info.formats } returns formats
+        val holder = mockk<SabrSessionHolder>()
+        every { holder.terminalFailure() } returns failure
+        every { holder.videoFormat } returns current
+        every { holder.info } returns info
+        return holder
+    }
+
+    private fun format(
+        itag: Int,
+        width: Int,
+        height: Int,
+        bitrate: Int,
+        isVideo: Boolean = true,
+    ): YoutubeSabrFormat {
+        val format = mockk<YoutubeSabrFormat>()
+        every { format.itag } returns itag
+        every { format.isVideo } returns isVideo
+        every { format.width } returns width
+        every { format.height } returns height
+        every { format.bitrate } returns bitrate
+        return format
     }
 }
