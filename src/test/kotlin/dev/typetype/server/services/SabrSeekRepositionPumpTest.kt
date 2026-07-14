@@ -74,6 +74,34 @@ class SabrSeekRepositionPumpTest {
         }
     }
 
+    @Test
+    fun `forward seek discovered beyond end is discarded`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(video, 24)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            var beyondEnd = false
+            every { session.streamState } returns mockk(relaxed = true)
+            every { session.getCachedSegment(any()) } returns null
+            every { session.isBeyondEnd(request) } answers { beyondEnd }
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            holder.requestForwardSeek(request)
+            beyondEnd = true
+            var rounds = 0
+
+            SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
+
+            verify(exactly = 0) { session.prepareForForwardJump(request) }
+            verify(exactly = 0) { session.pumpOnceStreamingForDemand(any(), request) }
+            assertEquals(null, holder.pendingSegmentDemandSummary())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
