@@ -139,7 +139,7 @@ class SabrSessionPumpLoopTest {
             val audio = format(140, isAudio = true)
             val video = format(247, isAudio = false)
             val request = SabrSegmentRequest.media(audio, 35)
-            val session = mockk<YoutubeSabrSession>()
+            val session = mockk<YoutubeSabrSession> { every { isBeyondEnd(request) } returns false }
             val streamState = mockk<YoutubeSabrStreamState>()
             every { session.streamState } returns streamState
             every { streamState.setActiveTrackTypes(true, true) } returns Unit

@@ -62,6 +62,10 @@ internal class SabrSessionPumpLoop(
     ): Boolean {
         prepareEviction(holder)
         holder.consumeRefetch()?.let { request ->
+            if (holder.session.isBeyondEnd(request)) {
+                holder.clearSegmentDemand(request)
+                return true
+            }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForRewind(request)
@@ -72,6 +76,10 @@ internal class SabrSessionPumpLoop(
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
+            if (holder.session.isBeyondEnd(request)) {
+                holder.clearSegmentDemand(request)
+                return true
+            }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
             holder.session.prepareForForwardJump(request)

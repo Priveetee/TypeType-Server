@@ -8,11 +8,12 @@ internal object SabrSegmentDemandTracker {
     private val demands = ConcurrentHashMap<String, SegmentDemand>()
     private val order = AtomicLong()
 
-    fun request(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
+    fun request(holder: SabrSessionHolder, request: SabrSegmentRequest, registeredAtMs: Long): Unit {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
+        if (holder.session.isBeyondEnd(request)) return clear(holder, request)
         val requestKey = key(holder, request)
-        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet()))
+        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet(), registeredAtMs))
     }
 
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
@@ -36,8 +37,8 @@ internal object SabrSegmentDemandTracker {
         for ((key, value) in demands) {
             if (!key.startsWith(prefix)) continue
             val request = value.request
-            if (holder.session.getCachedSegment(request) != null) {
-                demands.remove(key)
+            if (holder.session.getCachedSegment(request) != null || holder.session.isBeyondEnd(request)) {
+                demands.remove(key, value)
                 continue
             }
             val startMs = holder.session.streamState
@@ -63,6 +64,12 @@ internal object SabrSegmentDemandTracker {
         return identity(requestKey, demand) == identity
     }
 
+    fun registeredAtMs(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Long? {
+        val requestKey = key(holder, request)
+        val demand = demands[requestKey] ?: return null
+        return demand.registeredAtMs.takeIf { identity(requestKey, demand) == identity }
+    }
+
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Boolean {
         val requestKey = key(holder, request)
         val demand = demands[requestKey] ?: return false
@@ -81,16 +88,21 @@ internal object SabrSegmentDemandTracker {
 
     private fun identity(requestKey: String, demand: SegmentDemand): String = "$requestKey:${demand.order}"
 
-    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long)
+    private data class SegmentDemand(
+        val request: SabrSegmentRequest,
+        val order: Long,
+        val registeredAtMs: Long,
+    )
 }
 
 internal fun SabrSessionHolder.requestSegmentDemand(
     request: SabrSegmentRequest,
     generation: Long = activeGeneration(),
+    registeredAtMs: Long = System.currentTimeMillis(),
 ): Unit = synchronized(this) {
     val state = playbackState()
     if (generation == activeGeneration() && state != SabrPlaybackState.TERMINAL && state != SabrPlaybackState.NETWORK_FAILED) {
-        SabrSegmentDemandTracker.request(this, request)
+        SabrSegmentDemandTracker.request(this, request, registeredAtMs)
     }
 }
 
@@ -106,6 +118,9 @@ internal fun SabrSessionHolder.segmentDemandIdentity(request: SabrSegmentRequest
 
 internal fun SabrSessionHolder.isSegmentDemandActive(request: SabrSegmentRequest, identity: String): Boolean =
     SabrSegmentDemandTracker.isActive(this, request, identity)
+
+internal fun SabrSessionHolder.segmentDemandRegisteredAtMs(request: SabrSegmentRequest, identity: String): Long? =
+    SabrSegmentDemandTracker.registeredAtMs(this, request, identity)
 
 internal fun SabrSessionHolder.clearSegmentDemand(request: SabrSegmentRequest, identity: String): Boolean =
     SabrSegmentDemandTracker.clear(this, request, identity)

@@ -228,6 +228,7 @@ class SabrPlaybackSessionServiceTest {
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.isBeyondEnd(any()) } returns false
         every { session.prepareForInitialization(any()) } returns Unit
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.setSelectVideoFormatBeforeAudio(any()) } returns Unit

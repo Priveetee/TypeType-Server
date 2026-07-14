@@ -36,7 +36,7 @@ class SabrPumpLauncherTest {
             every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } returns 0L
             every { holder.session.streamState.getBufferedEndMs(holder.videoFormat) } answers { companionBufferedEndMs }
             every { registry.contains(holder.key) } returns true
-            holder.requestSegmentDemand(request)
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
             coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
             val watchdog = SabrDemandWatchdog(
                 clock = { testScheduler.currentTime },
@@ -66,7 +66,7 @@ class SabrPumpLauncherTest {
     }
 
     @Test
-    fun `watchdog resets stall deadline when media progresses`() = runTest {
+    fun `watchdog ignores same format progress for missing demand`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
             val pump = mockk<SabrSessionPump>()
@@ -77,7 +77,7 @@ class SabrPumpLauncherTest {
             every { holder.session.getCachedSegment(any()) } returns null
             every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } answers { targetBufferedEndMs }
             every { registry.contains(holder.key) } returns true
-            holder.requestSegmentDemand(request)
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
             coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
             val watchdog = SabrDemandWatchdog(
                 clock = { testScheduler.currentTime },
@@ -91,16 +91,50 @@ class SabrPumpLauncherTest {
             targetBufferedEndMs = 10_000L
             advanceTimeBy(100L)
             runCurrent()
-            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
-            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 1L)
-            runCurrent()
-            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
-            advanceTimeBy(1L)
-            runCurrent()
             advanceUntilIdle()
 
             assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
             assertEquals("SABR demand stalled for 140:50", holder.terminalFailure())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `watchdog gives a new exact demand its own deadline`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val pump = mockk<SabrSessionPump>()
+            val registry = mockk<SabrSessionRegistry>()
+            val holder = holder()
+            val first = SabrSegmentRequest.media(holder.audioFormat, 50)
+            val second = SabrSegmentRequest.media(holder.audioFormat, 51)
+            every { holder.session.getCachedSegment(any()) } returns null
+            every { registry.contains(holder.key) } returns true
+            holder.requestSegmentDemand(first, registeredAtMs = 0L)
+            coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
+            val watchdog = SabrDemandWatchdog(
+                clock = { testScheduler.currentTime },
+                intervalMs = 100L,
+            )
+
+            launchSabrPump(pump, registry, holder, 100L, watchdog)
+            runCurrent()
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 100L)
+            runCurrent()
+            holder.clearSegmentDemand(first)
+            holder.requestSegmentDemand(second, registeredAtMs = testScheduler.currentTime)
+            advanceTimeBy(100L)
+            runCurrent()
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS - 200L)
+            runCurrent()
+            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
+            advanceTimeBy(100L)
+            runCurrent()
+            advanceUntilIdle()
+
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+            assertEquals("SABR demand stalled for 140:51", holder.terminalFailure())
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }
