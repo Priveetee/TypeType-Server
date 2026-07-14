@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import org.json.JSONObject
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import java.util.Base64
 
 internal class SabrTokenBundle(
@@ -38,3 +39,10 @@ internal class SabrTokenBundle(
         }
     }
 }
+
+internal fun SabrTokenBundle.streamingPoTokenBytesFor(info: YoutubeSabrInfo): ByteArray? =
+    takeIf { it.videoId == info.videoId && it.visitorData == info.visitorData }
+        ?.streamingPoTokenBytes
+        ?.takeIf { it.isNotEmpty() }
+
+internal const val SABR_TOKEN_BINDING_FAILURE = "SABR token does not match session visitorData"

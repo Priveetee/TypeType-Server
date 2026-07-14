@@ -29,7 +29,7 @@ internal class SabrSessionStore(
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache()
     private val pump = SabrSessionPump(segmentCache) { videoId ->
-        tokenClient.fetch(videoId, forceRefresh = true, refreshVideo = true)?.streamingPoTokenBytes
+        tokenClient.fetch(videoId, refreshVideo = true)
     }
     private val warmer = SabrPlaybackWarmer()
     private val infoFetcher = SabrInfoFetcher(tokenClient, sessionClient, sharedCache = initCache)

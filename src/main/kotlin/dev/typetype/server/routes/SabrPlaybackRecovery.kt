@@ -1,5 +1,6 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.services.SABR_TOKEN_BINDING_FAILURE
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -15,6 +16,10 @@ internal class SabrPlaybackRecovery(private val sessionStore: SabrSessionStore) 
             return RETRY_FRESH_SESSION_LOWER_VIDEO_ITAG
         }
         if (failure.contains("SABR demand stalled")) {
+            sessionStore.invalidatePlaybackInfo(holder.key.videoId)
+            return RETRY_FRESH_SESSION
+        }
+        if (failure.contains("upstream unauthorized HTTP 403") || failure.contains(SABR_TOKEN_BINDING_FAILURE)) {
             sessionStore.invalidatePlaybackInfo(holder.key.videoId)
             return RETRY_FRESH_SESSION
         }

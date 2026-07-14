@@ -9,7 +9,7 @@ import java.time.Instant
 
 internal class SabrSessionPump(
     private val segmentCache: SabrSegmentCache? = null,
-    refreshPoToken: (String) -> ByteArray? = { null },
+    refreshPoToken: (String) -> SabrTokenBundle? = { null },
 ) {
     private val loop = SabrSessionPumpLoop(SabrUnauthorizedResponseRecovery(refreshPoToken))
 

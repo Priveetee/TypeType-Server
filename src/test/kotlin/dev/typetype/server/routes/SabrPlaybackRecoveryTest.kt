@@ -1,5 +1,6 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.services.SABR_TOKEN_BINDING_FAILURE
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
@@ -20,6 +21,32 @@ class SabrPlaybackRecoveryTest {
         val store = mockk<SabrSessionStore>()
         every { holder.terminalFailure() } returns "SABR demand stalled for 140:39"
         every { holder.key } returns SabrSessionKey("video", "user", 140, "en-US.4", 137, 379_441L)
+        coEvery { store.invalidatePlaybackInfo("video") } returns Unit
+        val recovery = SabrPlaybackRecovery(store)
+
+        assertEquals("retry_fresh_session", recovery.action(holder))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
+    @Test
+    fun `unauthorized token refresh invalidates playback info and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns "SABR upstream unauthorized HTTP 403 after TypeType token refresh"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 0L)
+        coEvery { store.invalidatePlaybackInfo("video") } returns Unit
+        val recovery = SabrPlaybackRecovery(store)
+
+        assertEquals("retry_fresh_session", recovery.action(holder))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
+    @Test
+    fun `token binding mismatch invalidates playback info and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns "video:137:12 $SABR_TOKEN_BINDING_FAILURE"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 0L)
         coEvery { store.invalidatePlaybackInfo("video") } returns Unit
         val recovery = SabrPlaybackRecovery(store)
 

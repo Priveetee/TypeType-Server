@@ -10,7 +10,9 @@ internal object SabrPlaybackDiagnostics {
     fun record(holder: SabrSessionHolder, request: SabrSegmentRequest, message: String?): Unit {
         val blocker = "${request.trackName()}:${request.format.itag}:${request.sequenceNumber} ${message.blockerSummary()}"
         blockers[holder.sessionToken] = blocker
-        if (message.isProtectedNoMedia()) holder.failTerminal("$blocker after PO-token refresh attempts")
+        if (message.isProtectedNoMedia() || message == SABR_TOKEN_BINDING_FAILURE) {
+            holder.failTerminal("$blocker after PO-token refresh attempts")
+        }
     }
 
     fun clear(holder: SabrSessionHolder, segment: SabrMediaSegment): Unit {
