@@ -6,6 +6,7 @@ import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
@@ -40,6 +41,34 @@ class SabrSessionPumpLoopTest {
             assertEquals("299:22", holder.pendingSegmentDemandSummary())
             holder.clearSegmentDemand(videoRequest)
             assertEquals("140:42", holder.pendingSegmentDemandSummary())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `recreated demand receives a fresh lifecycle identity`() {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, isAudio = true)
+            val video = format(299, isAudio = false)
+            val request = SabrSegmentRequest.media(video, 22)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            every { session.streamState } returns mockk(relaxed = true)
+            every { session.getCachedSegment(any()) } returns null
+            val holder = holder(session, audio, video)
+
+            holder.requestSegmentDemand(request)
+            val firstIdentity = holder.segmentDemandIdentity(request)
+            holder.clearSegmentDemand(request)
+            holder.requestSegmentDemand(request)
+            val recreatedIdentity = holder.segmentDemandIdentity(request)
+            holder.advancePlaybackGeneration(220_000L)
+            holder.requestSegmentDemand(request)
+            val nextGenerationIdentity = holder.segmentDemandIdentity(request)
+
+            assertNotEquals(firstIdentity, recreatedIdentity)
+            assertNotEquals(recreatedIdentity, nextGenerationIdentity)
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

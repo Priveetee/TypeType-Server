@@ -20,7 +20,7 @@ import java.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrTransientDemandFailureTest {
     @Test
-    fun `repeated companion responses refetch demanded audio`() = runTest {
+    fun `companion responses keep demand pending until target arrives`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
             val audio = format(140, true)
@@ -50,7 +50,7 @@ class SabrTransientDemandFailureTest {
             assertEquals(SabrPlaybackState.STOPPED, holder.playbackState())
             assertNull(holder.terminalFailure())
             assertNull(holder.pendingSegmentDemandSummary())
-            verify(exactly = 1) { session.prepareForRewind(request) }
+            verify(exactly = 0) { session.prepareForRewind(request) }
             verify(exactly = 3) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
@@ -93,6 +93,117 @@ class SabrTransientDemandFailureTest {
             assertNull(holder.pendingSegmentDemandSummary())
             assertEquals(1_000L, testScheduler.currentTime)
             verify(exactly = 2) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `no response demand rounds preserve network failure streak`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(audio, 50)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            var attempts = 0
+            every { session.streamState } returns streamState
+            every { session.requestNumber } returns 3
+            every { session.getCachedSegment(request) } returns null
+            every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
+            every { streamState.getMinBufferedEndMs() } returns 499_233L
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                attempts++
+                if (attempts % 2 == 1) throw IOException("timeout")
+                result(segmentCount = 0, targetTrackSegmentCount = 0)
+            }
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ < 9 }, holder, intervalMs = 0L)
+
+            assertEquals(SabrPlaybackState.NETWORK_FAILED, holder.playbackState())
+            assertEquals("timeout", holder.networkFailure())
+            verify(exactly = 9) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `successful response resets network failure streak`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(audio, 50)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            var attempts = 0
+            var requestNumber = 3
+            every { session.streamState } returns streamState
+            every { session.requestNumber } answers { requestNumber }
+            every { session.getCachedSegment(request) } returns null
+            every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
+            every { streamState.getMinBufferedEndMs() } returns 499_233L
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                attempts++
+                if (attempts != 5) throw IOException("timeout")
+                requestNumber++
+                result(segmentCount = 4, targetTrackSegmentCount = 0)
+            }
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ < 9 }, holder, intervalMs = 0L)
+
+            assertEquals(SabrPlaybackState.STOPPED, holder.playbackState())
+            assertNull(holder.networkFailure())
+            verify(exactly = 9) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `replaced demand ignores an in flight response from the old generation`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(audio, 50)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            lateinit var holder: SabrSessionHolder
+            var attempts = 0
+            every { session.streamState } returns streamState
+            every { session.requestNumber } answers { attempts }
+            every { session.getCachedSegment(request) } returns null
+            every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
+            every { streamState.getMinBufferedEndMs() } returns 499_233L
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                attempts++
+                if (attempts == 3) {
+                    synchronized(holder) {
+                        holder.clearSegmentDemands()
+                        holder.advancePlaybackGeneration(499_414L)
+                        holder.requestSegmentDemand(request)
+                    }
+                }
+                result(segmentCount = 4, targetTrackSegmentCount = 1)
+            }
+            holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ < 3 }, holder, intervalMs = 0L)
+
+            assertEquals(SabrPlaybackState.STOPPED, holder.playbackState())
+            assertNull(holder.terminalFailure())
+            assertEquals("140:50", holder.pendingSegmentDemandSummary())
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

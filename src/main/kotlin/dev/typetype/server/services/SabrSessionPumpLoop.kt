@@ -12,15 +12,17 @@ import java.io.IOException
 
 internal class SabrSessionPumpLoop(
     private val unauthorizedRecovery: SabrUnauthorizedResponseRecovery = SabrUnauthorizedResponseRecovery { null },
+    private val runtimeFactory: () -> SabrPumpRuntime = { SabrPumpRuntime() },
 ) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "US")
-        val runtime = SabrPumpRuntime()
+        val runtime = runtimeFactory()
         var consecutiveIoErrors = 0
         while (isAlive() && holder.playbackState() != SabrPlaybackState.TERMINAL) {
             try {
+                val requestNumber = holder.session.requestNumber
                 val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
-                consecutiveIoErrors = 0
+                if (holder.session.requestNumber != requestNumber) consecutiveIoErrors = 0
                 delay(if (immediate) 0L else demandDelayMs(holder, intervalMs))
             } catch (error: CancellationException) {
                 throw error
@@ -78,22 +80,12 @@ internal class SabrSessionPumpLoop(
             return true
         }
         holder.nextSegmentDemand()?.let { request ->
+            val demandIdentity = holder.segmentDemandIdentity(request) ?: return true
+            val demandStartedAt = holder.segmentDemandStartedAt(request, demandIdentity) ?: return true
             SabrPumpLogger.start(holder, "demand", request)
-            val requestNumber = holder.session.requestNumber
+            runtime.beginDemand(demandIdentity, demandStartedAt)
             val result = pumpDemand(holder, localization, request, runtime)
-            val resolved = holder.resolveSegmentDemand(request)
-            SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
-            val action = runtime.demandRecoveryAction(
-                requestKey = request.summary(),
-                responseReceived = holder.session.requestNumber != requestNumber,
-                targetTrackSegmentCount = result.targetTrackSegmentCount,
-                resolved = resolved,
-            )
-            val recovering = recoverDemand(holder, request, action, runtime)
-            if (holder.playbackState() != SabrPlaybackState.TERMINAL) {
-                holder.setPlaybackState(SabrPlaybackState.IDLE)
-            }
-            return resolved || recovering
+            return SabrDemandAttemptFinisher.finish(holder, request, demandIdentity, result, runtime)
         }
         if (holder.session.requestNumber == 0) return false
         if (holder.session.isComplete && !holder.hasPendingSeek()) return false
@@ -108,7 +100,6 @@ internal class SabrSessionPumpLoop(
         holder.setPlaybackState(SabrPlaybackState.IDLE)
         return false
     }
-
     private fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
         return try {
             holder.session.pumpOnceStreaming(localization).also { unauthorizedRecovery.verify(holder) }
@@ -164,37 +155,7 @@ internal class SabrSessionPumpLoop(
         holder.session.evictPlayed()
     }
 
-    private fun recoverDemand(
-        holder: SabrSessionHolder,
-        request: SabrSegmentRequest,
-        action: SabrDemandRecoveryAction,
-        runtime: SabrPumpRuntime,
-    ): Boolean = when (action) {
-        SabrDemandRecoveryAction.WAIT -> false
-        SabrDemandRecoveryAction.READVERTISE_TRACK -> {
-            runtime.activateSeekMode()
-            holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForMissingSegment(request)
-            SabrPumpLogger.recovery(holder, action, request)
-            true
-        }
-        SabrDemandRecoveryAction.REFETCH -> {
-            runtime.activateSeekMode()
-            holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForRewind(request)
-            SabrPumpLogger.recovery(holder, action, request)
-            true
-        }
-        SabrDemandRecoveryAction.FAIL -> {
-            holder.clearSegmentDemand(request)
-            holder.failTerminal("SABR demand stalled for ${request.summary()}")
-            false
-        }
-    }
-
     private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long =
         if (holder.pendingSegmentDemandSummary() == null) intervalMs
         else maxOf(intervalMs, holder.session.demandBackoffRemainingMs)
-
-    private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 }

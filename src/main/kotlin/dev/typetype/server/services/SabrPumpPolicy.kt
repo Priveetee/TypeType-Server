@@ -12,9 +12,8 @@ internal object SabrPumpPolicy {
     const val SEEK_MODE_MS = 8_000L
     const val MIN_SERVER_READAHEAD_CUSHION_MS = 3_000L
     const val SERVER_AHEAD_MARGIN_MS = 16_000L
+    const val DEMAND_TARGET_DEADLINE_MS = 15_000L
     const val MAX_DEMAND_RESPONSES_WITHOUT_TARGET = 3
-    const val RESPONSES_WITHOUT_TARGET_TRACK_PER_REFETCH = 2
-    const val MAX_RESPONSES_WITHOUT_TARGET_TRACK = 6
     const val MAX_AHEAD_BYTES = 24L * 1024L * 1024L
     const val BACK_BUFFER_MS = 12_000L
     const val MIN_BACK_BUFFER_MS = 2_000L

@@ -12,7 +12,7 @@ internal object SabrSegmentDemandTracker {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
         val requestKey = key(holder, request)
-        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet()))
+        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet(), System.currentTimeMillis()))
     }
 
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
@@ -52,6 +52,30 @@ internal object SabrSegmentDemandTracker {
         return selected
     }
 
+    fun identity(holder: SabrSessionHolder, request: SabrSegmentRequest): String? {
+        val requestKey = key(holder, request)
+        return demands[requestKey]?.let { identity(requestKey, it) }
+    }
+
+    fun startedAt(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Long? {
+        val requestKey = key(holder, request)
+        val demand = demands[requestKey] ?: return null
+        return demand.startedAtMs.takeIf { identity(requestKey, demand) == identity }
+    }
+
+    fun isActive(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Boolean {
+        val requestKey = key(holder, request)
+        val demand = demands[requestKey] ?: return false
+        return identity(requestKey, demand) == identity
+    }
+
+    fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Boolean {
+        val requestKey = key(holder, request)
+        val demand = demands[requestKey] ?: return false
+        if (identity(requestKey, demand) != identity) return false
+        return demands.remove(requestKey, demand)
+    }
+
     fun pendingSummary(holder: SabrSessionHolder): String? = next(holder)?.let { "${it.format.itag}:${it.sequenceNumber}" }
 
     private fun key(holder: SabrSessionHolder, request: SabrSegmentRequest): String =
@@ -61,7 +85,9 @@ internal object SabrSegmentDemandTracker {
 
     private fun holderPrefix(holder: SabrSessionHolder): String = "${holder.sessionToken}:"
 
-    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long)
+    private fun identity(requestKey: String, demand: SegmentDemand): String = "$requestKey:${demand.order}"
+
+    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long, val startedAtMs: Long)
 }
 
 internal fun SabrSessionHolder.requestSegmentDemand(request: SabrSegmentRequest): Unit =
@@ -73,5 +99,17 @@ internal fun SabrSessionHolder.clearSegmentDemand(request: SabrSegmentRequest): 
 internal fun SabrSessionHolder.clearSegmentDemands(): Unit = SabrSegmentDemandTracker.clear(this)
 
 internal fun SabrSessionHolder.nextSegmentDemand(): SabrSegmentRequest? = SabrSegmentDemandTracker.next(this)
+
+internal fun SabrSessionHolder.segmentDemandIdentity(request: SabrSegmentRequest): String? =
+    SabrSegmentDemandTracker.identity(this, request)
+
+internal fun SabrSessionHolder.segmentDemandStartedAt(request: SabrSegmentRequest, identity: String): Long? =
+    SabrSegmentDemandTracker.startedAt(this, request, identity)
+
+internal fun SabrSessionHolder.isSegmentDemandActive(request: SabrSegmentRequest, identity: String): Boolean =
+    SabrSegmentDemandTracker.isActive(this, request, identity)
+
+internal fun SabrSessionHolder.clearSegmentDemand(request: SabrSegmentRequest, identity: String): Boolean =
+    SabrSegmentDemandTracker.clear(this, request, identity)
 
 internal fun SabrSessionHolder.pendingSegmentDemandSummary(): String? = SabrSegmentDemandTracker.pendingSummary(this)

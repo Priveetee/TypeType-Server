@@ -59,34 +59,22 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
-    fun `network delay does not expire demand recovery`() {
-        var now = 1_000L
+    fun `demand deadline includes network delay and local retries`() {
+        var now = 16_000L
         val runtime = SabrPumpRuntime { now }
+        runtime.beginDemand("140:44", startedAtMs = 1_000L)
 
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", false, 0, false))
-        now += 90_000L
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", false, 0, false))
+        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 0, false))
     }
 
     @Test
     fun `three responses without demanded segment fail demand`() {
         val runtime = SabrPumpRuntime { 1_000L }
+        runtime.beginDemand("140:44")
 
-        assertEquals(SabrDemandRecoveryAction.READVERTISE_TRACK, runtime.demandRecoveryAction("140:44", true, 1, false))
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", true, 1, false))
-        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", true, 1, false))
-    }
-
-    @Test
-    fun `responses without target track refetch twice before bounded failure`() {
-        val runtime = SabrPumpRuntime { 1_000L }
-
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", true, 0, false))
-        assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", true, 0, false))
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", true, 0, false))
-        assertEquals(SabrDemandRecoveryAction.REFETCH, runtime.demandRecoveryAction("140:44", true, 0, false))
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", true, 0, false))
-        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", true, 0, false))
+        assertEquals(SabrDemandRecoveryAction.READVERTISE_TRACK, runtime.demandRecoveryAction("140:44", 1, false))
+        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 1, false))
+        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 1, false))
     }
 
     private fun holder(
