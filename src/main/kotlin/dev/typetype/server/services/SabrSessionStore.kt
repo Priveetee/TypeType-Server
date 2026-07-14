@@ -39,7 +39,6 @@ internal class SabrSessionStore(
     init {
         runCatching { NewPipeInitializer.init() }
     }
-
     internal fun getOrCreate(
         videoId: String,
         userId: String,
@@ -52,6 +51,7 @@ internal class SabrSessionStore(
         purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
         audioOnly: Boolean = false,
     ): SabrSessionHolder {
+        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK) SabrSessionTokenGenerator.newToken() else null
         val key = SabrSessionKey(
             videoId,
             userId,
@@ -61,6 +61,7 @@ internal class SabrSessionStore(
             startTimeMs.coerceAtLeast(0L),
             purpose,
             audioOnly,
+            playbackToken,
         )
         registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
@@ -71,13 +72,12 @@ internal class SabrSessionStore(
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
             ?.let { session.streamState.setPoToken(it) }
-        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, SabrSessionTokenGenerator.newToken(), key, Instant.now())
+        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, playbackToken ?: SabrSessionTokenGenerator.newToken(), key, Instant.now())
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
         if (startPump) startPump(holder)
         return holder
     }
-
     internal fun startPump(holder: SabrSessionHolder) {
         scope.launchSabrPump(pump, registry, holder, pumpLoopIntervalMs)
     }

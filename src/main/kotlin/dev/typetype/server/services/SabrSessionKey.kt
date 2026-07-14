@@ -9,4 +9,5 @@ internal data class SabrSessionKey(
     val startTimeMs: Long,
     val purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
     val audioOnly: Boolean = false,
+    val sourceId: String? = null,
 )
