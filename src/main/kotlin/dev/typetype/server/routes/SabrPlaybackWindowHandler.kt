@@ -100,7 +100,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             pendingRefetch = pendingRefetchRequest()?.summary(),
             pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
             pendingSegmentDemand = pendingSegmentDemandSummary(),
-            terminalError = terminalFailure(),
+            terminalError = terminalFailure() ?: networkFailure(),
             recoveryAction = recovery.action(this),
             retryVideoItags = recovery.retryVideoItags(this),
         )
@@ -124,7 +124,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         pendingRefetch = pendingRefetchRequest()?.summary(),
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         pendingSegmentDemand = pendingSegmentDemandSummary(),
-        terminalError = terminalFailure(),
+        terminalError = terminalFailure() ?: networkFailure(),
         recoveryAction = recovery.action(this),
         retryVideoItags = recovery.retryVideoItags(this),
     )

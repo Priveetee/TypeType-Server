@@ -164,6 +164,26 @@ class SabrPlaybackGranularRoutesTest {
         coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
     }
 
+    @Test
+    fun `network failure remains visible and requests fresh session`() = testApplication {
+        val store = emptyStore()
+        val holder = holder()
+        holder.recordNetworkFailure("upstream timeout")
+        every { store.lookupByToken("session-token") } returns holder
+        installApp(store)
+
+        val response = client.post("/sabr/playback/session-token/window") {
+            contentType(ContentType.Application.Json)
+            setBody(windowBody())
+        }
+
+        val body = response.bodyAsText()
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(body.contains("\"terminalError\":\"upstream timeout\""))
+        assertTrue(body.contains("\"recoveryAction\":\"retry_fresh_session\""))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
     private fun ApplicationTestBuilder.installApp(store: SabrSessionStore): Unit = application {
         install(ContentNegotiation) { json() }
         val handler = SabrPlaybackWindowHandler(store)

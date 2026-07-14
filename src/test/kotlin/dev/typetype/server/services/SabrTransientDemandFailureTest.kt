@@ -20,6 +20,44 @@ import java.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrTransientDemandFailureTest {
     @Test
+    fun `repeated companion responses refetch demanded audio`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(audio, 50)
+            val segment = mockk<SabrMediaSegment>()
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            var cached = false
+            var attempts = 0
+            every { session.streamState } returns streamState
+            every { session.requestNumber } answers { attempts }
+            every { session.getCachedSegment(request) } answers { segment.takeIf { cached } }
+            every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
+            every { streamState.getMinBufferedEndMs() } returns 499_233L
+            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
+                attempts++
+                if (attempts == 3) cached = true
+                result(segmentCount = if (attempts < 3) 4 else 1, targetTrackSegmentCount = if (attempts < 3) 0 else 1)
+            }
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ < 3 }, holder, intervalMs = 0L)
+
+            assertEquals(SabrPlaybackState.STOPPED, holder.playbackState())
+            assertNull(holder.terminalFailure())
+            assertNull(holder.pendingSegmentDemandSummary())
+            verify(exactly = 1) { session.prepareForRewind(request) }
+            verify(exactly = 3) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
     fun `transient timeout preserves demand until retry succeeds`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
@@ -80,5 +118,12 @@ class SabrTransientDemandFailureTest {
         every { format.isAudio } returns isAudio
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
+    }
+
+    private fun result(segmentCount: Int, targetTrackSegmentCount: Int): YoutubeSabrSession.DemandResponseResult {
+        val result = mockk<YoutubeSabrSession.DemandResponseResult>()
+        every { result.segmentCount } returns segmentCount
+        every { result.targetTrackSegmentCount } returns targetTrackSegmentCount
+        return result
     }
 }

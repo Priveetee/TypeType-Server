@@ -1,13 +1,19 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.SABR_TOKEN_BINDING_FAILURE
+import dev.typetype.server.services.SABR_RECOVERABLE_FAILURE_PREFIX
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackRecovery(private val sessionStore: SabrSessionStore) {
     suspend fun action(holder: SabrSessionHolder): String? {
-        val failure = holder.terminalFailure() ?: return null
+        val terminalFailure = holder.terminalFailure()
+        val failure = terminalFailure ?: holder.networkFailure() ?: return null
+        if (terminalFailure == null || failure.startsWith(SABR_RECOVERABLE_FAILURE_PREFIX)) {
+            sessionStore.invalidatePlaybackInfo(holder.key.videoId)
+            return RETRY_FRESH_SESSION
+        }
         if (failure.contains("Expected UMP response", ignoreCase = true)) {
             sessionStore.invalidatePlaybackInfo(holder.key.videoId)
             return RETRY_FRESH_SESSION

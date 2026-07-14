@@ -32,7 +32,7 @@ internal class SabrSessionPumpLoop(
                 }
                 delay(SabrPumpPolicy.ERROR_RETRY_MS)
             } catch (error: SabrRecoverableException) {
-                holder.failTerminal(error.message)
+                holder.failTerminal(sabrRecoverableFailureMessage(error.message))
                 return
             } catch (error: ExtractionException) {
                 holder.failTerminal(error.message)
@@ -51,7 +51,6 @@ internal class SabrSessionPumpLoop(
             holder.setPlaybackState(SabrPlaybackState.STOPPED)
         }
     }
-
     private suspend fun pumpRound(
         holder: SabrSessionHolder,
         localization: Localization,
@@ -80,11 +79,13 @@ internal class SabrSessionPumpLoop(
         }
         holder.nextSegmentDemand()?.let { request ->
             SabrPumpLogger.start(holder, "demand", request)
+            val requestNumber = holder.session.requestNumber
             val result = pumpDemand(holder, localization, request, runtime)
             val resolved = holder.resolveSegmentDemand(request)
             SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
             val action = runtime.demandRecoveryAction(
                 requestKey = request.summary(),
+                responseReceived = holder.session.requestNumber != requestNumber,
                 targetTrackSegmentCount = result.targetTrackSegmentCount,
                 resolved = resolved,
             )
@@ -196,5 +197,4 @@ internal class SabrSessionPumpLoop(
         else maxOf(intervalMs, holder.session.demandBackoffRemainingMs)
 
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
-
 }

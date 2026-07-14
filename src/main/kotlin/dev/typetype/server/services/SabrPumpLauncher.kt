@@ -9,10 +9,8 @@ internal fun CoroutineScope.launchSabrPump(
     holder: SabrSessionHolder,
     intervalMs: Long,
 ): Unit {
-    if (holder.playbackState() == SabrPlaybackState.TERMINAL || !holder.markPumpStarted()) return
-    if (holder.playbackState() == SabrPlaybackState.NETWORK_FAILED) {
-        holder.setPlaybackState(SabrPlaybackState.IDLE)
-    }
+    val state = holder.playbackState()
+    if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED || !holder.markPumpStarted()) return
     launch {
         try {
             pump.pumpLoop({ registry.contains(holder.key) }, holder, intervalMs)

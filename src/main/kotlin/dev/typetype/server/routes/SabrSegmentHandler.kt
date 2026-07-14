@@ -48,7 +48,7 @@ internal class SabrSegmentHandler(
         sabrSessionStore.requestSegmentDemand(holder, request)
         val segment = withTimeoutOrNull(SEGMENT_TIMEOUT_MS) {
             var fetched = sabrSessionStore.cachedSegment(holder, request)
-            while (fetched == null && holder.terminalFailure() == null) {
+            while (fetched == null && holder.terminalFailure() == null && holder.networkFailure() == null) {
                 delay(SEGMENT_RETRY_MS)
                 fetched = sabrSessionStore.cachedSegment(holder, request)
             }

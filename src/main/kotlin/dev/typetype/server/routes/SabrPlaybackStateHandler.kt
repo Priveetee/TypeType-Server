@@ -34,7 +34,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         pendingRefetch = pendingRefetchRequest()?.summary(),
         pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
         pendingSegmentDemand = pendingSegmentDemandSummary(),
-        terminalError = terminalFailure(),
+        terminalError = terminalFailure() ?: networkFailure(),
         diagnosticTrace = session.diagnosticTrace,
     )
 

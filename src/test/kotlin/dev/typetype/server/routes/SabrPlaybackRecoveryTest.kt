@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.SABR_TOKEN_BINDING_FAILURE
+import dev.typetype.server.services.SABR_RECOVERABLE_FAILURE_PREFIX
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
@@ -10,11 +11,47 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 class SabrPlaybackRecoveryTest {
+    @Test
+    fun `network failure invalidates playback info and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns null
+        every { holder.networkFailure() } returns "timeout"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 0L)
+        coEvery { store.invalidatePlaybackInfo("video") } returns Unit
+
+        assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
+    @Test
+    fun `recoverable media failure invalidates playback info and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns "$SABR_RECOVERABLE_FAILURE_PREFIX Unexpected EOF"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 0L)
+        coEvery { store.invalidatePlaybackInfo("video") } returns Unit
+
+        assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
+        coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
+    }
+
+    @Test
+    fun `local spool failure does not request a fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns "Could not write SABR spool file"
+
+        assertNull(SabrPlaybackRecovery(store).action(holder))
+        coVerify(exactly = 0) { store.invalidatePlaybackInfo(any()) }
+    }
+
     @Test
     fun `stalled demand invalidates playback info and requests fresh session`() = runTest {
         val holder = mockk<SabrSessionHolder>()

@@ -157,11 +157,11 @@ internal class SabrSessionHolder(
     fun playbackState(): SabrPlaybackState = playbackState.get()
 
     fun recordNetworkFailure(message: String?): Unit {
-        networkError.set(message)
+        networkError.set(message ?: "SABR network failure")
         playbackState.set(SabrPlaybackState.NETWORK_FAILED)
     }
 
-    fun consumeNetworkFailure(): String? = networkError.getAndSet(null)
+    fun networkFailure(): String? = networkError.get()
 
     fun failTerminal(message: String?): Unit {
         terminalError.set(message)

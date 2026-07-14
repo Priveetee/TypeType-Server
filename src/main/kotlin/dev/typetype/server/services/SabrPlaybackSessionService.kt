@@ -120,7 +120,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         timeoutMs: Long,
     ): CachedSabrSegment? = withTimeoutOrNull(timeoutMs) {
         var segment = sessionStore.cachedSegment(holder, request)
-        while (segment == null && holder.terminalFailure() == null && holder.consumeNetworkFailure() == null) {
+        while (segment == null && holder.terminalFailure() == null && holder.networkFailure() == null) {
             delay(SEGMENT_WAIT_MS)
             segment = sessionStore.cachedSegment(holder, request)
         }

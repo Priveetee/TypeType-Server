@@ -18,21 +18,22 @@ import java.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrPumpLauncherTest {
     @Test
-    fun `completed network pump can be started again`() = runTest {
+    fun `failed network pump keeps a non-null failure and remains stopped`() = runTest {
         val pump = mockk<SabrSessionPump>()
         val registry = mockk<SabrSessionRegistry>()
         val holder = holder()
-        holder.recordNetworkFailure("timeout")
+        holder.recordNetworkFailure(null)
         every { registry.contains(holder.key) } returns true
         coEvery { pump.pumpLoop(any(), holder, 100L) } returns Unit
 
         launchSabrPump(pump, registry, holder, 100L)
         advanceUntilIdle()
 
-        assertEquals(SabrPlaybackState.IDLE, holder.playbackState())
+        assertEquals(SabrPlaybackState.NETWORK_FAILED, holder.playbackState())
+        assertEquals("SABR network failure", holder.networkFailure())
         assertTrue(holder.markPumpStarted())
         holder.markPumpStopped()
-        coVerify(exactly = 1) { pump.pumpLoop(any(), holder, 100L) }
+        coVerify(exactly = 0) { pump.pumpLoop(any(), holder, 100L) }
     }
 
     private fun holder(): SabrSessionHolder {
