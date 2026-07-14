@@ -18,7 +18,8 @@ class YoutubeTakeoutParserServiceTest {
         assertTrue(parsed.history.first().url.contains("watch?v=abc123"))
         assertEquals(1, parsed.watchLater.size)
         assertTrue(parsed.watchLater.first().url.contains("watch?v=watch456"))
-        assertEquals(listOf("https://www.youtube.com/watch?v=like789"), parsed.favorites)
+        assertEquals(listOf("https://www.youtube.com/watch?v=like789"), parsed.favorites.map { it.videoUrl })
+        assertEquals(1_758_045_443_000L, parsed.favorites.first().favoritedAt)
         Files.deleteIfExists(zip)
     }
 
@@ -63,6 +64,7 @@ class YoutubeTakeoutParserServiceTest {
         assertEquals(1, parsed.playlists.size)
         assertEquals(1, parsed.playlistItems["a"]?.size)
         assertEquals("YouTube video abc123", parsed.playlistItems["a"]?.first()?.title)
+        assertEquals(1_767_225_600_000L, parsed.playlistItems["a"]?.first()?.addedAt)
         assertEquals("https://i.ytimg.com/vi/abc123/hqdefault.jpg", parsed.playlistItems["a"]?.first()?.thumbnail)
         assertEquals(1, parsed.watchLater.size)
         Files.deleteIfExists(zip)

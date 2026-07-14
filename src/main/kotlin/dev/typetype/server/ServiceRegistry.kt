@@ -1,12 +1,16 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.AccessControlService
+import dev.typetype.server.services.AccountIdentityService
 import dev.typetype.server.services.AdminManagedAccessService
 import dev.typetype.server.services.AdminUserLookupService
 import dev.typetype.server.services.AllowedChannelsService
 import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.CustomAvatarService
+import dev.typetype.server.services.DeArrowService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
@@ -14,6 +18,7 @@ import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
+import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.SavedPlaylistService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
@@ -32,15 +37,30 @@ internal class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
+    jwtSecret: String,
     adminSettingsService: AdminSettingsService,
 ) {
     init {
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
     }
 
-    private val extraction = ExtractionServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey)
+    val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
+    val accountIdentityService = AccountIdentityService()
+    val customAvatarService = CustomAvatarService()
+    val deArrowService = DeArrowService(cache)
+    private val extraction = ExtractionServiceRegistry(
+        cache,
+        subtitleServiceUrl,
+        youtubeSessionEncryptionKey,
+        publicHlsManifestTokenService::createPath,
+    )
     val youtubeSessionService = extraction.youtubeSessionService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
+    val legacyStreamService = extraction.legacyStreamService
+    val youtubeSabrStreamService = extraction.youtubeSabrStreamService
+    val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
+    val nicoNicoStreamService = extraction.nicoNicoStreamService
+    val bilibiliStreamService = extraction.bilibiliStreamService
     val streamService = extraction.streamService
     val searchService = extraction.searchService
     val trendingService = extraction.trendingService
@@ -55,7 +75,9 @@ internal class ServiceRegistry(
     val nativeManifestService = extraction.nativeManifestService
     val hlsManifestService = extraction.hlsManifestService
     val youtubeSessionHlsManifestService = extraction.youtubeSessionHlsManifestService
+    val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
+    val sabrSessionStore = extraction.sabrSessionStore
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)

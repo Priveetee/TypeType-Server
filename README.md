@@ -82,6 +82,13 @@ docker compose -f docker-compose.dev-mirror.yml up -d
 ./scripts/bootstrap-garage.sh
 ```
 
+On `arm64`/`aarch64` hosts, add the Dragonfly ARM override:
+
+```bash
+docker compose -f docker-compose.dev-mirror.yml -f docker-compose.arm64.yml up -d
+COMPOSE_OVERRIDE_FILE="$PWD/docker-compose.arm64.yml" ./scripts/bootstrap-garage.sh
+```
+
 | Service | URL |
 |---|---|
 | Frontend | `http://localhost:28082` |
@@ -100,6 +107,8 @@ docker compose -f docker-compose.dev-mirror.yml up -d
 | `DRAGONFLY_URL` | Dragonfly connection URL |
 | `DOWNLOADER_SERVICE_URL` | Base URL for TypeType-Downloader |
 | `SUBTITLE_SERVICE_URL` | Base URL for TypeType-Token |
+
+`DRAGONFLY_URL` is a Redis protocol URL consumed through Lettuce. The provided ARM Compose override keeps Dragonfly as the cache service, pins the `dragonfly` service to `linux/arm64`, and keeps the default URL as `redis://dragonfly:6379`.
 
 ## Checks
 

@@ -1,7 +1,6 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.AudioStreamItem
-import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoItem
 import dev.typetype.server.models.VideoStreamItem
 
@@ -17,6 +16,7 @@ fun testVideoStream(
     indexEnd: Long = 893,
     initStart: Long = 0,
     initEnd: Long = 220,
+    itag: Int = 137,
 ): VideoStreamItem = VideoStreamItem(
     url = url,
     mimeType = "video/mp4",
@@ -25,7 +25,7 @@ fun testVideoStream(
     bitrate = bitrate,
     codec = codec,
     isVideoOnly = true,
-    itag = 137,
+    itag = itag,
     width = width,
     height = height,
     fps = 30,
@@ -49,6 +49,11 @@ fun testAudioStream(
     audioTrackName: String? = null,
     audioLocale: String? = null,
     isOriginal: Boolean = false,
+    itag: Int = 140,
+    deliveryMethod: String = "progressive",
+    manifestUrl: String? = null,
+    sabrSessionUrl: String? = null,
+    contentLength: Long = 5_000_000,
 ): AudioStreamItem = AudioStreamItem(
     url = url,
     mimeType = "audio/mp4",
@@ -56,8 +61,8 @@ fun testAudioStream(
     bitrate = bitrate,
     codec = codec,
     quality = "medium",
-    itag = 140,
-    contentLength = 5_000_000,
+    itag = itag,
+    contentLength = contentLength,
     initStart = initStart,
     initEnd = initEnd,
     indexStart = indexStart,
@@ -66,51 +71,7 @@ fun testAudioStream(
     audioTrackName = audioTrackName,
     audioLocale = audioLocale,
     isOriginal = isOriginal,
-)
-
-fun testStreamResponse(
-    videoOnlyStreams: List<VideoStreamItem> = listOf(testVideoStream()),
-    audioStreams: List<AudioStreamItem> = listOf(testAudioStream()),
-    duration: Long = 300,
-    dashMpdUrl: String = "",
-): StreamResponse = StreamResponse(
-    id = "test-id",
-    title = "Test Video",
-    uploaderName = "Test Channel",
-    uploaderUrl = "https://youtube.com/channel/test",
-    uploaderAvatarUrl = "",
-    thumbnailUrl = "",
-    description = "",
-    duration = duration,
-    viewCount = 0,
-    likeCount = 0,
-    dislikeCount = 0,
-    uploadDate = "",
-    uploaded = 0,
-    uploaderSubscriberCount = 0,
-    uploaderVerified = false,
-    category = "",
-    license = "",
-    visibility = "",
-    tags = emptyList(),
-    streamType = "video_stream",
-    isLive = false,
-    isPostLive = false,
-    isLiveContent = false,
-    hasLiveManifest = false,
-    isShortFormContent = false,
-    requiresMembership = false,
-    startPosition = 0L,
-    streamSegments = emptyList(),
-    hlsUrl = "",
-    dashMpdUrl = dashMpdUrl,
-    videoStreams = emptyList(),
-    audioStreams = audioStreams,
-    originalAudioTrackId = null,
-    preferredDefaultAudioTrackId = null,
-    videoOnlyStreams = videoOnlyStreams,
-    subtitles = emptyList(),
-    previewFrames = emptyList(),
-    sponsorBlockSegments = emptyList(),
-    relatedStreams = emptyList(),
+    deliveryMethod = deliveryMethod,
+    manifestUrl = manifestUrl,
+    sabrSessionUrl = sabrSessionUrl,
 )

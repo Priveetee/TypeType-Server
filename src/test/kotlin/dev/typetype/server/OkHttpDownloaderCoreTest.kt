@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import com.sun.net.httpserver.HttpServer
 import dev.typetype.server.downloader.OkHttpDownloader
+import dev.typetype.server.downloader.normalizeExtractorUrl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -71,6 +72,12 @@ class OkHttpDownloaderCoreTest {
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun `normalizes youtube relative extractor urls`() {
+        assertEquals("https://www.youtube.com/api/timedtext", normalizeExtractorUrl("/api/timedtext"))
+        assertEquals("https://example.test/x", normalizeExtractorUrl("https://example.test/x"))
     }
 
     private fun waitUntilFinished(call: org.schabi.newpipe.extractor.downloader.CancellableCall): Boolean {

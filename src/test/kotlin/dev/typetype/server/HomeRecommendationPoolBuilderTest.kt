@@ -1,58 +1,24 @@
 package dev.typetype.server
 
-import dev.typetype.server.models.VideoItem
+import dev.typetype.server.HomeRecommendationItemFixtures.context
+import dev.typetype.server.HomeRecommendationItemFixtures.profile
+import dev.typetype.server.HomeRecommendationItemFixtures.tagged
+import dev.typetype.server.HomeRecommendationItemFixtures.video
 import dev.typetype.server.services.HomeRecommendationPoolBuilder
-import dev.typetype.server.services.HomeRecommendationSessionContext
-import dev.typetype.server.services.HomeRecommendationSessionIntent
-import dev.typetype.server.services.HomeRecommendationDeviceClass
-import dev.typetype.server.services.HomeRecommendationProfile
 import dev.typetype.server.services.HomeRecommendationSourceTag
-import dev.typetype.server.services.HomeRecommendationTaggedVideo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HomeRecommendationPoolBuilderTest {
-
-    private fun video(id: String, channel: String, title: String = id): VideoItem = VideoItem(
-        id = id,
-        title = title,
-        url = "https://yt.com/v/$id",
-        thumbnailUrl = "",
-        uploaderName = channel,
-        uploaderUrl = "https://yt.com/c/$channel",
-        uploaderAvatarUrl = "",
-        duration = 1,
-        viewCount = 0,
-        uploadDate = "",
-        uploaded = System.currentTimeMillis(),
-        streamType = "video_stream",
-        isShortFormContent = false,
-        uploaderVerified = false,
-        shortDescription = null,
-    )
-
     @Test
     fun `pool builder excludes seen and blocked and dedups across sources`() {
-        val profile = HomeRecommendationProfile(
+        val profile = profile(
             seenUrls = setOf("https://yt.com/v/seen"),
             blockedVideos = setOf("https://yt.com/v/blocked"),
             blockedChannels = setOf("https://yt.com/c/blocked"),
-            feedbackBlockedVideos = emptySet(),
-            feedbackBlockedChannels = emptySet(),
             subscriptionChannels = setOf("https://yt.com/c/sub"),
-            favoriteUrls = emptySet(),
-            watchLaterUrls = emptySet(),
             keywordAffinity = setOf("music"),
-            themeTokens = emptySet(),
-            themeQueries = emptyList(),
-            channelInterest = emptyMap(),
-            topicInterest = emptyMap(),
-            feedHistory = emptyMap(),
-            rejectionTopicPenalty = emptyMap(),
-            rejectionChannelPenalty = emptyMap(),
-            channelTopicProfile = emptyMap(),
-            shortsTopicInterest = emptyMap(),
             personalizationEnabled = false,
         )
         val subscriptions = listOf(
@@ -74,26 +40,7 @@ class HomeRecommendationPoolBuilderTest {
 
     @Test
     fun `pool builder drops live-like discovery candidates`() {
-        val profile = HomeRecommendationProfile(
-            seenUrls = emptySet(),
-            blockedVideos = emptySet(),
-            blockedChannels = emptySet(),
-            feedbackBlockedVideos = emptySet(),
-            feedbackBlockedChannels = emptySet(),
-            subscriptionChannels = emptySet(),
-            favoriteUrls = emptySet(),
-            watchLaterUrls = emptySet(),
-            keywordAffinity = emptySet(),
-            themeTokens = emptySet(),
-            themeQueries = emptyList(),
-            channelInterest = emptyMap(),
-            topicInterest = emptyMap(),
-            feedHistory = emptyMap(),
-            rejectionTopicPenalty = emptyMap(),
-            rejectionChannelPenalty = emptyMap(),
-            channelTopicProfile = emptyMap(),
-            shortsTopicInterest = emptyMap(),
-        )
+        val profile = profile()
         val discovery = listOf(
             tagged(video("live1", "a", title = "Breaking is live now"), HomeRecommendationSourceTag.DISCOVERY_TRENDING),
             tagged(video("normal1", "b", title = "Weekly tech roundup"), HomeRecommendationSourceTag.DISCOVERY_THEME),
@@ -106,37 +53,11 @@ class HomeRecommendationPoolBuilderTest {
 
     @Test
     fun `pool builder keeps neutral home source weights`() {
-        val profile = HomeRecommendationProfile(
-            seenUrls = emptySet(),
-            blockedVideos = emptySet(),
-            blockedChannels = emptySet(),
-            feedbackBlockedVideos = emptySet(),
-            feedbackBlockedChannels = emptySet(),
-            subscriptionChannels = emptySet(),
-            favoriteUrls = emptySet(),
-            watchLaterUrls = emptySet(),
-            keywordAffinity = emptySet(),
-            themeTokens = emptySet(),
-            themeQueries = emptyList(),
-            channelInterest = emptyMap(),
-            topicInterest = emptyMap(),
+        val profile = profile(
             subscriptionEngagement = 6.0,
             discoveryEngagement = 1.0,
-            feedHistory = emptyMap(),
-            rejectionTopicPenalty = emptyMap(),
-            rejectionChannelPenalty = emptyMap(),
-            channelTopicProfile = emptyMap(),
-            shortsTopicInterest = emptyMap(),
         )
         val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), emptyList(), context)
         assertTrue(pool.sourceWeights.isEmpty())
     }
-
-    private fun tagged(video: VideoItem, source: HomeRecommendationSourceTag): HomeRecommendationTaggedVideo =
-        HomeRecommendationTaggedVideo(video = video, source = source)
-
-    private val context = HomeRecommendationSessionContext(
-        intent = HomeRecommendationSessionIntent.AUTO,
-        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
-    )
 }

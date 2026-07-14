@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.StreamResponse
@@ -45,10 +46,11 @@ class YoutubeTakeoutImporterMetadataTest {
     fun `commit enriches takeout list videos and favorites before persisting`() = runBlocking {
         importer.commit(TEST_USER_ID, parsed(), YoutubeTakeoutCommitPlan(true, true, true, true, true, false))
 
-        val playlistVideo = playlists.getAll(TEST_USER_ID).single().videos.single()
+        val playlistId = playlists.getAll(TEST_USER_ID).single().id
+        val playlistVideo = playlists.getById(TEST_USER_ID, playlistId)?.videos?.single()
         val watchLaterVideo = watchLater.getAll(TEST_USER_ID).single()
         val favorite = favorites.getAll(TEST_USER_ID).single()
-        assertEquals("Resolved abc123", playlistVideo.title)
+        assertEquals("Resolved abc123", playlistVideo?.title)
         assertEquals("Resolved abc123", watchLaterVideo.title)
         assertEquals("Resolved abc123", favorite.title)
         assertEquals("https://thumb.test/abc123.jpg", favorite.thumbnail)
@@ -58,7 +60,7 @@ class YoutubeTakeoutImporterMetadataTest {
         subscriptions = emptyList(),
         playlists = listOf(PlaylistItem(id = "PL1", name = "Imported")),
         playlistItems = mapOf("PL1" to listOf(fallbackVideo())),
-        favorites = listOf(VIDEO_URL),
+        favorites = listOf(FavoriteItem(videoUrl = VIDEO_URL)),
         watchLater = listOf(fallbackVideo()),
         history = emptyList(),
         warnings = emptyList(),

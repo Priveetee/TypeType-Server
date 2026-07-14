@@ -1,7 +1,6 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.PlaylistItem
-import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.YoutubeTakeoutCategoryCounts
 import dev.typetype.server.models.YoutubeTakeoutCommitPlan
@@ -27,8 +26,6 @@ class YoutubeTakeoutImporterService(
         val existingPlaylistRows = existingPlaylistsDeferred.await()
         val existingPlaylists = existingPlaylistRows.associateBy { it.name.lowercase() }
         val sourceMappings = sourceMappingsDeferred.await()
-        val existingPlaylistVideos = existingPlaylistRows
-            .associateBy({ it.name.lowercase() }, { it.videos.map { v -> v.url }.toSet() })
         var subImported = 0
         var subSkipped = 0
         if (plan.importSubscriptions) {
@@ -48,9 +45,13 @@ class YoutubeTakeoutImporterService(
         val createdBySource = mutableMapOf<String, PlaylistItem>()
         val playlistItems = metadataResolver?.enrichPlaylistItems(parsed.playlistItems) ?: parsed.playlistItems
         val watchLater = metadataResolver?.enrichPlaylistVideos(parsed.watchLater) ?: parsed.watchLater
-        val favorites = metadataResolver?.enrichFavorites(parsed.favorites) ?: parsed.favorites.map { FavoriteItem(videoUrl = it, title = YoutubeTypeTypeMapper.titleForUrl(it)) }
+        val favorites = metadataResolver?.enrichFavorites(parsed.favorites) ?: parsed.favorites.map { it.withYoutubeFallbackTitle() }
         if (plan.importPlaylists) {
             parsed.playlists.forEach { item ->
+                if (YoutubeTakeoutSystemPlaylist.canonicalKey(item.name) != null || YoutubeTakeoutSystemPlaylist.canonicalKey(item.id) != null) {
+                    plSkipped += 1
+                    return@forEach
+                }
                 val nameKey = item.name.lowercase()
                 val idKey = item.id.lowercase()
                 val mappedPlaylistId = sourceMappings[idKey].orEmpty()
@@ -75,10 +76,14 @@ class YoutubeTakeoutImporterService(
         if (plan.importPlaylistItems) {
             playlistItems.forEach { (playlistKey, videos) ->
                 val normalizedKey = playlistKey.lowercase()
+                if (YoutubeTakeoutSystemPlaylist.canonicalKey(normalizedKey) != null) {
+                    itemSkipped += videos.size
+                    return@forEach
+                }
                 val mappedId = sourceMappings[normalizedKey].orEmpty()
                 val mappedPlaylist = if (mappedId.isBlank()) null else playlistService.getById(userId, mappedId)
                 val playlist = mappedPlaylist ?: createdBySource[normalizedKey] ?: return@forEach
-                val existingUrls = existingPlaylistVideos[playlist.name.lowercase()].orEmpty().toMutableSet()
+                val existingUrls = playlistService.getById(userId, playlist.id)?.videos?.map { it.url }.orEmpty().toMutableSet()
                 videos.forEach { video ->
                     if (video.url in existingUrls) itemSkipped += 1 else {
                         playlistService.addVideo(userId, playlist.id, video)

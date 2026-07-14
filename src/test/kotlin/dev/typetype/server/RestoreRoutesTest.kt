@@ -39,16 +39,10 @@ class RestoreRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val importer = PipePipeBackupImporterService()
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun initDb() = TestDatabase.setup()
-    }
+    companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
 
     @BeforeEach
-    fun clean() {
-        TestDatabase.truncateAll()
-    }
+    fun clean() { TestDatabase.truncateAll() }
 
     @Test
     fun `POST restore imports backup snapshot`() = testApplication {

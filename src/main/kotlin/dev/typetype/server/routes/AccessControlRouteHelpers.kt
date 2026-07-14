@@ -12,6 +12,7 @@ import io.ktor.server.response.respond
 internal data class AccessRouteProfile(
     val userId: String?,
     val profile: AccessControlProfile,
+    val allowGuest: Boolean,
 )
 
 internal suspend fun ApplicationCall.accessProfileOrRespond(
@@ -23,15 +24,15 @@ internal suspend fun ApplicationCall.accessProfileOrRespond(
     val userId = access.userId
     if (userId == null) {
         val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
-        return AccessRouteProfile(userId = null, profile = profile)
+        return AccessRouteProfile(userId = null, profile = profile, allowGuest = access.allowGuest)
     }
     if (userId.startsWith("guest:")) {
         val profile = accessControlService?.profileFor(null) ?: AccessControlProfile.unrestricted
-        return AccessRouteProfile(userId = userId, profile = profile)
+        return AccessRouteProfile(userId = userId, profile = profile, allowGuest = access.allowGuest)
     }
     val profile = accessControlService?.profileFor(userId, authService?.getUserRole(userId))
         ?: AccessControlProfile.unrestricted
-    return AccessRouteProfile(userId = userId, profile = profile)
+    return AccessRouteProfile(userId = userId, profile = profile, allowGuest = access.allowGuest)
 }
 
 internal suspend fun ApplicationCall.requirePublicAccessOrRespond(
@@ -45,13 +46,13 @@ private suspend fun ApplicationCall.publicAccessOrRespond(
 ): PublicAccess? {
     val allowGuest = adminSettingsService?.get()?.allowGuest ?: true
     if (authService == null) {
-        if (allowGuest) return PublicAccess(userId = null)
+        if (allowGuest) return PublicAccess(userId = null, allowGuest = allowGuest)
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
         return null
     }
     val authHeader = request.headers["Authorization"]
     if (authHeader == null) {
-        if (allowGuest) return PublicAccess(userId = null)
+        if (allowGuest) return PublicAccess(userId = null, allowGuest = allowGuest)
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
         return null
     }
@@ -68,7 +69,7 @@ private suspend fun ApplicationCall.publicAccessOrRespond(
         respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
         return null
     }
-    return PublicAccess(userId = userId)
+    return PublicAccess(userId = userId, allowGuest = allowGuest)
 }
 
-private data class PublicAccess(val userId: String?)
+private data class PublicAccess(val userId: String?, val allowGuest: Boolean)

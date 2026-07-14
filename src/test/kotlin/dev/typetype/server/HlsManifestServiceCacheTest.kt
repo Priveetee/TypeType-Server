@@ -13,6 +13,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HlsManifestServiceCacheTest {
@@ -37,11 +38,85 @@ class HlsManifestServiceCacheTest {
 
         assertEquals(1, calls)
     }
+
+    @Test
+    fun `attested manifest is scoped to youtube live`() = runTest {
+        val requestedUrls = mutableListOf<String>()
+        val attestedVideoIds = mutableListOf<String>()
+        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+            requestedUrls += chain.request().url.toString()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("#EXTM3U".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
+                .build()
+        }).build()
+        val streams = FixedStreamService(
+            testStreamResponse(hlsUrl = "https://example.com/legacy.m3u8").copy(isLive = true),
+        )
+        val service = HlsManifestService(streams, client, attestedYoutubeHls = { videoId ->
+            attestedVideoIds += videoId
+            "https://example.com/attested.m3u8"
+        })
+
+        val publicResult = service.hlsManifest("https://youtube.com/watch?v=test-id")
+        val sessionResult = service.hlsManifestFromStreamInfo(
+            ExtractionResult.Success(testStreamResponse().copy(id = "session-id", isLive = true)),
+        )
+        val bilibiliResult = service.hlsManifest("https://www.bilibili.com/video/BV1xx411c7mD")
+
+        assertEquals(ExtractionResult.Success("#EXTM3U"), publicResult)
+        assertEquals(ExtractionResult.Success("#EXTM3U"), sessionResult)
+        assertEquals(ExtractionResult.Success("#EXTM3U"), bilibiliResult)
+        assertEquals(listOf("test-id", "session-id"), attestedVideoIds)
+        assertEquals(
+            listOf(
+                "https://example.com/attested.m3u8",
+                "https://example.com/attested.m3u8",
+                "https://example.com/legacy.m3u8",
+            ),
+            requestedUrls,
+        )
+    }
+
+    @Test
+    fun `NicoNico manifests use signed cookie and proxy segments`() = runTest {
+        val requests = mutableListOf<Pair<String, String?>>()
+        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+            requests += chain.request().url.toString() to chain.request().header("Cookie")
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("#EXTM3U\nsegment.cmfa".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
+                .build()
+        }).build()
+        val service = HlsManifestService(NoopStreamService, client)
+
+        val result = service.hlsManifest(
+            "https://delivery.domand.nicovideo.jp/media/audio.m3u8?session=abc#cookie=domand_bid%3Dbid-value&length=1"
+        )
+
+        assertEquals(
+            listOf("https://delivery.domand.nicovideo.jp/media/audio.m3u8?session=abc" to "domand_bid=bid-value"),
+            requests,
+        )
+        assertTrue(result is ExtractionResult.Success)
+        assertTrue((result as ExtractionResult.Success).data.contains("../proxy?url="))
+        assertTrue(result.data.contains("domand_bid=bid-value"))
+    }
 }
 
 private object NoopStreamService : StreamService {
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         ExtractionResult.Failure("unused")
+}
+
+private class FixedStreamService(private val response: StreamResponse) : StreamService {
+    override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = ExtractionResult.Success(response)
 }
 
 private class InMemoryCache : CacheService {

@@ -8,45 +8,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
-
-internal fun isManifestUrl(url: String): Boolean {
-    if (!url.startsWith("http")) return false
-    if (url.contains("/file/seg.ts")) return false
-    return url.contains("manifest.googlevideo.com") || url.endsWith(".m3u8")
-}
-
-internal fun rewriteYouTubeHlsManifest(manifest: String): String {
-    val uriAttr = Regex("""URI="([^"]+)"""")
-    return manifest.lines().joinToString("\n") { line ->
-        val t = line.trim()
-        when {
-            t.isBlank() -> line
-            t.startsWith("#") -> uriAttr.replace(t) { mr ->
-                val target = mr.groupValues[1]
-                """URI="${toHlsProxyUrl(target)}""""
-            }
-            else -> toHlsProxyUrl(t)
-        }
-    }
-}
-
-private fun toHlsProxyUrl(url: String): String {
-    val encoded = URLEncoder.encode(url, StandardCharsets.UTF_8)
-    return if (isManifestUrl(url)) "hls-manifest?url=$encoded" else "../proxy?url=$encoded"
-}
 
 class HlsManifestService(
     private val streamService: StreamService,
     private val httpClient: OkHttpClient,
     cache: CacheService? = null,
+    private val signManifestUrl: ((String) -> String)? = null,
+    private val attestedYoutubeHls: suspend (String) -> String? = { null },
 ) {
     private val manifestCache = cache?.let(::HlsManifestCache)
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<String>>>()
 
-    suspend fun hlsManifest(url: String): ExtractionResult<String> {
+    suspend fun hlsManifest(url: String, signManifestLinks: Boolean = false): ExtractionResult<String> {
         val manifestUrl = if (isManifestUrl(url)) {
             url
         } else {
@@ -56,60 +31,75 @@ class HlsManifestService(
                 is ExtractionResult.Failure -> return resolved
             }
         }
-        return cachedOrFetch(manifestUrl)
+        return cachedOrFetch(manifestUrl, signManifestLinks)
     }
 
-    suspend fun hlsManifestFromStreamInfo(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
-        val manifestUrl = when (val resolved = resolveHlsUrl(result)) {
+    suspend fun hlsManifestFromStreamInfo(
+        result: ExtractionResult<StreamResponse>,
+        signManifestLinks: Boolean = false,
+    ): ExtractionResult<String> {
+        val manifestUrl = when (val resolved = resolveHlsUrl(result, allowAttestedYoutubeHls = true)) {
             is ExtractionResult.Success -> resolved.data
             is ExtractionResult.BadRequest -> return resolved
             is ExtractionResult.Failure -> return resolved
         }
-        return cachedOrFetch(manifestUrl)
+        return cachedOrFetch(manifestUrl, signManifestLinks)
     }
 
-    private suspend fun cachedOrFetch(manifestUrl: String): ExtractionResult<String> {
-        manifestCache?.get(manifestUrl)?.let { return ExtractionResult.Success(it) }
+    private suspend fun cachedOrFetch(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> {
+        val cacheKey = if (signManifestLinks) "signed:$manifestUrl" else manifestUrl
+        manifestCache?.get(cacheKey)?.let { return ExtractionResult.Success(it) }
         val pending = CompletableDeferred<ExtractionResult<String>>()
-        val existing = inFlight.putIfAbsent(manifestUrl, pending)
+        val existing = inFlight.putIfAbsent(cacheKey, pending)
         if (existing != null) return existing.await()
         return try {
-            manifestCache?.get(manifestUrl)?.let {
+            manifestCache?.get(cacheKey)?.let {
                 val result = ExtractionResult.Success(it)
                 pending.complete(result)
                 return result
             }
-            val result = fetchAndRewrite(manifestUrl)
-            if (result is ExtractionResult.Success) manifestCache?.set(manifestUrl, result.data)
+            val result = fetchAndRewrite(manifestUrl, signManifestLinks)
+            if (result is ExtractionResult.Success) manifestCache?.set(cacheKey, result.data)
             pending.complete(result)
             result
         } catch (error: Throwable) {
             pending.completeExceptionally(error)
             throw error
         } finally {
-            inFlight.remove(manifestUrl, pending)
+            inFlight.remove(cacheKey, pending)
         }
     }
 
     private suspend fun resolveHlsUrl(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
-        return resolveHlsUrl(result)
+        return resolveHlsUrl(result, allowAttestedYoutubeHls = isYoutubeUrl(videoUrl))
     }
 
-    private fun resolveHlsUrl(result: ExtractionResult<StreamResponse>): ExtractionResult<String> {
+    private suspend fun resolveHlsUrl(
+        result: ExtractionResult<StreamResponse>,
+        allowAttestedYoutubeHls: Boolean = false,
+    ): ExtractionResult<String> {
         if (result is ExtractionResult.BadRequest) return result
         if (result !is ExtractionResult.Success) return ExtractionResult.Failure("No HLS stream available for this video")
+        if (allowAttestedYoutubeHls && result.data.isLive) {
+            attestedYoutubeHls(result.data.id)?.let { return ExtractionResult.Success(it) }
+        }
         val hls = result.data.hlsUrl
         return if (hls.isNotBlank()) ExtractionResult.Success(hls) else ExtractionResult.Failure("No HLS stream available for this video")
     }
 
-    private suspend fun fetchAndRewrite(manifestUrl: String): ExtractionResult<String> =
+    private suspend fun fetchAndRewrite(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
-            validateProxyUrl(manifestUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
+            val hashIndex = manifestUrl.indexOf('#')
+            val fetchUrl = if (hashIndex >= 0) manifestUrl.substring(0, hashIndex) else manifestUrl
+            val fragment = if (hashIndex >= 0) manifestUrl.substring(hashIndex + 1) else ""
+            val domandBid = fragment.takeIf { it.isNotBlank() }?.let(::parseNicoCookie)
+            validateProxyUrl(fetchUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
             runCatching {
                 val request = Request.Builder()
-                    .url(manifestUrl)
+                    .url(fetchUrl)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
+                    .apply { if (domandBid != null) header("Cookie", "domand_bid=$domandBid") }
                     .build()
                 httpClient.newCall(request).execute()
             }.fold(
@@ -121,10 +111,21 @@ class HlsManifestService(
                     } else {
                         val text = body.string()
                         response.close()
-                        ExtractionResult.Success(rewriteYouTubeHlsManifest(text))
+                        val rewritten = if (isNicoNicoManifest(fetchUrl)) {
+                            rewriteNicoManifest(text, fetchUrl, domandBid, "../proxy")
+                        } else {
+                            rewriteYouTubeHlsManifest(text) { target ->
+                                if (signManifestLinks) signManifestUrl?.invoke(target) ?: toHlsProxyUrl(target)
+                                else toHlsProxyUrl(target)
+                            }
+                        }
+                        ExtractionResult.Success(rewritten)
                     }
                 },
                 onFailure = { ExtractionResult.Failure(it.message ?: "HLS manifest fetch failed") }
             )
         }
+
+    private fun isNicoNicoManifest(url: String): Boolean =
+        runCatching { URI(url).host.orEmpty().endsWith("nicovideo.jp") }.getOrDefault(false)
 }

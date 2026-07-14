@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/docker-compose.dev-mirror.yml}"
+COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-}"
 
 KEY_ID="GK111111111111111111111111"
 SECRET_KEY="1111111111111111111111111111111111111111111111111111111111111111"
@@ -10,8 +11,13 @@ BUCKET_NAME="typetype-downloads"
 
 cd "${ROOT_DIR}"
 
+COMPOSE_ARGS=(-f "${COMPOSE_FILE}")
+if [[ -n "${COMPOSE_OVERRIDE_FILE}" ]]; then
+  COMPOSE_ARGS+=(-f "${COMPOSE_OVERRIDE_FILE}")
+fi
+
 garage_exec() {
-  docker compose -f "${COMPOSE_FILE}" exec -T garage /garage -c /etc/garage.toml "$@"
+  docker compose "${COMPOSE_ARGS[@]}" exec -T garage /garage -c /etc/garage.toml "$@"
 }
 
 echo "[garage-bootstrap] waiting for garage service..."

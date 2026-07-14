@@ -1,10 +1,10 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.SubscriptionItem
-import dev.typetype.server.models.VideoItem
+import dev.typetype.server.SubscriptionFeedTestFixtures.channel
+import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
+import dev.typetype.server.SubscriptionFeedTestFixtures.video
 import dev.typetype.server.routes.subscriptionShortsFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
@@ -62,30 +62,19 @@ class SubscriptionShortsFeedRoutesTest {
         block()
     }
 
-    private fun video(uploaded: Long, url: String, short: Boolean) = VideoItem(
-        id = "id-$uploaded", title = "V$uploaded", url = url, thumbnailUrl = "",
-        uploaderName = "Ch", uploaderUrl = "chUrl", uploaderAvatarUrl = "",
-        duration = 40L, viewCount = 0L, uploadDate = "", uploaded = uploaded,
-        streamType = "video_stream", isShortFormContent = short, uploaderVerified = false, shortDescription = null,
-    )
-
-    private fun channel(vararg v: VideoItem) = ExtractionResult.Success(
-        ChannelResponse("Test", "", "", "", 0L, false, v.toList(), null),
-    )
-
     @Test
     fun `GET subscriptions shorts returns only short videos deduped and sorted`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/2", "C2", ""))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        subscriptionsService.add(TEST_USER_ID, subscription(2))
         coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
-            video(3000L, "https://yt.com/watch?v=sa", short = false),
+            video(3000L, url = "https://yt.com/watch?v=sa", short = false),
         )
         coEvery { channelService.getChannel("https://yt.com/c/2/shorts", null) } returns channel(
-            video(2000L, "https://yt.com/watch?v=sb", short = false),
-            video(1500L, "https://yt.com/watch?v=sb", short = false),
+            video(2000L, url = "https://yt.com/watch?v=sb", short = false),
+            video(1500L, url = "https://yt.com/watch?v=sb", short = false),
         )
-        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L, "https://yt.com/watch?v=1", short = false))
-        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(1000L, "https://yt.com/watch?v=2", short = false))
+        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L, url = "https://yt.com/watch?v=1", short = false))
+        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(1000L, url = "https://yt.com/watch?v=2", short = false))
 
         val body = client.get("/subscriptions/shorts?page=0&limit=10") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -100,16 +89,16 @@ class SubscriptionShortsFeedRoutesTest {
     @Test
     fun `GET subscriptions shorts pagination and auth work`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/subscriptions/shorts").status)
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
         coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
-            video(3000L, "https://yt.com/watch?v=sa", short = false),
-            video(2000L, "https://yt.com/watch?v=sb", short = false),
-            video(1000L, "https://yt.com/watch?v=sc", short = false),
+            video(3000L, url = "https://yt.com/watch?v=sa", short = false),
+            video(2000L, url = "https://yt.com/watch?v=sb", short = false),
+            video(1000L, url = "https://yt.com/watch?v=sc", short = false),
         )
         coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(
-            video(3000L, "https://yt.com/watch?v=sa", short = false),
-            video(2000L, "https://yt.com/watch?v=sb", short = false),
-            video(1000L, "https://yt.com/watch?v=sc", short = false),
+            video(3000L, url = "https://yt.com/watch?v=sa", short = false),
+            video(2000L, url = "https://yt.com/watch?v=sb", short = false),
+            video(1000L, url = "https://yt.com/watch?v=sc", short = false),
         )
 
         val page1 = client.get("/subscriptions/shorts?page=0&limit=2") {
@@ -122,21 +111,5 @@ class SubscriptionShortsFeedRoutesTest {
         assertTrue(page1.contains("/shorts/sa") && page1.contains("/shorts/sb") && !page1.contains("/shorts/sc"))
         assertTrue(page1.contains("\"nextpage\":\"1\""))
         assertTrue(page2.contains("/shorts/sc"))
-    }
-
-    @Test
-    fun `GET subscriptions shorts blended includes trending discovery`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/1", "C1", ""))
-        coEvery { channelService.getChannel("https://yt.com/c/1/shorts", null) } returns channel(
-            video(3000L, "https://yt.com/watch?v=sa", short = false),
-        )
-        coEvery { trendingService.getTrending(0) } returns ExtractionResult.Success(
-            listOf(video(2500L, "https://yt.com/watch?v=trend", short = true).copy(id = "trend", uploaderUrl = "trendChannel")),
-        )
-        val body = client.get("/subscriptions/shorts?page=0&limit=3&blended=true&service=0") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-        assertTrue(body.contains("/shorts/sa"))
-        assertTrue(body.contains("/shorts/trend"))
     }
 }

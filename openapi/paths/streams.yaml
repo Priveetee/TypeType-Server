@@ -1,7 +1,7 @@
 Streams:
   get:
     tags: [extraction]
-    summary: Extract full stream metadata
+    summary: Extract classic stream metadata with the historical provider-neutral contract
     parameters:
       - name: url
         in: query
@@ -9,7 +9,7 @@ Streams:
         schema: { type: string }
     responses:
       '200':
-        description: Stream metadata and playable streams.
+        description: Stream metadata containing no SABR sources.
         headers:
           X-Request-ID:
             $ref: ../components/common.yaml#/RequestIdHeader
@@ -18,6 +18,191 @@ Streams:
             schema:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeSabrStreams:
+  get:
+    tags: [extraction]
+    summary: Extract YouTube SABR stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream metadata containing only SABR sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeSabrBootstrap:
+  get:
+    tags: [extraction]
+    summary: Resolve playable SABR audio and video formats before full metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Minimal stream metadata containing only SABR sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+LegacyStreams:
+  get:
+    tags: [extraction]
+    summary: Extract classic DASH, HLS, or progressive stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream metadata containing no SABR sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+YoutubeLegacyStreams:
+  $ref: '#/LegacyStreams'
+NicoNicoStreams:
+  get:
+    tags: [extraction]
+    summary: Extract NicoNico stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: NicoNico stream metadata containing no SABR sources.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+BiliBiliStreams:
+  get:
+    tags: [extraction]
+    summary: Extract BiliBili stream metadata
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: BiliBili stream metadata containing no SABR sources.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+AudioOnly:
+  get:
+    tags: [extraction]
+    summary: Resolve a progressive audio-only media source
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: preferOriginal
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+      - name: preferredLocale
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Backend-owned progressive audio-only source.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/AudioOnlyStreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+AudioOnlySource:
+  get:
+    tags: [extraction]
+    summary: Stream a signed audio-only media source
+    parameters:
+      - name: token
+        in: query
+        required: true
+        schema: { type: string }
+      - name: Range
+        in: header
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Audio media response.
+        content:
+          audio/mp4:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+      '206':
+        description: Partial audio media response.
+        headers:
+          Content-Range:
+            schema: { type: string }
+          Accept-Ranges:
+            schema: { type: string }
+        content:
+          audio/mp4:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError

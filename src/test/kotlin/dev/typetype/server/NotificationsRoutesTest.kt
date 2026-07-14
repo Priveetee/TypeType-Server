@@ -1,10 +1,9 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ChannelResponse
-import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.SubscriptionItem
-import dev.typetype.server.models.VideoItem
+import dev.typetype.server.SubscriptionFeedTestFixtures.channel
+import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
+import dev.typetype.server.SubscriptionFeedTestFixtures.video
 import dev.typetype.server.routes.notificationsRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
@@ -55,27 +54,6 @@ class NotificationsRoutesTest {
         block()
     }
 
-    private fun video(uploaded: Long, channel: String): VideoItem = VideoItem(
-        id = "id-$uploaded-$channel",
-        title = "V$uploaded",
-        url = "https://yt.com/watch?v=$uploaded$channel",
-        thumbnailUrl = "",
-        uploaderName = channel,
-        uploaderUrl = "https://yt.com/c/$channel",
-        uploaderAvatarUrl = "",
-        duration = 300L,
-        viewCount = 0L,
-        uploadDate = "",
-        uploaded = uploaded,
-        streamType = "video_stream",
-        isShortFormContent = false,
-        uploaderVerified = false,
-        shortDescription = null,
-    )
-    private fun channel(vararg videos: VideoItem): ExtractionResult<ChannelResponse> = ExtractionResult.Success(
-        ChannelResponse("Test", "", "", "", 0L, false, videos.toList(), null),
-    )
-
     @Test
     fun `GET notifications requires auth`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/notifications").status)
@@ -84,8 +62,8 @@ class NotificationsRoutesTest {
 
     @Test
     fun `GET notifications returns latest per channel with unread count`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/b", "B", ""))
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/a", "A"))
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/b", "B"))
         coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(video(1000L, "A"), video(3000L, "A"))
         coEvery { channelService.getChannel("https://yt.com/c/b", null) } returns channel(video(2000L, "B"))
         val body = client.get("/notifications?page=0&limit=10") {
@@ -98,7 +76,7 @@ class NotificationsRoutesTest {
 
     @Test
     fun `POST notifications read-all clears unread count`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/a", "A"))
         coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(video(3000L, "A"))
         val before = client.get("/notifications") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
@@ -116,7 +94,7 @@ class NotificationsRoutesTest {
 
     @Test
     fun `GET notifications unread-count returns unread count`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/a", "A", ""))
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/a", "A"))
         coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(video(4000L, "A"))
 
         val before = client.get("/notifications/unread-count") {

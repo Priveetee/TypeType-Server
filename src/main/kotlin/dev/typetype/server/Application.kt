@@ -1,7 +1,6 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
-import dev.typetype.server.downloader.OkHttpDownloader
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
@@ -14,6 +13,7 @@ import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
 import dev.typetype.server.services.InternalHealthService
+import dev.typetype.server.services.NewPipeInitializer
 import dev.typetype.server.services.OidcAuthService
 import dev.typetype.server.services.OidcConfigLoader
 import dev.typetype.server.services.OkHttpYoutubeRemoteBrowserClient
@@ -24,13 +24,11 @@ import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.services.YoutubeRemoteLoginReadinessService
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
-import org.schabi.newpipe.extractor.NewPipe
 import java.util.UUID
 
 fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
-    NewPipe.init(OkHttpDownloader.instance())
     launchExtractorLifecycle()
     val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/typetype"
     val dbUser = System.getenv("DATABASE_USER") ?: "typetype"
@@ -52,7 +50,8 @@ fun Application.module() {
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
-    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey, adminSettingsService)
+    NewPipeInitializer.init(subtitleServiceUrl)
+    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey, jwtSecret, adminSettingsService)
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,

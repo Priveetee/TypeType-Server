@@ -78,6 +78,15 @@ object YoutubeTakeoutSchemaHints {
         return "video" in normalized && titleWords.any { it in words(normalized) }
     }
 
+    fun isPlaylistItemAddedAtHeader(value: String): Boolean {
+        val normalized = normalize(value)
+        val parts = words(normalized)
+        return ("added" in parts && "at" in parts) ||
+            ("creation" in parts && "video" in parts) ||
+            ("created" in parts && "at" in parts) ||
+            ("timestamp" in parts && "playlist" in normalized)
+    }
+
     fun isUrlHeader(value: String): Boolean = "url" in words(normalize(value))
 
     fun looksLikeChannelId(value: String): Boolean = channelIdRegex.matches(value.trim())

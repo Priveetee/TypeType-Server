@@ -43,6 +43,7 @@ class YoutubeSessionHlsManifestService(
         videoUrl: String,
     ): ExtractionResult<String> =
         hlsManifestService.hlsManifestFromStreamInfo(
-            streamService.getStreamInfoForCredentials(credentials, videoUrl)
+            streamService.getStreamInfoForCredentials(credentials, videoUrl),
+            signManifestLinks = true,
         )
 }

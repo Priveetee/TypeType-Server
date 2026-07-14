@@ -1,37 +1,16 @@
 package dev.typetype.server
 
+import dev.typetype.server.HomeRecommendationItemFixtures.context
+import dev.typetype.server.HomeRecommendationItemFixtures.video
 import dev.typetype.server.models.HomeRecommendationPool
-import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.HomeRecommendationCursor
-import dev.typetype.server.services.HomeRecommendationDeviceClass
 import dev.typetype.server.services.HomeRecommendationMixer
-import dev.typetype.server.services.HomeRecommendationSessionContext
-import dev.typetype.server.services.HomeRecommendationSessionIntent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HomeRecommendationMixerTest {
-
-    private fun video(id: String, channel: String): VideoItem = VideoItem(
-        id = id,
-        title = id,
-        url = "https://yt.com/v/$id",
-        thumbnailUrl = "",
-        uploaderName = channel,
-        uploaderUrl = "https://yt.com/c/$channel",
-        uploaderAvatarUrl = "",
-        duration = 1,
-        viewCount = 0,
-        uploadDate = "",
-        uploaded = 0,
-        streamType = "video_stream",
-        isShortFormContent = false,
-        uploaderVerified = false,
-        shortDescription = null,
-    )
-
     @Test
     fun `mix enforces no consecutive same channel and max two per channel`() {
         val pool = HomeRecommendationPool(
@@ -82,36 +61,6 @@ class HomeRecommendationMixerTest {
     }
 
     @Test
-    fun `mix carries recent channels in cursor payload`() {
-        val pool = HomeRecommendationPool(
-            subscriptions = listOf(video("s1", "a"), video("s2", "b"), video("s3", "c")),
-            discovery = listOf(video("d1", "d"), video("d2", "e"), video("d3", "f")),
-        )
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
-        val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
-        assertTrue((decoded?.recentChannels?.size ?: 0) > 0)
-    }
-
-    @Test
-    fun `mix carries semantic keys in cursor payload`() {
-        val pool = HomeRecommendationPool(
-            subscriptions = listOf(
-                video("s1", "a").copy(title = "linux kernel update"),
-                video("s2", "b").copy(title = "android privacy guide"),
-                video("s3", "c").copy(title = "music discovery mix"),
-            ),
-            discovery = listOf(
-                video("d1", "d").copy(title = "gaming highlights daily"),
-                video("d2", "e").copy(title = "science world news"),
-                video("d3", "f").copy(title = "coding tutorial kotlin"),
-            ),
-        )
-        val page = HomeRecommendationMixer.mix(pool = pool, cursor = HomeRecommendationCursor(), limit = 4, context = context)
-        val decoded = dev.typetype.server.services.HomeRecommendationCursorCodec.decode(page.nextCursor)
-        assertTrue((decoded?.recentSemanticKeys?.size ?: 0) > 0)
-    }
-
-    @Test
     fun `mix enforces at least half discovery when stock exists`() {
         val subs = (1..12).map { index -> video("s$index", "s$index") }
         val discover = (1..12).map { index -> video("d$index", "d$index") }
@@ -148,9 +97,4 @@ class HomeRecommendationMixerTest {
             }
         }
     }
-
-    private val context = HomeRecommendationSessionContext(
-        intent = HomeRecommendationSessionIntent.AUTO,
-        deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
-    )
 }

@@ -10,16 +10,19 @@ import java.util.concurrent.ConcurrentHashMap
 class CachedStreamService(
     private val delegate: StreamService,
     private val cache: CacheService,
+    private val cachePrefix: String = DEFAULT_CACHE_PREFIX,
 ) : StreamService {
 
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<StreamResponse>>>()
 
     companion object {
-        fun cacheKey(url: String): String = "stream:$url"
+        private const val DEFAULT_CACHE_PREFIX = "stream:v6"
+
+        fun cacheKey(url: String): String = "$DEFAULT_CACHE_PREFIX:$url"
     }
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
-        val key = cacheKey(url)
+        val key = "$cachePrefix:$url"
         cachedStream(key)?.let { return it }
         val pending = CompletableDeferred<ExtractionResult<StreamResponse>>()
         val existing = inFlight.putIfAbsent(key, pending)

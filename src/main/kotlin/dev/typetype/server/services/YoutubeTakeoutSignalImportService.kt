@@ -59,6 +59,7 @@ class YoutubeTakeoutSignalImportService(
         title = title,
         thumbnail = thumbnail,
         duration = duration,
+        addedAt = addedAt,
         channelName = channelName,
         channelUrl = channelUrl,
         channelAvatar = channelAvatar,

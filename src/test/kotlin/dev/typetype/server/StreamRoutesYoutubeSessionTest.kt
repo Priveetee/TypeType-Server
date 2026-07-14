@@ -30,16 +30,16 @@ class StreamRoutesYoutubeSessionTest {
     fun `GET streams uses authenticated YouTube session when bearer is valid`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Failure("public path")
         application { testRoutes { userId, _ -> if (userId == TEST_USER_ID) ExtractionResult.Success(testStreamResponse()) else null } }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test") {
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
-        coVerify(exactly = 1) { streamService.getStreamInfo(any()) }
+        coVerify(exactly = 0) { streamService.getStreamInfo(any()) }
     }
 
     @Test
-    fun `GET streams merges authenticated HLS with public direct streams`() = testApplication {
+    fun `GET streams uses authenticated HLS without public extraction`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
             testStreamResponse(videoOnlyStreams = listOf(testVideoStream()), audioStreams = listOf(testAudioStream()))
         )
@@ -51,7 +51,7 @@ class StreamRoutesYoutubeSessionTest {
                 )
             }
         }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test") {
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.OK, response.status)
@@ -63,13 +63,14 @@ class StreamRoutesYoutubeSessionTest {
         })
         assertTrue(body.contains("\"videoOnlyStreams\":["))
         assertTrue(body.contains("\"audioStreams\":["))
+        coVerify(exactly = 0) { streamService.getStreamInfo(any()) }
     }
 
     @Test
     fun `GET streams ignores authenticated path without valid bearer`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(testStreamResponse())
         application { testRoutes { _, _ -> ExtractionResult.Failure("unexpected session path") } }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test")
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
     }
@@ -78,7 +79,7 @@ class StreamRoutesYoutubeSessionTest {
     fun `GET streams returns stable code when YouTube session needs reconnect`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Failure("public path")
         application { testRoutes { _, _ -> ExtractionResult.BadRequest(YOUTUBE_SESSION_RECONNECT_ERROR) } }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test") {
+        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)

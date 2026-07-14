@@ -62,6 +62,9 @@ class InstanceRoutesTest {
         val root = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("TypeType", root["name"]?.jsonPrimitive?.contentOrNull)
         assertEquals(BuildInfo.VERSION, root["version"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.REVISION, root["revision"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.SHORT_REVISION, root["shortRevision"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.BUILD_TIME, root["buildTime"]?.jsonPrimitive?.contentOrNull)
         assertEquals(1, root["apiVersion"]?.jsonPrimitive?.int)
         assertEquals(true, root["registrationAllowed"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["guestAllowed"]?.jsonPrimitive?.boolean)
@@ -116,5 +119,24 @@ class InstanceRoutesTest {
             setBody("""{"email":"new@test.local","password":"secret","name":"New"}""")
         }
         assertEquals(HttpStatusCode.Forbidden, register.status)
+    }
+
+    @Test
+    fun `version returns build info and cache header`() = testApplication {
+        val auth = AuthService.fixed(TEST_USER_ID, hasUsers = false)
+        val instanceService = InstanceService(auth, adminSettings)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { publicMetadataRoutes(instanceService::getInstance) }
+        }
+        val response = client.get("/version")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-store, no-cache, must-revalidate, max-age=0", response.headers[HttpHeaders.CacheControl])
+        val root = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("server", root["service"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.VERSION, root["version"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.REVISION, root["revision"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.SHORT_REVISION, root["shortRevision"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(BuildInfo.BUILD_TIME, root["buildTime"]?.jsonPrimitive?.contentOrNull)
     }
 }

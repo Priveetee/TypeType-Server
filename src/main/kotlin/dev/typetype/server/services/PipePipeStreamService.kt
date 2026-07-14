@@ -8,12 +8,14 @@ import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
@@ -33,6 +35,7 @@ internal class PipePipeStreamService(
     private val cache: CacheService,
     private val subtitleService: YouTubeSubtitleService,
     private val bilibiliRelatedService: BilibiliRelatedService,
+    private val sabrInfoSink: (suspend (String, YoutubeSabrInfo) -> Unit)? = null,
 ) : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
@@ -42,11 +45,14 @@ internal class PipePipeStreamService(
                     val service = NewPipe.getServiceByUrl(url)
                     val linkHandler = service.streamLHFactory.fromUrl(url)
                     val extractor: StreamExtractor = service.getStreamExtractor(linkHandler)
-                    withTimeout(30_000L) { extractor.fetchPage() }
+                    withTimeout(30_000L) { runPipePipeCall { extractor.fetchPage() } }
                     coroutineScope {
-                        val streamInfoDeferred = async { withTimeout(30_000L) { StreamInfo.getInfo(extractor) } }
+                        val streamInfoDeferred = async {
+                            withTimeout(30_000L) { runPipePipeCall { StreamInfo.getInfo(extractor) } }
+                        }
                         val segmentsDeferred = async { resolveSegments(extractor) }
                         val streamInfo = streamInfoDeferred.await()
+                        rememberSabrInfo(streamInfo)
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
                         val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
@@ -63,6 +69,18 @@ internal class PipePipeStreamService(
                 onFailure = { StreamExtractionErrorMapper.map(it, sourceUrl = url) }
             )
         }
+
+    private suspend fun rememberSabrInfo(streamInfo: StreamInfo): Unit {
+        val sink = sabrInfoSink ?: return
+        val info = sequence {
+            streamInfo.videoStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.videoOnlyStreams.forEach { yield(it.deliveryMethodInfo) }
+            streamInfo.audioStreams.forEach { yield(it.deliveryMethodInfo) }
+        }.filterIsInstance<YoutubeSabrInfo>()
+            .firstOrNull { it.videoId == streamInfo.id }
+            ?: return
+        sink(streamInfo.id, info)
+    }
 
     private suspend fun resolveSegments(
         extractor: StreamExtractor,
@@ -85,7 +103,9 @@ internal class PipePipeStreamService(
         cacheKey: String,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
         val segments = runCatching {
-            withTimeout(15_000L) { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
+            withTimeout(15_000L) {
+                runPipePipeCall { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
+            }
         }.getOrElse { emptyArray() }
         runCatching {
             val items = segments.map { it.toSegmentItem() }
@@ -98,3 +118,6 @@ internal class PipePipeStreamService(
         const val SPONSORBLOCK_TTL_SECONDS = 21600L
     }
 }
+
+internal suspend fun <T> runPipePipeCall(block: () -> T): T =
+    runInterruptible(context = Dispatchers.IO, block = block)

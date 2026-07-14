@@ -1,7 +1,9 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.tables.PlaylistVideosTable
+import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
+import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.ProgressItem
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -23,6 +25,14 @@ internal fun playlistProgressByUrl(userId: String, videoUrls: List<String>): Map
             )
         }
 }
+
+internal fun ResultRow.toPlaylistSummary(videoCount: Int): PlaylistItem = PlaylistItem(
+    id = this[PlaylistsTable.id],
+    name = this[PlaylistsTable.name],
+    description = this[PlaylistsTable.description],
+    videoCount = videoCount,
+    createdAt = this[PlaylistsTable.createdAt],
+)
 
 internal fun ResultRow.toPlaylistVideoItem(progressByUrl: Map<String, ProgressItem>): PlaylistVideoItem {
     val url = this[PlaylistVideosTable.url]

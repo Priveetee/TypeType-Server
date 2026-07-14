@@ -40,17 +40,13 @@ class PlaylistServiceTest {
     }
 
     @Test
-    fun `getAll returns created playlists with videos populated`() = runBlocking {
+    fun `getAll returns playlist metadata without videos populated`() = runBlocking {
         val playlist = service.create(TEST_USER_ID, PlaylistItem(name = "Test"))
         service.addVideo(TEST_USER_ID, playlist.id, PlaylistVideoItem(url = "https://yt.com", title = "T", thumbnail = "", duration = 100L, channelName = "C", channelUrl = "https://c", channelAvatar = "avatar", viewCount = 123L))
         val all = service.getAll(TEST_USER_ID)
         assertEquals(1, all.size)
-        assertEquals(1, all[0].videos.size)
-        assertEquals("https://yt.com", all[0].videos[0].url)
-        assertEquals("C", all[0].videos[0].channelName)
-        assertEquals("https://c", all[0].videos[0].channelUrl)
-        assertEquals("avatar", all[0].videos[0].channelAvatar)
-        assertEquals(123L, all[0].videos[0].viewCount)
+        assertEquals(1, all[0].videoCount)
+        assertTrue(all[0].videos.isEmpty())
     }
 
     @Test

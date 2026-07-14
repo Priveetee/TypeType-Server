@@ -9,7 +9,7 @@ class CachedManifestService(
 ) {
 
     suspend fun dashManifest(videoUrl: String): ExtractionResult<String> {
-        val key = "dash-manifest:${CachedStreamService.cacheKey(videoUrl)}"
+        val key = "dash-manifest-v2:${CachedStreamService.cacheKey(videoUrl)}"
         runCatching { cache.get(key) }.getOrNull()?.let { cached ->
             return ExtractionResult.Success(cached)
         }

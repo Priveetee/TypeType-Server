@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.HistoryItem
+import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.SubscriptionItem
@@ -42,14 +43,14 @@ class YoutubeTakeoutParserService {
         val dedupedPlaylists = dedupPlaylists(playlists)
         val playlistItems = YoutubeTakeoutPlaylistKeyResolver.resolveAll(rawPlaylistItems, dedupedPlaylists)
         val watchLater = playlistItems.filterKeys { isWatchLaterPlaylistKey(it) }.values.flatten()
-        val favorites = playlistItems.filterKeys { isLikedPlaylistKey(it) }.values.flatten().map { it.url }
+        val favorites = playlistItems.filterKeys { isLikedPlaylistKey(it) }.values.flatten().map { it.toFavorite() }
         val activitySignals = YoutubeTakeoutActivitySignalService.parse(zipPath)
         val mergedSubscriptions = dedupSubscriptions(subscriptions + activitySignals.first)
-        val mergedFavorites = (favorites + activitySignals.second).distinct()
+        val mergedFavorites = dedupFavorites(favorites + activitySignals.second.map { FavoriteItem(videoUrl = it).withYoutubeFallbackTitle() })
         if (mergedSubscriptions.isEmpty()) warnings += "No subscription rows detected"
         return YoutubeTakeoutParsedData(
             subscriptions = mergedSubscriptions,
-            playlists = dedupedPlaylists,
+            playlists = dedupedPlaylists.filterNot(::isSystemPlaylist),
             playlistItems = dedupPlaylistItems(playlistItems),
             favorites = mergedFavorites,
             watchLater = watchLater.distinctBy { it.url },
@@ -66,7 +67,26 @@ class YoutubeTakeoutParserService {
     private fun dedupPlaylistItems(map: Map<String, List<PlaylistVideoItem>>): Map<String, List<PlaylistVideoItem>> =
         map.mapValues { (_, items) -> items.distinctBy { it.url } }
 
+    private fun dedupFavorites(items: List<FavoriteItem>): List<FavoriteItem> = items.distinctBy { it.videoUrl }
+
     private fun dedupHistory(items: List<HistoryItem>): List<HistoryItem> = items.distinctBy { it.url to it.watchedAt }
+
+    private fun PlaylistVideoItem.toFavorite(): FavoriteItem = FavoriteItem(
+        videoUrl = url,
+        favoritedAt = addedAt,
+        title = title,
+        thumbnail = thumbnail,
+        duration = duration,
+        channelName = channelName,
+        channelUrl = channelUrl,
+        channelAvatar = channelAvatar,
+        viewCount = viewCount,
+        publishedAt = publishedAt,
+    )
+
+    private fun isSystemPlaylist(item: PlaylistItem): Boolean =
+        isLikedPlaylistKey(item.name) || isWatchLaterPlaylistKey(item.name) ||
+            isLikedPlaylistKey(item.id) || isWatchLaterPlaylistKey(item.id)
 
     private fun parseHistory(zipPath: Path, warnings: MutableList<String>): List<HistoryItem> {
         ZipFile(zipPath.toFile()).use { zip ->

@@ -19,7 +19,7 @@ fun Route.registerRoutes(
     warmupService: HomeRecommendationWarmup,
 ): Unit {
     get("/auth/register/status") {
-        val bootstrapAvailable = !authService.hasUsers()
+        val bootstrapAvailable = !authService.hasAdmin()
         val settings = adminSettingsService.get()
         call.respond(
             RegisterStatusResponse(
@@ -41,7 +41,7 @@ fun Route.registerRoutes(
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("Local registration is disabled"))
             return@post
         }
-        val bootstrapAvailable = !authService.hasUsers()
+        val bootstrapAvailable = !authService.hasAdmin()
         val registrationAllowed = settings.allowRegistration || bootstrapAvailable
         if (!registrationAllowed) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("Registration is disabled"))

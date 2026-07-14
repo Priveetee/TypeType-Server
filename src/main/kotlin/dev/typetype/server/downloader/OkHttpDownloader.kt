@@ -1,26 +1,39 @@
 package dev.typetype.server.downloader
 
 import okhttp3.Callback
+import okhttp3.Call
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.schabi.newpipe.extractor.downloader.CancellableCall
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request as ExtractorRequest
 import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.localization.Localization
 import java.util.concurrent.TimeUnit
-import okhttp3.Call
-import okhttp3.Request
 
-class OkHttpDownloader private constructor(private val client: OkHttpClient) : Downloader() {
+class OkHttpDownloader private constructor(
+    private val client: OkHttpClient,
+    private val streamingClient: OkHttpClient,
+) : Downloader() {
 
     companion object {
-        fun instance(): OkHttpDownloader = OkHttpDownloader(
-            OkHttpClient.Builder()
+        fun instance(): OkHttpDownloader = create(STREAMING_READ_TIMEOUT_MS)
+
+        internal fun create(streamingReadTimeoutMs: Long): OkHttpDownloader {
+            val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
-        )
+            val streamingClient = client.newBuilder()
+                .readTimeout(streamingReadTimeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+            return OkHttpDownloader(client, streamingClient)
+        }
+
+        private const val STREAMING_READ_TIMEOUT_MS = 30_000L
     }
 
     override fun execute(request: ExtractorRequest): Response {
@@ -30,16 +43,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
                 throw ReCaptchaException("reCaptcha required", request.url())
             }
 
-            val responseBodyBytes = httpResponse.body.bytes()
-            val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-            return Response(
-                httpResponse.code,
-                httpResponse.message,
-                httpResponse.headers.toMultimap(),
-                responseBody,
-                responseBodyBytes,
-                httpResponse.request.url.toString()
-            )
+            return OkHttpExtractorResponseMapper.toExtractorResponse(httpResponse)
         }
     }
 
@@ -51,17 +55,7 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         call.enqueue(object : Callback {
             override fun onResponse(call: Call, response: okhttp3.Response) {
                 response.use { httpResponse ->
-                    val responseBodyBytes = httpResponse.body.bytes()
-                    val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
-                    val extractorResponse = Response(
-                        httpResponse.code,
-                        httpResponse.message,
-                        httpResponse.headers.toMultimap(),
-                        responseBody,
-                        responseBodyBytes,
-                        httpResponse.request.url.toString()
-                    )
-                    callback.onSuccess(extractorResponse)
+                    callback.onSuccess(OkHttpExtractorResponseMapper.toExtractorResponse(httpResponse))
                     cancellableCall.setFinished()
                 }
             }
@@ -75,13 +69,37 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         return cancellableCall
     }
 
+    override fun postStreaming(
+        url: String,
+        headers: MutableMap<String, MutableList<String>>?,
+        dataToSend: ByteArray?,
+        localization: Localization?,
+    ): StreamingResponse {
+        val request = ExtractorRequest.newBuilder()
+            .post(url, dataToSend)
+            .headers(headers)
+            .localization(localization)
+            .build()
+        val httpRequest = buildOkHttpRequest(request)
+        val httpResponse = streamingClient.newCall(httpRequest).execute()
+        if (httpResponse.code == 429) {
+            httpResponse.close()
+            throw ReCaptchaException("reCaptcha required", url)
+        }
+        return StreamingResponse(
+            httpResponse.code,
+            httpResponse.headers.toMultimap(),
+            OkHttpStreamingBodyStream(httpResponse),
+        )
+    }
+
     private fun buildOkHttpRequest(request: ExtractorRequest): Request {
         val method = request.httpMethod()
         val dataToSend = request.dataToSend()
         val body = dataToSend?.toRequestBody()
             ?: if (method == "POST" || method == "PUT" || method == "PATCH") ByteArray(0).toRequestBody() else null
         val builder = Request.Builder()
-            .url(request.url())
+            .url(normalizeExtractorUrl(request.url()))
             .method(method, body)
 
         request.headers().forEach { (name, values) ->
@@ -91,3 +109,6 @@ class OkHttpDownloader private constructor(private val client: OkHttpClient) : D
         return builder.build()
     }
 }
+
+internal fun normalizeExtractorUrl(url: String): String =
+    if (url.startsWith("/")) "https://www.youtube.com$url" else url

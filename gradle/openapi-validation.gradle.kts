@@ -1,10 +1,10 @@
 import java.net.URLClassLoader
 import org.gradle.api.GradleException
 
-val openApiValidator by configurations.creating
+val openApiValidator = configurations.create("openApiValidator")
 
 dependencies {
-    openApiValidator("io.swagger.parser.v3:swagger-parser-v3:2.1.44")
+    openApiValidator("io.swagger.parser.v3:swagger-parser-v3:2.1.45")
     openApiValidator("org.slf4j:slf4j-nop:2.0.17")
 }
 

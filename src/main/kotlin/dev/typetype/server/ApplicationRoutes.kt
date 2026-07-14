@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRoutes
+import dev.typetype.server.routes.adminIdentityRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
@@ -10,18 +11,15 @@ import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
+import dev.typetype.server.routes.deArrowRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
-import dev.typetype.server.routes.manifestRoutes
-import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
-import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
+import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
-import dev.typetype.server.routes.storyboardProxyRoutes
-import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
@@ -66,27 +64,10 @@ internal fun Application.installApplicationRoutes(
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
-        rateLimit(STREAMS_ZONE) {
-            streamRoutes(
-                streamService = svc.streamService,
-                authService = authService,
-                accessControlService = svc.accessControlService,
-                youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                    { userId, url -> service.getStreamInfo(userId, url) }
-                },
-                adminSettingsService = adminSettingsService,
-            )
-            manifestRoutes(
-                svc.manifestService,
-                svc.nativeManifestService,
-                svc.hlsManifestService,
-                svc.youtubeSessionHlsManifestService,
-                authService,
-                adminSettingsService,
-            )
-        }
+        installStreamRoutes(svc, authService, adminSettingsService)
+        rateLimit(DEARROW_ZONE) { deArrowRoutes(svc.deArrowService) }
         rateLimit(EXTRACTION_ZONE) {
-            searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService)
+            searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
             trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)
             publicPlaylistRoutes(svc.publicPlaylistService, authService, svc.accessControlService, adminSettingsService)
@@ -97,20 +78,27 @@ internal fun Application.installApplicationRoutes(
             channelRoutes(svc.channelService, authService, svc.accessControlService, adminSettingsService)
             podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
+        installProxyRoutes(svc)
         rateLimit(PROXY_ZONE) {
-            proxyRoutes(svc.proxyService)
-            nicoVideoProxyRoutes(svc.nicoVideoProxyService)
+            sabrRoutes(
+                svc.sabrSessionStore,
+                svc.streamService,
+                authService,
+                svc.accessControlService,
+                adminSettingsService,
+                svc.audioOnlyMediaTokenService,
+            )
         }
-        rateLimit(PROXY_STORYBOARD_ZONE) { storyboardProxyRoutes(svc.proxyService) }
         downloaderGatewayRoutes(downloaderGatewayService)
         oidcAuthRoutes(oidcAuthService, adminSettingsService)
         authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminIdentityRoutes(svc.accountIdentityService, authService)
         adminAllowListRoutes(authService, userAdminService, svc.adminManagedAccessService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
         adminSessionRoutes(authService, activeSessionService)
         sessionActivityRoutes(authService, activeSessionService)
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
-        avatarRoutes(avatarService, openMojiProxyService)
+        avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         rateLimit(USER_DATA_ZONE) { youtubeRemoteBrowserRoutes(youtubeRemoteBrowserService, authService) }
         rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, svc.bugReportService, restoreService) }
     }

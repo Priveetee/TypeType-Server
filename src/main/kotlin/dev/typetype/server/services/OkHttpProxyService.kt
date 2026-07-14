@@ -49,11 +49,16 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
             }.fold(
                 onSuccess = { response ->
                     val body = response.body
-                    if (!response.isSuccessful && response.code != 206) {
+                    val youtubeThumbnailFallback = acceptsYoutubeThumbnailFallback(
+                        fetchUrl,
+                        response.code,
+                        response.header("Content-Type"),
+                    )
+                    if (!response.isSuccessful && response.code != 206 && !youtubeThumbnailFallback) {
                         response.close()
                         ExtractionResult.Failure("Upstream returned ${response.code}")
                     } else {
-                        val statusCode = response.code
+                        val statusCode = if (youtubeThumbnailFallback) 200 else response.code
                         val contentType = response.header("Content-Type") ?: "application/octet-stream"
                         val contentRange = response.header("Content-Range")
                         val acceptRanges = response.header("Accept-Ranges")
@@ -116,4 +121,9 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
         const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
+}
+
+internal fun acceptsYoutubeThumbnailFallback(url: String, status: Int, contentType: String?): Boolean {
+    val host = runCatching { java.net.URI(url).host.orEmpty() }.getOrDefault("")
+    return status == 404 && host.endsWith("ytimg.com") && contentType?.startsWith("image/") == true
 }

@@ -17,7 +17,7 @@ suspend fun forwardDownloaderSseRequest(
     requestHeaders: Map<String, String>,
     body: ByteArray?,
 ) {
-    val upstream = runCatching { gateway.openForward(method, path, query, requestHeaders, body) }
+    val upstream = runCatching { gateway.openStream(method, path, query, requestHeaders, body) }
         .getOrElse {
             call.respond(HttpStatusCode.BadGateway, ErrorResponse("downloader unavailable"))
             return

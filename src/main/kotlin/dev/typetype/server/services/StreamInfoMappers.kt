@@ -3,11 +3,9 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.SubtitleItem
 import dev.typetype.server.models.VideoStreamItem
-import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 internal fun StreamInfo.toStreamResponse(): StreamResponse {
     val uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L
@@ -44,55 +42,20 @@ internal fun StreamInfo.toStreamResponse(): StreamResponse {
         streamSegments = runCatching { streamSegments.map { it.toStreamSegmentItem() } }.getOrElse { emptyList() },
         hlsUrl = liveMetadata.hlsUrl,
         dashMpdUrl = liveMetadata.dashMpdUrl,
-        videoStreams = videoStreams.map { it.toVideoStreamItem(false) },
-        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem() }.getOrNull() },
+        videoStreams = videoStreams.map { it.toVideoStreamItem(id, false) }
+            .filter { it.isSupportedPlaybackStream() },
+        audioStreams = audioStreams.mapNotNull { runCatching { it.toAudioStreamItem(id) }.getOrNull() }
+            .filter { it.isSupportedPlaybackStream() },
         originalAudioTrackId = null,
         preferredDefaultAudioTrackId = null,
-        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(true) },
+        videoOnlyStreams = videoOnlyStreams.map { it.toVideoStreamItem(id, true) }
+            .filter { it.isSupportedPlaybackStream() },
         subtitles = subtitles.mapNotNull { runCatching { it.toSubtitleItem() }.getOrNull() },
         previewFrames = previewFrames.mapNotNull { runCatching { it.toPreviewFrameItem() }.getOrNull() },
         sponsorBlockSegments = runCatching { getSponsorBlockSegments().map { it.toSegmentItem() } }.getOrElse { emptyList() },
         relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { runCatching { it.toVideoItem() }.getOrNull() },
     )
 }
-internal fun VideoStream.toVideoStreamItem(isVideoOnly: Boolean): VideoStreamItem =
-    VideoStreamItem(
-        url = getContent() ?: "",
-        mimeType = getFormat()?.getMimeType() ?: "",
-        format = getFormat()?.name ?: "",
-        resolution = getResolution(),
-        bitrate = getBitrate().takeIf { it > 0 },
-        codec = getCodec()?.takeIf { it.isNotBlank() },
-        isVideoOnly = isVideoOnly,
-        itag = getItag(),
-        width = getWidth(),
-        height = getHeight(),
-        fps = getFps(),
-        contentLength = getItagItem()?.getContentLength() ?: 0L,
-        initStart = getInitStart().toLong(),
-        initEnd = getInitEnd().toLong(),
-        indexStart = getIndexStart().toLong(),
-        indexEnd = getIndexEnd().toLong(),
-    )
-
-internal fun AudioStream.toAudioStreamItem(): AudioStreamItem = AudioStreamItem(
-    url = getContent() ?: "",
-    mimeType = getFormat()?.getMimeType() ?: "",
-    format = getFormat()?.name ?: "",
-    bitrate = averageBitrate.takeIf { it > 0 },
-    codec = getCodec()?.takeIf { it.isNotBlank() },
-    quality = getQuality(),
-    itag = getItag(),
-    contentLength = getItagItem()?.getContentLength() ?: 0L,
-    initStart = getInitStart().toLong(),
-    initEnd = getInitEnd().toLong(),
-    indexStart = getIndexStart().toLong(),
-    indexEnd = getIndexEnd().toLong(),
-    audioTrackId = getAudioTrackId(),
-    audioTrackName = getAudioTrackName(),
-    audioLocale = getAudioLocale(),
-    isOriginal = false,
-)
 
 internal fun SubtitlesStream.toSubtitleItem(): SubtitleItem = SubtitleItem(
     url = getContent() ?: "",

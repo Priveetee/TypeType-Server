@@ -5,6 +5,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ProfileUpdateRequest
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
+import dev.typetype.server.services.CustomAvatarService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileUpdateResult
 import io.ktor.http.HttpStatusCode
@@ -16,7 +17,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 
-fun Route.profileRoutes(profileService: ProfileService, avatarService: AvatarService, authService: AuthService) {
+fun Route.profileRoutes(
+    profileService: ProfileService,
+    avatarService: AvatarService,
+    customAvatarService: CustomAvatarService,
+    authService: AuthService,
+) {
     put("/profile") {
         call.withJwtAuth(authService) { userId ->
             if (userId.startsWith("guest:")) return@withJwtAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Guest users cannot update profile"))
@@ -47,13 +53,10 @@ fun Route.profileRoutes(profileService: ProfileService, avatarService: AvatarSer
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
             val ok = profileService.setEmojiAvatar(userId, req.code, avatarService)
-            if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid OpenMoji code"))
-        }
-    }
-
-    put("/profile/avatar/custom") {
-        call.withJwtAuth(authService) { _ ->
-            call.respond(HttpStatusCode.Gone, ErrorResponse("AVATAR_MODE_EMOJI_ONLY"))
+            if (ok) {
+                customAvatarService.delete(userId)
+                call.respond(HttpStatusCode.NoContent)
+            } else call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid OpenMoji code"))
         }
     }
 
@@ -61,7 +64,10 @@ fun Route.profileRoutes(profileService: ProfileService, avatarService: AvatarSer
         call.withJwtAuth(authService) { userId ->
             if (userId.startsWith("guest:")) return@withJwtAuth call.respond(HttpStatusCode.Forbidden, ErrorResponse("Guest users cannot change avatar"))
             val ok = profileService.clearAvatar(userId)
-            if (ok) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("User not found"))
+            if (ok) {
+                customAvatarService.delete(userId)
+                call.respond(HttpStatusCode.NoContent)
+            } else call.respond(HttpStatusCode.NotFound, ErrorResponse("User not found"))
         }
     }
 }

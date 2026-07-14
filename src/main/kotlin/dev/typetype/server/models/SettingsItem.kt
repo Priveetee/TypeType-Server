@@ -8,6 +8,7 @@ data class SettingsItem(
     val defaultQuality: String = "1080p",
     val defaultLandingPage: String = "home",
     val autoplay: Boolean = true,
+    val skipPlaylistAutoplayScreen: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
     val subtitlesEnabled: Boolean = false,
@@ -31,5 +32,9 @@ data class SettingsItem(
     val hideComments: Boolean = false,
     val hideShorts: Boolean = false,
     val disableWatchHistory: Boolean = false,
+    val deArrowEnabled: Boolean = false,
+    val deArrowTitleMode: String = "dearrow",
+    val deArrowThumbnailMode: String = "dearrow_or_random",
+    val deArrowTrustMode: String = "accepted",
     val accessMode: String = "unrestricted",
 )

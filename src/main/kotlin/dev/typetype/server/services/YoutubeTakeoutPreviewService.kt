@@ -13,8 +13,11 @@ class YoutubeTakeoutPreviewService(
     suspend fun build(userId: String, parsed: YoutubeTakeoutParsedData): YoutubeTakeoutPreviewItem {
         val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "preview")
         val existingSubs = subscriptionsService.getAll(userId).map { it.channelUrl }.toSet()
-        val existingPlaylists = playlistService.getAll(userId).map { it.name.lowercase() }.toSet()
-        val existingPlaylistVideos = playlistService.getAll(userId).flatMap { it.videos }.map { it.url }.toSet()
+        val playlistRows = playlistService.getAll(userId)
+        val existingPlaylists = playlistRows.map { it.name.lowercase() }.toSet()
+        val existingPlaylistVideos = playlistRows.flatMap { playlistService.getById(userId, it.id)?.videos.orEmpty() }
+            .map { it.url }
+            .toSet()
         val existingHistory = lookupService.historyKeys(userId)
         val existingFavorites = lookupService.favorites(userId)
         val existingWatchLater = lookupService.watchLater(userId)
@@ -30,7 +33,7 @@ class YoutubeTakeoutPreviewService(
             subscriptions = parsed.subscriptions.count { it.channelUrl in existingSubs },
             playlists = parsed.playlists.count { it.name.lowercase() in existingPlaylists },
             playlistItems = parsed.playlistItems.values.flatten().count { it.url in existingPlaylistVideos },
-            favorites = parsed.favorites.count { it in existingFavorites },
+            favorites = parsed.favorites.count { it.videoUrl in existingFavorites },
             watchLater = parsed.watchLater.count { it.url in existingWatchLater },
             history = parsed.history.count { (it.url to it.watchedAt) in existingHistory },
         )
@@ -38,7 +41,7 @@ class YoutubeTakeoutPreviewService(
             subscriptions = parsed.subscriptions.take(5),
             playlists = parsed.playlists.take(5),
             playlistItems = parsed.playlistItems.values.flatten().take(5),
-            favorites = parsed.favorites.take(5),
+            favorites = parsed.favorites.map { it.videoUrl }.take(5),
             watchLater = parsed.watchLater.take(5),
             history = parsed.history.take(5),
         )

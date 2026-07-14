@@ -24,11 +24,16 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_comments BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_shorts BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS disable_watch_history BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS skip_playlist_autoplay_screen BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_landing_page TEXT NOT NULL DEFAULT 'home'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed_at BIGINT NOT NULL DEFAULT 0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_enabled BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_title_mode TEXT NOT NULL DEFAULT 'dearrow'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_thumbnail_mode TEXT NOT NULL DEFAULT 'dearrow_or_random'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_trust_mode TEXT NOT NULL DEFAULT 'accepted'")
     }
 
     private fun exec(sql: String) {

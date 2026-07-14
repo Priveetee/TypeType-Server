@@ -3,6 +3,12 @@ package dev.typetype.server.services
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistVideoItem
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class VideoMetadataResolver(private val streamService: StreamService) {
     suspend fun enrichPlaylistVideos(videos: List<PlaylistVideoItem>): List<PlaylistVideoItem> {
@@ -15,22 +21,29 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         return items.mapValues { (_, videos) -> videos.map { video -> metadata[video.url]?.toPlaylistVideo(video) ?: video } }
     }
 
-    suspend fun enrichFavorites(urls: List<String>): List<FavoriteItem> {
-        val distinct = urls.distinct()
-        val metadata = resolve(distinct)
-        return distinct.map { url -> metadata[url]?.toFavorite(url) ?: FavoriteItem(videoUrl = url, title = YoutubeTypeTypeMapper.titleForUrl(url)) }
+    suspend fun enrichFavorites(items: List<FavoriteItem>): List<FavoriteItem> {
+        val distinct = items.distinctBy { it.videoUrl }
+        val metadata = resolve(distinct.map { it.videoUrl })
+        return distinct.map { item -> metadata[item.videoUrl]?.toFavorite(item) ?: item.withYoutubeFallbackTitle() }
     }
 
-    suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> {
-        val resolved = mutableMapOf<String, VideoMetadataItem>()
-        urls.map { it.trim() }.filter { it.isNotBlank() }.distinct().forEach { url ->
-            when (val result = streamService.getStreamInfo(url)) {
-                is ExtractionResult.Success -> resolved[url] = result.data.toMetadata(url)
-                is ExtractionResult.BadRequest -> Unit
-                is ExtractionResult.Failure -> Unit
-            }
+    suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> = coroutineScope {
+        val semaphore = Semaphore(MAX_CONCURRENT_RESOLUTIONS)
+        urls.map { it.trim() }.filter { it.isNotBlank() }.distinct().map { url ->
+            async { semaphore.withPermit { resolve(url) } }
+        }.awaitAll().filterNotNull().toMap()
+    }
+
+    private suspend fun resolve(url: String): Pair<String, VideoMetadataItem>? = try {
+        when (val result = streamService.getStreamInfo(url)) {
+            is ExtractionResult.Success -> url to result.data.toMetadata(url)
+            is ExtractionResult.BadRequest -> null
+            is ExtractionResult.Failure -> null
         }
-        return resolved
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
     }
 
     private fun shouldEnrich(video: PlaylistVideoItem): Boolean =
@@ -48,8 +61,9 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         publishedAt = publishedAt.takeIf { it > 0L } ?: video.publishedAt,
     )
 
-    private fun VideoMetadataItem.toFavorite(url: String): FavoriteItem = FavoriteItem(
-        videoUrl = url,
+    private fun VideoMetadataItem.toFavorite(item: FavoriteItem): FavoriteItem = FavoriteItem(
+        videoUrl = item.videoUrl,
+        favoritedAt = item.favoritedAt,
         title = title,
         thumbnail = thumbnail,
         duration = duration,
@@ -74,6 +88,7 @@ class VideoMetadataResolver(private val streamService: StreamService) {
 
     private companion object {
         const val FALLBACK_TITLE_PREFIX = "YouTube video "
+        const val MAX_CONCURRENT_RESOLUTIONS = 8
         const val YOUTUBE_THUMB_PREFIX = "https://i.ytimg.com/vi/"
     }
 }

@@ -21,6 +21,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultQuality = this[SettingsTable.defaultQuality],
     defaultLandingPage = this[SettingsTable.defaultLandingPage],
     autoplay = this[SettingsTable.autoplay],
+    skipPlaylistAutoplayScreen = this[SettingsTable.skipPlaylistAutoplayScreen],
     volume = this[SettingsTable.volume],
     muted = this[SettingsTable.muted],
     subtitlesEnabled = this[SettingsTable.subtitlesEnabled],
@@ -44,6 +45,10 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
     disableWatchHistory = this[SettingsTable.disableWatchHistory],
+    deArrowEnabled = this[SettingsTable.deArrowEnabled],
+    deArrowTitleMode = this[SettingsTable.deArrowTitleMode],
+    deArrowThumbnailMode = this[SettingsTable.deArrowThumbnailMode],
+    deArrowTrustMode = this[SettingsTable.deArrowTrustMode],
     accessMode = this[SettingsTable.accessMode].toAccessMode(),
 )
 
@@ -52,6 +57,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.defaultQuality] = settings.defaultQuality
     this[SettingsTable.defaultLandingPage] = settings.defaultLandingPage
     this[SettingsTable.autoplay] = settings.autoplay
+    this[SettingsTable.skipPlaylistAutoplayScreen] = settings.skipPlaylistAutoplayScreen
     this[SettingsTable.volume] = settings.volume
     this[SettingsTable.muted] = settings.muted
     this[SettingsTable.subtitlesEnabled] = settings.subtitlesEnabled
@@ -75,6 +81,10 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
     this[SettingsTable.disableWatchHistory] = settings.disableWatchHistory
+    this[SettingsTable.deArrowEnabled] = settings.deArrowEnabled
+    this[SettingsTable.deArrowTitleMode] = settings.deArrowTitleMode
+    this[SettingsTable.deArrowThumbnailMode] = settings.deArrowThumbnailMode
+    this[SettingsTable.deArrowTrustMode] = settings.deArrowTrustMode
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
@@ -85,7 +95,14 @@ internal fun SettingsItem.normalized(): SettingsItem = copy(
     accessMode = accessMode.toAccessMode(),
     sponsorBlockCategoryActions = sponsorBlockCategoryActions.withDefaultSponsorBlockCategoryActions(),
     sponsorBlockMinimumDuration = sponsorBlockMinimumDuration.coerceAtLeast(0),
+    deArrowTitleMode = deArrowTitleMode.takeIf { it in DEARROW_TITLE_MODES } ?: "dearrow",
+    deArrowThumbnailMode = deArrowThumbnailMode.takeIf { it in DEARROW_THUMBNAIL_MODES } ?: "dearrow_or_random",
+    deArrowTrustMode = deArrowTrustMode.takeIf { it in DEARROW_TRUST_MODES } ?: "accepted",
 )
+
+private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
+private val DEARROW_THUMBNAIL_MODES = setOf("original", "dearrow", "random", "dearrow_or_random")
+private val DEARROW_TRUST_MODES = setOf("accepted", "locked")
 
 private fun decodeSponsorBlockCategoryActions(raw: String): Map<String, SponsorBlockMode> =
     runCatching { CacheJson.decodeFromString(SPONSOR_BLOCK_CATEGORY_ACTIONS_SERIALIZER, raw) }

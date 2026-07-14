@@ -21,16 +21,12 @@ class PlaylistService {
             .where { PlaylistsTable.userId eq userId }
             .orderBy(PlaylistsTable.createdAt to SortOrder.DESC)
             .toList()
-        val videoRows = PlaylistVideosTable.selectAll()
-            .where { PlaylistVideosTable.userId eq userId }
-            .orderBy(PlaylistVideosTable.position to SortOrder.ASC)
-            .toList()
-        val progressByUrl = playlistProgressByUrl(userId, videoRows.map { it[PlaylistVideosTable.url] })
-        val videosByPlaylist = videoRows
-            .groupBy { it[PlaylistVideosTable.playlistId] }
         playlists.map { row ->
-            val videos = videosByPlaylist[row[PlaylistsTable.id]]?.map { it.toPlaylistVideoItem(progressByUrl) } ?: emptyList()
-            PlaylistItem(id = row[PlaylistsTable.id], name = row[PlaylistsTable.name], description = row[PlaylistsTable.description], videos = videos, createdAt = row[PlaylistsTable.createdAt])
+            val count = PlaylistVideosTable.selectAll()
+                .where { (PlaylistVideosTable.playlistId eq row[PlaylistsTable.id]) and (PlaylistVideosTable.userId eq userId) }
+                .count()
+                .toInt()
+            row.toPlaylistSummary(count)
         }
     }
 
@@ -73,7 +69,7 @@ class PlaylistService {
 
     suspend fun addVideo(userId: String, playlistId: String, video: PlaylistVideoItem): PlaylistVideoItem {
         val videoId = UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
+        val now = video.addedAt.takeIf { it > 0L } ?: System.currentTimeMillis()
         val pos = DatabaseFactory.query { PlaylistVideosTable.selectAll().where { (PlaylistVideosTable.playlistId eq playlistId) and (PlaylistVideosTable.userId eq userId) }.count().toInt() }
         DatabaseFactory.query {
             PlaylistVideosTable.insert {

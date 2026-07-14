@@ -4,6 +4,7 @@ import dev.typetype.server.models.YoutubeTakeoutImportJobStatus
 import dev.typetype.server.models.YoutubeTakeoutImportReportItem
 import dev.typetype.server.models.YoutubeTakeoutPreviewItem
 import dev.typetype.server.models.YoutubeTakeoutCommitRequest
+import dev.typetype.server.models.YoutubeTakeoutCommitPlan
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
@@ -20,6 +21,7 @@ class YoutubeTakeoutImportJobService(
     private val flagsStore: YoutubeTakeoutImportJobFlagsStore = YoutubeTakeoutImportJobFlagsStore(),
     private val privacyService: YoutubeTakeoutPrivacyService = YoutubeTakeoutPrivacyService(),
     private val cache: YoutubeTakeoutImportCache = YoutubeTakeoutImportCache(),
+    private val engine: YoutubeTakeoutImportJobEngine = YoutubeTakeoutImportJobEngine(),
 ) {
     suspend fun create(userId: String, archivePath: Path): YoutubeTakeoutImportJobStatus {
         val jobId = store.create(userId, archivePath)
@@ -36,36 +38,59 @@ class YoutubeTakeoutImportJobService(
             return preview
         }
         statusStore.updateStatus(jobId, "running", "parsing", 10)
-        val archive = archiveStore.getArchivePath(userId, jobId)
-        val parsed = parser.parse(Path.of(archive))
-        cache.setParsed(jobId, parsed)
-        val preview = previewService.build(userId, parsed)
-        cache.setPreview(jobId, preview)
-        previewStore.persistPreview(jobId, Json.encodeToString(preview))
-        flagsStore.setParseCompleted(jobId)
-        statusStore.updateStatus(jobId, "completed", "preview_ready", 100)
-        return preview
+        return try {
+            val archive = archiveStore.getArchivePath(userId, jobId)
+            val parsed = parser.parse(Path.of(archive))
+            cache.setParsed(jobId, parsed)
+            val preview = previewService.build(userId, parsed)
+            cache.setPreview(jobId, preview)
+            previewStore.persistPreview(jobId, Json.encodeToString(preview))
+            flagsStore.setParseCompleted(jobId)
+            statusStore.updateStatus(jobId, "completed", "preview_ready", 100)
+            preview
+        } catch (e: Exception) {
+            statusStore.failStatus(jobId, "parsing_failed", e.importErrorMessage())
+            throw e
+        }
     }
 
     suspend fun commit(userId: String, jobId: String, request: YoutubeTakeoutCommitRequest?): YoutubeTakeoutImportJobStatus {
         val flags = flagsStore.getFlags(userId, jobId)
         if (flags.importCompleted) return statusStore.getStatus(userId, jobId) ?: error("Missing job")
-        if (!flags.parseCompleted) preview(userId, jobId)
+        if (flags.importStarted) return statusStore.getStatus(userId, jobId) ?: error("Missing job")
         val plan = YoutubeTakeoutCommitPlanner.fromRequest(request)
         flagsStore.setImportStarted(jobId)
         statusStore.updateStatus(jobId, "running", "importing", 75)
-        val parsed = cache.getParsed(jobId) ?: parser.parse(Path.of(archiveStore.getArchivePath(userId, jobId))).also {
-            cache.setParsed(jobId, it)
-            val preview = previewService.build(userId, it)
-            previewStore.persistPreview(jobId, Json.encodeToString(preview))
-            cache.setPreview(jobId, preview)
-        }
-        val report = importerService.commit(userId, parsed, plan)
-        reportStore.persistReport(jobId, Json.encodeToString(report))
-        flagsStore.setImportCompleted(jobId)
-        statusStore.updateStatus(jobId, "completed", "completed", 100)
-        privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
+        engine.startCommit(jobId, plan) { runCommit(userId, jobId, it) }
         return statusStore.getStatus(userId, jobId) ?: error("Missing job")
+    }
+
+    private suspend fun runCommit(userId: String, jobId: String, plan: YoutubeTakeoutCommitPlan): Unit {
+        try {
+            val flags = flagsStore.getFlags(userId, jobId)
+            if (!flags.parseCompleted) preview(userId, jobId)
+            statusStore.updateStatus(jobId, "running", "importing", 75)
+            val parsed = cache.getParsed(jobId) ?: parser.parse(Path.of(archiveStore.getArchivePath(userId, jobId))).also {
+                cache.setParsed(jobId, it)
+                val preview = previewService.build(userId, it)
+                previewStore.persistPreview(jobId, Json.encodeToString(preview))
+                cache.setPreview(jobId, preview)
+                flagsStore.setParseCompleted(jobId)
+            }
+            val report = importerService.commit(userId, parsed, plan)
+            reportStore.persistReport(jobId, Json.encodeToString(report))
+            flagsStore.setImportCompleted(jobId)
+            statusStore.updateStatus(jobId, "completed", "completed", 100)
+            privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
+        } catch (e: Exception) {
+            statusStore.failStatus(jobId, "import_failed", e.importErrorMessage())
+        }
+    }
+
+    private fun Exception.importErrorMessage(): String {
+        val name = this::class.simpleName ?: "ImportException"
+        val detail = message?.takeIf { it.isNotBlank() } ?: "Import failed"
+        return "$name: $detail"
     }
 
     suspend fun report(userId: String, jobId: String): YoutubeTakeoutImportReportItem? {

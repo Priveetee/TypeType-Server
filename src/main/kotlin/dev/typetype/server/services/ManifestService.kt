@@ -19,7 +19,7 @@ class ManifestService(private val streamService: StreamService) {
     }
 
     private fun compatibleVideoStreams(streams: List<VideoStreamItem>): List<VideoStreamItem> =
-        streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
+        streams.filter(::isDashManifestVideoStream)
             .sortedWith(compareBy({ codecPriority(it.codec ?: "") }, { -(it.bitrate ?: bwFromUrl(it.url) ?: 0) }))
     private fun compatibleAudioStreams(streams: List<AudioStreamItem>, preferredTrackId: String?): List<AudioStreamItem> =
         streams.filter { it.url.isNotBlank() && !it.codec.isNullOrBlank() }
@@ -61,7 +61,7 @@ class ManifestService(private val streamService: StreamService) {
             val width = if (s.width > 0) s.width else if (height > 0) height * 16 / 9 else 0
             val bandwidth = (s.bitrate ?: bwFromUrl(s.url) ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
-            sb.appendLine("      <Representation id=\"v-$i\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
+            sb.appendLine("      <Representation id=\"${s.manifestRepresentationId(i)}\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
             sb.appendLine("        <BaseURL>../proxy?url=${encode(s.url)}</BaseURL>")
             if (s.indexStart > 0L && s.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${s.indexStart}-${s.indexEnd}\">")
@@ -77,7 +77,7 @@ class ManifestService(private val streamService: StreamService) {
         val attrs = "${if (lang != null) " lang=\"$lang\"" else ""}${if (label != null) " label=\"$label\"" else ""}"
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\"$attrs>")
         streams.forEachIndexed { i, a ->
-            sb.appendLine("      <Representation id=\"a-$i\" bandwidth=\"${((a.bitrate ?: 128) * 1000).coerceAtLeast(1)}\" codecs=\"${normalizeAudioCodec(a.codec)}\">")
+            sb.appendLine("      <Representation id=\"${a.manifestRepresentationId(i)}\" bandwidth=\"${((a.bitrate ?: 128) * 1000).coerceAtLeast(1)}\" codecs=\"${normalizeAudioCodec(a.codec)}\">")
             sb.appendLine("        <BaseURL>../proxy?url=${encode(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")

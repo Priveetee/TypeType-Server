@@ -15,6 +15,7 @@ class YoutubeTakeoutImportJobFlagsStore {
             ?.let { row ->
                 YoutubeTakeoutImportJobFlags(
                     parseCompleted = row[YoutubeTakeoutImportJobsTable.parseCompleted],
+                    importStarted = row[YoutubeTakeoutImportJobsTable.importStarted],
                     importCompleted = row[YoutubeTakeoutImportJobsTable.importCompleted],
                 )
             }
