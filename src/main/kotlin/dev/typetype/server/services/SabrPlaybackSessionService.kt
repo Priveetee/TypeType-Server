@@ -105,7 +105,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             holder.markServed(it, generation)
             return SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes)
         }
-        sessionStore.requestSegmentDemand(holder, request)
+        sessionStore.requestSegmentDemand(holder, request, generation)
         val segment = awaitCachedSegment(holder, request, timeoutMs)
         return if (segment == null) SabrPlaybackSegmentResult.Retry(holder, REPOSITIONING) else {
             holder.clearSegmentDemand(request)
@@ -165,13 +165,25 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val targetFormat = if (isVideoActive()) videoFormat else audioFormat
         val sequence = playbackStartSequence(targetFormat, playerTimeMs)
         val request = SabrSegmentRequest.media(targetFormat, sequence)
-        val startMs = session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
-        setReaderPosition(request.format, startMs, generation)
-        if (session.getCachedSegment(request) != null) return
+        val companion = audioFormat.takeIf { isVideoActive() }?.let { format ->
+            SabrSegmentRequest.media(format, playbackStartSequence(format, playerTimeMs))
+        }
+        val targets = listOfNotNull(request, companion)
+        targets.forEach { target ->
+            val targetStartMs = session.streamState
+                .getSegmentStartMs(target.format, target.sequenceNumber)
+                .coerceAtLeast(0L)
+            setReaderPosition(target.format, targetStartMs, generation)
+        }
+        val missing = targets.filter { session.getCachedSegment(it) == null }
+        if (missing.isEmpty()) return
+        val anchor = missing.first()
+        val startMs = session.streamState.getSegmentStartMs(anchor.format, anchor.sequenceNumber).coerceAtLeast(0L)
+        missing.forEach { requestSegmentDemand(it, generation) }
         if (startMs < session.streamState.getMinBufferedEndMs()) {
-            requestRefetch(request)
+            requestRefetch(anchor)
         } else {
-            requestForwardSeek(request)
+            requestForwardSeek(anchor)
         }
     }
 

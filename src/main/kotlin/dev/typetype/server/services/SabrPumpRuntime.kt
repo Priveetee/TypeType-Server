@@ -5,7 +5,6 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     private var lastRequestMs = 0L
     private var seekModeUntilMs = 0L
     private var demandKey: String? = null
-    private var demandSinceMs = 0L
     private var demandTrackReadvertised = false
     private var demandTargetTrackResponsesWithoutSegment = 0
 
@@ -23,7 +22,7 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     fun demandPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         cappedServerAheadPlayerTimeMs(holder, edgeMs)
 
-    fun beginDemand(requestKey: String, startedAtMs: Long = clock()): Unit = ensureDemand(requestKey, startedAtMs)
+    fun beginDemand(requestKey: String): Unit = ensureDemand(requestKey)
 
     fun finishDemand(requestKey: String): Unit {
         if (demandKey == requestKey) resetDemandRecovery()
@@ -38,13 +37,10 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
             resetDemandRecovery()
             return SabrDemandRecoveryAction.WAIT
         }
-        ensureDemand(requestKey, clock())
-        val elapsedMs = (clock() - demandSinceMs).coerceAtLeast(0L)
+        ensureDemand(requestKey)
         if (targetTrackSegmentCount > 0) {
             demandTargetTrackResponsesWithoutSegment++
-            if (demandTargetTrackResponsesWithoutSegment >= SabrPumpPolicy.MAX_DEMAND_RESPONSES_WITHOUT_TARGET ||
-                elapsedMs >= SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS
-            ) {
+            if (demandTargetTrackResponsesWithoutSegment >= SabrPumpPolicy.MAX_DEMAND_RESPONSES_WITHOUT_TARGET) {
                 return SabrDemandRecoveryAction.FAIL
             }
             if (!demandTrackReadvertised) {
@@ -53,7 +49,6 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
             }
             return SabrDemandRecoveryAction.WAIT
         }
-        if (elapsedMs >= SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS) return SabrDemandRecoveryAction.FAIL
         return SabrDemandRecoveryAction.WAIT
     }
 
@@ -91,17 +86,15 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
 
     private fun isSeekMode(): Boolean = clock() < seekModeUntilMs
 
-    private fun ensureDemand(requestKey: String, startedAtMs: Long): Unit {
+    private fun ensureDemand(requestKey: String): Unit {
         if (demandKey == requestKey) return
         demandKey = requestKey
-        demandSinceMs = startedAtMs
         demandTrackReadvertised = false
         demandTargetTrackResponsesWithoutSegment = 0
     }
 
     private fun resetDemandRecovery(): Unit {
         demandKey = null
-        demandSinceMs = 0L
         demandTrackReadvertised = false
         demandTargetTrackResponsesWithoutSegment = 0
     }

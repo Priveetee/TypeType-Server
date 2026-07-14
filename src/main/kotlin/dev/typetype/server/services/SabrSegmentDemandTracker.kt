@@ -12,7 +12,7 @@ internal object SabrSegmentDemandTracker {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
         val requestKey = key(holder, request)
-        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet(), System.currentTimeMillis()))
+        demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet()))
     }
 
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
@@ -57,12 +57,6 @@ internal object SabrSegmentDemandTracker {
         return demands[requestKey]?.let { identity(requestKey, it) }
     }
 
-    fun startedAt(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Long? {
-        val requestKey = key(holder, request)
-        val demand = demands[requestKey] ?: return null
-        return demand.startedAtMs.takeIf { identity(requestKey, demand) == identity }
-    }
-
     fun isActive(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Boolean {
         val requestKey = key(holder, request)
         val demand = demands[requestKey] ?: return false
@@ -87,11 +81,18 @@ internal object SabrSegmentDemandTracker {
 
     private fun identity(requestKey: String, demand: SegmentDemand): String = "$requestKey:${demand.order}"
 
-    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long, val startedAtMs: Long)
+    private data class SegmentDemand(val request: SabrSegmentRequest, val order: Long)
 }
 
-internal fun SabrSessionHolder.requestSegmentDemand(request: SabrSegmentRequest): Unit =
-    SabrSegmentDemandTracker.request(this, request)
+internal fun SabrSessionHolder.requestSegmentDemand(
+    request: SabrSegmentRequest,
+    generation: Long = activeGeneration(),
+): Unit = synchronized(this) {
+    val state = playbackState()
+    if (generation == activeGeneration() && state != SabrPlaybackState.TERMINAL && state != SabrPlaybackState.NETWORK_FAILED) {
+        SabrSegmentDemandTracker.request(this, request)
+    }
+}
 
 internal fun SabrSessionHolder.clearSegmentDemand(request: SabrSegmentRequest): Unit =
     SabrSegmentDemandTracker.clear(this, request)
@@ -102,9 +103,6 @@ internal fun SabrSessionHolder.nextSegmentDemand(): SabrSegmentRequest? = SabrSe
 
 internal fun SabrSessionHolder.segmentDemandIdentity(request: SabrSegmentRequest): String? =
     SabrSegmentDemandTracker.identity(this, request)
-
-internal fun SabrSessionHolder.segmentDemandStartedAt(request: SabrSegmentRequest, identity: String): Long? =
-    SabrSegmentDemandTracker.startedAt(this, request, identity)
 
 internal fun SabrSessionHolder.isSegmentDemandActive(request: SabrSegmentRequest, identity: String): Boolean =
     SabrSegmentDemandTracker.isActive(this, request, identity)

@@ -1,7 +1,9 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
@@ -81,9 +83,8 @@ internal class SabrSessionPumpLoop(
         }
         holder.nextSegmentDemand()?.let { request ->
             val demandIdentity = holder.segmentDemandIdentity(request) ?: return true
-            val demandStartedAt = holder.segmentDemandStartedAt(request, demandIdentity) ?: return true
             SabrPumpLogger.start(holder, "demand", request)
-            runtime.beginDemand(demandIdentity, demandStartedAt)
+            runtime.beginDemand(demandIdentity)
             val result = pumpDemand(holder, localization, request, runtime)
             return SabrDemandAttemptFinisher.finish(holder, request, demandIdentity, result, runtime)
         }
@@ -100,29 +101,30 @@ internal class SabrSessionPumpLoop(
         holder.setPlaybackState(SabrPlaybackState.IDLE)
         return false
     }
-    private fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
+    private suspend fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
         return try {
-            holder.session.pumpOnceStreaming(localization).also { unauthorizedRecovery.verify(holder) }
-        } finally {
-            runtime.recordRequest()
-        }
-    }
-
-    private fun pumpUntilCached(
-        holder: SabrSessionHolder,
-        localization: Localization,
-        request: SabrSegmentRequest,
-        runtime: SabrPumpRuntime,
-    ): YoutubeSabrSession.DemandResponseResult {
-        return try {
-            holder.session.pumpOnceStreamingForDemand(localization, request)
+            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreaming(localization) }
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
         }
     }
 
-    private fun pumpDemand(
+    private suspend fun pumpUntilCached(
+        holder: SabrSessionHolder,
+        localization: Localization,
+        request: SabrSegmentRequest,
+        runtime: SabrPumpRuntime,
+    ): YoutubeSabrSession.DemandResponseResult {
+        return try {
+            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreamingForDemand(localization, request) }
+                .also { unauthorizedRecovery.verify(holder) }
+        } finally {
+            runtime.recordRequest()
+        }
+    }
+
+    private suspend fun pumpDemand(
         holder: SabrSessionHolder,
         localization: Localization,
         request: SabrSegmentRequest,

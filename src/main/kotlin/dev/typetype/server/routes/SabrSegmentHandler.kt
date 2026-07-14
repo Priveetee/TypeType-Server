@@ -32,6 +32,7 @@ internal class SabrSegmentHandler(
             val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
             sabrSessionStore.lookupByItag(videoId, access.userId ?: videoId, itag)
         } ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR session for this request"))
+        val generation = holder.activeGeneration()
         val format = if (holder.audioFormat.itag == itag) holder.audioFormat else holder.videoFormat
         if (isInit) {
             val bytes = withTimeoutOrNull(20_000L) {
@@ -45,7 +46,7 @@ internal class SabrSegmentHandler(
             holder.markServed(cached)
             return call.respondSabrMediaBytes(cached.mimeType, cached.bytes)
         }
-        sabrSessionStore.requestSegmentDemand(holder, request)
+        sabrSessionStore.requestSegmentDemand(holder, request, generation)
         val segment = withTimeoutOrNull(SEGMENT_TIMEOUT_MS) {
             var fetched = sabrSessionStore.cachedSegment(holder, request)
             while (fetched == null && holder.terminalFailure() == null && holder.networkFailure() == null) {

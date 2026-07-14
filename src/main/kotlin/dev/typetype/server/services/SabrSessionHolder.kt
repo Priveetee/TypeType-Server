@@ -30,9 +30,7 @@ internal class SabrSessionHolder(
     private val unauthorizedRefreshAttempted = AtomicBoolean(false)
     private val activeGeneration = AtomicLong(0L)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
-    private val playbackState = AtomicReference(SabrPlaybackState.IDLE)
-    private val terminalError = AtomicReference<String?>()
-    private val networkError = AtomicReference<String?>()
+    private val playbackStatus = SabrPlaybackStatus()
     private val requestedSeekTimeMs = AtomicLong(-1L)
     @Volatile private var playerTimeMs: Long = 0L
 
@@ -46,6 +44,8 @@ internal class SabrSessionHolder(
         setPlayerTimeMs(ms)
         val generation = activeGeneration.incrementAndGet()
         clearReaderStateBefore(generation)
+        pendingRefetch.set(null)
+        pendingForwardSeek.set(null)
         for (itag in activeItags) {
             readerPositions[ReaderTrackKey(generation, itag)] = playerTimeMs()
         }
@@ -150,25 +150,17 @@ internal class SabrSessionHolder(
 
     fun hasPendingSeek(): Boolean = pendingRefetch.get() != null || pendingForwardSeek.get() != null
 
-    fun setPlaybackState(state: SabrPlaybackState): Unit {
-        playbackState.set(state)
-    }
+    fun setPlaybackState(state: SabrPlaybackState): Unit = playbackStatus.transition(state)
 
-    fun playbackState(): SabrPlaybackState = playbackState.get()
+    fun playbackState(): SabrPlaybackState = playbackStatus.state()
 
-    fun recordNetworkFailure(message: String?): Unit {
-        networkError.set(message ?: "SABR network failure")
-        playbackState.set(SabrPlaybackState.NETWORK_FAILED)
-    }
+    fun recordNetworkFailure(message: String?): Unit = playbackStatus.recordNetworkFailure(message)
 
-    fun networkFailure(): String? = networkError.get()
+    fun networkFailure(): String? = playbackStatus.networkFailure()
 
-    fun failTerminal(message: String?): Unit {
-        terminalError.set(message)
-        playbackState.set(SabrPlaybackState.TERMINAL)
-    }
+    fun failTerminal(message: String?): Unit = playbackStatus.failTerminal(message)
 
-    fun terminalFailure(): String? = terminalError.get()
+    fun terminalFailure(): String? = playbackStatus.terminalFailure()
 
     fun setActiveTracks(videoActive: Boolean, audioActive: Boolean): Unit {
         setActive(videoFormat.itag, videoActive)

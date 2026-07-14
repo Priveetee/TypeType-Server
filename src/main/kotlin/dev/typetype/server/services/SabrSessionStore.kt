@@ -123,8 +123,12 @@ internal class SabrSessionStore(
         return segmentCache.get(holder, request)?.also { holder.clearSegmentDemand(request) }
     }
 
-    internal fun requestSegmentDemand(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
-        holder.requestSegmentDemand(request)
+    internal fun requestSegmentDemand(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        generation: Long,
+    ): Unit {
+        holder.requestSegmentDemand(request, generation)
         startPump(holder)
     }
 
@@ -193,5 +197,4 @@ internal class SabrSessionStore(
             registry.evictIdle(Instant.now().minus(idleEviction))
         }
     }
-
 }

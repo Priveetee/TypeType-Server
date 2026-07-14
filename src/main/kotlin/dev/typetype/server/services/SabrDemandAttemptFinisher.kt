@@ -4,6 +4,18 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 
 internal object SabrDemandAttemptFinisher {
+    fun expireStalledDemand(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        identity: String,
+    ): Boolean = synchronized(holder) {
+        val state = holder.playbackState()
+        if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+        val current = holder.nextSegmentDemand() ?: return@synchronized false
+        if (!current.matches(request) || holder.segmentDemandIdentity(current) != identity) return@synchronized false
+        fail(holder, request, identity)
+    }
+
     fun finish(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
@@ -47,11 +59,25 @@ internal object SabrDemandAttemptFinisher {
         }
         SabrDemandRecoveryAction.FAIL -> {
             runtime.finishDemand(identity)
-            val failed = holder.clearSegmentDemand(request, identity)
-            if (failed) holder.failTerminal("SABR demand stalled for ${request.summary()}")
-            !failed
+            !fail(holder, request, identity)
         }
     }
+
+    private fun fail(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        identity: String,
+    ): Boolean {
+        val failed = holder.clearSegmentDemand(request, identity)
+        if (failed) {
+            holder.clearSegmentDemands()
+            holder.failTerminal("SABR demand stalled for ${request.summary()}")
+        }
+        return failed
+    }
+
+    private fun SabrSegmentRequest.matches(other: SabrSegmentRequest): Boolean =
+        format.itag == other.format.itag && sequenceNumber == other.sequenceNumber && isInitializationSegment == other.isInitializationSegment
 
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
 }
