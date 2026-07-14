@@ -125,7 +125,7 @@ internal class SabrSessionStore(
 
     internal fun requestSegmentDemand(holder: SabrSessionHolder, request: SabrSegmentRequest): Unit {
         holder.requestSegmentDemand(request)
-        if (!holder.failExpiredSegmentDemand()) startPump(holder)
+        startPump(holder)
     }
 
     internal suspend fun fetchInfo(
