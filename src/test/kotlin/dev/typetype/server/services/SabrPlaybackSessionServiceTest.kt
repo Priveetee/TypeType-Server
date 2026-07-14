@@ -19,22 +19,30 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicInteger
 
 class SabrPlaybackSessionServiceTest {
     @AfterEach
     fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
 
     @Test
-    fun `prepare sets target time and warms asynchronously`() = runTest {
+    fun `prepare loads timing before selecting target segments`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val info = mockk<YoutubeSabrInfo>()
         val prepared = SabrPreparedInfo(info, token())
         val holder = holder(audio, video)
+        val initializationFetches = AtomicInteger()
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
-        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 88_168L) } returns 9
-        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 9
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 88_168L) } answers {
+            assertEquals(2, initializationFetches.get())
+            9
+        }
+        every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } answers {
+            assertEquals(2, initializationFetches.get())
+            9
+        }
         every { holder.session.streamState.getSegmentStartMs(any(), 9) } returns 68_000L
         every { holder.session.streamState.getMinBufferedEndMs() } returns 0L
         every { holder.session.requestNumber } returns 0
@@ -54,11 +62,16 @@ class SabrPlaybackSessionServiceTest {
                 false,
             )
         } returns holder
-        coEvery { store.fetchInitializationData(holder, video) } returns byteArrayOf(1)
-        coEvery { store.fetchInitializationData(holder, audio) } returns byteArrayOf(2)
+        coEvery { store.fetchInitializationData(holder, video) } answers {
+            initializationFetches.incrementAndGet()
+            byteArrayOf(1)
+        }
+        coEvery { store.fetchInitializationData(holder, audio) } answers {
+            initializationFetches.incrementAndGet()
+            byteArrayOf(2)
+        }
         every { store.startPump(holder) } returns Unit
         every { store.warmPlaybackAsync(holder) } returns Unit
-        every { store.warmInitializationAsync(holder) } returns Unit
 
         val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 88_168L)
 
@@ -71,7 +84,8 @@ class SabrPlaybackSessionServiceTest {
         assertEquals(9, request?.sequenceNumber)
         coVerify(exactly = 0) { store.preflightPlayback(holder, 88_168L) }
         verify(exactly = 0) { holder.session.prepareForInitialization(any()) }
-        verify { store.warmInitializationAsync(holder) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, video) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, audio) }
         verify { store.startPump(holder) }
         verify(exactly = 0) { store.warmPlaybackAsync(holder) }
     }

@@ -28,7 +28,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             purpose = SabrSessionPurpose.PLAYBACK,
             audioOnly = audioOnly,
         )
-        sessionStore.warmInitializationAsync(holder)
+        SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         return prepareHolder(holder, startTimeMs, audioOnly)
     }
 
@@ -191,6 +191,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         val logger = LoggerFactory.getLogger(SabrPlaybackSessionService::class.java)
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
+        const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
         const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
     }
