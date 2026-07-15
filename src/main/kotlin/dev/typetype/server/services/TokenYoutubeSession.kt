@@ -16,4 +16,5 @@ internal data class TokenYoutubeSession(
     val tags: List<String>,
     val isLive: Boolean,
     val isLiveContent: Boolean,
+    val hlsUrl: String = "",
 )

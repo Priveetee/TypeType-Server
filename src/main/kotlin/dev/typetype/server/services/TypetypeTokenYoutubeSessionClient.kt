@@ -49,6 +49,7 @@ internal class TypetypeTokenYoutubeSessionClient(
             }.orEmpty(),
             isLive = metadata.optBoolean("isLive"),
             isLiveContent = metadata.optBoolean("isLiveContent"),
+            hlsUrl = session.optString("hlsManifestUrl").trim(),
         )
     }
 

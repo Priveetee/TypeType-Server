@@ -63,6 +63,23 @@ class StreamRoutesSignedHlsTest {
     }
 
     @Test
+    fun `anonymous sabr signs live hls url`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            publicHlsStream().copy(isLive = true, isLiveContent = true, hasLiveManifest = true),
+        )
+        installApp()
+
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"hlsUrl\":\"/streams/hls-manifest?token="))
+        assertFalse(body.contains(MANIFEST_URL))
+        val token = body.substringAfter("/streams/hls-manifest?token=").substringBefore('"')
+        assertTrue(tokenService.verify(token) is PublicHlsManifestTokenResult.Valid)
+    }
+
+    @Test
     fun `anonymous streams still fails when guests are disabled`() = testApplication {
         adminSettings.upsert(AdminSettingsItem(allowGuest = false))
         installApp()

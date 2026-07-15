@@ -45,6 +45,7 @@ class TypetypeTokenYoutubeSessionClientTest {
               "streamingPot":"Ag",
               "serverAbrStreamingUrl":"https://example.com/sabr",
               "rawServerAbrStreamingUrl":"https://example.com/raw-sabr",
+              "hlsManifestUrl":"https://example.com/live.m3u8",
               "videoPlaybackUstreamerConfig":"ustreamer-config",
               "metadata":{
                 "title":"Fallback title",
@@ -118,6 +119,7 @@ class TypetypeTokenYoutubeSessionClientTest {
         assertEquals("https://example.com/avatar.jpg", session?.channelAvatarUrl)
         assertEquals(3_554_000L, session?.durationMs)
         assertEquals(listOf("tag-one", "tag-two"), session?.tags)
+        assertEquals("https://example.com/live.m3u8", session?.hlsUrl)
         assertEquals("visitor-data", session?.token?.visitorData)
         assertEquals("AQ", session?.token?.visitorBoundPoToken)
         assertEquals("Ag", session?.token?.videoBoundPoToken)

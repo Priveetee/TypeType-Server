@@ -101,7 +101,7 @@ private fun Route.streamRoute(
                 val filtered = selected
                     .filterAllowed(accessProfile)
                     .withSignedPublicHlsUrl(
-                        userId != null && !access.allowGuest,
+                        deliveryMode.isSabr() && selected.isLive || userId != null && !access.allowGuest,
                         dependencies.publicHlsManifestTokenService,
                     )
                 val data = if (!deliveryMode.isSabr() || dependencies.sabrStreamContractFilter == null) {

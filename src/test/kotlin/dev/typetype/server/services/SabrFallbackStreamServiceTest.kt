@@ -75,6 +75,27 @@ class SabrFallbackStreamServiceTest {
         coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
     }
 
+    @Test
+    fun `preserves token hls when recovering a live stream`() = runTest {
+        val delegate = mockk<StreamService>()
+        val sessionStore = mockk<SabrSessionStore>()
+        val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
+        coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Failure("blocked")
+        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns preparedInfo()
+        coEvery { tokenSessionClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession(
+            isLive = true,
+            hlsUrl = LIVE_HLS_URL,
+        )
+        val service = SabrFallbackStreamService(delegate, sessionStore, tokenSessionClient)
+
+        val result = service.getStreamInfo(YOUTUBE_URL)
+
+        val response = (result as ExtractionResult.Success).data
+        assertEquals(LIVE_HLS_URL, response.hlsUrl)
+        assertTrue(response.isLive)
+        assertTrue(response.hasLiveManifest)
+    }
+
     private fun preparedInfo(): SabrPreparedInfo {
         val video = mockk<YoutubeSabrFormat>(relaxed = true)
         every { video.isVideo } returns true
@@ -101,7 +122,7 @@ class SabrFallbackStreamServiceTest {
         return SabrPreparedInfo(info, null)
     }
 
-    private fun tokenSession(): TokenYoutubeSession {
+    private fun tokenSession(isLive: Boolean = false, hlsUrl: String = ""): TokenYoutubeSession {
         val prepared = preparedInfo()
         return TokenYoutubeSession(
             info = prepared.info,
@@ -115,13 +136,15 @@ class SabrFallbackStreamServiceTest {
             viewCount = 42L,
             thumbnailUrl = "https://example.com/thumb.jpg",
             tags = listOf("tag"),
-            isLive = false,
-            isLiveContent = false,
+            isLive = isLive,
+            isLiveContent = isLive,
+            hlsUrl = hlsUrl,
         )
     }
 
     private companion object {
         const val VIDEO_ID = "Vj6ReOur1Kk"
         const val YOUTUBE_URL = "https://www.youtube.com/watch?v=$VIDEO_ID"
+        const val LIVE_HLS_URL = "https://example.com/live.m3u8"
     }
 }
