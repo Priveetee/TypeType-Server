@@ -47,7 +47,7 @@ internal fun StreamResponse.withoutSabrStreams(): StreamResponse = copy(
 )
 
 internal fun StreamResponse.onlySabrStreams(): StreamResponse = copy(
-    hlsUrl = "",
+    hlsUrl = if (isLive) hlsUrl else "",
     dashMpdUrl = "",
     videoStreams = videoStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
     videoOnlyStreams = videoOnlyStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
