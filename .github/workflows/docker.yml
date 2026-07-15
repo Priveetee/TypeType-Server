@@ -50,9 +50,11 @@ jobs:
           else
             image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
           fi
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          {
+            echo "image=$image"
+            echo "version=$version"
+            echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
         id: meta
@@ -91,6 +93,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Isolate Docker credentials
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
@@ -154,6 +159,9 @@ jobs:
       digest: ${{ steps.manifest.outputs.digest }}
 
     steps:
+      - name: Isolate Docker credentials
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
+
       - name: Prepare digest directory
         run: rm -rf "$RUNNER_TEMP/typetype-server-digests"
 
