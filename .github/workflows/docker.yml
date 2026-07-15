@@ -50,9 +50,11 @@ jobs:
           else
             image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
           fi
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          {
+            echo "image=$image"
+            echo "version=$version"
+            echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
         id: meta

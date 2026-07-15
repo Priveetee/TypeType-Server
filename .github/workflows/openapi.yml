@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: [self-hosted, Linux, X64, arko]
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || fromJSON('["self-hosted","Linux","X64","arko"]') }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
