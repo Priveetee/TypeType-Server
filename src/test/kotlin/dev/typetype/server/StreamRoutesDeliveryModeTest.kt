@@ -136,6 +136,23 @@ class StreamRoutesDeliveryModeTest {
     }
 
     @Test
+    fun `sabr endpoint preserves hls for live streams`() = testApplication {
+        val live = testStreamResponse(videoOnlyStreams = emptyList(), audioStreams = emptyList()).copy(
+            hlsUrl = "/streams/hls-manifest?url=live",
+            isLive = true,
+            isLiveContent = true,
+            hasLiveManifest = true,
+        )
+        coEvery { sabrService.getStreamInfo(any()) } returns ExtractionResult.Success(live)
+        application { installRoutes() }
+
+        val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"hlsUrl\":\"/streams/hls-manifest?url=live\""))
+    }
+
+    @Test
     fun `legacy endpoint rejects sabr only extraction`() = testApplication {
         coEvery { legacyService.getStreamInfo(any()) } returns ExtractionResult.Success(sabrResponse())
         application { installRoutes() }
