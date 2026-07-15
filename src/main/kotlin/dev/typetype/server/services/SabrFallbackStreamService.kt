@@ -9,6 +9,7 @@ internal class SabrFallbackStreamService(
     private val delegate: StreamService,
     private val sessionStore: SabrSessionStore,
     private val tokenSessionClient: TypetypeTokenYoutubeSessionClient,
+    private val liveFallback: StreamService? = null,
 ) : StreamService {
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = coroutineScope {
         if (!isYoutubeUrl(url)) return@coroutineScope delegate.getStreamInfo(url)
@@ -16,6 +17,8 @@ internal class SabrFallbackStreamService(
         val prepared = videoId?.let { async { sessionStore.fetchInfo(it, cachedFirst = true) } }
         val result = delegate.getStreamInfo(url)
         val response = (result as? ExtractionResult.Success)?.data
+        val live = result.resolveLiveFallback(url, liveFallback)
+        if (live != null) return@coroutineScope live
         if (response == null) {
             if (result !is ExtractionResult.Failure || videoId == null) return@coroutineScope result
             prepared?.await()
@@ -26,6 +29,16 @@ internal class SabrFallbackStreamService(
         if (response.hasPlayableStreams() || videoId == null || playable == null) return@coroutineScope result
         ExtractionResult.Success(response.withSabrFallback(videoId, playable.info))
     }
+}
+
+private suspend fun ExtractionResult<StreamResponse>.resolveLiveFallback(
+    url: String,
+    liveFallback: StreamService?,
+): ExtractionResult.Success<StreamResponse>? {
+    val response = (this as? ExtractionResult.Success)?.data
+    if (response != null && (!response.isLive || response.hlsUrl.isNotBlank())) return null
+    val fallback = liveFallback?.getStreamInfo(url) as? ExtractionResult.Success ?: return null
+    return fallback.takeIf { it.data.isLive && it.data.hlsUrl.isNotBlank() }
 }
 
 private fun StreamResponse.hasPlayableStreams(): Boolean =
