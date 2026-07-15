@@ -44,17 +44,27 @@ PipePipe Client and PipePipeExtractor are the behavioral references for extracti
 
 When a defect is general to PipePipeExtractor, prefer contributing the correction upstream. Keep TypeType-specific behavior in this repository only when it belongs to the TypeType API or when the upstream API cannot express the required backend behavior cleanly.
 
-## Kotlin expectations
+## Programming preferences
 
+- Prefer clear names and structure over explanatory comments, but comments are welcome whenever a contributor finds them useful.
 - Use `val` unless mutation is required.
 - Do not use `!!` or wildcard imports.
 - Add explicit return types to public functions.
 - Prefer sealed result types when callers must handle distinct outcomes.
+- Do not use `runBlocking` in production code.
+- Use `companion object` only for constants and factory methods.
+- Prefer single-expression functions for simple delegations.
+- Use named arguments when a function receives more than two parameters of the same type.
+- Name classes, interfaces, and files in PascalCase; functions in camelCase; constants in SCREAMING_SNAKE_CASE; and packages in lowercase.
+- Do not prefix interfaces with `I` or suffix implementations with `Impl`.
 - Keep production files under 200 lines and split by responsibility.
+- Keep test files under 250 lines where possible and never exceed 300 lines.
+- Keep one class or object per file.
 - Keep HTTP handlers thin and put behavior in services.
 - Add focused tests for behavior changes and regressions.
 - Update the OpenAPI files whenever a public request or response contract changes.
 - Preserve the HTTP boundary between this GPL backend and the MIT frontend.
+- Verify GPL-3.0 compatibility before adding a dependency.
 
 ## Required checks
 
