@@ -106,12 +106,7 @@ internal class ExtractionServiceRegistry(
     )
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
-            SabrFallbackStreamService(
-                sabrPublicStreamService,
-                sabrSessionStore,
-                tokenYoutubeSessionClient,
-                classicPublicStreamService,
-            ),
+            SabrFallbackStreamService(sabrPublicStreamService, sabrSessionStore, tokenYoutubeSessionClient),
         ),
         cache,
         "stream-youtube-sabr:v1",
