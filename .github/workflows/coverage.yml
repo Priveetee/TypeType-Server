@@ -7,9 +7,13 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   coverage:
-    runs-on: [self-hosted, Linux, X64, arko, android]
+    runs-on: [self-hosted, Linux, X64, arko]
     steps:
       - uses: actions/checkout@v6
 
