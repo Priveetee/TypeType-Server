@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
 
   typetype-server:
-    image: ghcr.io/priveetee/typetype-server:latest
+    image: ghcr.io/typetype-video/typetype-server:latest
     ports:
       - "8080:8080"
     env_file: .env

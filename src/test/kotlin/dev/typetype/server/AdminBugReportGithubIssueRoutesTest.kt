@@ -74,7 +74,7 @@ class AdminBugReportGithubIssueRoutesTest {
     @Test
     fun `POST admin github issue returns 409 when already linked`() = testApplication {
         val created = service.create(TEST_USER_ID, request())
-        service.markGithubIssue(created.id, "https://github.com/Priveetee/TypeType/issues/9")
+        service.markGithubIssue(created.id, "https://github.com/TypeType-Video/TypeType/issues/9")
         application {
             install(ContentNegotiation) { json() }
             routing { adminBugReportRoutes(adminAuth, service, successIssueService()) }
@@ -98,6 +98,6 @@ class AdminBugReportGithubIssueRoutesTest {
 
     private fun successIssueService(): BugReportGitHubIssueService =
         BugReportGitHubIssueService { _: AdminBugReportDetailResponse ->
-            GitHubIssueCreateResult.Success("https://github.com/Priveetee/TypeType/issues/10")
+            GitHubIssueCreateResult.Success("https://github.com/TypeType-Video/TypeType/issues/10")
         }
 }

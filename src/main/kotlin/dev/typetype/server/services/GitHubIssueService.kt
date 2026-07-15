@@ -95,7 +95,7 @@ class GitHubIssueService(
 
     private companion object {
         const val REDACTED_HOST: String = "redacted-host"
-        const val DEFAULT_REPO: String = "Priveetee/TypeType-Server"
+        const val DEFAULT_REPO: String = "TypeType-Video/TypeType"
         val REPO_PATTERN = Regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
         val urlRegex = Regex("https?://[^\\s)]+")
         val hostTokenRegex = Regex("(?<![@/])\\b(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,63}\\b")
