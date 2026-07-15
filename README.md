@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Priveetee/TypeType/main/assets/banner.svg" alt="TypeType" width="100%">
+  <img src="https://raw.githubusercontent.com/TypeType-Video/TypeType/main/assets/banner.svg" alt="TypeType" width="100%">
   <h1>TypeType-Server</h1>
   <p>Extraction and private user data backend for TypeType.</p>
 </div>
@@ -119,10 +119,10 @@ COMPOSE_OVERRIDE_FILE="$PWD/docker-compose.arm64.yml" ./scripts/bootstrap-garage
 
 ## Related projects
 
-- [TypeType](https://github.com/Priveetee/TypeType) is the deployment stack.
-- [TypeType web](https://github.com/Priveetee/TypeType) is the React frontend.
-- [TypeType-Downloader](https://github.com/Priveetee/TypeType-Downloader) handles download artifacts.
-- [TypeType-Token](https://github.com/Priveetee/TypeType-Token) provides YouTube PO tokens.
+- [TypeType](https://github.com/TypeType-Video/TypeType) is the central stack and issue tracker.
+- [TypeType-Frontend](https://github.com/TypeType-Video/TypeType-Frontend) is the React frontend.
+- [TypeType-Downloader](https://github.com/TypeType-Video/TypeType-Downloader) handles download artifacts.
+- [TypeType-Token](https://github.com/TypeType-Video/TypeType-Token) provides YouTube PO tokens.
 
 ## License
 

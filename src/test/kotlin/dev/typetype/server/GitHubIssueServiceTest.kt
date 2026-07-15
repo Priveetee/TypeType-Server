@@ -13,17 +13,17 @@ import org.junit.jupiter.api.Test
 
 class GitHubIssueServiceTest {
     @Test
-    fun `default repo targets backend repository`() = runBlocking {
-        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+    fun `default repo targets central repository`() = runBlocking {
+        val service = GitHubIssueService(repo = "TypeType-Video/TypeType")
         val result = service.createIssue(sampleReport())
         assertTrue(result is GitHubIssueCreateResult.Success)
         val url = (result as GitHubIssueCreateResult.Success).url
-        assertTrue(url.startsWith("https://github.com/Priveetee/TypeType-Server/issues/new?"))
+        assertTrue(url.startsWith("https://github.com/TypeType-Video/TypeType/issues/new?"))
     }
 
     @Test
     fun `issue body includes api error diagnostics`() = runBlocking {
-        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val service = GitHubIssueService(repo = "TypeType-Video/TypeType")
         val result = service.createIssue(sampleReport())
         val url = (result as GitHubIssueCreateResult.Success).url
         assertTrue(url.contains("API+errors"))
@@ -33,7 +33,7 @@ class GitHubIssueServiceTest {
 
     @Test
     fun `issue body redacts domains from urls and identifiers`() = runBlocking {
-        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val service = GitHubIssueService(repo = "TypeType-Video/TypeType")
         val result = service.createIssue(sampleReportWithDomain())
         val url = URLDecoder.decode((result as GitHubIssueCreateResult.Success).url, StandardCharsets.UTF_8)
         assertTrue(url.contains("/watch?url=abc"), url)
@@ -44,7 +44,7 @@ class GitHubIssueServiceTest {
 
     @Test
     fun `issue body redacts hostile requestId and userAgent host tokens`() = runBlocking {
-        val service = GitHubIssueService(repo = "Priveetee/TypeType-Server")
+        val service = GitHubIssueService(repo = "TypeType-Video/TypeType")
         val result = service.createIssue(sampleReportWithHostTokens())
         val url = URLDecoder.decode((result as GitHubIssueCreateResult.Success).url, StandardCharsets.UTF_8)
         assertTrue(!url.contains("private.host.internal"), url)
