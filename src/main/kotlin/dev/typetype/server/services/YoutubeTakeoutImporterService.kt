@@ -1,6 +1,8 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.FavoriteItem
 import dev.typetype.server.models.PlaylistItem
+import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.YoutubeTakeoutCategoryCounts
 import dev.typetype.server.models.YoutubeTakeoutCommitPlan
@@ -9,6 +11,7 @@ import dev.typetype.server.models.YoutubeTakeoutImportStats
 import dev.typetype.server.models.YoutubeTakeoutParsedData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 class YoutubeTakeoutImporterService(
     private val subscriptionsService: SubscriptionsService,
@@ -16,6 +19,7 @@ class YoutubeTakeoutImporterService(
     private val signalImportService: YoutubeTakeoutSignalImportService,
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
     private val metadataResolver: VideoMetadataResolver? = null,
+    private val metadataEnrichmentTimeoutMs: Long = DEFAULT_METADATA_ENRICHMENT_TIMEOUT_MS,
 ) {
     suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem = coroutineScope {
         val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "commit")
@@ -43,9 +47,18 @@ class YoutubeTakeoutImporterService(
         var itemImported = 0
         var itemSkipped = 0
         val createdBySource = mutableMapOf<String, PlaylistItem>()
-        val playlistItems = metadataResolver?.enrichPlaylistItems(parsed.playlistItems) ?: parsed.playlistItems
-        val watchLater = metadataResolver?.enrichPlaylistVideos(parsed.watchLater) ?: parsed.watchLater
-        val favorites = metadataResolver?.enrichFavorites(parsed.favorites) ?: parsed.favorites.map { it.withYoutubeFallbackTitle() }
+        val enriched = metadataResolver?.let { resolver ->
+            withTimeoutOrNull(metadataEnrichmentTimeoutMs.coerceAtLeast(1L)) {
+                ResolvedTakeoutMetadata(
+                    playlistItems = resolver.enrichPlaylistItems(parsed.playlistItems),
+                    watchLater = resolver.enrichPlaylistVideos(parsed.watchLater),
+                    favorites = resolver.enrichFavorites(parsed.favorites),
+                )
+            }
+        }
+        val playlistItems = enriched?.playlistItems ?: parsed.playlistItems
+        val watchLater = enriched?.watchLater ?: parsed.watchLater
+        val favorites = enriched?.favorites ?: parsed.favorites.map { it.withYoutubeFallbackTitle() }
         if (plan.importPlaylists) {
             parsed.playlists.forEach { item ->
                 if (YoutubeTakeoutSystemPlaylist.canonicalKey(item.name) != null || YoutubeTakeoutSystemPlaylist.canonicalKey(item.id) != null) {
@@ -116,5 +129,15 @@ class YoutubeTakeoutImporterService(
         )
         if (plan.importSubscriptions) SubscriptionFeedCacheInvalidation.invalidate(userId)
         report
+    }
+
+    private data class ResolvedTakeoutMetadata(
+        val playlistItems: Map<String, List<PlaylistVideoItem>>,
+        val watchLater: List<PlaylistVideoItem>,
+        val favorites: List<FavoriteItem>,
+    )
+
+    private companion object {
+        const val DEFAULT_METADATA_ENRICHMENT_TIMEOUT_MS = 30_000L
     }
 }

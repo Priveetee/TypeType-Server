@@ -16,7 +16,9 @@ import dev.typetype.server.services.VideoMetadataResolver
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutImporterService
 import dev.typetype.server.services.YoutubeTakeoutSignalImportService
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -56,6 +58,29 @@ class YoutubeTakeoutImporterMetadataTest {
         assertEquals("https://thumb.test/abc123.jpg", favorite.thumbnail)
     }
 
+    @Test
+    fun `commit persists takeout fallbacks when metadata enrichment exceeds its deadline`() = runBlocking {
+        val boundedImporter = YoutubeTakeoutImporterService(
+            subscriptions,
+            playlists,
+            signalImport,
+            metadataResolver = VideoMetadataResolver(slowStreamService()),
+            metadataEnrichmentTimeoutMs = 25L,
+        )
+
+        withTimeout(2_000L) {
+            boundedImporter.commit(TEST_USER_ID, parsed(), YoutubeTakeoutCommitPlan(true, true, true, true, true, false))
+        }
+
+        val playlistId = playlists.getAll(TEST_USER_ID).single().id
+        val playlistVideo = playlists.getById(TEST_USER_ID, playlistId)?.videos?.single()
+        val watchLaterVideo = watchLater.getAll(TEST_USER_ID).single()
+        val favorite = favorites.getAll(TEST_USER_ID).single()
+        assertEquals("YouTube video abc123", playlistVideo?.title)
+        assertEquals("YouTube video abc123", watchLaterVideo.title)
+        assertEquals("YouTube video abc123", favorite.title)
+    }
+
     private fun parsed(): YoutubeTakeoutParsedData = YoutubeTakeoutParsedData(
         subscriptions = emptyList(),
         playlists = listOf(PlaylistItem(id = "PL1", name = "Imported")),
@@ -76,6 +101,13 @@ class YoutubeTakeoutImporterMetadataTest {
 
     private fun fakeStreamService(): StreamService = object : StreamService {
         override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = ExtractionResult.Success(stream())
+    }
+
+    private fun slowStreamService(): StreamService = object : StreamService {
+        override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+            delay(60_000L)
+            return ExtractionResult.Success(stream())
+        }
     }
 
     private fun stream(): StreamResponse = StreamResponse(
