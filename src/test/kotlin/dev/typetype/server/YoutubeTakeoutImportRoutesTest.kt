@@ -1,15 +1,11 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.youtubeTakeoutImportRoutes
-import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.PlaylistService
-import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.SubscriptionsService
-import dev.typetype.server.services.VideoMetadataResolver
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutImportJobService
 import dev.typetype.server.services.YoutubeTakeoutImporterService
@@ -106,39 +102,14 @@ class YoutubeTakeoutImportRoutesTest {
         val zip = createTakeoutZip()
         val upload = uploadArchive(zip)
         val jobId = Json.parseToJsonElement(upload.bodyAsText()).jsonObject["jobId"]!!.jsonPrimitive.content
+        val preview = client.get("/imports/youtube-takeout/$jobId/preview") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
 
         val commit = client.post("/imports/youtube-takeout/$jobId/commit") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
 
+        assertEquals(HttpStatusCode.OK, preview.status)
         assertEquals(HttpStatusCode.Accepted, commit.status)
         val body = Json.parseToJsonElement(commit.bodyAsText()).jsonObject
         assertEquals("running", body["status"]!!.jsonPrimitive.content)
-        assertEventuallyCompleted(jobId)
-        Files.deleteIfExists(zip)
-    }
-
-    @Test
-    fun `metadata extraction failures do not block import completion`() = testApplication {
-        val service = YoutubeTakeoutImportJobService(
-            YoutubeTakeoutParserService(),
-            YoutubeTakeoutPreviewService(subscriptions, playlists, previewLookup),
-            YoutubeTakeoutImporterService(
-                subscriptions,
-                playlists,
-                signalImport,
-                metadataResolver = VideoMetadataResolver(ThrowingStreamService()),
-            ),
-        )
-        application {
-            install(ContentNegotiation) { json() }
-            routing { youtubeTakeoutImportRoutes(service, auth) }
-        }
-        val zip = createTakeoutZip()
-        val upload = uploadArchive(zip)
-        val jobId = Json.parseToJsonElement(upload.bodyAsText()).jsonObject["jobId"]!!.jsonPrimitive.content
-
-        val commit = client.post("/imports/youtube-takeout/$jobId/commit") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
-
-        assertEquals(HttpStatusCode.Accepted, commit.status)
         assertEventuallyCompleted(jobId)
         Files.deleteIfExists(zip)
     }
@@ -181,11 +152,6 @@ class YoutubeTakeoutImportRoutesTest {
                 append(HttpHeaders.ContentDisposition, "filename=takeout.zip")
             })
         }))
-    }
-
-    private class ThrowingStreamService : StreamService {
-        override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
-            throw IllegalStateException("Sign in to confirm you're not a bot")
     }
 
     private fun createTakeoutZip(): Path {
