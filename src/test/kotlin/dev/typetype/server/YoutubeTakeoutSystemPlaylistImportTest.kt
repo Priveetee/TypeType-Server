@@ -45,6 +45,29 @@ class YoutubeTakeoutSystemPlaylistImportTest {
         assertEquals(1_700_000_100_000L, favorites.getAll(TEST_USER_ID).single().favoritedAt)
     }
 
+    @Test
+    fun `commit preserves imported playlist order and added dates`() = runBlocking {
+        val newer = video("newer", 1_700_000_100_000L)
+        val older = video("older", 1_700_000_000_000L)
+        val parsed = YoutubeTakeoutParsedData(
+            subscriptions = emptyList(),
+            playlists = listOf(PlaylistItem(id = "PL123456", name = "Imported")),
+            playlistItems = mapOf("PL123456" to listOf(newer, older)),
+            favorites = emptyList(),
+            watchLater = emptyList(),
+            history = emptyList(),
+            warnings = emptyList(),
+            errors = emptyList(),
+        )
+
+        importer.commit(TEST_USER_ID, parsed, YoutubeTakeoutCommitPlan(false, true, true, false, false, false))
+
+        val playlistId = playlists.getAll(TEST_USER_ID).single().id
+        val imported = playlists.getById(TEST_USER_ID, playlistId)?.videos.orEmpty()
+        assertEquals(listOf(newer.url, older.url), imported.map { it.url })
+        assertEquals(listOf(newer.addedAt, older.addedAt), imported.map { it.addedAt })
+    }
+
     private fun parsed(): YoutubeTakeoutParsedData = YoutubeTakeoutParsedData(
         subscriptions = emptyList(),
         playlists = listOf(PlaylistItem(id = "WL", name = "Watch later"), PlaylistItem(id = "LL", name = "Liked videos")),

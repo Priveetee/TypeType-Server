@@ -70,6 +70,38 @@ class YoutubeTakeoutParserServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse preserves takeout playlist order and added dates`() {
+        val zip = Files.createTempFile("yt-takeout-playlist-order-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/playlists/playlists.csv"))
+            out.write("ID de la playlist,Titre (d'origine) de la playlist\nPL123456,Imported\n".toByteArray())
+            out.closeEntry()
+            out.putNextEntry(ZipEntry("Takeout/YouTube et YouTube Music/playlists/Imported.csv"))
+            out.write(
+                """
+                ID vidéo,Code temporel de création de la vidéo de la playlist
+                newer000001,2026-01-02T00:00:00+00:00
+                older000001,2026-01-01T00:00:00+00:00
+                """.trimIndent().plus("\n").toByteArray(),
+            )
+            out.closeEntry()
+        }
+
+        val parsed = YoutubeTakeoutParserService().parse(zip)
+        val imported = parsed.playlistItems.values.single()
+
+        assertEquals(
+            listOf(
+                "https://www.youtube.com/watch?v=newer000001",
+                "https://www.youtube.com/watch?v=older000001",
+            ),
+            imported.map { it.url },
+        )
+        assertEquals(listOf(1_767_312_000_000L, 1_767_225_600_000L), imported.map { it.addedAt })
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(): Path {
         val zip = Files.createTempFile("yt-takeout-parser-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->

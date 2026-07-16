@@ -1,11 +1,14 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.PlaylistItem
+import dev.typetype.server.models.WatchLaterItem
 import dev.typetype.server.routes.favoritesRoutes
 import dev.typetype.server.routes.playlistRoutes
+import dev.typetype.server.routes.watchLaterRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.PlaylistService
+import dev.typetype.server.services.WatchLaterService
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -33,6 +36,7 @@ class EncodedVideoUrlDeleteRoutesTest {
     private val auth = AuthService.fixed(TEST_USER_ID)
     private val favoritesService = FavoritesService()
     private val playlistService = PlaylistService()
+    private val watchLaterService = WatchLaterService()
 
     companion object {
         private const val VIDEO_URL = "https://www.youtube.com/watch?v=ZZZZZZZZZZZ"
@@ -52,6 +56,7 @@ class EncodedVideoUrlDeleteRoutesTest {
             routing {
                 favoritesRoutes(favoritesService, auth)
                 playlistRoutes(playlistService, auth)
+                watchLaterRoutes(watchLaterService, auth)
             }
         }
         block()
@@ -87,6 +92,21 @@ class EncodedVideoUrlDeleteRoutesTest {
         }
         assertEquals(HttpStatusCode.NoContent, delete.status)
         val afterDelete = client.get("/playlists/${playlist.id}") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        assertFalse(afterDelete.contains(VIDEO_URL))
+    }
+
+    @Test
+    fun `DELETE watch later removes encoded youtube watch url`() = withApp {
+        watchLaterService.add(TEST_USER_ID, WatchLaterItem(url = VIDEO_URL, title = "test", thumbnail = "", duration = 0L))
+
+        val delete = client.delete("/watch-later/$ENCODED_VIDEO_URL") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NoContent, delete.status)
+
+        val afterDelete = client.get("/watch-later") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
         assertFalse(afterDelete.contains(VIDEO_URL))
