@@ -14,6 +14,8 @@ concurrency:
 jobs:
   coverage:
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || fromJSON('["self-hosted","Linux","X64","arko"]') }}
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/gradle-user-home
     steps:
       - uses: actions/checkout@v6
 
