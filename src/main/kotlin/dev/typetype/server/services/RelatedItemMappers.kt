@@ -54,6 +54,7 @@ internal fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoIt
         isPostLive = apiStreamType.isPostLiveStreamType(),
         isLiveContent = apiStreamType.isLiveContentType(),
         isShortFormContent = isShortFormContent,
+        requiresMembership = requiresMembership(),
         uploaderVerified = isUploaderVerified,
         shortDescription = shortDescription?.takeIf { it.isNotBlank() },
         publishedAt = PublishedAtMapper.fromUploaded(uploaded),
