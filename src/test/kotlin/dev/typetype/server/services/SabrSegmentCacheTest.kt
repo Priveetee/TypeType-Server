@@ -36,6 +36,22 @@ class SabrSegmentCacheTest {
         assertArrayEquals(byteArrayOf(1, 2, 3), cached.bytes)
     }
 
+    @Test
+    fun `live cache separates initialization from mp4 media`() {
+        val segmentCache = SabrSegmentCache()
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video).also { it.markExpectedLive() }
+        val initialization = mp4Box("ftyp", 1) + mp4Box("moov", 2)
+        val media = mp4Box("moof", 3) + mp4Box("mdat", 4)
+        val request = SabrSegmentRequest.media(video, 7)
+
+        segmentCache.put(holder, segment(137, 7, initialization + media))
+
+        assertArrayEquals(initialization, holder.liveInitialization(video))
+        assertArrayEquals(media, requireNotNull(segmentCache.get(holder, request)).bytes)
+    }
+
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
@@ -76,4 +92,7 @@ class SabrSegmentCacheTest {
         every { segment.length } returns bytes.size
         return segment
     }
+
+    private fun mp4Box(type: String, value: Byte): ByteArray =
+        byteArrayOf(0, 0, 0, 9) + type.toByteArray(Charsets.US_ASCII) + byteArrayOf(value)
 }
