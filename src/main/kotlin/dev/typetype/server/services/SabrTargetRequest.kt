@@ -15,7 +15,7 @@ internal fun YoutubeSabrSession.fetchTargetedSegment(
     val targetPlayerTimeMs = when {
         playerTimeMs != null -> playerTimeMs
         request.isInitializationSegment -> 0L
-        else -> targetTimeInsideSegment(request)
+        else -> holder.targetTimeInsideSegment(request)
     }
     val result = runCatchingNonCancellation {
         prepareForTarget(request, targetPlayerTimeMs)
@@ -55,9 +55,9 @@ private fun SabrMediaSegment.matches(request: SabrSegmentRequest): Boolean {
     }
 }
 
-private fun YoutubeSabrSession.targetTimeInsideSegment(request: SabrSegmentRequest): Long {
-    val startMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
-    val nextStartMs = streamState.getSegmentStartMs(request.format, request.sequenceNumber + 1).coerceAtLeast(0L)
+private fun SabrSessionHolder.targetTimeInsideSegment(request: SabrSegmentRequest): Long {
+    val startMs = playbackSegmentStartMs(request.format, request.sequenceNumber)
+    val nextStartMs = playbackSegmentStartMs(request.format, request.sequenceNumber + 1)
     if (nextStartMs <= startMs + 1L) return startMs
     return minOf(startMs + TARGET_SEGMENT_OFFSET_MS, nextStartMs - 1L)
 }

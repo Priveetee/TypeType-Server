@@ -118,7 +118,7 @@ internal class SabrSessionStore(
         holder.session.getCachedSegment(request)?.let {
             segmentCache.put(holder, it)
             holder.clearSegmentDemand(request)
-            return it.toCachedSabrSegment(request.format.mimeType.orEmpty())
+            return segmentCache.get(holder, request)
         }
         return segmentCache.get(holder, request)?.also { holder.clearSegmentDemand(request) }
     }
@@ -165,6 +165,7 @@ internal class SabrSessionStore(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
     ): ByteArray? {
+        holder.liveInitialization(format)?.let { return it }
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
         val sourceFormat = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format

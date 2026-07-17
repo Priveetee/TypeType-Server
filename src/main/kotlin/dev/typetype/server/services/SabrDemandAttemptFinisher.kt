@@ -30,13 +30,20 @@ internal object SabrDemandAttemptFinisher {
         }
         val resolved = holder.resolveSegmentDemand(request, identity)
         SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
+        if (!resolved && holder.isFutureLiveRequest(request)) {
+            runtime.finishDemand(identity)
+            holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
+            return@synchronized false
+        }
         val action = runtime.demandRecoveryAction(
             requestKey = identity,
             targetTrackSegmentCount = result.targetTrackSegmentCount,
             resolved = resolved,
         )
         val recovering = recover(holder, request, identity, action, runtime)
-        if (holder.playbackState() != SabrPlaybackState.TERMINAL) {
+        if (holder.playbackState() != SabrPlaybackState.TERMINAL &&
+            holder.playbackState() != SabrPlaybackState.WAITING_FOR_LIVE
+        ) {
             holder.setPlaybackState(SabrPlaybackState.IDLE)
         }
         resolved || recovering

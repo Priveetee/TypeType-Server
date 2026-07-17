@@ -17,10 +17,16 @@ internal class SabrSessionPump(
         val localization = Localization("en", "US")
         var pumps = 0
         holder.setPlaybackState(SabrPlaybackState.PREPARING)
-        while (pumps < maxPumps && !isWarmEnough(holder) && !holder.session.isComplete) {
+        while (pumps < maxPumps && !isWarmEnough(holder) && (!holder.session.isComplete || holder.expectsLive())) {
             holder.pumpMutex.withLock {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-                runCatchingNonCancellation { holder.session.pumpOnceStreaming(localization) }
+                if (holder.expectsLive()) {
+                    runCatchingNonCancellation { holder.session.pumpOnce(localization) }
+                        .getOrDefault(emptyList())
+                        .forEach(holder::observeMediaSegment)
+                } else {
+                    runCatchingNonCancellation { holder.session.pumpOnceStreaming(localization) }
+                }
             }
             pumps++
         }
@@ -31,10 +37,14 @@ internal class SabrSessionPump(
         holder.setPlaybackState(SabrPlaybackState.IDLE)
     }
 
-    private fun isWarmEnough(holder: SabrSessionHolder): Boolean =
-        bothFormatsKnown(holder) ||
+    private fun isWarmEnough(holder: SabrSessionHolder): Boolean {
+        val audioObserved = holder.observedMediaSegment(holder.audioFormat) != null
+        val videoObserved = !holder.isVideoActive() || holder.observedMediaSegment(holder.videoFormat) != null
+        if (holder.expectsLive()) return audioObserved && videoObserved
+        return bothFormatsKnown(holder) ||
             holder.session.streamState.getMaxSegment(holder.audioFormat) > 0 &&
             holder.session.streamState.getMaxSegment(holder.videoFormat) > 0
+    }
 
     suspend fun fetchSegment(
         holder: SabrSessionHolder,
@@ -53,7 +63,7 @@ internal class SabrSessionPump(
             segmentCache?.put(holder, segment)
             return segment
         }
-        if (holder.session.isBeyondEnd(request)) return null
+        if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return null
         val localization = Localization("en", "US")
         if (request.isInitializationSegment) {
             return fetchSabrInitializationSegment(holder, request, localization, segmentCache, markServed)
@@ -97,7 +107,7 @@ internal class SabrSessionPump(
                     if (markServed) holder.markServed(cached)
                     return@withLock cached
                 }
-                if (holder.session.isBeyondEnd(request)) return@withLock null
+                if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return@withLock null
                 holder.consumeMatchingSeek(request)
                 val edgeMs = holder.session.streamState.getMinBufferedEndMs()
                 val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
@@ -118,7 +128,7 @@ internal class SabrSessionPump(
                 holder.clearSegmentDemand(request)
                 segmentCache?.put(holder, segment)
             }
-            if (segment != null || holder.session.isBeyondEnd(request)) return segment
+            if (segment != null || holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return segment
             pumps++
             delay(FETCH_RETRY_DELAY_MS)
         }
@@ -138,7 +148,7 @@ internal class SabrSessionPump(
                     if (markServed) holder.markServed(cached)
                     return@withLock cached
                 }
-                if (holder.session.isBeyondEnd(request)) return@withLock null
+                if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return@withLock null
                 holder.consumeMatchingSeek(request)
                 withTargetedRequestShape(holder, request) {
                     holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
@@ -150,7 +160,7 @@ internal class SabrSessionPump(
                 holder.clearSegmentDemand(request)
                 segmentCache?.put(holder, segment)
             }
-            if (segment != null || holder.session.isBeyondEnd(request)) return segment
+            if (segment != null || holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return segment
             attempt++
             delay(FETCH_RETRY_DELAY_MS)
         }
