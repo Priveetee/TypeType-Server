@@ -107,7 +107,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         activeLive: Boolean,
     ): TrackBuildResult {
         val targetMs = request.bufferedEndFor(format, requestedStartMs).coerceAtLeast(0L)
-        val goalEndMs = request.playerTimeMs.coerceAtLeast(0L) + request.bufferGoalMs.coerceAtLeast(1L)
+        val goalStartMs = if (activeLive) targetMs else request.playerTimeMs.coerceAtLeast(0L)
+        val goalEndMs = goalStartMs + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null

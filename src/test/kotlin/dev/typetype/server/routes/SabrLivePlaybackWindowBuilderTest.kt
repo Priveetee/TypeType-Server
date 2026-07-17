@@ -159,6 +159,48 @@ class SabrLivePlaybackWindowBuilderTest {
         assertEquals(listOf(52, 52), result.blockedRequests.map { it.sequenceNumber })
     }
 
+    @Test
+    fun `asymmetric live buffers keep requesting the shorter track`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadTimeMs } returns 70_000L
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, any()) } returns 6
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, any()) } returns 8
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 140 && request.sequenceNumber == 6 -> cached(140, 6, 49_923L, 9_985L)
+                request.format.itag == 299 && request.sequenceNumber == 8 -> cached(299, 8, 42_000L, 6_000L)
+                else -> null
+            }
+        }
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(
+                0L,
+                34_954L,
+                299,
+                140,
+                bufferGoalMs = 8_000L,
+                bufferedRanges = listOf(
+                    SabrPlaybackBufferedRange(140, 9_984L, 49_923L),
+                    SabrPlaybackBufferedRange(299, 24_000L, 42_000L),
+                ),
+            ),
+        )
+
+        assertFalse(result.isReady)
+        assertEquals(listOf(299 to 9), result.blockedRequests.map { it.format.itag to it.sequenceNumber })
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
