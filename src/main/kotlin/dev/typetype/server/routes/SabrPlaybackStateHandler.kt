@@ -4,6 +4,7 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.pendingSegmentDemandSummary
+import dev.typetype.server.services.livePlaybackSnapshot
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
@@ -36,6 +37,7 @@ internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessio
         pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure() ?: networkFailure(),
         diagnosticTrace = session.diagnosticTrace,
+        live = livePlaybackSnapshot()?.toResponse(),
     )
 
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"

@@ -5,6 +5,9 @@ import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.pendingSegmentDemandSummary
+import dev.typetype.server.services.livePlaybackSnapshot
+import dev.typetype.server.services.liveRetryAfterMs
+import dev.typetype.server.services.resolvePlaybackStartMs
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -21,7 +24,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val holder = validatedHolder(call, sessionId, request) ?: return
 
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
-        holder.setPlayerTimeMs(request.playerTimeMs)
+        holder.setPlayerTimeMs(holder.resolvePlaybackStartMs(request.playerTimeMs))
         holder.applyClientPreferences()
         sabrSessionStore.startPump(holder)
 
@@ -37,16 +40,18 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid position request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
-        holder.setPlayerTimeMs(request.playerTimeMs)
+        val playerTimeMs = holder.resolvePlaybackStartMs(request.playerTimeMs)
+        holder.setPlayerTimeMs(playerTimeMs)
         holder.applyClientPreferences()
         call.respond(
             SabrPlaybackPositionResponse(
                 sessionId = holder.sessionToken,
                 generation = holder.activeGeneration(),
-                playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
+                playerTimeMs = playerTimeMs,
                 readerHeadMs = holder.readerHeadMs(),
                 readerTailMs = holder.readerTailMs(),
                 bufferedEdgeMs = holder.session.streamState.getMinBufferedEndMs(),
+                live = holder.livePlaybackSnapshot()?.toResponse(),
             )
         )
     }
@@ -56,7 +61,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid prefetch request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
-        holder.setPlayerTimeMs(request.playerTimeMs)
+        holder.setPlayerTimeMs(holder.resolvePlaybackStartMs(request.playerTimeMs))
         holder.applyClientPreferences()
         sabrSessionStore.startPump(holder)
         val window = buildWithTargetedPrefetch(holder, request)
@@ -90,7 +95,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             sessionId = sessionToken,
             generation = activeGeneration(),
             ready = false,
-            retryAfterMs = RETRY_AFTER_MS,
+            retryAfterMs = liveRetryAfterMs(),
             status = playbackState().name.lowercase(),
             blockedBy = SabrPlaybackDiagnostics.blocker(this) ?: blockedBy,
             playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
@@ -103,6 +108,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             terminalError = terminalFailure() ?: networkFailure(),
             recoveryAction = recovery.action(this),
             retryVideoItags = recovery.retryVideoItags(this),
+            live = livePlaybackSnapshot()?.toResponse(),
         )
 
     private suspend fun SabrSessionHolder.prefetchResponse(
@@ -112,7 +118,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         sessionId = sessionToken,
         generation = activeGeneration(),
         ready = window.isReady,
-        retryAfterMs = if (window.isReady) null else RETRY_AFTER_MS,
+        retryAfterMs = if (window.isReady) null else liveRetryAfterMs(),
         status = playbackState().name.lowercase(),
         segmentsUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/segments",
         stateUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/state",
@@ -127,6 +133,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         terminalError = terminalFailure() ?: networkFailure(),
         recoveryAction = recovery.action(this),
         retryVideoItags = recovery.retryVideoItags(this),
+        live = livePlaybackSnapshot()?.toResponse(),
     )
 
     private suspend fun validatedHolder(
@@ -168,8 +175,4 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         request.videoItag == videoFormat.itag && request.audioItag == audioFormat.itag && request.audioTrackId == audioFormat.audioTrackId
 
     private fun SabrSegmentRequest.summary(): String = "${format.itag}:$sequenceNumber"
-
-    private companion object {
-        const val RETRY_AFTER_MS = 500L
-    }
 }

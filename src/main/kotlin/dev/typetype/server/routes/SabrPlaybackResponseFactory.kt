@@ -1,6 +1,8 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.SabrSessionHolder
+import dev.typetype.server.services.livePlaybackSnapshot
+import dev.typetype.server.services.liveRetryAfterMs
 
 internal fun SabrSessionHolder.toPlaybackResponse(
     videoId: String,
@@ -19,6 +21,7 @@ internal fun SabrSessionHolder.toPlaybackResponse(
     ready = ready,
     status = if (ready) "ready" else playbackState().name.lowercase(),
     retryAfterMs = if (ready) null else retryAfterMs,
+    live = livePlaybackSnapshot()?.toResponse(),
 )
 
 internal fun SabrSessionHolder.toRetryPlaybackResponse(status: String, retryAfterMs: Long): SabrPlaybackResponse =
@@ -33,5 +36,18 @@ internal fun SabrSessionHolder.toRetryPlaybackResponse(status: String, retryAfte
         generation = activeGeneration(),
         ready = false,
         status = status,
-        retryAfterMs = retryAfterMs,
+        retryAfterMs = if (livePlaybackSnapshot()?.active == true) liveRetryAfterMs() else retryAfterMs,
+        live = livePlaybackSnapshot()?.toResponse(),
+    )
+
+internal fun dev.typetype.server.services.SabrLivePlaybackSnapshot.toResponse(): SabrLivePlaybackResponse =
+    SabrLivePlaybackResponse(
+        active = active,
+        postLiveDvr = postLiveDvr,
+        headSequence = headSequence,
+        headTimeMs = headTimeMs,
+        seekableStartMs = seekableStartMs,
+        seekableEndMs = seekableEndMs,
+        atLiveEdge = atLiveEdge,
+        targetLatencyMs = targetLatencyMs,
     )
