@@ -175,13 +175,13 @@ internal class SabrSessionPumpLoop(
         holder.session.evictPlayed()
     }
 
-    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long =
-        maxOf(
+    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long {
+        val demand = holder.nextSegmentDemand()
+        return SabrPumpPolicy.demandDelayMs(
             intervalMs,
-            holder.session.demandBackoffRemainingMs.takeIf { holder.pendingSegmentDemandSummary() != null } ?: 0L,
-            LIVE_EDGE_POLL_MS.takeIf {
-                holder.livePlaybackSnapshot()?.active == true ||
-                    holder.nextSegmentDemand()?.let(holder::isFutureLiveRequest) == true
-            } ?: 0L,
+            holder.session.demandBackoffRemainingMs.takeIf { demand != null } ?: 0L,
+            holder.livePlaybackSnapshot()?.active == true,
+            demand?.let(holder::isFutureLiveRequest),
         )
+    }
 }

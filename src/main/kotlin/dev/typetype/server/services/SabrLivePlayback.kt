@@ -72,8 +72,10 @@ internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest):
         request.sequenceNumber <= live.headSequence + LIVE_FUTURE_SEGMENT_TOLERANCE
 }
 
-internal fun SabrSessionHolder.liveRetryAfterMs(): Long =
-    if (livePlaybackSnapshot()?.active == true) LIVE_EDGE_POLL_MS else DEFAULT_PLAYBACK_RETRY_MS
+internal fun SabrSessionHolder.liveRetryAfterMs(blockedRequests: List<SabrSegmentRequest> = emptyList()): Long =
+    if (livePlaybackSnapshot()?.active == true &&
+        (blockedRequests.isEmpty() || blockedRequests.all(::isFutureLiveRequest))
+    ) LIVE_EDGE_POLL_MS else DEFAULT_PLAYBACK_RETRY_MS
 
 private fun org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState.observedEndMs(
     format: YoutubeSabrFormat,

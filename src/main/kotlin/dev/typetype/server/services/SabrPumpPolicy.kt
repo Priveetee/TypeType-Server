@@ -19,6 +19,13 @@ internal object SabrPumpPolicy {
     const val MIN_BACK_BUFFER_MS = 2_000L
     const val BACK_BUFFER_BYTES = 4L * 1024L * 1024L
 
+    fun demandDelayMs(intervalMs: Long, backoffMs: Long, activeLive: Boolean, futureDemand: Boolean?): Long =
+        maxOf(
+            intervalMs,
+            backoffMs,
+            LIVE_EDGE_POLL_MS.takeIf { futureDemand ?: activeLive } ?: 0L,
+        )
+
     fun backBufferMs(holder: SabrSessionHolder): Long {
         val cachedBytes = runCatchingNonCancellation { holder.session.cachedBytes }.getOrDefault(0L)
         if (cachedBytes > MAX_AHEAD_BYTES) return MIN_BACK_BUFFER_MS

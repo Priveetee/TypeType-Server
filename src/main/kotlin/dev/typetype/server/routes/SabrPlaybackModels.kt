@@ -185,6 +185,6 @@ internal data class SabrPlaybackWindowPreparingResponse(
 internal data class SabrPlaybackWindowBuildResult(
     val response: SabrPlaybackWindowReadyResponse,
     val blockedBy: String?,
-    val blockedRequest: SabrSegmentRequest?,
+    val blockedRequests: List<SabrSegmentRequest>,
     val isReady: Boolean,
 )

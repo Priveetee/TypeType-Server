@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
@@ -61,7 +62,7 @@ class SabrLivePlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `live window requests the track with the shortest coverage`() = runTest {
+    fun `live window requests every track missing from the target window`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 248, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -90,8 +91,8 @@ class SabrLivePlaybackWindowBuilderTest {
             SabrPlaybackWindowRequest(0L, 100_000L, 248, 140, bufferGoalMs = 30_000L),
         )
 
-        assertEquals(248, requireNotNull(result.blockedRequest).format.itag)
-        assertEquals(101, result.blockedRequest.sequenceNumber)
+        assertEquals(listOf(140, 248), result.blockedRequests.map { it.format.itag }.sorted())
+        assertEquals(listOf(101, 106), result.blockedRequests.map { it.sequenceNumber })
     }
 
     @Test
@@ -125,6 +126,37 @@ class SabrLivePlaybackWindowBuilderTest {
         assertTrue(result.isReady)
         assertEquals(102_010L, result.response.startTimeMs)
         assertEquals(102_010L, result.response.audio.segments.single().startMs)
+    }
+
+    @Test
+    fun `active live startup waits for five seconds of shared media`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadTimeMs } returns 120_000L
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 50
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            if (request.sequenceNumber in 50..51) {
+                cached(request.format.itag, request.sequenceNumber, 100_000L + (request.sequenceNumber - 50) * 2_000L, 2_000L)
+            } else {
+                null
+            }
+        }
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 100_000L, 299, 140, bufferGoalMs = 8_000L),
+        )
+
+        assertFalse(result.isReady)
+        assertEquals(listOf(52, 52), result.blockedRequests.map { it.sequenceNumber })
     }
 
     private fun holder(

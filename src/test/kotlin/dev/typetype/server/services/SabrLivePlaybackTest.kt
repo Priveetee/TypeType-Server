@@ -117,6 +117,16 @@ class SabrLivePlaybackTest {
     }
 
     @Test
+    fun `live retries immediately behind the head and paces future media`() {
+        val fixture = fixture()
+        val available = SabrSegmentRequest.media(fixture.video, 200)
+        val future = SabrSegmentRequest.media(fixture.video, 201)
+
+        assertEquals(DEFAULT_PLAYBACK_RETRY_MS, fixture.holder.liveRetryAfterMs(listOf(available)))
+        assertEquals(LIVE_EDGE_POLL_MS, fixture.holder.liveRetryAfterMs(listOf(future)))
+    }
+
+    @Test
     fun `future live demand remains retryable after repeated responses`() {
         val fixture = fixture()
         val request = SabrSegmentRequest.media(fixture.video, 201)

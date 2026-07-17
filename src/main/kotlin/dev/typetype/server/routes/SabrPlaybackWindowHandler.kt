@@ -32,7 +32,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         if (window.isReady) {
             return call.respond(HttpStatusCode.OK, window.response)
         }
-        call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
+        call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window))
     }
 
     suspend fun position(call: ApplicationCall, sessionId: String) {
@@ -77,7 +77,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         holder.applyClientPreferences()
         val window = windowBuilder.build(holder, request)
         if (window.isReady) return call.respond(HttpStatusCode.OK, window.response)
-        call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window.blockedBy ?: "window pending"))
+        call.respond(HttpStatusCode.Accepted, holder.preparingResponse(request, window))
     }
 
     private suspend fun buildWithTargetedPrefetch(
@@ -85,19 +85,23 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         request: SabrPlaybackWindowRequest,
     ): SabrPlaybackWindowBuildResult {
         val window = windowBuilder.build(holder, request)
-        val blockedRequest = window.blockedRequest ?: return window
-        sabrSessionStore.requestSegmentDemand(holder, blockedRequest, request.generation)
+        window.blockedRequests.forEach { blockedRequest ->
+            sabrSessionStore.requestSegmentDemand(holder, blockedRequest, request.generation)
+        }
         return window
     }
 
-    private suspend fun SabrSessionHolder.preparingResponse(request: SabrPlaybackWindowRequest, blockedBy: String): SabrPlaybackWindowPreparingResponse =
+    private suspend fun SabrSessionHolder.preparingResponse(
+        request: SabrPlaybackWindowRequest,
+        window: SabrPlaybackWindowBuildResult,
+    ): SabrPlaybackWindowPreparingResponse =
         SabrPlaybackWindowPreparingResponse(
             sessionId = sessionToken,
             generation = activeGeneration(),
             ready = false,
-            retryAfterMs = liveRetryAfterMs(),
+            retryAfterMs = liveRetryAfterMs(window.blockedRequests),
             status = playbackState().name.lowercase(),
-            blockedBy = SabrPlaybackDiagnostics.blocker(this) ?: blockedBy,
+            blockedBy = SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending",
             playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
             readerHeadMs = readerHeadMs(),
             readerTailMs = readerTailMs(),
@@ -118,7 +122,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         sessionId = sessionToken,
         generation = activeGeneration(),
         ready = window.isReady,
-        retryAfterMs = if (window.isReady) null else liveRetryAfterMs(),
+        retryAfterMs = if (window.isReady) null else liveRetryAfterMs(window.blockedRequests),
         status = playbackState().name.lowercase(),
         segmentsUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/segments",
         stateUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/state",
