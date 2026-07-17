@@ -86,7 +86,12 @@ internal class SabrInfoFetcher(
             tokenSession?.token
                 ?.takeIf { it.visitorData == tokenSession.info.visitorData }
                 ?.let { sessionToken ->
-                    SabrPreparedInfo(tokenSession.info, sessionToken)
+                    SabrPreparedInfo(
+                        tokenSession.info,
+                        sessionToken,
+                        isLive = tokenSession.isLive,
+                        isLiveContent = tokenSession.isLiveContent,
+                    )
                         .takeIf { it.hasAudioAndVideoFormats() }
                         ?.let { return@withTimeoutOrNull it }
                 }
@@ -101,7 +106,14 @@ internal class SabrInfoFetcher(
                 }
             tokenSession
                 ?.takeIf { it.info.visitorData == token.visitorData }
-                ?.let { SabrPreparedInfo(it.info, token) }
+                ?.let {
+                    SabrPreparedInfo(
+                        it.info,
+                        token,
+                        isLive = it.isLive,
+                        isLiveContent = it.isLiveContent,
+                    )
+                }
                 ?.takeIf { it.hasAudioAndVideoFormats() }
                 ?.let { return@withTimeoutOrNull it }
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
