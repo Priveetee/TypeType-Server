@@ -36,7 +36,7 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.5.38")
-    implementation("com.github.Priveetee.PipePipeExtractor:extractor:4e212eaab1258e72ae279c3e90073c0bac9569fc")
+    implementation("com.github.Priveetee.PipePipeExtractor:extractor:e1290b0e4c5275cd0c63df6d82c71e0c59f1ce24")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("org.json:json:20260522")
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
