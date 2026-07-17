@@ -9,8 +9,9 @@ internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment): Unit {
 
 internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment, generation: Long): Unit {
     if (!segment.header.isInitSegment) {
+        observeMediaSegment(segment)
         val format = if (audioFormat.itag == segment.header.itag) audioFormat else videoFormat
-        setReaderPosition(format, segment.header.startMs + segment.header.durationMs, generation)
+        setReaderPosition(format, playbackSegmentEndMs(format, segment.header.sequenceNumber), generation)
         setLastServedSequence(segment.header.itag, segment.header.sequenceNumber, generation)
         evictCachedSegmentsBefore(readerTailMs() - SabrPumpPolicy.backBufferMs(this))
     }
@@ -18,8 +19,9 @@ internal fun SabrSessionHolder.markServed(segment: SabrMediaSegment, generation:
 
 internal fun SabrSessionHolder.markPrepared(segment: SabrMediaSegment): Unit {
     if (!segment.header.isInitSegment) {
+        observeMediaSegment(segment)
         val format = if (audioFormat.itag == segment.header.itag) audioFormat else videoFormat
-        setReaderPosition(format, segment.header.startMs + segment.header.durationMs)
+        setReaderPosition(format, playbackSegmentEndMs(format, segment.header.sequenceNumber))
     }
 }
 

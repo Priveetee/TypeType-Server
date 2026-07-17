@@ -5,6 +5,7 @@ internal enum class SabrPlaybackState {
     PREPARING,
     REQUESTING,
     REPOSITIONING,
+    WAITING_FOR_LIVE,
     THROTTLED,
     NETWORK_FAILED,
     TERMINAL,
