@@ -63,9 +63,19 @@ class StreamRoutesSignedHlsTest {
     }
 
     @Test
-    fun `anonymous sabr signs live hls url`() = testApplication {
+    fun `anonymous sabr removes live hls url`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
-            publicHlsStream().copy(isLive = true, isLiveContent = true, hasLiveManifest = true),
+            publicHlsStream().copy(
+                videoOnlyStreams = listOf(
+                    testVideoStream().copy(url = "", deliveryMethod = "sabr", sabrSessionUrl = "/sabr/session/test"),
+                ),
+                audioStreams = listOf(
+                    testAudioStream(url = "", deliveryMethod = "sabr", sabrSessionUrl = "/sabr/session/test"),
+                ),
+                isLive = true,
+                isLiveContent = true,
+                hasLiveManifest = true,
+            ),
         )
         installApp()
 
@@ -73,10 +83,9 @@ class StreamRoutesSignedHlsTest {
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"hlsUrl\":\"/streams/hls-manifest?token="))
+        assertTrue(body.contains("\"hlsUrl\":\"\""))
+        assertFalse(body.contains("hls-manifest"))
         assertFalse(body.contains(MANIFEST_URL))
-        val token = body.substringAfter("/streams/hls-manifest?token=").substringBefore('"')
-        assertTrue(tokenService.verify(token) is PublicHlsManifestTokenResult.Valid)
     }
 
     @Test
