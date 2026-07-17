@@ -6,26 +6,43 @@ import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
+import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 internal object StreamExtractionErrorMapper {
     const val MEMBERS_ONLY_FALLBACK = "This video is only available for members"
+    const val PAID_CONTENT_FALLBACK = "This video is a paid video"
 
-    fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> = when {
-        error is NeedLoginException ||
-            error is PaidContentException ||
-            error is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: MEMBERS_ONLY_FALLBACK)
-        else -> mapByType(error, fallback)
-    }
+    fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> =
+        mapByType(error, fallback)
 
     private fun <T> mapByType(error: Throwable, fallback: String): ExtractionResult<T> = when (error) {
-        is NeedLoginException,
-        is PaidContentException,
-        is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: MEMBERS_ONLY_FALLBACK)
+        is NeedLoginException -> ExtractionResult.BadRequest(
+            sanitize(error.message) ?: MEMBERS_ONLY_FALLBACK,
+            "members_only",
+        )
+        is PaidContentException -> paidContent(error.message)
+        is YoutubeMusicPremiumContentException -> ExtractionResult.BadRequest(
+            sanitize(error.message) ?: PAID_CONTENT_FALLBACK,
+            "paid_content",
+        )
+        is VideoNotReleaseException -> ExtractionResult.Failure(
+            sanitize(error.message) ?: "This premiere has not started yet",
+            "scheduled_premiere",
+        )
         is GeographicRestrictionException,
         is AgeRestrictedContentException,
         is PrivateContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: "Content not available")
         else -> ExtractionResult.Failure(sanitize(error.message) ?: fallback)
+    }
+
+    private fun paidContent(message: String?): ExtractionResult.BadRequest {
+        val sanitized = sanitize(message)
+        return if (sanitized == MEMBERS_ONLY_FALLBACK) {
+            ExtractionResult.BadRequest(sanitized, "members_only")
+        } else {
+            ExtractionResult.BadRequest(sanitized ?: PAID_CONTENT_FALLBACK, "paid_content")
+        }
     }
 
     private fun sanitize(message: String?): String? = ExtractionErrorSanitizer.sanitize(message)

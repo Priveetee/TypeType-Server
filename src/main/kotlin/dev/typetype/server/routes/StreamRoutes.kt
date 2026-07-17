@@ -126,7 +126,7 @@ private fun Route.streamRoute(
                 call.respond(data)
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, result.toErrorResponse())
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, result.toErrorResponse())
         }
     }
 }
@@ -195,5 +195,7 @@ private fun ExtractionResult.BadRequest.toErrorResponse(): ErrorResponse =
     if (message == YOUTUBE_SESSION_RECONNECT_ERROR) {
         ErrorResponse(message, "youtube_session_needs_reconnect")
     } else {
-        ErrorResponse(message)
+        ErrorResponse(message, code)
     }
+
+private fun ExtractionResult.Failure.toErrorResponse(): ErrorResponse = ErrorResponse(message, code)

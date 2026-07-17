@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
+import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 class StreamExtractionErrorMapperTest {
@@ -15,16 +16,34 @@ class StreamExtractionErrorMapperTest {
     fun `maps membership restrictions using extractor messages when available`() {
         val login = StreamExtractionErrorMapper.map<Any>(NeedLoginException("This video is only available for members"))
         val paid = StreamExtractionErrorMapper.map<Any>(PaidContentException("This video is only available for members"))
-        assertEquals(ExtractionResult.BadRequest("This video is only available for members"), login)
-        assertEquals(ExtractionResult.BadRequest("This video is only available for members"), paid)
+        assertEquals(ExtractionResult.BadRequest("This video is only available for members", "members_only"), login)
+        assertEquals(ExtractionResult.BadRequest("This video is only available for members", "members_only"), paid)
     }
 
     @Test
     fun `maps membership restrictions to fallback when extractor message is blank`() {
         val login = StreamExtractionErrorMapper.map<Any>(NeedLoginException(""))
         val paid = StreamExtractionErrorMapper.map<Any>(PaidContentException(""))
-        assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), login)
-        assertEquals(ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK), paid)
+        assertEquals(
+            ExtractionResult.BadRequest(StreamExtractionErrorMapper.MEMBERS_ONLY_FALLBACK, "members_only"),
+            login,
+        )
+        assertEquals(
+            ExtractionResult.BadRequest(StreamExtractionErrorMapper.PAID_CONTENT_FALLBACK, "paid_content"),
+            paid,
+        )
+    }
+
+    @Test
+    fun `keeps paid videos distinct from members-only videos`() {
+        val result = StreamExtractionErrorMapper.map<Any>(PaidContentException("This video is a paid video"))
+        assertEquals(ExtractionResult.BadRequest("This video is a paid video", "paid_content"), result)
+    }
+
+    @Test
+    fun `maps upcoming premieres to a stable availability code`() {
+        val result = StreamExtractionErrorMapper.map<Any>(VideoNotReleaseException("Premieres in 200 days"))
+        assertEquals(ExtractionResult.Failure("Premieres in 200 days", "scheduled_premiere"), result)
     }
 
     @Test
@@ -35,9 +54,12 @@ class StreamExtractionErrorMapperTest {
     }
 
     @Test
-    fun `maps youtube music premium exception to member-only style message`() {
+    fun `maps youtube music premium exception to paid content`() {
         val mapped = StreamExtractionErrorMapper.map<Any>(YoutubeMusicPremiumContentException())
-        assertTrue(mapped is ExtractionResult.BadRequest)
+        assertEquals(
+            ExtractionResult.BadRequest("This video is a YouTube Music Premium video", "paid_content"),
+            mapped,
+        )
     }
 
     @Test
