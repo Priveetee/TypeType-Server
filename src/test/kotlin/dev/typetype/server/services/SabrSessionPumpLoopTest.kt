@@ -137,7 +137,7 @@ class SabrSessionPumpLoopTest {
             }
             every { streamState.getMinBufferedEndMs() } returns 487_134L
             every { streamState.getBufferedEndMs(video) } returns 491_203L
-            every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
+            every { streamState.getSegmentStartMs(video, 98) } returns 491_203L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.jumpBufferedTo(video, 101) } returns Unit
             every { session.pumpOnceStreamingForDemand(any(), request) } returns demandResult(5, 0)
