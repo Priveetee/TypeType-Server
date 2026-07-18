@@ -112,8 +112,12 @@ class SabrLivePlaybackTest {
 
         assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 201)))
         assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 202)))
+        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.audio, 101)))
+        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.audio, 102)))
         assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 203)))
         assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 200)))
+        assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.audio, 103)))
+        assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.audio, 100)))
     }
 
     @Test
