@@ -126,7 +126,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             var segment = sabrSessionStore.cachedSegment(holder, mediaRequest)
             val expectedStartMs = if (segments.isEmpty()) targetMs else coveredEndMs
             if (segment == null || segments.isEmpty() && !segment.coversPlaybackTime(holder, format, targetMs)) {
-                val authoritative = sabrSessionStore.findCachedPlaybackMediaAt(holder, format, expectedStartMs, seq)
+                val authoritative = sabrSessionStore.findCachedPlaybackMediaAt(
+                    holder, format, expectedStartMs, seq, activeLive && segments.isEmpty(),
+                )
                 if (authoritative != null) {
                     seq = authoritative.sequence
                     holder.session.streamState.jumpBufferedTo(format, seq)

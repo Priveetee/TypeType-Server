@@ -8,6 +8,7 @@ internal suspend fun SabrSessionStore.findCachedPlaybackMediaAt(
     format: YoutubeSabrFormat,
     targetMs: Long,
     predictedSequence: Int,
+    allowFollowing: Boolean = false,
 ): CachedSabrSegment? {
     for (distance in 0..MAX_SEQUENCE_DISTANCE) {
         cachedMedia(holder, format, predictedSequence + distance)?.let {
@@ -17,6 +18,12 @@ internal suspend fun SabrSessionStore.findCachedPlaybackMediaAt(
             cachedMedia(holder, format, predictedSequence - distance)?.let {
                 if (it.coversPlaybackTime(holder, format, targetMs)) return it
             }
+        }
+    }
+    if (!allowFollowing) return null
+    for (distance in 0..MAX_SEQUENCE_DISTANCE) {
+        cachedMedia(holder, format, predictedSequence + distance)?.let {
+            if (it.startsWithinNextSegment(holder, format, targetMs)) return it
         }
     }
     return null
@@ -39,6 +46,17 @@ internal fun CachedSabrSegment.coversPlaybackTime(
     val effectiveStartMs = startMs.takeIf { it >= 0L } ?: holder.playbackSegmentStartMs(format, sequence)
     val effectiveDurationMs = durationMs.takeIf { it > 0L } ?: holder.playbackSegmentDurationMs(format, sequence)
     return targetMs >= effectiveStartMs - TIMING_TOLERANCE_MS && targetMs < effectiveStartMs + effectiveDurationMs
+}
+
+private fun CachedSabrSegment.startsWithinNextSegment(
+    holder: SabrSessionHolder,
+    format: YoutubeSabrFormat,
+    targetMs: Long,
+): Boolean {
+    val effectiveStartMs = startMs.takeIf { it >= 0L } ?: holder.playbackSegmentStartMs(format, sequence)
+    val effectiveDurationMs = durationMs.takeIf { it > 0L } ?: holder.playbackSegmentDurationMs(format, sequence)
+    val leadMs = effectiveStartMs - targetMs
+    return leadMs in -TIMING_TOLERANCE_MS..effectiveDurationMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24
