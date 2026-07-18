@@ -5,6 +5,7 @@ import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.SabrSegmentDemandTracker
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -26,6 +27,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -35,6 +37,9 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 class SabrPlaybackGranularRoutesTest {
+    @AfterEach
+    fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
+
     @Test
     fun `position updates player time without prefetching`() = testApplication {
         val store = mockk<SabrSessionStore>(relaxed = true)
@@ -225,6 +230,7 @@ class SabrPlaybackGranularRoutesTest {
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.isBeyondEnd(any()) } returns false
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
         every { state.getEndSegment(any()) } returns 0L
