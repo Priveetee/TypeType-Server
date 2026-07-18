@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -26,7 +27,7 @@ class SabrTransientDemandFailureTest {
             val audio = format(140, true)
             val video = format(137, false)
             val request = SabrSegmentRequest.media(audio, 50)
-            val segment = mockk<SabrMediaSegment>()
+            val segment = mediaSegment(140, 50, 499_414L)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
             var cached = false
@@ -64,7 +65,7 @@ class SabrTransientDemandFailureTest {
             val audio = format(140, true)
             val video = format(137, false)
             val request = SabrSegmentRequest.media(audio, 39)
-            val segment = mockk<SabrMediaSegment>()
+            val segment = mediaSegment(140, 39, 379_414L)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
             val result = mockk<YoutubeSabrSession.DemandResponseResult>()
@@ -236,5 +237,16 @@ class SabrTransientDemandFailureTest {
         every { result.segmentCount } returns segmentCount
         every { result.targetTrackSegmentCount } returns targetTrackSegmentCount
         return result
+    }
+
+    private fun mediaSegment(itag: Int, sequence: Int, startMs: Long): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>()
+        every { header.itag } returns itag
+        every { header.sequenceNumber } returns sequence
+        every { header.startMs } returns startMs
+        every { header.isInitSegment } returns false
+        val segment = mockk<SabrMediaSegment>()
+        every { segment.header } returns header
+        return segment
     }
 }

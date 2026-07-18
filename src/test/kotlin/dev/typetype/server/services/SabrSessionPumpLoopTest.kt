@@ -256,6 +256,8 @@ class SabrSessionPumpLoopTest {
         every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
         every { header.durationMs } returns durationMs
+        every { header.itag } returns 299
+        every { header.isInitSegment } returns false
         val segment = mockk<SabrMediaSegment>()
         every { segment.header } returns header
         return segment

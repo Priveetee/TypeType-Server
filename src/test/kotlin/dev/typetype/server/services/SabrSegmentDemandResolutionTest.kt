@@ -5,6 +5,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -41,7 +42,29 @@ class SabrSegmentDemandResolutionTest {
         assertTrue(holder.resolveSegmentDemand(request, identity))
 
         assertNull(holder.pendingSegmentDemandSummary())
+        assertSame(replacement, holder.observedMediaSegment(format))
         verify(exactly = 1) { state.jumpBufferedTo(format, 1_905) }
+    }
+
+    @Test
+    fun `resolved requested segment advances complete media anchor`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val request = SabrSegmentRequest.media(format, 2_752)
+        val cached = segment(sequence = 2_752, startMs = 13_757_066L, durationMs = 4_997L)
+        var cacheReady = false
+        every { format.itag } returns 140
+        every { format.isAudio } returns true
+        every { session.getCachedSegment(request) } answers { cached.takeIf { cacheReady } }
+        val holder = holder(session, format)
+        holder.requestSegmentDemand(request)
+        val identity = requireNotNull(holder.segmentDemandIdentity(request))
+        cacheReady = true
+
+        assertTrue(holder.resolveSegmentDemand(request, identity))
+
+        assertSame(cached, holder.observedMediaSegment(format))
+        assertNull(holder.pendingSegmentDemandSummary())
     }
 
     private fun holder(session: YoutubeSabrSession, audio: YoutubeSabrFormat): SabrSessionHolder {
@@ -64,6 +87,8 @@ class SabrSegmentDemandResolutionTest {
         every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
         every { header.durationMs } returns durationMs
+        every { header.itag } returns 140
+        every { header.isInitSegment } returns false
         val segment = mockk<SabrMediaSegment>()
         every { segment.header } returns header
         return segment
