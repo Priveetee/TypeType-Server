@@ -57,6 +57,20 @@ class SabrSegmentDemandTrackerTest {
     }
 
     @Test
+    fun `active live keeps a missing track demand behind the current head`() {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 85)
+            holder.markExpectedLive()
+            every { holder.session.isBeyondEnd(request) } returns true
+
+            holder.requestSegmentDemand(request)
+
+            assertEquals("299:85", holder.pendingSegmentDemandSummary())
+            assertEquals(request, holder.nextSegmentDemand())
+        }
+    }
+
+    @Test
     fun `duplicate registration preserves exact demand identity`() {
         withTracker { holder ->
             val request = SabrSegmentRequest.media(holder.audioFormat, 42)
