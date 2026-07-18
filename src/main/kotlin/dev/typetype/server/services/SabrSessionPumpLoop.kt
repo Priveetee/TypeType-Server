@@ -154,6 +154,11 @@ internal class SabrSessionPumpLoop(
         val startMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
         holder.setReaderPosition(request.format, startMs)
         if (holder.livePlaybackSnapshot()?.active == true) {
+            if (holder.isHistoricalLiveRequest(request)) {
+                holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+                holder.session.prepareForRewind(request)
+                return pumpUntilCached(holder, localization, request, runtime)
+            }
             holder.setPlaybackState(SabrPlaybackState.REQUESTING)
             return withTargetedRequestShape(holder, request) {
                 pumpUntilCached(holder, localization, request, runtime)

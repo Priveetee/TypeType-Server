@@ -6,6 +6,7 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -102,6 +103,35 @@ class SabrSeekRepositionPumpTest {
         }
     }
 
+    @Test
+    fun `historical live demand rewinds from observed media edge`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(299, false)
+            val request = SabrSegmentRequest.media(audio, 3_073)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+            every { session.streamState } returns state
+            every { session.isLive } returns true
+            every { state.isLive } returns true
+            every { state.isPostLiveDvr } returns false
+            every { session.getCachedSegment(any()) } returns null
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
+            val holder = holder(session, audio, video)
+            holder.observeMediaSegment(mediaSegment(audio.itag, sequence = 3_076))
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
+
+            verify(exactly = 1) { session.prepareForRewind(request) }
+            verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
     private fun holder(
         session: YoutubeSabrSession,
         audio: YoutubeSabrFormat,
@@ -123,5 +153,15 @@ class SabrSeekRepositionPumpTest {
         every { format.audioTrackId } returns null
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
+    }
+
+    private fun mediaSegment(itag: Int, sequence: Int): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>(relaxed = true)
+        every { header.itag } returns itag
+        every { header.sequenceNumber } returns sequence
+        every { header.startMs } returns sequence * 5_000L
+        every { header.durationMs } returns 5_000L
+        every { header.isInitSegment } returns false
+        return mockk { every { this@mockk.header } returns header }
     }
 }
