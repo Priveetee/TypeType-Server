@@ -1,6 +1,7 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.downloader.YoutubeProxySelector
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AdminSettingsService
@@ -50,8 +51,16 @@ fun Application.module() {
     val cacheUrl = System.getenv("DRAGONFLY_URL") ?: "redis://localhost:6379"
     val cache = DragonflyService(cacheUrl)
     val subtitleServiceUrl = System.getenv("SUBTITLE_SERVICE_URL") ?: "http://typetype-token:8081"
-    NewPipeInitializer.init(subtitleServiceUrl)
-    val svc = ServiceRegistry(cache, subtitleServiceUrl, youtubeSessionEncryptionKey, jwtSecret, adminSettingsService)
+    val youtubeProxySelector = YoutubeProxySelector.fromUrl(System.getenv("YOUTUBE_OUTBOUND_PROXY_URL"))
+    NewPipeInitializer.init(subtitleServiceUrl, youtubeProxySelector)
+    val svc = ServiceRegistry(
+        cache,
+        subtitleServiceUrl,
+        youtubeSessionEncryptionKey,
+        jwtSecret,
+        adminSettingsService,
+        youtubeProxySelector,
+    )
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,
