@@ -126,6 +126,8 @@ class SabrSeekRepositionPumpTest {
             SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
 
             verify(exactly = 1) { session.prepareForRewind(request) }
+            verify(exactly = 1) { session.prepareForMediaSegment(request) }
+            verify(exactly = 1) { state.setBufferedRangesOverride(null) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
@@ -152,6 +154,8 @@ class SabrSeekRepositionPumpTest {
         every { format.isAudio } returns isAudio
         every { format.audioTrackId } returns null
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
+        every { format.lastModified } returns 0L
+        every { format.xtags } returns ""
         return format
     }
 
