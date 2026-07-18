@@ -69,13 +69,16 @@ internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest):
     if (request.isInitializationSegment) return false
     livePlaybackSnapshot()?.takeIf { it.active } ?: return false
     val state = session.streamState
+    observedMediaSegment(request.format)?.let { observed ->
+        val distanceFromComplete = request.sequenceNumber.toLong() - observed.header.sequenceNumber.toLong()
+        return distanceFromComplete in 1L..LIVE_FUTURE_SEGMENT_TOLERANCE.toLong()
+    }
     val trackHeadSequence = runCatching { state.getMaxSegment(request.format) }.getOrDefault(0)
     if (trackHeadSequence <= 0) return false
     if (request.sequenceNumber > trackHeadSequence) {
         return request.sequenceNumber <= trackHeadSequence + LIVE_FUTURE_SEGMENT_TOLERANCE
     }
-    if (trackHeadSequence - request.sequenceNumber > LIVE_FUTURE_SEGMENT_TOLERANCE) return false
-    observedMediaSegment(request.format)?.let { return request.sequenceNumber > it.header.sequenceNumber }
+    if (request.sequenceNumber != trackHeadSequence) return false
     val requestStartMs = playbackSegmentStartMs(request.format, request.sequenceNumber)
     val completeEndMs = runCatching { state.getBufferedEndMs(request.format) }.getOrDefault(0L)
     return requestStartMs > 0L && requestStartMs >= completeEndMs
