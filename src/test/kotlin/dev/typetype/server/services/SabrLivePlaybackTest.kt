@@ -130,6 +130,15 @@ class SabrLivePlaybackTest {
     }
 
     @Test
+    fun `in flight live media waits beyond the reported head`() {
+        val fixture = fixture()
+        val request = SabrSegmentRequest.media(fixture.audio, 103)
+        every { fixture.session.getReadableSegment(request) } returns mockk<SabrMediaSegment>()
+
+        assertTrue(fixture.holder.isFutureLiveRequest(request))
+    }
+
+    @Test
     fun `live head can advance beyond the last complete media segment`() {
         val fixture = fixture()
         val header = mockk<SabrMediaHeader> {
@@ -207,6 +216,7 @@ class SabrLivePlaybackTest {
         every { session.isAtLiveEdge } returns !postLiveDvr
         every { session.liveHeadSequenceNumber } returns 200L
         every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } returns null
         every { state.isLive } returns !postLiveDvr
         every { state.isPostLiveDvr } returns postLiveDvr
         every { state.liveHeadSequenceNumber } returns 200L

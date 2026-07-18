@@ -68,6 +68,7 @@ internal fun SabrSessionHolder.resolvePlaybackStartMs(requestedStartMs: Long): L
 internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
     livePlaybackSnapshot()?.takeIf { it.active } ?: return false
+    if (session.getCachedSegment(request) == null && session.getReadableSegment(request) != null) return true
     val state = session.streamState
     observedMediaSegment(request.format)?.let { observed ->
         val distanceFromComplete = request.sequenceNumber.toLong() - observed.header.sequenceNumber.toLong()
