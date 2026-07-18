@@ -54,14 +54,13 @@ private fun SabrSessionHolder.liveSequenceAt(format: YoutubeSabrFormat, playerTi
         ?: return null
     val segmentDurationMs = playbackSegmentDurationMs(format, observed.header.sequenceNumber)
     if (segmentDurationMs !in MIN_LIVE_SEGMENT_DURATION_MS..MAX_LIVE_SEGMENT_DURATION_MS) return null
-    val offset = ceilingDiv(playerTimeMs.coerceAtLeast(0L) - observedStartMs, segmentDurationMs)
-    return (observed.header.sequenceNumber.toLong() + offset)
+    val offset = Math.floorDiv(playerTimeMs.coerceAtLeast(0L) - observedStartMs, segmentDurationMs)
+    val sequence = (observed.header.sequenceNumber.toLong() + offset)
         .coerceIn(1L, Int.MAX_VALUE.toLong())
         .toInt()
+    val availableHead = runCatching { session.streamState.getMaxSegment(format) }.getOrDefault(0)
+    return if (availableHead > 0) sequence.coerceAtMost(availableHead) else sequence
 }
-
-private fun ceilingDiv(value: Long, divisor: Long): Long =
-    Math.floorDiv(value, divisor) + if (Math.floorMod(value, divisor) == 0L) 0L else 1L
 
 private fun SabrLivePlaybackSnapshot.segmentDurationFrom(observedSequence: Int, observedStartMs: Long): Long? {
     val sequenceDelta = headSequence - observedSequence

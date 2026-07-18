@@ -65,9 +65,10 @@ class SabrLivePlaybackTest {
         assertEquals(segment, fixture.holder.observedMediaSegment(fixture.video))
         assertEquals(965_000L, segment.header.startMs)
         assertEquals(195, fixture.holder.playbackStartSequence(fixture.video, 995_000L))
-        assertEquals(196, fixture.holder.playbackStartSequence(fixture.video, 995_001L))
+        assertEquals(195, fixture.holder.playbackStartSequence(fixture.video, 995_001L))
         assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 965_000L))
-        assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 964_999L))
+        assertEquals(179, fixture.holder.playbackStartSequence(fixture.video, 964_999L))
+        assertEquals(200, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
     }
 
     @Test
