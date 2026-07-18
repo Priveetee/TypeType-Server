@@ -30,7 +30,7 @@ class SabrLivePlaybackTest {
         assertTrue(live.active)
         assertFalse(live.postLiveDvr)
         assertEquals(1_005_000L, live.seekableEndMs)
-        assertEquals(995_000L, fixture.holder.resolvePlaybackStartMs(0L))
+        assertEquals(985_000L, fixture.holder.resolvePlaybackStartMs(0L))
         assertEquals(1_005_000L, fixture.holder.resolvePlaybackStartMs(1_100_000L))
     }
 

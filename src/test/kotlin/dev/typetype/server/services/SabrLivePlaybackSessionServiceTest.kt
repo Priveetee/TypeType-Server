@@ -37,8 +37,8 @@ class SabrLivePlaybackSessionServiceTest {
         every { state.getBufferedEndMs(audio) } returns 1_000_000L
         every { state.getBufferedEndMs(video) } returns 1_002_000L
         every { state.getMinBufferedEndMs() } returns 1_000_000L
-        every { state.getSegmentNumberAtOrAfterTimeMs(video, 995_000L) } returns 198
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 995_000L) } returns 99
+        every { state.getSegmentNumberAtOrAfterTimeMs(video, 985_000L) } returns 198
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 985_000L) } returns 99
         every { state.getSegmentStartMs(video, 198) } returns 990_000L
         every { state.getSegmentStartMs(audio, 99) } returns 990_000L
         val store = mockk<SabrSessionStore>()
@@ -61,8 +61,8 @@ class SabrLivePlaybackSessionServiceTest {
 
         val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 0L)
 
-        assertEquals(995_000L, result.startTimeMs)
-        assertEquals(995_000L, holder.playerTimeMs())
+        assertEquals(985_000L, result.startTimeMs)
+        assertEquals(985_000L, holder.playerTimeMs())
         assertTrue(holder.expectsLive())
         coVerify(exactly = 1) { store.ensureWarmed(holder, 8) }
         coVerify(exactly = 0) { store.fetchInitializationData(any(), any()) }
