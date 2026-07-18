@@ -122,6 +122,14 @@ class SabrLivePlaybackTest {
     }
 
     @Test
+    fun `advertised live head waits until its media is complete`() {
+        val fixture = fixture()
+        every { fixture.state.getSegmentStartMs(fixture.video, 200) } returns 1_002_000L
+
+        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 200)))
+    }
+
+    @Test
     fun `live retries immediately behind the head and paces future media`() {
         val fixture = fixture()
         val available = SabrSegmentRequest.media(fixture.video, 200)
