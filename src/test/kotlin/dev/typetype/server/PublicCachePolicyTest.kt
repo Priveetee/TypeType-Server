@@ -42,6 +42,13 @@ class PublicCachePolicyTest {
     }
 
     @Test
+    fun `channel ttl keeps livestream state fresh`() {
+        assertEquals(60L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/streams", null, null))
+        assertEquals(60L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/livestreams", null, null))
+        assertEquals(300L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/streams", "cursor", null))
+    }
+
+    @Test
     fun `comments ttl is shortest on first youtube page`() {
         assertEquals(180L, PublicCachePolicy.commentsTtl("https://youtube.com/watch?v=id", null))
         assertEquals(600L, PublicCachePolicy.commentsTtl("https://youtube.com/watch?v=id", "cursor"))
