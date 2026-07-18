@@ -129,7 +129,7 @@ class SabrLivePlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `active live startup waits for five seconds of shared media`() = runTest {
+    fun `active live startup waits beyond five seconds of shared media`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -143,7 +143,7 @@ class SabrLivePlaybackWindowBuilderTest {
         val store = mockk<SabrSessionStore>()
         coEvery { store.cachedSegment(holder, any()) } answers {
             val request = secondArg<SabrSegmentRequest>()
-            if (request.sequenceNumber in 50..51) {
+            if (request.sequenceNumber in 50..52) {
                 cached(request.format.itag, request.sequenceNumber, 100_000L + (request.sequenceNumber - 50) * 2_000L, 2_000L)
             } else {
                 null
@@ -156,7 +156,7 @@ class SabrLivePlaybackWindowBuilderTest {
         )
 
         assertFalse(result.isReady)
-        assertEquals(listOf(52, 52), result.blockedRequests.map { it.sequenceNumber })
+        assertEquals(listOf(53, 53), result.blockedRequests.map { it.sequenceNumber })
     }
 
     @Test

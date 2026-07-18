@@ -212,6 +212,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     private companion object {
         const val MAX_SEGMENTS_PER_TRACK = 12
         const val MIN_READY_AHEAD_MS = 1_000L
-        const val LIVE_STARTUP_READY_AHEAD_MS = 5_000L
+        const val LIVE_STARTUP_READY_AHEAD_MS = 8_000L
     }
 }
