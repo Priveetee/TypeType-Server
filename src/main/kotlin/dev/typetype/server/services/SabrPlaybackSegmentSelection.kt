@@ -8,6 +8,15 @@ internal fun SabrSessionHolder.playbackStartSequence(format: YoutubeSabrFormat, 
         .coerceAtLeast(1)
 }
 
+internal fun SabrSessionHolder.playbackContinuationSequence(
+    format: YoutubeSabrFormat,
+    playerTimeMs: Long,
+    continueAfterLastServed: Boolean,
+): Int = lastServedSequence(format)
+    ?.takeIf { continueAfterLastServed && it < Int.MAX_VALUE }
+    ?.plus(1)
+    ?: playbackStartSequence(format, playerTimeMs)
+
 internal fun SabrSessionHolder.playbackSegmentStartMs(format: YoutubeSabrFormat, sequence: Int): Long {
     val observed = observedMediaSegment(format)
     val observedStartMs = observed?.header?.startMs?.takeIf { it >= 0L }

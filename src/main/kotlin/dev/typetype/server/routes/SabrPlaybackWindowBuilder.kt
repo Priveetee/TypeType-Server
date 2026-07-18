@@ -7,6 +7,7 @@ import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.findCachedPlaybackMediaAt
 import dev.typetype.server.services.coversPlaybackTime
 import dev.typetype.server.services.livePlaybackSnapshot
+import dev.typetype.server.services.playbackContinuationSequence
 import dev.typetype.server.services.playbackSegmentDurationMs
 import dev.typetype.server.services.playbackSegmentStartMs
 import dev.typetype.server.services.resolvePlaybackStartMs
@@ -112,7 +113,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
-        var seq = holder.playbackStartSequence(format, targetMs)
+        var seq = holder.playbackContinuationSequence(format, targetMs, activeLive && targetMs > requestedStartMs)
         var coveredEndMs = targetMs
         val endSequence = if (activeLive) 0 else holder.session.streamState.getEndSegment(format).toInt()
         var atEnd = false
