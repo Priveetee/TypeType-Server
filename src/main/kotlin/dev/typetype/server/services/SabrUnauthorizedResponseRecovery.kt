@@ -11,9 +11,9 @@ internal class SabrUnauthorizedResponseRecovery(
         if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized()
         val token = refreshPoToken(holder.key.videoId)
             ?.streamingPoTokenBytesFor(holder.info)
-            ?.takeUnless { holder.session.streamState.poToken?.contentEquals(it) == true }
+            ?.takeUnless { holder.session.streamState.contentPoToken?.contentEquals(it) == true }
             ?: throw unauthorized()
-        holder.session.streamState.setPoToken(token)
+        holder.session.streamState.setContentPoToken(token)
         holder.session.addDiagnosticEvent("upstream 403 refreshed TypeType PO token")
     }
 

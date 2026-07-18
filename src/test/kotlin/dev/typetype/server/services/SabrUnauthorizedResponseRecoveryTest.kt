@@ -18,7 +18,7 @@ class SabrUnauthorizedResponseRecoveryTest {
 
         assertThrows(SabrRecoverableException::class.java) { recovery.verify(holder) }
 
-        verify(exactly = 0) { state.setPoToken(any()) }
+        verify(exactly = 0) { state.setContentPoToken(any()) }
     }
 
     @Test
@@ -29,7 +29,7 @@ class SabrUnauthorizedResponseRecoveryTest {
 
         assertThrows(SabrRecoverableException::class.java) { recovery.verify(holder) }
 
-        verify(exactly = 0) { state.setPoToken(any()) }
+        verify(exactly = 0) { state.setContentPoToken(any()) }
     }
 
     @Test
@@ -40,7 +40,7 @@ class SabrUnauthorizedResponseRecoveryTest {
 
         recovery.verify(holder)
 
-        verify(exactly = 1) { state.setPoToken(match { it.contentEquals(freshToken) }) }
+        verify(exactly = 1) { state.setContentPoToken(match { it.contentEquals(freshToken) }) }
     }
 
     private fun holder(
@@ -51,7 +51,7 @@ class SabrUnauthorizedResponseRecoveryTest {
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val info = mockk<YoutubeSabrInfo>()
         val holder = mockk<SabrSessionHolder>()
-        every { state.poToken } returns currentToken
+        every { state.contentPoToken } returns currentToken
         every { session.streamState } returns state
         every { session.diagnosticTrace } returns "response n=4 http=403 segments=count=0"
         every { info.videoId } returns "video"

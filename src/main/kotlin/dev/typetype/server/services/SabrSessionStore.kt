@@ -71,7 +71,7 @@ internal class SabrSessionStore(
         session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
-            ?.let { session.streamState.setPoToken(it) }
+            ?.let { session.streamState.setContentPoToken(it) }
         val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, playbackToken ?: SabrSessionTokenGenerator.newToken(), key, Instant.now())
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
