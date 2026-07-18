@@ -22,6 +22,7 @@ internal object SabrDemandAttemptFinisher {
         identity: String,
         result: YoutubeSabrSession.DemandResponseResult,
         runtime: SabrPumpRuntime,
+        wasFutureLiveRequest: Boolean,
     ): Boolean = synchronized(holder) {
         if (!holder.isSegmentDemandActive(request, identity)) {
             runtime.finishDemand(identity)
@@ -30,7 +31,7 @@ internal object SabrDemandAttemptFinisher {
         }
         val resolved = holder.resolveSegmentDemand(request, identity)
         SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
-        if (!resolved && holder.isFutureLiveRequest(request)) {
+        if (!resolved && (wasFutureLiveRequest || holder.isFutureLiveRequest(request))) {
             runtime.finishDemand(identity)
             holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
             return@synchronized false

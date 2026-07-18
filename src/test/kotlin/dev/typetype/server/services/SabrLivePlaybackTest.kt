@@ -142,9 +142,20 @@ class SabrLivePlaybackTest {
             every { targetTrackSegmentCount } returns 1
         }
         val runtime = SabrPumpRuntime { 20_000L }
+        val wasFutureLiveRequest = fixture.holder.isFutureLiveRequest(request)
+        every { fixture.state.getMaxSegment(fixture.video) } returns 201
 
         repeat(4) {
-            assertFalse(SabrDemandAttemptFinisher.finish(fixture.holder, request, identity, result, runtime))
+            assertFalse(
+                SabrDemandAttemptFinisher.finish(
+                    fixture.holder,
+                    request,
+                    identity,
+                    result,
+                    runtime,
+                    wasFutureLiveRequest,
+                ),
+            )
         }
 
         assertEquals(SabrPlaybackState.WAITING_FOR_LIVE, fixture.holder.playbackState())
