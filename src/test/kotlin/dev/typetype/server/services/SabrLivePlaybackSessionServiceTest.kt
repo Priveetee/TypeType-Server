@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
@@ -16,6 +18,23 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 class SabrLivePlaybackSessionServiceTest {
+    @Test
+    fun `live start uses the warmed media pair when it is closer to the head`() {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video)
+        val state = holder.session.streamState
+        every { holder.session.isLive } returns true
+        every { state.isLive } returns true
+        every { state.isPostLiveDvr } returns false
+        every { state.liveHeadTimeMs } returns 1_005_000L
+        holder.markExpectedLive()
+        holder.observeMediaSegment(mediaSegment(audio.itag, 995_002L))
+        holder.observeMediaSegment(mediaSegment(video.itag, 995_000L))
+
+        assertEquals(995_002L, holder.resolvePlaybackStartMs(0L))
+    }
+
     @Test
     fun `live prepare warms metadata and starts behind the live head`() = runTest {
         val audio = format(140, isAudio = true)
@@ -97,6 +116,16 @@ class SabrLivePlaybackSessionServiceTest {
         every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
+    }
+
+    private fun mediaSegment(itag: Int, startMs: Long): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>(relaxed = true)
+        every { header.itag } returns itag
+        every { header.sequenceNumber } returns 200
+        every { header.startMs } returns startMs
+        every { header.durationMs } returns 5_000L
+        every { header.isInitSegment } returns false
+        return mockk { every { this@mockk.header } returns header }
     }
 
     private fun token(): SabrTokenBundle = SabrTokenBundle(

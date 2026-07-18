@@ -62,7 +62,17 @@ internal fun SabrSessionHolder.resolvePlaybackStartMs(requestedStartMs: Long): L
     val live = livePlaybackSnapshot() ?: return requested
     if (!live.active) return requested.coerceAtMost(live.seekableEndMs.takeIf { it > 0L } ?: requested)
     if (requested > 0L) return requested.coerceIn(live.seekableStartMs, live.seekableEndMs)
-    return (live.seekableEndMs - live.targetLatencyMs).coerceAtLeast(live.seekableStartMs)
+    val targetStartMs = (live.seekableEndMs - live.targetLatencyMs).coerceAtLeast(live.seekableStartMs)
+    return maxOf(targetStartMs, availableLiveMediaStartMs() ?: targetStartMs)
+}
+
+private fun SabrSessionHolder.availableLiveMediaStartMs(): Long? {
+    val audioStartMs = observedMediaSegment(audioFormat)?.header?.startMs?.takeIf { it >= 0L }
+        ?: return null
+    if (!isVideoActive()) return audioStartMs
+    val videoStartMs = observedMediaSegment(videoFormat)?.header?.startMs?.takeIf { it >= 0L }
+        ?: return null
+    return maxOf(audioStartMs, videoStartMs)
 }
 
 internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest): Boolean {
