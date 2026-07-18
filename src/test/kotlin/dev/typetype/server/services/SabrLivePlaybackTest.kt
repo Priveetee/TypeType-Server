@@ -130,6 +130,21 @@ class SabrLivePlaybackTest {
     }
 
     @Test
+    fun `live head can advance beyond the last complete media segment`() {
+        val fixture = fixture()
+        val header = mockk<SabrMediaHeader> {
+            every { isInitSegment } returns false
+            every { itag } returns fixture.video.itag
+            every { sequenceNumber } returns 198
+            every { startMs } returns 998_000L
+        }
+        fixture.holder.observeMediaSegment(mockk { every { this@mockk.header } returns header })
+
+        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 200)))
+        assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 197)))
+    }
+
+    @Test
     fun `live retries immediately behind the head and paces future media`() {
         val fixture = fixture()
         val available = SabrSegmentRequest.media(fixture.video, 200)
