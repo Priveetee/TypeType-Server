@@ -38,15 +38,9 @@ class SabrProbeTest {
             println("\n========== SABR probe: $videoId ==========")
             try {
                 val token = tokenClient.fetch(videoId) ?: error("No SABR token")
-                val playerContextProvider = TypetypeTokenSabrPlayerContextProvider(tokenClient, token)
-                val info = YoutubeSabrProbe.fetchSabrInfo(
-                    videoId,
-                    profile,
-                    loc,
-                    country,
-                    playerContextProvider,
-                )
-                val activeToken = playerContextProvider.tokenFor(info) ?: error("No matching SABR token")
+                val info = TypetypeYoutubeSessionPoTokenProvider.withToken(token) {
+                    YoutubeSabrProbe.fetchSabrInfo(videoId, profile, loc, country)
+                }
                 println("serverAbrStreamingUrl present: ${!info.serverAbrStreamingUrl.isNullOrEmpty()}")
                 println("videoPlaybackUstreamerConfig present: ${!info.videoPlaybackUstreamerConfig.isNullOrEmpty()}")
                 println("--- formats (itag | A/V | height×width | bitrate | mime | audioTrack | approxDurMs) ---")
@@ -79,7 +73,7 @@ class SabrProbeTest {
                     continue
                 }
 
-                val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, activeToken)
+                val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, token)
                 val session = YoutubeSabrSession(info, audio, video, provider)
                 session.streamState.setActiveTrackTypes(true, true)
                 session.streamState.setPlayerTimeMs(playerTimeMs)

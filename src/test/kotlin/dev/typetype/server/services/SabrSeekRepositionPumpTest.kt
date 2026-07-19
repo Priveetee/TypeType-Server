@@ -61,13 +61,15 @@ class SabrSeekRepositionPumpTest {
             every { session.getCachedSegment(any()) } returns null
             every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
             val holder = holder(session, audio, video)
+            holder.setRequestedSeekTimeMs(120_321L)
             holder.requestSegmentDemand(request)
             holder.requestForwardSeek(request)
             var rounds = 0
 
             SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
 
-            verify(exactly = 1) { session.prepareForForwardJump(request) }
+            verify(exactly = 1) { session.prepareForForwardJump(request, 120_321L) }
+            verify(exactly = 0) { session.prepareForForwardJump(request) }
             verify(exactly = 0) { session.pumpOnceStreaming(any()) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
@@ -128,6 +130,37 @@ class SabrSeekRepositionPumpTest {
             verify(exactly = 1) { session.prepareForRewind(request) }
             verify(exactly = 1) { session.prepareForMediaSegment(request) }
             verify(exactly = 1) { state.setBufferedRangesOverride(null) }
+            verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `historical live seek preserves its exact player position`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(299, false)
+            val request = SabrSegmentRequest.media(audio, 3_073)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+            every { session.streamState } returns state
+            every { session.isLive } returns true
+            every { state.isLive } returns true
+            every { state.isPostLiveDvr } returns false
+            every { session.getCachedSegment(any()) } returns null
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
+            val holder = holder(session, audio, video)
+            holder.observeMediaSegment(mediaSegment(audio.itag, sequence = 3_076))
+            holder.setRequestedSeekTimeMs(15_365_500L)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
+
+            verify(exactly = 1) { session.prepareForRewind(request, 15_365_500L) }
+            verify(exactly = 0) { session.prepareForRewind(request) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()

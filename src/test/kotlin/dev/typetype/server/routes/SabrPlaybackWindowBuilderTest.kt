@@ -256,7 +256,6 @@ class SabrPlaybackWindowBuilderTest {
         every { format.isAudio } returns isAudio
         every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
         every { format.approxDurationMs } returns 900_000L
-        every { format.initializationUrl } returns null
         return format
     }
 

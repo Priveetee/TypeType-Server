@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import java.security.MessageDigest
 
@@ -21,11 +19,14 @@ class SabrLiveProtocolProbeTest {
         NewPipeInitializer.init(tokenServiceUrl)
         val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
         try {
-            val prepared = TypetypeTokenYoutubeSessionClient(tokenServiceUrl)
-                .fetchPlaybackSession(videoId) ?: error("Missing Token SABR session")
+            val tokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl)
+            val prepared = SabrInfoFetcher(
+                tokenClient,
+                TypetypeTokenYoutubeSessionClient(tokenServiceUrl),
+            ).fetchInfo(videoId) ?: error("Missing SABR player metadata")
             println(
                 "profile=${prepared.info.profile} clientVersion=${prepared.info.clientVersion} " +
-                    "visitorMatches=${prepared.info.visitorData == prepared.token?.visitorData}"
+                    "visitorMatches=${prepared.info.visitorData == prepared.initialToken?.visitorData}"
             )
             val audio = prepared.info.formats.first { it.itag == sabrProbeAudioItag() && it.isAudio }
             val requestedVideoItags = sabrProbeVideoItags()
@@ -41,10 +42,10 @@ class SabrLiveProtocolProbeTest {
         }
     }
 
-    private fun probe(
+    private suspend fun probe(
         store: SabrSessionStore,
         videoId: String,
-        prepared: TokenYoutubeSession,
+        prepared: SabrPreparedInfo,
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
     ) {
@@ -55,63 +56,38 @@ class SabrLiveProtocolProbeTest {
             info = prepared.info,
             audioFormat = audio,
             videoFormat = video,
-            initialToken = prepared.token,
+            initialToken = prepared.initialToken,
             startPump = false,
         )
         holder.markExpectedLive()
-        var receivedAudio = false
-        var receivedVideo = false
-        var round = 0
-        while (round < 6) {
-            val segments = holder.session.pumpOnce(Localization("en", "US"))
-            val live = holder.livePlaybackSnapshot()
-            println(
-                "$label round=$round requestNumber=${holder.session.requestNumber} segments=${segments.size} " +
-                    "headSeq=${live?.headSequence} headMs=${live?.headTimeMs}"
-            )
-            segments.forEach { segment ->
-                val header = segment.header
-                if (!header.isInitSegment && header.sequenceNumber > 0 && segment.length > 0) {
-                    if (header.itag == audio.itag) receivedAudio = true
-                    if (header.itag == video.itag) receivedVideo = true
-                    val format = if (header.itag == audio.itag) audio else video
-                    val parts = requireNotNull(SabrLiveMediaNormalizer.split(format.mimeType.orEmpty(), segment.data)) {
-                        "$label could not split live ${format.mimeType}"
-                    }
-                    assertTrue(parts.initialization.isNotEmpty(), "$label returned an empty initialization")
-                    assertTrue(parts.media.isNotEmpty(), "$label returned empty media")
-                }
-                println(
-                    "  itag=${header.itag} init=${header.isInitSegment} seq=${header.sequenceNumber} " +
-                        "startMs=${header.startMs} durationMs=${header.durationMs} bytes=${segment.length} " +
-                        "sha256=${fingerprint(segment.data)} boxes=${mp4BoxNames(segment.data)}"
-                )
-            }
-            live?.takeIf { it.active && it.headSequence > LIVE_EDGE_SEGMENT_OFFSET }?.let {
-                val targetSequence = (it.headSequence - LIVE_EDGE_SEGMENT_OFFSET).toInt()
-                val targetTimeMs = (it.headTimeMs - LIVE_TARGET_LATENCY_MS).coerceAtLeast(0L)
-                holder.session.streamState.setPlayerTimeMs(targetTimeMs)
-                holder.session.streamState.setBufferedRangesOverride(
-                    listOf(audio, video).map { format ->
-                        SabrBufferedRange(
-                            format.itag,
-                            format.lastModified,
-                            format.xtags,
-                            0L,
-                            targetTimeMs,
-                            1,
-                            targetSequence - 1,
-                            1_000,
-                        )
-                    }
-                )
-            }
-            round++
-            if (round < 6) Thread.sleep(LIVE_EDGE_POLL_MS)
-        }
+        store.ensureWarmed(holder, maxPumps = 8)
+        val live = requireNotNull(holder.livePlaybackSnapshot())
+        val segments = listOfNotNull(
+            holder.observedMediaSegment(audio),
+            holder.observedMediaSegment(video),
+        )
+        println(
+            "$label requests=${holder.session.requestNumber} segments=${segments.size} " +
+                "headSeq=${live.headSequence} headMs=${live.headTimeMs} startMs=${holder.resolvePlaybackStartMs(0L)}"
+        )
         println("$label trace=${holder.session.diagnosticTrace}")
-        assertTrue(receivedAudio, "$label did not retrieve live audio media")
-        assertTrue(receivedVideo, "$label did not retrieve live video media")
+        assertEquals(setOf(audio.itag, video.itag), segments.map { it.header.itag }.toSet())
+        segments.forEach { segment ->
+            val header = segment.header
+            val format = if (header.itag == audio.itag) audio else video
+            val parts = requireNotNull(SabrLiveMediaNormalizer.split(format.mimeType.orEmpty(), segment.data)) {
+                "$label could not split live ${format.mimeType}"
+            }
+            assertTrue(header.sequenceNumber > 0, "$label returned bootstrap media as playable media")
+            assertTrue(parts.initialization.isNotEmpty(), "$label returned an empty initialization")
+            assertTrue(parts.media.isNotEmpty(), "$label returned empty media")
+            assertTrue(holder.liveInitialization(format)?.isNotEmpty() == true, "$label did not retain initialization")
+            println(
+                "  itag=${header.itag} seq=${header.sequenceNumber} startMs=${header.startMs} " +
+                    "durationMs=${header.durationMs} bytes=${segment.length} sha256=${fingerprint(segment.data)} " +
+                    "boxes=${mp4BoxNames(segment.data)} tfdt=${mp4DecodeTimes(segment.data, header.timeRangeTimescale)}"
+            )
+        }
     }
 
     private fun YoutubeSabrFormat.codecFamily(): String {
@@ -145,8 +121,50 @@ class SabrLiveProtocolProbeTest {
         .take(6)
         .joinToString("") { "%02x".format(it) }
 
-    private companion object {
-        const val LIVE_EDGE_SEGMENT_OFFSET = 6L
-        const val LIVE_TARGET_LATENCY_MS = 10_000L
+    private fun mp4DecodeTimes(data: ByteArray, timescale: Int): String {
+        if (timescale <= 0) return "unavailable"
+        val decodeTimes = mutableListOf<Long>()
+        collectDecodeTimes(data, 0, data.size, decodeTimes)
+        if (decodeTimes.isEmpty()) return "none"
+        val firstMs = decodeTimes.first() * 1_000L / timescale
+        val lastMs = decodeTimes.last() * 1_000L / timescale
+        return "count=${decodeTimes.size},firstMs=$firstMs,lastMs=$lastMs"
+    }
+
+    private fun collectDecodeTimes(data: ByteArray, start: Int, end: Int, output: MutableList<Long>) {
+        var offset = start
+        while (offset + 8 <= end) {
+            val size = data.readUnsignedInt(offset)
+            if (size < 8L || size > end - offset) return
+            val type = String(data, offset + 4, 4, Charsets.US_ASCII)
+            val payloadStart = offset + 8
+            val boxEnd = offset + size.toInt()
+            when (type) {
+                "moof", "traf" -> collectDecodeTimes(data, payloadStart, boxEnd, output)
+                "tfdt" -> data.readTfdt(payloadStart, boxEnd)?.let(output::add)
+            }
+            offset = boxEnd
+        }
+    }
+
+    private fun ByteArray.readTfdt(offset: Int, end: Int): Long? {
+        if (offset + 8 > end) return null
+        return if (this[offset].toInt() == 1) {
+            if (offset + 12 > end) null else readUnsignedLong(offset + 4)
+        } else {
+            readUnsignedInt(offset + 4)
+        }
+    }
+
+    private fun ByteArray.readUnsignedInt(offset: Int): Long =
+        ((this[offset].toLong() and 0xff) shl 24) or
+            ((this[offset + 1].toLong() and 0xff) shl 16) or
+            ((this[offset + 2].toLong() and 0xff) shl 8) or
+            (this[offset + 3].toLong() and 0xff)
+
+    private fun ByteArray.readUnsignedLong(offset: Int): Long {
+        var value = 0L
+        repeat(8) { index -> value = (value shl 8) or (this[offset + index].toLong() and 0xff) }
+        return value
     }
 }

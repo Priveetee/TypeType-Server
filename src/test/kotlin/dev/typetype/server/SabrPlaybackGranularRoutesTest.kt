@@ -262,7 +262,6 @@ class SabrPlaybackGranularRoutesTest {
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         every { format.height } returns if (isAudio) 0 else 720
         every { format.approxDurationMs } returns 900_000L
-        every { format.initializationUrl } returns null
         return format
     }
 

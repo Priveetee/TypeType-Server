@@ -73,7 +73,6 @@ class SabrLiveRoundedBoundaryWindowTest {
         every { this@mockk.isAudio } returns isAudio
         every { mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
         every { approxDurationMs } returns 4_594_000L
-        every { initializationUrl } returns null
     }
 
     private fun mediaSegment(itag: Int, sequence: Int, startMs: Long): SabrMediaSegment {

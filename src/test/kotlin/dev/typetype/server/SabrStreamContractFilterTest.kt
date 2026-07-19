@@ -122,8 +122,6 @@ class SabrStreamContractFilterTest {
         every { format.height } returns if (isAudio) 0 else 1080
         every { format.qualityLabel } returns if (isAudio) null else "1080p"
         every { format.contentLength } returns 1_000_000L
-        every { format.initRangeStart } returns 0L
-        every { format.initRangeEnd } returns 0L
         return format
     }
 
