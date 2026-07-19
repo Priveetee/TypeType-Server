@@ -9,10 +9,15 @@ internal fun YoutubeSabrSession.findCachedMediaAt(
     format: YoutubeSabrFormat,
     targetMs: Long,
     predictedSequence: Int,
+    allowFollowing: Boolean = false,
 ): SabrMediaSegment? {
     for (distance in 1..MAX_SEQUENCE_DISTANCE) {
         cachedMedia(format, predictedSequence + distance)?.takeIf { it.covers(targetMs) }?.let { return it }
         cachedMedia(format, predictedSequence - distance)?.takeIf { it.covers(targetMs) }?.let { return it }
+    }
+    if (!allowFollowing) return null
+    for (distance in 1..MAX_SEQUENCE_DISTANCE) {
+        cachedMedia(format, predictedSequence + distance)?.takeIf { it.startsWithinNextSegment(targetMs) }?.let { return it }
     }
     return null
 }
@@ -28,6 +33,11 @@ private fun SabrMediaSegment.covers(targetMs: Long): Boolean {
         header.durationMs > 0L &&
         targetMs >= startMs - TIMING_TOLERANCE_MS &&
         targetMs < startMs + header.durationMs
+}
+
+private fun SabrMediaSegment.startsWithinNextSegment(targetMs: Long): Boolean {
+    val leadMs = header.startMs - targetMs
+    return header.startMs >= 0L && header.durationMs > 0L && leadMs in -TIMING_TOLERANCE_MS..header.durationMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24

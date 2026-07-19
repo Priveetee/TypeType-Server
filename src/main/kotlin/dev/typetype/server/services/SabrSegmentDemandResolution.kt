@@ -8,6 +8,7 @@ internal fun SabrSessionHolder.resolveSegmentDemand(request: SabrSegmentRequest,
         format = request.format,
         targetMs = playbackSegmentStartMs(request.format, request.sequenceNumber),
         predictedSequence = request.sequenceNumber,
+        allowFollowing = livePlaybackSnapshot()?.active == true,
     )
     val resolved = requested ?: rebased ?: return false
     if (!clearSegmentDemand(request, identity)) return false
