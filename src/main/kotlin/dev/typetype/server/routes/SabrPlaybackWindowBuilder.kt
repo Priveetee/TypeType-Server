@@ -63,7 +63,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 video.covers(holder.readyEndMs(holder.videoFormat, requestedReadyEndMs)),
         )
     }
-
     private suspend fun buildAudioOnly(
         holder: SabrSessionHolder,
         request: SabrPlaybackWindowRequest,
@@ -89,7 +88,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             isReady = audio.covers(holder.readyEndMs(holder.audioFormat, readyEndMs)),
         )
     }
-
     private fun blockedTrack(audio: TrackBuildResult, video: TrackBuildResult): TrackBuildResult? =
         sequenceOf(video, audio)
             .filter { it.blockedRequest != null }
@@ -109,7 +107,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     ): TrackBuildResult {
         val targetMs = request.bufferedEndFor(format, requestedStartMs).coerceAtLeast(0L)
         val goalStartMs = if (activeLive) targetMs else request.playerTimeMs.coerceAtLeast(0L)
-        val goalEndMs = goalStartMs + request.bufferGoalMs.coerceAtLeast(1L)
+        var goalEndMs = goalStartMs + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
@@ -146,6 +144,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             }
             val windowSegment = segment.toWindowSegment(holder, format)
             segments += windowSegment
+            if (activeLive && segments.size == 1) {
+                goalEndMs = maxOf(goalEndMs, windowSegment.startMs + request.bufferGoalMs.coerceAtLeast(1L))
+            }
             coveredEndMs = windowSegment.startMs + windowSegment.durationMs
             if (endSequence > 0 && seq >= endSequence) {
                 atEnd = true
