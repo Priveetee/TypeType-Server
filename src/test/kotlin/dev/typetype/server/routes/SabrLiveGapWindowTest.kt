@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
@@ -61,6 +62,54 @@ class SabrLiveGapWindowTest {
                 "/api/sabr/playback/session/299/segment/94?generation=0",
             ),
             requireNotNull(result.response.video).segments.map { it.url },
+        )
+    }
+
+    @Test
+    fun `live gap continues after the replacement segment while playhead remains behind`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.isLive } returns true
+        every { state.isLive } returns true
+        every { state.liveHeadTimeMs } returns 510_000L
+        every { state.getSegmentNumberAtOrAfterTimeMs(video, any()) } returns 92
+        val holder = holder(session, audio, video)
+        holder.setLastServedSequence(video.itag, 93)
+        holder.setLastServedSequence(audio.itag, 49)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 299 && request.sequenceNumber in 94..96 ->
+                    cached(299, request.sequenceNumber, 485_000L + (request.sequenceNumber - 94) * 5_000L, 5_000L)
+                request.format.itag == 140 && request.sequenceNumber in 50..51 ->
+                    cached(140, request.sequenceNumber, 489_244L + (request.sequenceNumber - 50) * 9_985L, 9_985L)
+                else -> null
+            }
+        }
+        val ranges = listOf(
+            SabrPlaybackBufferedRange(video.itag, 450_000L, 477_000L),
+            SabrPlaybackBufferedRange(video.itag, 480_000L, 485_000L),
+            SabrPlaybackBufferedRange(audio.itag, 450_000L, 489_244L),
+        )
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 477_942L, 299, 140, bufferGoalMs = 8_000L, bufferedRanges = ranges),
+        )
+
+        assertTrue(result.isReady)
+        assertFalse(result.blockedRequests.any { it.sequenceNumber == 92 })
+        assertEquals(
+            "/api/sabr/playback/session/299/segment/94?generation=0",
+            requireNotNull(result.response.video).segments.first().url,
+        )
+        assertEquals(
+            "/api/sabr/playback/session/140/segment/50?generation=0",
+            result.response.audio.segments.first().url,
         )
     }
 
