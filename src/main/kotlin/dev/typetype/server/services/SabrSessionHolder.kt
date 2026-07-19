@@ -20,6 +20,7 @@ internal class SabrSessionHolder(
     val sessionToken: String,
     val key: SabrSessionKey,
     @Volatile var lastRequestAt: Instant,
+    @Volatile var playerContextToken: SabrTokenBundle? = null,
     val pumpMutex: Mutex = Mutex(),
 ) {
     private val readerPositions = ConcurrentHashMap<ReaderTrackKey, Long>()
@@ -81,7 +82,9 @@ internal class SabrSessionHolder(
 
     fun observeMediaSegment(segment: SabrMediaSegment): Unit {
         val header = segment.header
-        if (header.isInitSegment || (header.itag != audioFormat.itag && header.itag != videoFormat.itag)) return
+        if (header.isInitSegment || header.sequenceNumber <= 0 ||
+            (header.itag != audioFormat.itag && header.itag != videoFormat.itag)
+        ) return
         observedMediaAnchors.compute(header.itag) { _, current ->
             if (current == null || header.startMs >= current.header.startMs) segment else current
         }

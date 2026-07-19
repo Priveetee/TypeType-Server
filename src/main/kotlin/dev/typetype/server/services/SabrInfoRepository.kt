@@ -22,20 +22,11 @@ internal class SabrInfoRepository(
         return null
     }
 
-    suspend fun shared(
-        videoId: String,
-        token: SabrTokenBundle,
-        bindPlayerContext: (YoutubeSabrInfo) -> YoutubeSabrInfo,
-    ): SabrPreparedInfo? {
+    suspend fun shared(videoId: String, token: SabrTokenBundle): SabrPreparedInfo? {
         sharedInfos.getInitialization(videoId)?.let { initializationInfos[videoId] = it }
         val info = sharedInfos.getPlayback(videoId) ?: return null
         if (info.visitorData != token.visitorData) return null
-        return putPrepared(
-            videoId,
-            startTimeMs = 0L,
-            SabrPreparedInfo(bindPlayerContext(info), token),
-            share = false,
-        )
+        return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(info, token), share = false)
     }
 
     suspend fun rememberInitialization(videoId: String, info: YoutubeSabrInfo): Unit {

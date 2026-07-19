@@ -19,9 +19,11 @@ object NewPipeInitializer {
             YoutubeApiDecoder.setLocalDecoder(TypetypeTokenYoutubeJavaScriptDecoder(normalizedUrl))
             decoderServiceUrl = normalizedUrl
         }
-        if (initialized) return
-        NewPipe.init(OkHttpDownloader.instance(youtubeProxySelector))
-        initialized = true
+        if (!initialized) {
+            NewPipe.init(OkHttpDownloader.instance(youtubeProxySelector))
+            initialized = true
+        }
+        NewPipe.setYoutubeSessionPoTokenProvider(TypetypeYoutubeSessionPoTokenProvider)
     }
 
     private const val YOUTUBE_PLAYER_CLIENT = "mweb"
