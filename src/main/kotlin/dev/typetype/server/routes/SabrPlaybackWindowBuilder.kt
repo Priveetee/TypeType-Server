@@ -106,7 +106,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         requestedStartMs: Long,
         activeLive: Boolean,
     ): TrackBuildResult {
-        val targetMs = request.bufferedEndFor(format, requestedStartMs).coerceAtLeast(0L)
+        val continuesServedTrack = !activeLive || holder.lastServedSequence(format) != null
+        val targetMs = if (continuesServedTrack) request.bufferedEndFor(format, requestedStartMs) else requestedStartMs.coerceAtLeast(0L)
         val goalStartMs = if (activeLive) targetMs else request.playerTimeMs.coerceAtLeast(0L)
         var goalEndMs = goalStartMs + request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
@@ -140,7 +141,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 break
             }
             if (segments.isEmpty() && holder.failLivePlaybackDiscontinuity(
-                    format, targetMs, segment, request.bufferedRanges.any { it.itag == format.itag },
+                    format, targetMs, segment, continuesServedTrack && request.bufferedRanges.any { it.itag == format.itag },
                 )
             ) {
                 blockedBy = "${format.trackName()}:${format.itag}:$seq discontinuity"

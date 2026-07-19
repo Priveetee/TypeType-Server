@@ -61,12 +61,15 @@ class SabrPlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `window starts from initial media without waiting for buffer goal`() = runTest {
+    fun `live window ignores client ranges before serving its own media`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 401, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadTimeMs } returns 330_000L
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 300_000L) } returns 60
         every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 296_600L) } returns 30
         val holder = holder(session, audio, video)
@@ -80,7 +83,8 @@ class SabrPlaybackWindowBuilderTest {
                 else -> null
             }
         }
-        val request = SabrPlaybackWindowRequest(0L, 300_000L, 401, 140, bufferGoalMs = 30_000L)
+        val ranges = listOf(SabrPlaybackBufferedRange(401, 290_000L, 320_000L))
+        val request = SabrPlaybackWindowRequest(0L, 300_000L, 401, 140, bufferGoalMs = 30_000L, bufferedRanges = ranges)
 
         assertTrue(SabrPlaybackWindowBuilder(store).build(holder, request).isReady)
     }
