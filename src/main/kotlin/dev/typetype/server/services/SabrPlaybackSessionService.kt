@@ -161,6 +161,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
         if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
         if (startTimeMs > 0L) {
+            holder.setRequestedSeekTimeMs(startTimeMs)
             holder.requestReposition(startTimeMs, holder.activeGeneration())
         }
         sessionStore.startPump(holder)

@@ -71,8 +71,17 @@ internal class SabrSessionStore(
         session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
         runCatching { provider.getPoToken(info, session.streamState) }
             .getOrNull()
-            ?.let { session.streamState.setContentPoToken(it) }
-        val holder = SabrSessionHolder(session, info, audioFormat, videoFormat, playbackToken ?: SabrSessionTokenGenerator.newToken(), key, Instant.now())
+            ?.let { session.streamState.setPoToken(it) }
+        val holder = SabrSessionHolder(
+            session,
+            info,
+            audioFormat,
+            videoFormat,
+            playbackToken ?: SabrSessionTokenGenerator.newToken(),
+            key,
+            Instant.now(),
+            initialToken,
+        )
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)
         if (startPump) startPump(holder)
@@ -168,19 +177,19 @@ internal class SabrSessionStore(
         holder.liveInitialization(format)?.let { return it }
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
-        val sourceFormat = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format
-        SabrInitializationData.fetch(sourceFormat, initCache)?.let {
+        SabrInitializationData.fetch(holder.key.videoId, format, initCache)?.let {
             holder.session.streamState.ingestInitializationData(format, it)
             return it
         }
-        SabrInitializationData.fetchFallback(holder, format, initCache)?.let { return it }
-        return pump.fetchSegment(holder, request)?.also { segmentCache.put(holder, it) }?.data
+        SabrInitializationData.bootstrap(holder, format, initCache)?.let { return it }
+        val segment = pump.fetchSegment(holder, request) ?: return null
+        segmentCache.put(holder, segment)
+        SabrInitializationData.remember(holder.key.videoId, format, segment.data, initCache)
+        return segment.data
     }
 
     private suspend fun fetchDirectInitialization(holder: SabrSessionHolder, format: YoutubeSabrFormat): Unit {
-        val source = infoFetcher.initializationFormat(holder.key.videoId, format) ?: format
-        val data = SabrInitializationData.fetch(source, initCache) ?: return
-        SabrInitializationData.remember(format, data)
+        val data = SabrInitializationData.fetch(holder.key.videoId, format, initCache) ?: return
         holder.pumpMutex.withLock { holder.session.streamState.ingestInitializationData(format, data) }
     }
 

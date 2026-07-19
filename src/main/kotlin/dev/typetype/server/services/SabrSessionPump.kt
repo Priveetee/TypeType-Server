@@ -16,16 +16,25 @@ internal class SabrSessionPump(
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "US")
         var pumps = 0
+        var liveWarmupTarget: SabrLiveWarmupTarget? = null
         holder.setPlaybackState(SabrPlaybackState.PREPARING)
         while (pumps < maxPumps && !isWarmEnough(holder) && (!holder.session.isComplete || holder.expectsLive())) {
             holder.pumpMutex.withLock {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
                 if (holder.expectsLive()) {
-                    runCatchingNonCancellation { holder.session.pumpOnce(localization) }
+                    runCatchingNonCancellation {
+                        withLiveWarmupRequestShape(holder, liveWarmupTarget) {
+                            holder.withPlayerContext { pumpOnce(localization) }
+                        }
+                    }
                         .getOrDefault(emptyList())
-                        .forEach(holder::observeMediaSegment)
+                        .forEach { segment ->
+                            segmentCache?.put(holder, segment)
+                            holder.observeMediaSegment(segment)
+                        }
+                    if (liveWarmupTarget == null) liveWarmupTarget = holder.liveWarmupTarget()
                 } else {
-                    runCatchingNonCancellation { holder.session.pumpOnceStreaming(localization) }
+                    runCatchingNonCancellation { holder.withPlayerContext { pumpOnceStreaming(localization) } }
                 }
             }
             pumps++
@@ -108,20 +117,20 @@ internal class SabrSessionPump(
                     return@withLock cached
                 }
                 if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return@withLock null
-                holder.consumeMatchingSeek(request)
+                val exactSeekPrepared = holder.consumeMatchingSeek(request)
                 val edgeMs = holder.session.streamState.getMinBufferedEndMs()
                 val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
                 if (startMs < edgeMs - REWIND_GAP_MS) {
                     holder.setReaderPosition(request.format, startMs.coerceAtLeast(0L))
-                    holder.session.prepareForRewind(request)
-                    runCatchingNonCancellation { holder.session.pumpOnceStreamingUntilCached(localization, request) }
+                    if (!exactSeekPrepared) holder.session.prepareForRewind(request)
+                    runCatchingNonCancellation { holder.withPlayerContext { pumpOnceStreamingUntilCached(localization, request) } }
                     return@withLock holder.session.getCachedSegment(request)?.also {
                         if (markServed) holder.markServed(it)
                     }
                 } else {
                     holder.session.streamState.setPlayerTimeMs(maxOf(edgeMs, startMs + PLAYER_TIME_OFFSET_MS))
                 }
-                val fetched = runCatchingNonCancellation { holder.session.fetchSegment(request, localization) }.getOrNull()
+                val fetched = runCatchingNonCancellation { holder.withPlayerContext { fetchSegment(request, localization) } }.getOrNull()
                 fetched?.also { if (markServed) holder.markServed(it) }
             }
             if (segment != null) {
@@ -151,7 +160,9 @@ internal class SabrSessionPump(
                 if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return@withLock null
                 holder.consumeMatchingSeek(request)
                 withTargetedRequestShape(holder, request) {
-                    holder.session.fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
+                    holder.withPlayerContext {
+                        fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
+                    }
                         ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)
                 }
             }
@@ -184,19 +195,4 @@ internal class SabrSessionPump(
         return playerTimeMs.takeIf { it < endMs }
     }
 
-    private fun SabrSessionHolder.consumeMatchingSeek(request: SabrSegmentRequest): Unit {
-        pendingRefetchRequest()?.takeIf { it.matches(request) }?.let {
-            consumeRefetch()
-            setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            session.prepareForRewind(request)
-        }
-        pendingForwardSeekRequest()?.takeIf { it.matches(request) }?.let {
-            consumeForwardSeek()
-            setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            session.prepareForForwardJump(request)
-        }
-    }
-
-    private fun SabrSegmentRequest.matches(other: SabrSegmentRequest): Boolean =
-        format.itag == other.format.itag && sequenceNumber == other.sequenceNumber && isInitializationSegment == other.isInitializationSegment
 }

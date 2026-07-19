@@ -68,7 +68,7 @@ internal class SabrSessionPumpLoop(
             }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForRewind(request)
+            holder.prepareForExplicitRewind(request)
             SabrPumpLogger.start(holder, "refetch", request)
             val pumped = pumpOnce(holder, localization, runtime)
             SabrPumpLogger.finish(holder, "refetch", request, pumped)
@@ -82,7 +82,7 @@ internal class SabrSessionPumpLoop(
             }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForForwardJump(request)
+            holder.prepareForExplicitForwardJump(request)
             SabrPumpLogger.start(holder, "forward_seek", request)
             val pumped = pumpUntilCached(holder, localization, request, runtime)
             SabrPumpLogger.finish(holder, "forward_seek", request, pumped.segmentCount)
@@ -128,7 +128,7 @@ internal class SabrSessionPumpLoop(
     }
     private suspend fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
         return try {
-            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreaming(localization) }
+            runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreaming(localization) } }
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
@@ -142,7 +142,7 @@ internal class SabrSessionPumpLoop(
         runtime: SabrPumpRuntime,
     ): YoutubeSabrSession.DemandResponseResult {
         return try {
-            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreamingForDemand(localization, request) }
+            runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreamingForDemand(localization, request) } }
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
@@ -161,7 +161,7 @@ internal class SabrSessionPumpLoop(
         if (holder.livePlaybackSnapshot()?.active == true) {
             if (holder.isHistoricalLiveRequest(request)) {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-                holder.session.prepareForRewind(request)
+                holder.prepareForHistoricalLiveRewind(request)
                 return withTargetedRequestShape(holder, request) {
                     pumpUntilCached(holder, localization, request, runtime)
                 }

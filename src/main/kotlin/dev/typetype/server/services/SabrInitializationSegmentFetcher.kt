@@ -21,7 +21,7 @@ internal suspend fun fetchSabrInitializationSegment(
     if (holder.session.isBeyondEnd(request)) return@withLock null
     val result = runCatchingNonCancellation {
         holder.session.prepareForInitialization(request.format)
-        holder.session.fetchSegment(request, localization)
+        holder.withPlayerContext { fetchSegment(request, localization) }
     }
     result.onFailure { error ->
         logger.warn(

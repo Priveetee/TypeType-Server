@@ -13,7 +13,7 @@ internal object SabrWindowSegmentFetcher {
         segmentCache: SabrSegmentCache?,
     ): SabrMediaSegment? {
         val result = runCatchingNonCancellation {
-            holder.session.pumpOnceStreamingUntilCached(localization, request)
+            holder.withPlayerContext { pumpOnceStreamingUntilCached(localization, request) }
             holder.session.getCachedSegment(request)
         }
         result.onFailure { error ->
