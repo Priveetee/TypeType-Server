@@ -1,7 +1,9 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.livePlaybackSnapshot
+import dev.typetype.server.services.playbackSegmentDurationMs
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.durationMs(): Long {
@@ -51,4 +53,17 @@ internal fun resolvedPlaybackStartMs(
         .filterNotNull()
         .mapNotNull { it.segments.firstOrNull()?.startMs }
         .fold(requestedStartMs.coerceAtLeast(0L), ::maxOf)
+}
+
+internal fun SabrSessionHolder.previousPlaybackSequence(
+    format: YoutubeSabrFormat,
+    sequence: Int,
+    segment: CachedSabrSegment,
+    targetMs: Long,
+): Int {
+    val durationMs = segment.durationMs.takeIf { it > 0L }
+        ?: playbackSegmentDurationMs(format, sequence)
+    val leadMs = segment.startMs - targetMs
+    val count = ((leadMs + durationMs - 1L) / durationMs).coerceAtLeast(1L)
+    return (sequence - count.coerceAtMost((sequence - 1).toLong()).toInt()).coerceAtLeast(1)
 }

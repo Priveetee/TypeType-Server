@@ -10,7 +10,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -21,7 +21,7 @@ import java.time.Instant
 
 class SabrLiveGapWindowTest {
     @Test
-    fun `live gap extends the window from the replacement segment`() = runTest {
+    fun `live gap requests a fresh session before playback reaches it`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -54,19 +54,13 @@ class SabrLiveGapWindowTest {
             SabrPlaybackWindowRequest(0L, 470_000L, 299, 140, bufferGoalMs = 8_000L, bufferedRanges = ranges),
         )
 
-        assertTrue(result.isReady)
-        assertEquals(480_000L, result.response.startTimeMs)
-        assertEquals(
-            listOf(
-                "/api/sabr/playback/session/299/segment/93?generation=0",
-                "/api/sabr/playback/session/299/segment/94?generation=0",
-            ),
-            requireNotNull(result.response.video).segments.map { it.url },
-        )
+        assertFalse(result.isReady)
+        assertEquals("SABR recoverable failure: live 299 media discontinuity", holder.terminalFailure())
+        assertNull(result.blockedRequests.firstOrNull { it.format.itag == video.itag })
     }
 
     @Test
-    fun `live gap continues after the replacement segment while playhead remains behind`() = runTest {
+    fun `live gap requests a fresh session when playhead remains behind`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -101,16 +95,9 @@ class SabrLiveGapWindowTest {
             SabrPlaybackWindowRequest(0L, 477_942L, 299, 140, bufferGoalMs = 8_000L, bufferedRanges = ranges),
         )
 
-        assertTrue(result.isReady)
+        assertFalse(result.isReady)
         assertFalse(result.blockedRequests.any { it.sequenceNumber == 92 })
-        assertEquals(
-            "/api/sabr/playback/session/299/segment/94?generation=0",
-            requireNotNull(result.response.video).segments.first().url,
-        )
-        assertEquals(
-            "/api/sabr/playback/session/140/segment/50?generation=0",
-            result.response.audio.segments.first().url,
-        )
+        assertEquals("SABR recoverable failure: live 299 media discontinuity", holder.terminalFailure())
     }
 
     private fun holder(

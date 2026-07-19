@@ -6,6 +6,7 @@ import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.findCachedPlaybackMediaAt
 import dev.typetype.server.services.coversPlaybackTime
+import dev.typetype.server.services.failLivePlaybackDiscontinuity
 import dev.typetype.server.services.livePlaybackSnapshot
 import dev.typetype.server.services.playbackContinuationSequence
 import dev.typetype.server.services.playbackSegmentDurationMs
@@ -138,8 +139,15 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 blockedRequest = mediaRequest
                 break
             }
+            if (segments.isEmpty() && holder.failLivePlaybackDiscontinuity(
+                    format, targetMs, segment, request.bufferedRanges.any { it.itag == format.itag },
+                )
+            ) {
+                blockedBy = "${format.trackName()}:${format.itag}:$seq discontinuity"
+                break
+            }
             if (!activeLive && segments.isEmpty() && segment.startMs > targetMs && seq > 1) {
-                seq = previousSequence(holder, format, seq, segment, targetMs)
+                seq = holder.previousPlaybackSequence(format, seq, segment, targetMs)
                 continue
             }
             val windowSegment = segment.toWindowSegment(holder, format)
@@ -171,20 +179,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             coveredEndMs = coveredEndMs,
             atEnd = atEnd,
         )
-    }
-
-    private fun previousSequence(
-        holder: SabrSessionHolder,
-        format: YoutubeSabrFormat,
-        sequence: Int,
-        segment: CachedSabrSegment,
-        targetMs: Long,
-    ): Int {
-        val durationMs = segment.durationMs.takeIf { it > 0L }
-            ?: holder.playbackSegmentDurationMs(format, sequence)
-        val leadMs = segment.startMs - targetMs
-        val count = ((leadMs + durationMs - 1L) / durationMs).coerceAtLeast(1L)
-        return (sequence - count.coerceAtMost((sequence - 1).toLong()).toInt()).coerceAtLeast(1)
     }
 
     private fun CachedSabrSegment.toWindowSegment(
