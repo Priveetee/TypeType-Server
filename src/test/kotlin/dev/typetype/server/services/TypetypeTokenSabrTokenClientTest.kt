@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 
@@ -80,41 +79,10 @@ class TypetypeTokenSabrTokenClientTest {
         assertEquals("true", url.queryParameter("refreshVideo"))
     }
 
-    @Test
-    fun playerContextProviderRefreshesVisitorAndPlayerTokenAtomically(): Unit {
-        val initial = bundle("old-visitor", "old-player")
-        val recorder = PotokenRequestRecorder(FRESH_TOKEN_JSON)
-        val provider = TypetypeTokenSabrPlayerContextProvider(
-            TypetypeTokenSabrTokenClient("https://token.example", recorder.client),
-            initial,
-        )
-
-        val cached = provider.getPlayerContext("video", YoutubeSabrClientProfile.WEB)
-        val refreshed = provider.getPlayerContext("video", YoutubeSabrClientProfile.WEB, true)
-
-        assertEquals("old-visitor", cached.visitorData)
-        assertEquals("old-player", cached.playerPoToken)
-        assertEquals("fresh-visitor", refreshed.visitorData)
-        assertEquals("Aw", refreshed.playerPoToken)
-        assertEquals("fresh-visitor", provider.tokenFor(info("fresh-visitor"))?.visitorData)
-        val url = recorder.urls.single()
-        assertEquals("true", url.queryParameter("refresh"))
-        assertNull(url.queryParameter("refreshVideo"))
-    }
-
     private fun info(expectedVisitorData: String): YoutubeSabrInfo = mockk {
         every { videoId } returns "video"
         every { visitorData } returns expectedVisitorData
     }
-
-    private fun bundle(visitorData: String, playerToken: String): SabrTokenBundle = SabrTokenBundle(
-        videoId = "video",
-        visitorBoundPoToken = playerToken,
-        visitorBoundPoTokenBytes = byteArrayOf(1),
-        visitorData = visitorData,
-        videoBoundPoToken = "video-token",
-        videoBoundPoTokenBytes = byteArrayOf(2),
-    )
 
     private class PotokenRequestRecorder(tokenJson: String = TOKEN_JSON) {
         val urls = mutableListOf<okhttp3.HttpUrl>()
@@ -137,7 +105,5 @@ class TypetypeTokenSabrTokenClientTest {
             """{"visitorBoundPoToken":"AQ","visitorData":"visitor","videoBoundPoToken":"Ag"}"""
         const val MISMATCHED_TOKEN_JSON =
             """{"visitorBoundPoToken":"AQ","visitorData":"other-visitor","videoBoundPoToken":"Ag"}"""
-        const val FRESH_TOKEN_JSON =
-            """{"visitorBoundPoToken":"Aw","visitorData":"fresh-visitor","videoBoundPoToken":"BA"}"""
     }
 }

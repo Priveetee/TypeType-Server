@@ -18,7 +18,7 @@ class SabrUnauthorizedResponseRecoveryTest {
 
         assertThrows(SabrRecoverableException::class.java) { recovery.verify(holder) }
 
-        verify(exactly = 0) { state.setContentPoToken(any()) }
+        verify(exactly = 0) { state.setPoToken(any()) }
     }
 
     @Test
@@ -29,18 +29,20 @@ class SabrUnauthorizedResponseRecoveryTest {
 
         assertThrows(SabrRecoverableException::class.java) { recovery.verify(holder) }
 
-        verify(exactly = 0) { state.setContentPoToken(any()) }
+        verify(exactly = 0) { state.setPoToken(any()) }
     }
 
     @Test
     fun appliesFreshVideoTokenFromSameVisitorSession(): Unit {
         val freshToken = byteArrayOf(2)
+        val refreshed = bundle("visitor-a", freshToken)
         val (holder, state) = holder(visitorData = "visitor-a", currentToken = byteArrayOf(1))
-        val recovery = SabrUnauthorizedResponseRecovery { bundle("visitor-a", freshToken) }
+        val recovery = SabrUnauthorizedResponseRecovery { refreshed }
 
         recovery.verify(holder)
 
-        verify(exactly = 1) { state.setContentPoToken(match { it.contentEquals(freshToken) }) }
+        verify(exactly = 1) { state.setPoToken(match { it.contentEquals(freshToken) }) }
+        verify(exactly = 1) { holder.playerContextToken = refreshed }
     }
 
     private fun holder(
@@ -50,8 +52,8 @@ class SabrUnauthorizedResponseRecoveryTest {
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val info = mockk<YoutubeSabrInfo>()
-        val holder = mockk<SabrSessionHolder>()
-        every { state.contentPoToken } returns currentToken
+        val holder = mockk<SabrSessionHolder>(relaxed = true)
+        every { state.poToken } returns currentToken
         every { session.streamState } returns state
         every { session.diagnosticTrace } returns "response n=4 http=403 segments=count=0"
         every { info.videoId } returns "video"
