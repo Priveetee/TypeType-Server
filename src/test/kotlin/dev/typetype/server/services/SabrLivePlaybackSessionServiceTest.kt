@@ -7,6 +7,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -88,6 +90,36 @@ class SabrLivePlaybackSessionServiceTest {
         verify(exactly = 1) { store.startPump(holder) }
     }
 
+    @Test
+    fun `live quality change skips the unavailable segment before a nearby audio boundary`() {
+        val audio = format(140, isAudio = true)
+        val video = format(248, isAudio = false)
+        val holder = holder(audio, video)
+        val audioSegment = mediaSegment(audio.itag, 995_010L, sequence = 101)
+        val videoSegment = mediaSegment(video.itag, 995_000L, sequence = 100)
+        holder.markExpectedLive()
+        holder.observeMediaSegment(audioSegment)
+        holder.observeMediaSegment(videoSegment)
+        every {
+            holder.session.getCachedSegment(match {
+                it.format.itag == video.itag && it.sequenceNumber == 100
+            })
+        } returns videoSegment
+        every {
+            holder.session.getCachedSegment(match {
+                it.format.itag == audio.itag && it.sequenceNumber == 101
+            })
+        } returns audioSegment
+        val store = mockk<SabrSessionStore>()
+        every { store.startPump(holder) } returns Unit
+
+        SabrPlaybackSessionService(store).seekExisting(holder, 995_000L)
+
+        assertNull(holder.nextSegmentDemand())
+        assertEquals(995_010L, holder.readerPosition(audio))
+        assertFalse(holder.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
+    }
+
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
@@ -118,10 +150,10 @@ class SabrLivePlaybackSessionServiceTest {
         return format
     }
 
-    private fun mediaSegment(itag: Int, startMs: Long): SabrMediaSegment {
+    private fun mediaSegment(itag: Int, startMs: Long, sequence: Int = 200): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>(relaxed = true)
         every { header.itag } returns itag
-        every { header.sequenceNumber } returns 200
+        every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
         every { header.durationMs } returns 5_000L
         every { header.isInitSegment } returns false
