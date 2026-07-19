@@ -33,12 +33,14 @@ import dev.typetype.server.services.UserVideoMetadataRepairService
 import dev.typetype.server.services.VideoMetadataResolver
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutFactory
+import java.net.ProxySelector
 internal class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
     jwtSecret: String,
     adminSettingsService: AdminSettingsService,
+    youtubeProxySelector: ProxySelector? = null,
 ) {
     init {
         SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
@@ -53,6 +55,7 @@ internal class ServiceRegistry(
         subtitleServiceUrl,
         youtubeSessionEncryptionKey,
         publicHlsManifestTokenService::createPath,
+        youtubeProxySelector,
     )
     val youtubeSessionService = extraction.youtubeSessionService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
@@ -103,7 +106,7 @@ internal class ServiceRegistry(
     val accessControlService = AccessControlService(settingsService, allowedChannelsService, allowedPlaylistsService, adminSettingsService)
     val blockedService = BlockedService()
     val bugReportService = BugReportService()
-    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService, streamService)
+    val youtubeTakeoutImportService = YoutubeTakeoutFactory.create(subscriptionsService, playlistService, historyService, favoritesService, watchLaterService)
     val recommendationPoolResolverDependencies = HomeRecommendationPoolResolverDependencies(
         subscriptionsService = subscriptionsService,
         subscriptionFeedService = subscriptionFeedService,

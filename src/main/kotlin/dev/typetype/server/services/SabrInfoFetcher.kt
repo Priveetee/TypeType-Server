@@ -2,15 +2,11 @@ package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 import org.slf4j.LoggerFactory
 
 internal class SabrInfoFetcher(
@@ -18,6 +14,7 @@ internal class SabrInfoFetcher(
     private val sessionClient: TypetypeTokenYoutubeSessionClient? = null,
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
     sharedCache: CacheService? = null,
+    private val playerInfoProbe: SabrPlayerInfoProbe = PipePipeSabrPlayerInfoProbe,
 ) {
     private val repository = SabrInfoRepository(infoCache, sharedCache)
 
@@ -37,12 +34,8 @@ internal class SabrInfoFetcher(
                 return@withContext prepared
             }
         }
-        fetchPlayableWithRetries(videoId, startTimeMs)?.let {
+        fetchPlayable(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "network")
-            return@withContext it
-        }
-        if (startTimeMs > 0L) fetchPlayableWithRetries(videoId, 0L)?.let {
-            logFetch(videoId, startTimeMs, startedAt, "network_start0")
             return@withContext it
         }
         repository.local(videoId, startTimeMs)?.also { logFetch(videoId, startTimeMs, startedAt, "late_cache") }
@@ -60,7 +53,7 @@ internal class SabrInfoFetcher(
 
     suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
         repository.rememberInitialization(videoId, info)
-        fetchInfoOnce(videoId, startTimeMs = 0L, forceRefresh = false)
+        fetchInfoOnce(videoId, startTimeMs = 0L)
             ?.takeIf { it.hasAudioAndVideoFormats() }
             ?.let { repository.putPrepared(videoId, startTimeMs = 0L, it) }
     }
@@ -70,125 +63,87 @@ internal class SabrInfoFetcher(
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
         repository.initializationFormat(videoId, target)
 
-    private suspend fun fetchPlayableWithRetries(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
-        repeat(SabrSessionStoreDefaults.INFO_ATTEMPTS) { attempt ->
-            fetchInfoOnce(videoId, startTimeMs, forceRefresh = attempt > 0)
-                ?.let { return repository.putPrepared(videoId, startTimeMs, it) }
-            if (attempt + 1 < SabrSessionStoreDefaults.INFO_ATTEMPTS) delay(SabrSessionStoreDefaults.INFO_RETRY_DELAY_MS)
-        }
-        return null
-    }
+    private suspend fun fetchPlayable(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
+        fetchInfoOnce(videoId, startTimeMs)?.let { repository.putPrepared(videoId, startTimeMs, it) }
 
-    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long, forceRefresh: Boolean): SabrPreparedInfo? =
+    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val refreshedToken = if (forceRefresh) tokenClient.fetch(videoId, forceRefresh = true) else null
             val tokenSession = sessionClient?.fetchPlaybackSession(videoId)
             tokenSession?.token
                 ?.takeIf { it.visitorData == tokenSession.info.visitorData }
                 ?.let { sessionToken ->
-                    SabrPreparedInfo(tokenSession.info, sessionToken)
+                    SabrPreparedInfo(tokenSession.info, sessionToken, tokenSession.isLive, tokenSession.isLiveContent)
                         .takeIf { it.hasAudioAndVideoFormats() }
                         ?.let { return@withTimeoutOrNull it }
                 }
-            val token = refreshedToken ?: tokenClient.fetch(videoId)
+            val token = tokenClient.fetch(videoId)
                 ?: return@withTimeoutOrNull null.also {
                     logger.warn(
-                        "sabr_probe event=token_missing videoId={} startTimeMs={} forceRefresh={}",
+                        "sabr_probe event=token_missing videoId={} startTimeMs={}",
                         videoId,
                         startTimeMs,
-                        forceRefresh,
                     )
                 }
             tokenSession
                 ?.takeIf { it.info.visitorData == token.visitorData }
-                ?.let { SabrPreparedInfo(it.info, token) }
+                ?.let {
+                    SabrPreparedInfo(it.info, token, it.isLive, it.isLiveContent)
+                }
                 ?.takeIf { it.hasAudioAndVideoFormats() }
                 ?.let { return@withTimeoutOrNull it }
+            val recovery = SabrPlayerContextRecovery(videoId, token, tokenClient, playerInfoProbe)
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
-                fetchInfoForProfileWithTokenFallback(videoId, startTimeMs, token, profile)
+                fetchInfoForProfile(videoId, startTimeMs, profile, recovery)
                     ?.takeIf { it.hasAudioAndVideoFormats() }
             }
         }
 
-    private fun fetchInfoForProfileWithTokenFallback(
-        videoId: String,
-        startTimeMs: Long,
-        token: SabrTokenBundle,
-        profile: YoutubeSabrClientProfile,
-    ): SabrPreparedInfo? {
-        fetchInfoForProfile(
-            videoId = videoId,
-            startTimeMs = startTimeMs,
-            token = token,
-            profile = profile,
-            poToken = token.visitorBoundPoToken,
-            tokenKind = VISITOR_BOUND_TOKEN_KIND,
-        )?.let { return it }
-        if (token.visitorBoundPoToken == token.videoBoundPoToken) return null
-        return fetchInfoForProfile(
-            videoId = videoId,
-            startTimeMs = startTimeMs,
-            token = token,
-            profile = profile,
-            poToken = token.videoBoundPoToken,
-            tokenKind = VIDEO_BOUND_TOKEN_KIND,
-        )
-    }
-
     private fun fetchInfoForProfile(
         videoId: String,
         startTimeMs: Long,
-        token: SabrTokenBundle,
         profile: YoutubeSabrClientProfile,
-        poToken: String,
-        tokenKind: String,
+        recovery: SabrPlayerContextRecovery,
     ): SabrPreparedInfo? {
-        val result = runCatching {
-            YoutubeSabrProbe.fetchSabrInfo(
-                videoId,
-                profile,
-                LOCALIZATION,
-                CONTENT_COUNTRY,
-                poToken,
-                token.visitorData,
-            )
-        }
-        result.onFailure { error ->
-            logger.warn(
-                "sabr_probe event=fetch_failed videoId={} profile={} tokenKind={} startTimeMs={} errorType={} error={}",
-                videoId,
-                profile,
-                tokenKind,
-                startTimeMs,
-                error.javaClass.simpleName,
-                error.message,
-                error,
-            )
-        }
-        return result.getOrNull()?.let { info ->
-            val prepared = SabrPreparedInfo(info, token)
-            if (!prepared.hasAudioAndVideoFormats()) {
+        return when (val result = recovery.fetch(profile)) {
+            is SabrPlayerProbeResult.Failure -> null.also {
                 logger.warn(
-                    "sabr_probe event=no_av_formats videoId={} profile={} tokenKind={} formatCount={} hasAudio={} hasVideo={} streamingUrl={}",
+                    "sabr_probe event=fetch_failed videoId={} profile={} startTimeMs={} contextRefreshAttempted={} errorType={} error={}",
                     videoId,
                     profile,
-                    tokenKind,
-                    info.formats.size,
-                    info.formats.any { it.isAudio },
-                    info.formats.any { it.isVideo },
-                    !info.serverAbrStreamingUrl.isNullOrEmpty(),
+                    startTimeMs,
+                    result.contextRefreshAttempted,
+                    result.error.javaClass.simpleName,
+                    result.error.message,
+                    result.error,
                 )
             }
-            prepared
+            is SabrPlayerProbeResult.Success -> SabrPreparedInfo(result.info, result.token).also { prepared ->
+                if (!prepared.hasAudioAndVideoFormats()) logMissingFormats(videoId, profile, result.info)
+                if (result.contextRefreshed) {
+                    logger.info("sabr_probe event=player_context_refreshed videoId={} profile={}", videoId, profile)
+                }
+            }
         }
+    }
+
+    private fun logMissingFormats(
+        videoId: String,
+        profile: YoutubeSabrClientProfile,
+        info: YoutubeSabrInfo,
+    ): Unit {
+        logger.warn(
+            "sabr_probe event=no_av_formats videoId={} profile={} formatCount={} hasAudio={} hasVideo={} streamingUrl={}",
+            videoId,
+            profile,
+            info.formats.size,
+            info.formats.any { it.isAudio },
+            info.formats.any { it.isVideo },
+            !info.serverAbrStreamingUrl.isNullOrEmpty(),
+        )
     }
 
     private companion object {
         val logger = LoggerFactory.getLogger(SabrInfoFetcher::class.java)
-        val LOCALIZATION = Localization("en", "US")
-        val CONTENT_COUNTRY = ContentCountry("US")
         val CLIENT_PROFILES = listOf(YoutubeSabrClientProfile.WEB, YoutubeSabrClientProfile.MWEB)
-        const val VIDEO_BOUND_TOKEN_KIND = "video_bound"
-        const val VISITOR_BOUND_TOKEN_KIND = "visitor_bound"
     }
 }

@@ -36,7 +36,7 @@ class SabrFallbackStreamServiceTest {
     }
 
     @Test
-    fun `prepares sabr while keeping already playable extraction`() = runTest {
+    fun `replaces classic extraction with prepared sabr formats`() = runTest {
         val delegate = mockk<StreamService>()
         val sessionStore = mockk<SabrSessionStore>()
         val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
@@ -47,9 +47,35 @@ class SabrFallbackStreamServiceTest {
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
-        assertEquals(ExtractionResult.Success(response), result)
+        val enriched = (result as ExtractionResult.Success).data
+        assertEquals(listOf(137), enriched.videoOnlyStreams.map { it.itag })
+        assertEquals(listOf(140), enriched.audioStreams.map { it.itag })
+        assertEquals("sabr", enriched.videoOnlyStreams.single().deliveryMethod)
+        assertEquals("sabr", enriched.audioStreams.single().deliveryMethod)
         coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
         coVerify(exactly = 0) { tokenSessionClient.fetchPlaybackSession(any()) }
+    }
+
+    @Test
+    fun `enriches a live hls extraction with prepared sabr formats`() = runTest {
+        val delegate = mockk<StreamService>()
+        val sessionStore = mockk<SabrSessionStore>()
+        val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
+        val response = testStreamResponse(
+            videoOnlyStreams = emptyList(),
+            audioStreams = emptyList(),
+            hlsUrl = LIVE_HLS_URL,
+        ).copy(isLive = true, isLiveContent = true, hasLiveManifest = true, streamType = "live_stream")
+        coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Success(response)
+        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns preparedInfo()
+        val service = SabrFallbackStreamService(delegate, sessionStore, tokenSessionClient)
+
+        val result = service.getStreamInfo(YOUTUBE_URL)
+
+        val enriched = (result as ExtractionResult.Success).data
+        assertEquals(LIVE_HLS_URL, enriched.hlsUrl)
+        assertEquals(listOf(137), enriched.videoOnlyStreams.map { it.itag })
+        assertEquals(listOf(140), enriched.audioStreams.map { it.itag })
     }
 
     @Test

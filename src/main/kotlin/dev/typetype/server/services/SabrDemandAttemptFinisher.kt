@@ -4,16 +4,38 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 
 internal object SabrDemandAttemptFinisher {
+    fun interruptCompletedInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =
+        synchronized(holder) {
+            val state = holder.playbackState()
+            if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+            if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+            if (holder.session.getCachedSegment(demand.request) == null) return@synchronized false
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            true
+        }
+
+    fun expireStalledInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =
+        synchronized(holder) {
+            val state = holder.playbackState()
+            if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+            if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+            holder.clearSegmentDemands()
+            val message = "SABR demand stalled for ${demand.request.summary()}"
+            holder.failTerminal(if (demand.futureLiveRequest) sabrRecoverableFailureMessage(message) else message)
+            true
+        }
+
     fun expireStalledDemand(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
         identity: String,
+        recoverable: Boolean = false,
     ): Boolean = synchronized(holder) {
         val state = holder.playbackState()
         if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
         val current = holder.nextSegmentDemand() ?: return@synchronized false
         if (!current.matches(request) || holder.segmentDemandIdentity(current) != identity) return@synchronized false
-        fail(holder, request, identity)
+        fail(holder, request, identity, recoverable)
     }
 
     fun finish(
@@ -22,6 +44,7 @@ internal object SabrDemandAttemptFinisher {
         identity: String,
         result: YoutubeSabrSession.DemandResponseResult,
         runtime: SabrPumpRuntime,
+        wasFutureLiveRequest: Boolean,
     ): Boolean = synchronized(holder) {
         if (!holder.isSegmentDemandActive(request, identity)) {
             runtime.finishDemand(identity)
@@ -30,13 +53,20 @@ internal object SabrDemandAttemptFinisher {
         }
         val resolved = holder.resolveSegmentDemand(request, identity)
         SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
+        if (!resolved && (wasFutureLiveRequest || holder.isFutureLiveRequest(request))) {
+            runtime.finishDemand(identity)
+            holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
+            return@synchronized false
+        }
         val action = runtime.demandRecoveryAction(
             requestKey = identity,
             targetTrackSegmentCount = result.targetTrackSegmentCount,
             resolved = resolved,
         )
         val recovering = recover(holder, request, identity, action, runtime)
-        if (holder.playbackState() != SabrPlaybackState.TERMINAL) {
+        if (holder.playbackState() != SabrPlaybackState.TERMINAL &&
+            holder.playbackState() != SabrPlaybackState.WAITING_FOR_LIVE
+        ) {
             holder.setPlaybackState(SabrPlaybackState.IDLE)
         }
         resolved || recovering
@@ -67,11 +97,13 @@ internal object SabrDemandAttemptFinisher {
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
         identity: String,
+        recoverable: Boolean = false,
     ): Boolean {
         val failed = holder.clearSegmentDemand(request, identity)
         if (failed) {
             holder.clearSegmentDemands()
-            holder.failTerminal("SABR demand stalled for ${request.summary()}")
+            val message = "SABR demand stalled for ${request.summary()}"
+            holder.failTerminal(if (recoverable) sabrRecoverableFailureMessage(message) else message)
         }
         return failed
     }

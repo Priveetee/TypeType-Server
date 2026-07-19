@@ -61,12 +61,15 @@ class SabrPlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `window starts from initial media without waiting for buffer goal`() = runTest {
+    fun `live window ignores client ranges before serving its own media`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 401, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadTimeMs } returns 330_000L
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 300_000L) } returns 60
         every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 296_600L) } returns 30
         val holder = holder(session, audio, video)
@@ -80,7 +83,8 @@ class SabrPlaybackWindowBuilderTest {
                 else -> null
             }
         }
-        val request = SabrPlaybackWindowRequest(0L, 300_000L, 401, 140, bufferGoalMs = 30_000L)
+        val ranges = listOf(SabrPlaybackBufferedRange(401, 290_000L, 320_000L))
+        val request = SabrPlaybackWindowRequest(0L, 300_000L, 401, 140, bufferGoalMs = 30_000L, bufferedRanges = ranges)
 
         assertTrue(SabrPlaybackWindowBuilder(store).build(holder, request).isReady)
     }
@@ -167,6 +171,39 @@ class SabrPlaybackWindowBuilderTest {
     }
 
     @Test
+    fun `live window continues after the last segment served on each track`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { session.liveHeadSequenceNumber } returns 45L
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadSequenceNumber } returns 45L
+        every { streamState.liveHeadTimeMs } returns 220_000L
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(video, any()) } returns 43
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, any()) } returns 23
+        val holder = holder(session, audio, video)
+        holder.setLastServedSequence(video.itag, 41)
+        holder.setLastServedSequence(audio.itag, 21)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+        val ranges = listOf(
+            SabrPlaybackBufferedRange(video.itag, 190_000L, 208_000L),
+            SabrPlaybackBufferedRange(audio.itag, 190_000L, 208_000L),
+        )
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 200_000L, video.itag, audio.itag, bufferGoalMs = 8_000L, bufferedRanges = ranges),
+        )
+
+        assertEquals(42, result.blockedRequests.first { !it.format.isAudio }.sequenceNumber)
+        assertEquals(22, result.blockedRequests.first { it.format.isAudio }.sequenceNumber)
+    }
+
+    @Test
     fun `final indexed segments complete the window without requesting beyond end`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 299, isAudio = false)
@@ -219,7 +256,6 @@ class SabrPlaybackWindowBuilderTest {
         every { format.isAudio } returns isAudio
         every { format.mimeType } returns if (isAudio) "audio/mp4" else "video/mp4"
         every { format.approxDurationMs } returns 900_000L
-        every { format.initializationUrl } returns null
         return format
     }
 

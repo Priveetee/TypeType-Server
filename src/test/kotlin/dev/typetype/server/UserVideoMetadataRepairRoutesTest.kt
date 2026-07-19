@@ -24,17 +24,27 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 class UserVideoMetadataRepairRoutesTest {
     private val playlists = PlaylistService()
     private val watchLater = WatchLaterService()
     private val favorites = FavoritesService()
     private val auth = AuthService.fixed(TEST_USER_ID)
-    private val repair = UserVideoMetadataRepairService(VideoMetadataResolver(fakeStreamService()))
 
     companion object {
         private const val VIDEO_URL = "https://www.youtube.com/watch?v=abc123"
@@ -48,7 +58,10 @@ class UserVideoMetadataRepairRoutesTest {
     fun clean() = TestDatabase.truncateAll()
 
     @Test
-    fun `list routes repair fallback video metadata`() = testApplication {
+    fun `collection routes return before fallback metadata repair completes`() = testApplication {
+        val repairStarted = CompletableDeferred<Unit>()
+        val releaseRepair = CompletableDeferred<Unit>()
+        val repair = UserVideoMetadataRepairService(VideoMetadataResolver(fakeStreamService(repairStarted, releaseRepair)))
         val playlist = playlists.create(TEST_USER_ID, PlaylistItem(name = "Imported", description = ""))
         playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(VIDEO_URL))
         watchLater.add(TEST_USER_ID, WatchLaterItem(url = VIDEO_URL, title = "YouTube video abc123", thumbnail = "https://i.ytimg.com/vi/abc123/hqdefault.jpg", duration = 0L))
@@ -62,18 +75,73 @@ class UserVideoMetadataRepairRoutesTest {
             }
         }
 
-        val playlistBody = client.get("/playlists/${playlist.id}") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        val watchLaterBody = client.get("/watch-later") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        val favoritesBody = client.get("/favorites") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        val playlistsBody = client.get("/playlists") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        assertTrue(playlistsBody.contains("\"videoCount\":1"))
+        assertFalse(repairStarted.isCompleted)
 
-        assertTrue(playlistBody.contains("Resolved abc123"))
-        assertTrue(watchLaterBody.contains("Resolved abc123"))
-        assertTrue(favoritesBody.contains("Resolved abc123"))
-        assertTrue(watchLaterBody.contains("\"channelName\":\"Channel\""))
-        assertTrue(watchLaterBody.contains("\"viewCount\":10"))
-        assertTrue(favoritesBody.contains("\"thumbnail\":\"https://thumb.test/abc123.jpg\""))
-        assertTrue(favoritesBody.contains("\"viewCount\":10"))
-        assertTrue(favoritesBody.contains("\"publishedAt\":1"))
+        val (playlistBody, watchLaterBody, favoritesBody) = withTimeout(1_000) {
+            listOf(
+                client.get("/playlists/${playlist.id}") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText(),
+                client.get("/watch-later") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText(),
+                client.get("/favorites") { header(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText(),
+            )
+        }
+
+        assertTrue(playlistBody.contains("YouTube video abc123"))
+        assertTrue(watchLaterBody.contains("YouTube video abc123"))
+        assertFalse(playlistBody.contains("Resolved abc123"))
+        assertFalse(watchLaterBody.contains("Resolved abc123"))
+        assertFalse(favoritesBody.contains("Resolved abc123"))
+
+        withTimeout(5_000) { repairStarted.await() }
+        releaseRepair.complete(Unit)
+        withTimeout(5_000) {
+            while (
+                playlists.getById(TEST_USER_ID, playlist.id)?.videos?.single()?.title != "Resolved abc123" ||
+                watchLater.getAll(TEST_USER_ID).single().title != "Resolved abc123" ||
+                favorites.getAll(TEST_USER_ID).single().title != "Resolved abc123"
+            ) {
+                delay(10)
+            }
+        }
+    }
+
+    @Test
+    fun `repeated requests coalesce failed metadata repairs during cooldown`() = runBlocking {
+        val attempts = AtomicInteger()
+        val repairStarted = CompletableDeferred<Unit>()
+        val releaseRepair = CompletableDeferred<Unit>()
+        val streamService = object : StreamService {
+            override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+                attempts.incrementAndGet()
+                repairStarted.complete(Unit)
+                releaseRepair.await()
+                return ExtractionResult.Failure("Unavailable")
+            }
+        }
+        val repair = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
+        val playlist = playlists.create(TEST_USER_ID, PlaylistItem(name = "Imported", description = ""))
+        playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(VIDEO_URL))
+        val scope = CoroutineScope(SupervisorJob())
+
+        try {
+            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylists(scope, TEST_USER_ID)
+
+            withTimeout(5_000) { repairStarted.await() }
+            assertEquals(1, attempts.get())
+            releaseRepair.complete(Unit)
+            withTimeout(5_000) {
+                while (scope.coroutineContext.job.children.any()) delay(10)
+            }
+
+            repair.schedulePlaylists(scope, TEST_USER_ID)
+            delay(100)
+
+            assertEquals(1, attempts.get())
+        } finally {
+            scope.cancel()
+        }
     }
 
     private fun fallbackVideo(url: String): PlaylistVideoItem = PlaylistVideoItem(
@@ -83,8 +151,12 @@ class UserVideoMetadataRepairRoutesTest {
         duration = 0L,
     )
 
-    private fun fakeStreamService(): StreamService = object : StreamService {
-        override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = ExtractionResult.Success(stream(url))
+    private fun fakeStreamService(started: CompletableDeferred<Unit>, release: CompletableDeferred<Unit>): StreamService = object : StreamService {
+        override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+            started.complete(Unit)
+            release.await()
+            return ExtractionResult.Success(stream(url))
+        }
     }
 
     private fun stream(url: String): StreamResponse = StreamResponse(

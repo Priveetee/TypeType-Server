@@ -7,9 +7,11 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
@@ -76,7 +78,7 @@ class SabrPreparedInfoCacheTest {
 
         val result = fetcher.fetchInfo("video")
 
-        assertSame(info, result?.info)
+        assertEquals(info.formats, result?.info?.formats)
         assertSame(token, result?.initialToken)
         coVerify(exactly = 1) { sessionClient.fetchPlaybackSession("video") }
         verify(exactly = 0) { tokenClient.fetch(any(), any(), any()) }
@@ -94,7 +96,7 @@ class SabrPreparedInfoCacheTest {
 
         val result = fetcher.fetchInfo("video")
 
-        assertSame(info, result?.info)
+        assertEquals(info.formats, result?.info?.formats)
         assertSame(token, result?.initialToken)
         verify(exactly = 1) { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) }
     }
@@ -112,19 +114,53 @@ class SabrPreparedInfoCacheTest {
 
         val result = fetcher.fetchInfo("video")
 
-        assertSame(info, result?.info)
+        assertEquals(info.formats, result?.info?.formats)
         assertSame(fallback, result?.initialToken)
         verify(exactly = 1) { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) }
+    }
+
+    @Test
+    fun `info fetcher keeps refreshed player context and metadata together`() = runTest {
+        val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
+        val initial = token(visitorData = "old-visitor")
+        val refreshed = token(visitorData = "fresh-visitor")
+        val info = info(listOf(format(isAudio = true), format(isAudio = false)), "fresh-visitor")
+        every { tokenClient.fetch("video", forceRefresh = false, refreshVideo = false) } returns initial
+        every { tokenClient.fetch("video", forceRefresh = true, refreshVideo = false) } returns refreshed
+        val probe = SabrPlayerInfoProbe { _, profile, token ->
+            if (token === initial) {
+                throw org.schabi.newpipe.extractor.services.youtube.sabr.SabrProtocolException(
+                    "Player response has no streamingData for $profile",
+                )
+            }
+            info
+        }
+        val fetcher = SabrInfoFetcher(tokenClient, playerInfoProbe = probe)
+
+        val result = fetcher.fetchInfo("video")
+
+        assertSame(info, result?.info)
+        assertSame(refreshed, result?.initialToken)
+        verify(exactly = 1) { tokenClient.fetch("video", forceRefresh = true, refreshVideo = false) }
     }
 
     private fun preparedInfo(formats: List<YoutubeSabrFormat>): SabrPreparedInfo {
         return SabrPreparedInfo(info(formats), token())
     }
 
-    private fun info(formats: List<YoutubeSabrFormat>): YoutubeSabrInfo {
+    private fun info(
+        formats: List<YoutubeSabrFormat>,
+        visitorData: String = "visitor-data",
+    ): YoutubeSabrInfo {
         val info = mockk<YoutubeSabrInfo>()
         every { info.formats } returns formats
-        every { info.visitorData } returns "visitor-data"
+        every { info.visitorData } returns visitorData
+        every { info.profile } returns YoutubeSabrClientProfile.MWEB
+        every { info.videoId } returns "video"
+        every { info.cpn } returns "cpn"
+        every { info.clientVersion } returns "2.20260718.00.00"
+        every { info.serverAbrStreamingUrl } returns "https://example.com/sabr"
+        every { info.videoPlaybackUstreamerConfig } returns "config"
         return info
     }
 

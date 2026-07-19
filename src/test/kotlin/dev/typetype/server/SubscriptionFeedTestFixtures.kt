@@ -11,6 +11,7 @@ internal object SubscriptionFeedTestFixtures {
         channel: String = "Ch",
         url: String = "u/$uploaded",
         short: Boolean = false,
+        live: Boolean = false,
     ): VideoItem = VideoItem(
         id = "id-$uploaded-$channel",
         title = "V$uploaded",
@@ -23,10 +24,12 @@ internal object SubscriptionFeedTestFixtures {
         viewCount = 0L,
         uploadDate = "",
         uploaded = uploaded,
-        streamType = "video_stream",
+        streamType = if (live) "live_stream" else "video_stream",
         isShortFormContent = short,
         uploaderVerified = false,
         shortDescription = null,
+        isLive = live,
+        isLiveContent = live,
     )
 
     fun channel(vararg videos: VideoItem): ExtractionResult<ChannelResponse> = ExtractionResult.Success(

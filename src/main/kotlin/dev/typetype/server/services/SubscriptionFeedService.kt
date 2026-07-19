@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.builtins.ListSerializer
+import java.net.URI
 import java.util.Base64
 
 class SubscriptionFeedService(
@@ -58,30 +59,63 @@ class SubscriptionFeedService(
         val videos = coroutineScope {
             subs.map { sub ->
                 async {
-                    semaphore.withPermit {
-                        runCatching {
-                            withTimeout(CHANNEL_TIMEOUT_MS) {
-                                (channelService.getChannel(sub.channelUrl, null) as? ExtractionResult.Success)
-                                    ?.data?.videos.orEmpty()
-                            }
-                        }.getOrElse { emptyList() }
-                    }
+                    runCatching { fetchForSubscription(sub.channelUrl) }.getOrElse { emptyList() }
                 }
             }.map { it.await() }.flatten()
         }
         val sorted = videos.sortedWith(
-            compareByDescending { v: VideoItem -> if (v.uploaded == -1L) Long.MIN_VALUE else v.uploaded }
+            compareByDescending<VideoItem> { it.isLive }
+                .thenByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
         )
         runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), sorted), FEED_TTL_SECONDS) }
         return sorted
+    }
+
+    private suspend fun fetchForSubscription(channelUrl: String): List<VideoItem> = coroutineScope {
+        val channel = async { fetchVideos(channelUrl) }
+        val livestreams = if (isYoutubeUrl(channelUrl)) {
+            async { fetchVideos(channelUrl.toLivestreamsTabUrl()) }
+        } else null
+        mergeVideos(channel.await(), livestreams?.await().orEmpty())
+    }
+
+    private suspend fun fetchVideos(url: String): List<VideoItem> = semaphore.withPermit {
+        runCatching {
+            withTimeout(CHANNEL_TIMEOUT_MS) {
+                (channelService.getChannel(url, null) as? ExtractionResult.Success)?.data?.videos.orEmpty()
+            }
+        }.getOrElse {
+            emptyList()
+        }
+    }
+
+    private fun mergeVideos(channel: List<VideoItem>, livestreams: List<VideoItem>): List<VideoItem> =
+        buildMap {
+            channel.forEach { put(it.feedKey(), it) }
+            livestreams.forEach { put(it.feedKey(), it) }
+        }.values.toList()
+
+    private fun VideoItem.feedKey(): String = url.ifBlank { id.ifBlank { "$uploaderUrl|$title" } }
+
+    private fun String.toLivestreamsTabUrl(): String {
+        val uri = URI(this)
+        val path = uri.path.trimEnd('/')
+        val segments = path.split('/').filter(String::isNotBlank)
+        val basePath = if (segments.size >= 2 && segments.last() in YOUTUBE_CHANNEL_TABS) {
+            path.substringBeforeLast('/')
+        } else {
+            path
+        }
+        return URI(uri.scheme, uri.userInfo, uri.host, uri.port, "$basePath/streams", null, null).toString()
     }
 
     private fun encodeNextPage(page: Int): String =
         Base64.getEncoder().encodeToString("""{"page":$page}""".toByteArray())
 
     companion object {
-        private const val FEED_TTL_SECONDS = 300L
+        private const val FEED_TTL_SECONDS = 60L
         private const val MAX_CONCURRENT_FETCHES = 20
         private const val CHANNEL_TIMEOUT_MS = 15_000L
+        private val YOUTUBE_CHANNEL_TABS = setOf("featured", "videos", "shorts", "streams", "playlists", "community", "about")
     }
 }

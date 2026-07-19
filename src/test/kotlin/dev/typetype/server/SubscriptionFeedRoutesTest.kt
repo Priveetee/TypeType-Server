@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.SubscriptionFeedTestFixtures.channel
 import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
 import dev.typetype.server.SubscriptionFeedTestFixtures.video
@@ -22,7 +23,9 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -75,6 +78,63 @@ class SubscriptionFeedRoutesTest {
         }.bodyAsText()
         assertTrue(body.indexOf("3000") < body.indexOf("2000"))
         assertTrue(body.indexOf("2000") < body.indexOf("1000"))
+    }
+
+    @Test
+    fun `GET subscriptions feed merges livestream tab and promotes active live`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC1"
+        val liveUrl = "https://www.youtube.com/watch?v=live"
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(
+            video(3000L, url = "https://www.youtube.com/watch?v=normal"),
+            video(2000L, url = liveUrl),
+        )
+        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns channel(
+            video(-1L, url = liveUrl, live = true),
+            video(5000L, url = "https://www.youtube.com/watch?v=upcoming"),
+        )
+
+        val body = client.get("/subscriptions/feed") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        val feed = Json.decodeFromString<SubscriptionFeedResponse>(body)
+
+        assertEquals(liveUrl, feed.videos.first().url)
+        assertTrue(feed.videos.first().isLive)
+        assertEquals(1, feed.videos.count { it.url == liveUrl })
+        assertTrue(feed.videos.any { it.url.endsWith("v=upcoming") })
+        coVerify { cacheService.set(any(), any(), 60L) }
+    }
+
+    @Test
+    fun `GET subscriptions feed keeps channel videos when livestream tab fails`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC2"
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Channel"))
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(video(1000L))
+        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns ExtractionResult.Failure("err")
+
+        val body = client.get("/subscriptions/feed") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+
+        assertTrue(body.contains("V1000"))
+    }
+
+    @Test
+    fun `GET subscriptions feed replaces existing channel tab with livestream tab`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC3/videos"
+        val livestreamUrl = "https://www.youtube.com/channel/UC3/streams"
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Imported channel"))
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(video(1000L))
+        coEvery { channelService.getChannel(livestreamUrl, null) } returns channel(
+            video(-1L, url = "https://www.youtube.com/watch?v=live", live = true),
+        )
+
+        val body = client.get("/subscriptions/feed") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+
+        assertTrue(body.contains("v=live"))
     }
 
     @Test

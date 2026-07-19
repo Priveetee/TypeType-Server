@@ -7,15 +7,13 @@ object YoutubeTakeoutFactory {
         historyService: HistoryService,
         favoritesService: FavoritesService,
         watchLaterService: WatchLaterService,
-        streamService: StreamService? = null,
     ): YoutubeTakeoutImportJobService {
         val previewLookup = YoutubeTakeoutPreviewLookupService(historyService, favoritesService, watchLaterService)
         val signalImport = YoutubeTakeoutSignalImportService(favoritesService, watchLaterService, historyService)
-        val metadataResolver = streamService?.let(::VideoMetadataResolver)
         return YoutubeTakeoutImportJobService(
             parser = YoutubeTakeoutParserService(),
             previewService = YoutubeTakeoutPreviewService(subscriptionsService, playlistService, previewLookup),
-            importerService = YoutubeTakeoutImporterService(subscriptionsService, playlistService, signalImport, YoutubeTakeoutPlaylistKeyService(), metadataResolver),
+            importerService = YoutubeTakeoutImporterService(subscriptionsService, playlistService, signalImport, YoutubeTakeoutPlaylistKeyService()),
             store = YoutubeTakeoutImportJobStore(),
             statusStore = YoutubeTakeoutImportJobStatusStore(),
             archiveStore = YoutubeTakeoutImportJobArchiveStore(),

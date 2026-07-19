@@ -8,9 +8,11 @@ import dev.typetype.server.models.PlaylistReorderResult
 import dev.typetype.server.models.PlaylistVideoItem
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
@@ -21,12 +23,14 @@ class PlaylistService {
             .where { PlaylistsTable.userId eq userId }
             .orderBy(PlaylistsTable.createdAt to SortOrder.DESC)
             .toList()
+        val videoCount = PlaylistVideosTable.id.count()
+        val videoCounts = PlaylistVideosTable
+            .select(PlaylistVideosTable.playlistId, videoCount)
+            .where { PlaylistVideosTable.userId eq userId }
+            .groupBy(PlaylistVideosTable.playlistId)
+            .associate { row -> row[PlaylistVideosTable.playlistId] to row[videoCount].toInt() }
         playlists.map { row ->
-            val count = PlaylistVideosTable.selectAll()
-                .where { (PlaylistVideosTable.playlistId eq row[PlaylistsTable.id]) and (PlaylistVideosTable.userId eq userId) }
-                .count()
-                .toInt()
-            row.toPlaylistSummary(count)
+            row.toPlaylistSummary(videoCounts[row[PlaylistsTable.id]] ?: 0)
         }
     }
 

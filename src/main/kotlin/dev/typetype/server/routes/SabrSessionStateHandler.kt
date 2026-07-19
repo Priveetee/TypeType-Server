@@ -58,6 +58,7 @@ internal class SabrSessionStateHandler(private val sabrSessionStore: SabrSession
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
         val startMs = holder.session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L)
         holder.setReaderPosition(format, startMs)
+        holder.setRequestedSeekTimeMs(holder.playerTimeMs())
         if (startMs < edgeMs) {
             holder.requestRefetch(request)
         } else if (startMs > edgeMs + FORWARD_SEEK_AHEAD_MS) {

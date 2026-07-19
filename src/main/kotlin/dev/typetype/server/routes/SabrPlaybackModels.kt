@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import kotlinx.serialization.Serializable
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
 @Serializable
 internal data class SabrPlaybackRequest(
@@ -10,6 +11,19 @@ internal data class SabrPlaybackRequest(
     val startTimeMs: Long? = null,
     val playerTimeMs: Long? = null,
     val audioOnly: Boolean = false,
+    val isLive: Boolean = false,
+)
+
+@Serializable
+internal data class SabrLivePlaybackResponse(
+    val active: Boolean,
+    val postLiveDvr: Boolean,
+    val headSequence: Long,
+    val headTimeMs: Long,
+    val seekableStartMs: Long,
+    val seekableEndMs: Long,
+    val atLiveEdge: Boolean,
+    val targetLatencyMs: Long,
 )
 
 @Serializable
@@ -25,6 +39,7 @@ internal data class SabrPlaybackResponse(
     val ready: Boolean,
     val status: String,
     val retryAfterMs: Long? = null,
+    val live: SabrLivePlaybackResponse? = null,
 )
 
 @Serializable
@@ -48,6 +63,7 @@ internal data class SabrPlaybackStateResponse(
     val pendingSegmentDemand: String? = null,
     val terminalError: String? = null,
     val diagnosticTrace: String? = null,
+    val live: SabrLivePlaybackResponse? = null,
 )
 
 @Serializable
@@ -91,6 +107,7 @@ internal data class SabrPlaybackPositionResponse(
     val readerHeadMs: Long,
     val readerTailMs: Long,
     val bufferedEdgeMs: Long,
+    val live: SabrLivePlaybackResponse? = null,
 )
 
 @Serializable
@@ -113,6 +130,7 @@ internal data class SabrPlaybackPrefetchResponse(
     val terminalError: String? = null,
     val recoveryAction: String? = null,
     val retryVideoItags: List<Int> = emptyList(),
+    val live: SabrLivePlaybackResponse? = null,
 )
 
 @Serializable
@@ -125,6 +143,8 @@ internal data class SabrPlaybackWindowReadyResponse(
     val endOfStream: Boolean,
     val audio: SabrPlaybackWindowTrack,
     val video: SabrPlaybackWindowTrack? = null,
+    val startTimeMs: Long = 0L,
+    val live: SabrLivePlaybackResponse? = null,
 )
 
 @Serializable
@@ -159,4 +179,12 @@ internal data class SabrPlaybackWindowPreparingResponse(
     val terminalError: String? = null,
     val recoveryAction: String? = null,
     val retryVideoItags: List<Int> = emptyList(),
+    val live: SabrLivePlaybackResponse? = null,
+)
+
+internal data class SabrPlaybackWindowBuildResult(
+    val response: SabrPlaybackWindowReadyResponse,
+    val blockedBy: String?,
+    val blockedRequests: List<SabrSegmentRequest>,
+    val isReady: Boolean,
 )

@@ -51,6 +51,7 @@ import dev.typetype.server.services.YoutubeSessionStreamService
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import java.net.ProxySelector
 import java.util.concurrent.TimeUnit
 
 internal class ExtractionServiceRegistry(
@@ -58,10 +59,13 @@ internal class ExtractionServiceRegistry(
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,
     hlsManifestUrlSigner: ((String) -> String)? = null,
+    youtubeProxySelector: ProxySelector? = null,
 ) {
     private val youtubeSessionSecret = youtubeSessionEncryptionKey?.trim()
         ?.takeIf { it.length >= MIN_YOUTUBE_SESSION_SECRET_LENGTH }
-    val httpClient = OkHttpClient()
+    val httpClient = OkHttpClient.Builder()
+        .apply { youtubeProxySelector?.let(::proxySelector) }
+        .build()
     val proxyHttpClient: OkHttpClient = httpClient.newBuilder()
         .dispatcher(proxyDispatcher())
         .connectionPool(ConnectionPool(64, 5, TimeUnit.MINUTES))

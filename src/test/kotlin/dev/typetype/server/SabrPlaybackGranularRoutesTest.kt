@@ -5,6 +5,7 @@ import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.SabrSegmentDemandTracker
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -26,6 +27,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -35,6 +37,9 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 class SabrPlaybackGranularRoutesTest {
+    @AfterEach
+    fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
+
     @Test
     fun `position updates player time without prefetching`() = testApplication {
         val store = mockk<SabrSessionStore>(relaxed = true)
@@ -108,7 +113,7 @@ class SabrPlaybackGranularRoutesTest {
         assertTrue(response.bodyAsText().contains("segment/1"))
         verify(exactly = 1) { store.startPump(holder) }
         verify(exactly = 0) { store.warmPlaybackAsync(holder) }
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
+        verify(exactly = 2) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
     }
 
     @Test
@@ -129,7 +134,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `window queues first blocker without direct fetch after nonzero start`() = testApplication {
+    fun `window queues video first when blocked tracks have equal coverage`() = testApplication {
         val store = emptyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -142,8 +147,8 @@ class SabrPlaybackGranularRoutesTest {
 
         val body = response.bodyAsText()
         assertEquals(HttpStatusCode.Accepted, response.status)
-        assertTrue(body.contains("audio:140:1 pending"))
-        verify(exactly = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
+        assertTrue(body.contains("video:136:1 pending"))
+        verify(exactly = 2) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
     }
 
@@ -225,6 +230,7 @@ class SabrPlaybackGranularRoutesTest {
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.isBeyondEnd(any()) } returns false
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
         every { state.getEndSegment(any()) } returns 0L
@@ -256,7 +262,6 @@ class SabrPlaybackGranularRoutesTest {
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         every { format.height } returns if (isAudio) 0 else 720
         every { format.approxDurationMs } returns 900_000L
-        every { format.initializationUrl } returns null
         return format
     }
 

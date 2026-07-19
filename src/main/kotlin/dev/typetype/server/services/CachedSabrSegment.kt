@@ -22,13 +22,16 @@ internal data class CachedSabrSegment(
     val length: Int get() = byteLength.takeIf { it >= 0 } ?: bytes.size
 }
 
-internal fun SabrMediaSegment.toCachedSabrSegment(mimeType: String): CachedSabrSegment = CachedSabrSegment(
+internal fun SabrMediaSegment.toCachedSabrSegment(
+    mimeType: String,
+    bytes: ByteArray = data,
+): CachedSabrSegment = CachedSabrSegment(
     itag = header.itag,
     sequence = header.sequenceNumber,
     init = header.isInitSegment,
     startMs = header.startMs,
     durationMs = header.durationMs,
     mimeType = mimeType,
-    bytesBase64 = Base64.getEncoder().encodeToString(data),
-    byteLength = length,
+    bytesBase64 = Base64.getEncoder().encodeToString(bytes),
+    byteLength = bytes.size,
 )

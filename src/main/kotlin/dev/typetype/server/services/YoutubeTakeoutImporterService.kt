@@ -15,7 +15,6 @@ class YoutubeTakeoutImporterService(
     private val playlistService: PlaylistService,
     private val signalImportService: YoutubeTakeoutSignalImportService,
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
-    private val metadataResolver: VideoMetadataResolver? = null,
 ) {
     suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem = coroutineScope {
         val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "commit")
@@ -43,9 +42,7 @@ class YoutubeTakeoutImporterService(
         var itemImported = 0
         var itemSkipped = 0
         val createdBySource = mutableMapOf<String, PlaylistItem>()
-        val playlistItems = metadataResolver?.enrichPlaylistItems(parsed.playlistItems) ?: parsed.playlistItems
-        val watchLater = metadataResolver?.enrichPlaylistVideos(parsed.watchLater) ?: parsed.watchLater
-        val favorites = metadataResolver?.enrichFavorites(parsed.favorites) ?: parsed.favorites.map { it.withYoutubeFallbackTitle() }
+        val favorites = parsed.favorites.map { it.withYoutubeFallbackTitle() }
         if (plan.importPlaylists) {
             parsed.playlists.forEach { item ->
                 if (YoutubeTakeoutSystemPlaylist.canonicalKey(item.name) != null || YoutubeTakeoutSystemPlaylist.canonicalKey(item.id) != null) {
@@ -74,7 +71,7 @@ class YoutubeTakeoutImporterService(
             }
         }
         if (plan.importPlaylistItems) {
-            playlistItems.forEach { (playlistKey, videos) ->
+            parsed.playlistItems.forEach { (playlistKey, videos) ->
                 val normalizedKey = playlistKey.lowercase()
                 if (YoutubeTakeoutSystemPlaylist.canonicalKey(normalizedKey) != null) {
                     itemSkipped += videos.size
@@ -94,7 +91,7 @@ class YoutubeTakeoutImporterService(
             }
         }
         val favoriteDeferred = if (plan.importFavorites) async { signalImportService.importFavorites(userId, favorites) } else null
-        val watchLaterDeferred = if (plan.importWatchLater) async { signalImportService.importWatchLater(userId, watchLater) } else null
+        val watchLaterDeferred = if (plan.importWatchLater) async { signalImportService.importWatchLater(userId, parsed.watchLater) } else null
         val historyDeferred = if (plan.importHistory) async { signalImportService.importHistory(userId, parsed.history) } else null
         val emptyStats = YoutubeTakeoutImportStats(0, 0, 0)
         val favoriteStats = favoriteDeferred?.await() ?: emptyStats

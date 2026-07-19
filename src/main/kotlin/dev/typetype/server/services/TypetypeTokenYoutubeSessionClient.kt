@@ -4,11 +4,13 @@ import com.grack.nanojson.JsonParser
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
+import org.schabi.newpipe.extractor.services.youtube.sabr.TypeTypeYoutubeSabrInfoFactory
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
@@ -96,11 +98,21 @@ internal class TypetypeTokenYoutubeSessionClient(
                     ),
                 ),
             )
-        YoutubeSabrProbe.fromPlayerResponse(
+        val info = YoutubeSabrProbe.fromPlayerResponse(
             videoId,
             YoutubeSabrClientProfile.MWEB,
             YoutubeParsingHelper.generateContentPlaybackNonce(),
             JsonParser.`object`().from(playerResponse.toString()),
         )
+        val playbackUrl = optString("serverAbrStreamingUrl").takeIf { it.isNotBlank() }
+        val clientVersion = playbackUrl
+            ?.toHttpUrlOrNull()
+            ?.queryParameter("cver")
+            ?.takeIf { it.isNotBlank() }
+        if (playbackUrl != null && clientVersion != null) {
+            TypeTypeYoutubeSabrInfoFactory.withPlaybackUrlAndClientVersion(info, playbackUrl, clientVersion)
+        } else {
+            info
+        }
     }.getOrNull()
 }

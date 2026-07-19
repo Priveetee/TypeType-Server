@@ -91,6 +91,30 @@ class SabrSessionPumpLoopTest {
     }
 
     @Test
+    fun `active live pump waits for a reader demand after warmup`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.requestNumber } returns 42
+        every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isPostLiveDvr } returns false
+        every { streamState.isLive } returns true
+        val holder = holder(session, audio, video)
+        holder.setReaderPosition(audio, 1_000_000L)
+        holder.setReaderPosition(video, 1_000_000L)
+        var rounds = 0
+
+        SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
+
+        verify(exactly = 0) { session.pumpOnceStreaming(any()) }
+        verify(exactly = 1) { session.setPlayHeadMs(match { it in 988_000L..998_000L }) }
+        verify(exactly = 1) { session.evictPlayed() }
+        assertEquals(LIVE_EDGE_POLL_MS, testScheduler.currentTime)
+    }
+
+    @Test
     fun `non target media response keeps demand loop paced`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
@@ -113,7 +137,7 @@ class SabrSessionPumpLoopTest {
             }
             every { streamState.getMinBufferedEndMs() } returns 487_134L
             every { streamState.getBufferedEndMs(video) } returns 491_203L
-            every { streamState.getSegmentStartMs(video, 98) } returns 487_134L
+            every { streamState.getSegmentStartMs(video, 98) } returns 491_203L
             every { streamState.setPlayerTimeMs(any()) } returns Unit
             every { streamState.jumpBufferedTo(video, 101) } returns Unit
             every { session.pumpOnceStreamingForDemand(any(), request) } returns demandResult(5, 0)
@@ -232,6 +256,8 @@ class SabrSessionPumpLoopTest {
         every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
         every { header.durationMs } returns durationMs
+        every { header.itag } returns 299
+        every { header.isInitSegment } returns false
         val segment = mockk<SabrMediaSegment>()
         every { segment.header } returns header
         return segment

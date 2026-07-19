@@ -10,8 +10,7 @@ internal fun printSabrProbeFormat(label: String, format: YoutubeSabrFormat): Uni
             "size=${format.width}x${format.height} bitrate=${format.bitrate} mime=${format.mimeType} " +
             "quality=${format.qualityLabel} audioTrack=${format.audioTrackId} " +
             "xtags=${format.xtags} drc=${format.isDrc} original=${format.isOriginalAudio} " +
-            "approxDurationMs=${format.approxDurationMs} init=${!format.initializationUrl.isNullOrBlank()} " +
-            "initRange=${format.initRangeStart}-${format.initRangeEnd}"
+            "approxDurationMs=${format.approxDurationMs}"
     )
 }
 

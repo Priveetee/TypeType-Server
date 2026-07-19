@@ -23,11 +23,14 @@ internal class SabrFallbackStreamService(
             return@coroutineScope ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
         }
         val playable = prepared?.await()
-        if (response.hasPlayableStreams() || videoId == null || playable == null) return@coroutineScope result
+        if (response.hasSabrStreams() || videoId == null || playable == null) return@coroutineScope result
         ExtractionResult.Success(response.withSabrFallback(videoId, playable.info))
     }
 }
 
-private fun StreamResponse.hasPlayableStreams(): Boolean =
-    videoStreams.isNotEmpty() || videoOnlyStreams.isNotEmpty() || audioStreams.isNotEmpty() ||
-        hlsUrl.isNotBlank() || dashMpdUrl.isNotBlank()
+private fun StreamResponse.hasSabrStreams(): Boolean =
+    videoStreams.any { it.deliveryMethod == SABR_METHOD } ||
+        videoOnlyStreams.any { it.deliveryMethod == SABR_METHOD } ||
+        audioStreams.any { it.deliveryMethod == SABR_METHOD }
+
+private const val SABR_METHOD = "sabr"

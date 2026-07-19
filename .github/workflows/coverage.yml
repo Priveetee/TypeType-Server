@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Isolate Gradle user home
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-user-home" >> "$GITHUB_ENV"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:

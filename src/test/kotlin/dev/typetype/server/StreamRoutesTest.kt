@@ -48,25 +48,27 @@ class StreamRoutesTest {
     @Test
     fun `GET streams returns 422 on Failure`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Failure("Extraction failed")
+            ExtractionResult.Failure("Premieres in 200 days", "scheduled_premiere")
         application {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
         val response = client.get("/streams?url=https://youtube.com/watch?v=bad")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"scheduled_premiere\""))
     }
 
     @Test
     fun `GET streams returns 400 on BadRequest`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.BadRequest("Unsupported URL")
+            ExtractionResult.BadRequest("This video is a paid video", "paid_content")
         application {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
         val response = client.get("/streams?url=https://unsupported.com/video")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"paid_content\""))
     }
 
     @Test

@@ -38,14 +38,9 @@ class SabrProbeTest {
             println("\n========== SABR probe: $videoId ==========")
             try {
                 val token = tokenClient.fetch(videoId) ?: error("No SABR token")
-                val info = YoutubeSabrProbe.fetchSabrInfo(
-                    videoId,
-                    profile,
-                    loc,
-                    country,
-                    token.visitorPoToken,
-                    token.visitorData,
-                )
+                val info = TypetypeYoutubeSessionPoTokenProvider.withToken(token) {
+                    YoutubeSabrProbe.fetchSabrInfo(videoId, profile, loc, country)
+                }
                 println("serverAbrStreamingUrl present: ${!info.serverAbrStreamingUrl.isNullOrEmpty()}")
                 println("videoPlaybackUstreamerConfig present: ${!info.videoPlaybackUstreamerConfig.isNullOrEmpty()}")
                 println("--- formats (itag | A/V | height×width | bitrate | mime | audioTrack | approxDurMs) ---")

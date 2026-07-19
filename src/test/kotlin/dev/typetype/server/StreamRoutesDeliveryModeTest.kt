@@ -136,8 +136,8 @@ class StreamRoutesDeliveryModeTest {
     }
 
     @Test
-    fun `sabr endpoint preserves hls for live streams`() = testApplication {
-        val live = testStreamResponse(videoOnlyStreams = emptyList(), audioStreams = emptyList()).copy(
+    fun `sabr endpoint removes hls for live streams`() = testApplication {
+        val live = sabrResponse().copy(
             hlsUrl = "/streams/hls-manifest?url=live",
             isLive = true,
             isLiveContent = true,
@@ -149,7 +149,8 @@ class StreamRoutesDeliveryModeTest {
         val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL")
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"hlsUrl\":\"/streams/hls-manifest?url=live\""))
+        assertTrue(response.bodyAsText().contains("\"hlsUrl\":\"\""))
+        assertFalse(response.bodyAsText().contains("hls-manifest"))
     }
 
     @Test

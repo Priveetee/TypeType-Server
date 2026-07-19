@@ -23,6 +23,8 @@ internal object PublicCachePolicy {
 
     fun channelTtl(url: String, nextpage: String?, sort: String?): Long = when {
         url.contains("/search", ignoreCase = true) -> 600L
+        url.contains("/streams", ignoreCase = true) || url.contains("/livestreams", ignoreCase = true) ->
+            if (nextpage == null) 60L else 300L
         nextpage != null -> 1_800L
         url.contains("/shorts", ignoreCase = true) -> 900L
         sort.equals("latest", ignoreCase = true) -> 900L

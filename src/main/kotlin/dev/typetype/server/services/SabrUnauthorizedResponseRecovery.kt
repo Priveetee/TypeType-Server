@@ -9,10 +9,11 @@ internal class SabrUnauthorizedResponseRecovery(
         val response = holder.session.diagnosticTrace.substringAfterLast("response n=", missingDelimiterValue = "")
         if (!response.contains(" http=403 ")) return
         if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized()
-        val token = refreshPoToken(holder.key.videoId)
-            ?.streamingPoTokenBytesFor(holder.info)
+        val refreshed = refreshPoToken(holder.key.videoId) ?: throw unauthorized()
+        val token = refreshed.streamingPoTokenBytesFor(holder.info)
             ?.takeUnless { holder.session.streamState.poToken?.contentEquals(it) == true }
             ?: throw unauthorized()
+        holder.playerContextToken = refreshed
         holder.session.streamState.setPoToken(token)
         holder.session.addDiagnosticEvent("upstream 403 refreshed TypeType PO token")
     }

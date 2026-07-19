@@ -47,7 +47,7 @@ internal fun StreamResponse.withoutSabrStreams(): StreamResponse = copy(
 )
 
 internal fun StreamResponse.onlySabrStreams(): StreamResponse = copy(
-    hlsUrl = if (isLive) hlsUrl else "",
+    hlsUrl = "",
     dashMpdUrl = "",
     videoStreams = videoStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
     videoOnlyStreams = videoOnlyStreams.filter { it.deliveryMethod == SABR_DELIVERY_METHOD },
@@ -78,8 +78,8 @@ private fun YoutubeSabrFormat.toVideoStreamItem(videoId: String, info: YoutubeSa
         height = height.coerceAtLeast(0),
         fps = 0,
         contentLength = contentLength.coerceAtLeast(0L),
-        initStart = initRangeStart.coerceAtLeast(0L),
-        initEnd = initRangeEnd.coerceAtLeast(0L),
+        initStart = 0L,
+        initEnd = 0L,
         indexStart = 0L,
         indexEnd = 0L,
         deliveryMethod = SABR_DELIVERY_METHOD,

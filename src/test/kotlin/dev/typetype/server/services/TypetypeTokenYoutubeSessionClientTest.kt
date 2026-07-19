@@ -43,7 +43,7 @@ class TypetypeTokenYoutubeSessionClientTest {
               "visitorData":"visitor-data",
               "poToken":"AQ",
               "streamingPot":"Ag",
-              "serverAbrStreamingUrl":"https://example.com/sabr",
+              "serverAbrStreamingUrl":"https://example.com/sabr?cver=2.20260205.04.01",
               "rawServerAbrStreamingUrl":"https://example.com/raw-sabr",
               "hlsManifestUrl":"https://example.com/live.m3u8",
               "videoPlaybackUstreamerConfig":"ustreamer-config",
@@ -106,9 +106,10 @@ class TypetypeTokenYoutubeSessionClientTest {
 
         assertNotNull(info)
         assertEquals("video-id", info?.videoId)
-        assertEquals("https://example.com/raw-sabr", info?.serverAbrStreamingUrl)
+        assertEquals("https://example.com/sabr?cver=2.20260205.04.01", info?.serverAbrStreamingUrl)
+        assertEquals("2.20260205.04.01", info?.clientVersion)
         assertEquals(2, info?.formats?.size)
-        assertTrue(info?.formats?.any { it.itag == 137 && it.initRangeEnd == 9281L } == true)
+        assertTrue(info?.formats?.any { it.itag == 137 && it.contentLength == 1_000_000L } == true)
         assertTrue(info?.formats?.any { it.itag == 140 && it.audioTrackId == "fr-FR.4" } == true)
 
         val session = client.fetchPlaybackSession("video-id")

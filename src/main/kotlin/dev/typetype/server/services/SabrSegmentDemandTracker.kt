@@ -11,7 +11,7 @@ internal object SabrSegmentDemandTracker {
     fun request(holder: SabrSessionHolder, request: SabrSegmentRequest, registeredAtMs: Long): Unit {
         if (request.isInitializationSegment) return
         if (holder.session.getCachedSegment(request) != null) return clear(holder, request)
-        if (holder.session.isBeyondEnd(request)) return clear(holder, request)
+        if (holder.hasFiniteEndBefore(request)) return clear(holder, request)
         val requestKey = key(holder, request)
         demands.putIfAbsent(requestKey, SegmentDemand(request, order.incrementAndGet(), registeredAtMs))
     }
@@ -37,13 +37,15 @@ internal object SabrSegmentDemandTracker {
         for ((key, value) in demands) {
             if (!key.startsWith(prefix)) continue
             val request = value.request
-            if (holder.session.getCachedSegment(request) != null || holder.session.isBeyondEnd(request)) {
+            if (holder.session.getCachedSegment(request) != null || holder.hasFiniteEndBefore(request)) {
                 demands.remove(key, value)
                 continue
             }
-            val startMs = holder.session.streamState
-                .getSegmentStartMs(request.format, request.sequenceNumber)
-                .coerceAtLeast(0L)
+            val startMs = if (holder.isFutureLiveRequest(request)) {
+                holder.livePlaybackSnapshot()?.seekableEndMs ?: Long.MAX_VALUE
+            } else {
+                holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
+            }
             if (startMs < selectedStartMs || startMs == selectedStartMs && value.order < selectedOrder) {
                 selected = request
                 selectedStartMs = startMs
@@ -87,6 +89,9 @@ internal object SabrSegmentDemandTracker {
     private fun holderPrefix(holder: SabrSessionHolder): String = "${holder.sessionToken}:"
 
     private fun identity(requestKey: String, demand: SegmentDemand): String = "$requestKey:${demand.order}"
+
+    private fun SabrSessionHolder.hasFiniteEndBefore(request: SabrSegmentRequest): Boolean =
+        session.isBeyondEnd(request) && livePlaybackSnapshot()?.active != true
 
     private data class SegmentDemand(
         val request: SabrSegmentRequest,

@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.localization.Localization
+import java.net.ProxySelector
 import java.util.concurrent.TimeUnit
 
 class OkHttpDownloader private constructor(
@@ -20,13 +21,18 @@ class OkHttpDownloader private constructor(
 ) : Downloader() {
 
     companion object {
-        fun instance(): OkHttpDownloader = create(STREAMING_READ_TIMEOUT_MS)
+        fun instance(proxySelector: ProxySelector? = null): OkHttpDownloader =
+            create(STREAMING_READ_TIMEOUT_MS, proxySelector)
 
-        internal fun create(streamingReadTimeoutMs: Long): OkHttpDownloader {
-            val client = OkHttpClient.Builder()
+        internal fun create(
+            streamingReadTimeoutMs: Long,
+            proxySelector: ProxySelector? = null,
+        ): OkHttpDownloader {
+            val clientBuilder = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
-                .build()
+            proxySelector?.let(clientBuilder::proxySelector)
+            val client = clientBuilder.build()
             val streamingClient = client.newBuilder()
                 .readTimeout(streamingReadTimeoutMs, TimeUnit.MILLISECONDS)
                 .build()

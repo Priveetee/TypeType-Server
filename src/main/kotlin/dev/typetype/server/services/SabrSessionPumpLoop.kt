@@ -62,13 +62,13 @@ internal class SabrSessionPumpLoop(
     ): Boolean {
         prepareEviction(holder)
         holder.consumeRefetch()?.let { request ->
-            if (holder.session.isBeyondEnd(request)) {
+            if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) {
                 holder.clearSegmentDemand(request)
                 return true
             }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForRewind(request)
+            holder.prepareForExplicitRewind(request)
             SabrPumpLogger.start(holder, "refetch", request)
             val pumped = pumpOnce(holder, localization, runtime)
             SabrPumpLogger.finish(holder, "refetch", request, pumped)
@@ -76,13 +76,13 @@ internal class SabrSessionPumpLoop(
             return true
         }
         holder.consumeForwardSeek()?.let { request ->
-            if (holder.session.isBeyondEnd(request)) {
+            if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) {
                 holder.clearSegmentDemand(request)
                 return true
             }
             runtime.activateSeekMode()
             holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
-            holder.session.prepareForForwardJump(request)
+            holder.prepareForExplicitForwardJump(request)
             SabrPumpLogger.start(holder, "forward_seek", request)
             val pumped = pumpUntilCached(holder, localization, request, runtime)
             SabrPumpLogger.finish(holder, "forward_seek", request, pumped.segmentCount)
@@ -91,13 +91,30 @@ internal class SabrSessionPumpLoop(
         }
         holder.nextSegmentDemand()?.let { request ->
             val demandIdentity = holder.segmentDemandIdentity(request) ?: return true
-            SabrPumpLogger.start(holder, "demand", request)
-            runtime.beginDemand(demandIdentity)
-            val result = pumpDemand(holder, localization, request, runtime)
-            return SabrDemandAttemptFinisher.finish(holder, request, demandIdentity, result, runtime)
+            val wasFutureLiveRequest = holder.isFutureLiveRequest(request)
+            if (!holder.beginInFlightSegmentDemand(request, demandIdentity, wasFutureLiveRequest)) return true
+            try {
+                SabrPumpLogger.start(holder, "demand", request)
+                runtime.beginDemand(demandIdentity)
+                val result = pumpDemand(holder, localization, request, runtime)
+                return SabrDemandAttemptFinisher.finish(
+                    holder,
+                    request,
+                    demandIdentity,
+                    result,
+                    runtime,
+                    wasFutureLiveRequest,
+                )
+            } finally {
+                holder.finishInFlightSegmentDemand(demandIdentity)
+            }
         }
-        if (holder.session.requestNumber == 0) return false
-        if (holder.session.isComplete && !holder.hasPendingSeek()) return false
+        if (holder.livePlaybackSnapshot()?.active == true) {
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            return false
+        }
+        if (holder.session.requestNumber == 0 && !holder.expectsLive()) return false
+        if (holder.session.isComplete && holder.livePlaybackSnapshot()?.active != true && !holder.hasPendingSeek()) return false
         if (runtime.isThrottled(holder)) {
             holder.setPlaybackState(SabrPlaybackState.THROTTLED)
             return false
@@ -111,7 +128,7 @@ internal class SabrSessionPumpLoop(
     }
     private suspend fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
         return try {
-            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreaming(localization) }
+            runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreaming(localization) } }
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
@@ -125,7 +142,7 @@ internal class SabrSessionPumpLoop(
         runtime: SabrPumpRuntime,
     ): YoutubeSabrSession.DemandResponseResult {
         return try {
-            runInterruptible(Dispatchers.IO) { holder.session.pumpOnceStreamingForDemand(localization, request) }
+            runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreamingForDemand(localization, request) } }
                 .also { unauthorizedRecovery.verify(holder) }
         } finally {
             runtime.recordRequest()
@@ -139,8 +156,21 @@ internal class SabrSessionPumpLoop(
         runtime: SabrPumpRuntime,
     ): YoutubeSabrSession.DemandResponseResult {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
-        val startMs = holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber).coerceAtLeast(0L)
+        val startMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
         holder.setReaderPosition(request.format, startMs)
+        if (holder.livePlaybackSnapshot()?.active == true) {
+            if (holder.isHistoricalLiveRequest(request)) {
+                holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
+                holder.prepareForHistoricalLiveRewind(request)
+                return withTargetedRequestShape(holder, request) {
+                    pumpUntilCached(holder, localization, request, runtime)
+                }
+            }
+            holder.setPlaybackState(SabrPlaybackState.REQUESTING)
+            return withTargetedRequestShape(holder, request) {
+                pumpUntilCached(holder, localization, request, runtime)
+            }
+        }
         return when {
             startMs < edgeMs -> {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
@@ -165,7 +195,13 @@ internal class SabrSessionPumpLoop(
         holder.session.evictPlayed()
     }
 
-    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long =
-        if (holder.pendingSegmentDemandSummary() == null) intervalMs
-        else maxOf(intervalMs, holder.session.demandBackoffRemainingMs)
+    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long {
+        val demand = holder.nextSegmentDemand()
+        return SabrPumpPolicy.demandDelayMs(
+            intervalMs,
+            holder.session.demandBackoffRemainingMs.takeIf { demand != null } ?: 0L,
+            holder.livePlaybackSnapshot()?.active == true,
+            demand?.let(holder::isFutureLiveRequest),
+        )
+    }
 }

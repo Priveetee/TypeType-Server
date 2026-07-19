@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.sync.Mutex
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
@@ -19,15 +20,19 @@ internal class SabrSessionHolder(
     val sessionToken: String,
     val key: SabrSessionKey,
     @Volatile var lastRequestAt: Instant,
+    @Volatile var playerContextToken: SabrTokenBundle? = null,
     val pumpMutex: Mutex = Mutex(),
 ) {
     private val readerPositions = ConcurrentHashMap<ReaderTrackKey, Long>()
     private val lastServedSequences = ConcurrentHashMap<ReaderTrackKey, Int>()
     private val activeItags: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+    private val observedMediaAnchors = ConcurrentHashMap<Int, SabrMediaSegment>()
+    private val liveInitializationData = ConcurrentHashMap<Int, ByteArray>()
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
     private val pumpStarted = AtomicBoolean(false)
     private val unauthorizedRefreshAttempted = AtomicBoolean(false)
+    private val expectedLive = AtomicBoolean(false)
     private val activeGeneration = AtomicLong(0L)
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     private val playbackStatus = SabrPlaybackStatus()
@@ -68,6 +73,30 @@ internal class SabrSessionHolder(
     fun markPumpStopped(): Unit = pumpStarted.set(false)
 
     fun markUnauthorizedRefreshAttempted(): Boolean = unauthorizedRefreshAttempted.compareAndSet(false, true)
+
+    fun markExpectedLive(): Unit {
+        expectedLive.set(true)
+    }
+
+    fun expectsLive(): Boolean = expectedLive.get()
+
+    fun observeMediaSegment(segment: SabrMediaSegment): Unit {
+        val header = segment.header
+        if (header.isInitSegment || header.sequenceNumber <= 0 ||
+            (header.itag != audioFormat.itag && header.itag != videoFormat.itag)
+        ) return
+        observedMediaAnchors.compute(header.itag) { _, current ->
+            if (current == null || header.startMs >= current.header.startMs) segment else current
+        }
+    }
+
+    fun observedMediaSegment(format: YoutubeSabrFormat): SabrMediaSegment? = observedMediaAnchors[format.itag]
+
+    fun rememberLiveInitialization(itag: Int, data: ByteArray): Unit {
+        liveInitializationData.putIfAbsent(itag, data)
+    }
+
+    fun liveInitialization(format: YoutubeSabrFormat): ByteArray? = liveInitializationData[format.itag]
 
     fun setLastServedSequence(itag: Int, sequence: Int): Unit =
         setLastServedSequence(itag, sequence, activeGeneration())
