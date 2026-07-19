@@ -132,6 +132,15 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         while (segment == null && holder.terminalFailure() == null && holder.networkFailure() == null) {
             delay(SEGMENT_WAIT_MS)
             segment = sessionStore.cachedSegment(holder, request)
+            if (segment == null && holder.livePlaybackSnapshot()?.active == true) {
+                segment = sessionStore.findCachedPlaybackMediaAt(
+                    holder = holder,
+                    format = request.format,
+                    targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber),
+                    predictedSequence = request.sequenceNumber,
+                    allowFollowing = true,
+                )
+            }
         }
         segment
     }
