@@ -4,6 +4,27 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 
 internal object SabrDemandAttemptFinisher {
+    fun interruptCompletedInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =
+        synchronized(holder) {
+            val state = holder.playbackState()
+            if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+            if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+            if (holder.session.getCachedSegment(demand.request) == null) return@synchronized false
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            true
+        }
+
+    fun expireStalledInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =
+        synchronized(holder) {
+            val state = holder.playbackState()
+            if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+            if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+            holder.clearSegmentDemands()
+            val message = "SABR demand stalled for ${demand.request.summary()}"
+            holder.failTerminal(if (demand.futureLiveRequest) sabrRecoverableFailureMessage(message) else message)
+            true
+        }
+
     fun expireStalledDemand(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,

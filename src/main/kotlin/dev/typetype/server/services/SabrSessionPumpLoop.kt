@@ -92,17 +92,22 @@ internal class SabrSessionPumpLoop(
         holder.nextSegmentDemand()?.let { request ->
             val demandIdentity = holder.segmentDemandIdentity(request) ?: return true
             val wasFutureLiveRequest = holder.isFutureLiveRequest(request)
-            SabrPumpLogger.start(holder, "demand", request)
-            runtime.beginDemand(demandIdentity)
-            val result = pumpDemand(holder, localization, request, runtime)
-            return SabrDemandAttemptFinisher.finish(
-                holder,
-                request,
-                demandIdentity,
-                result,
-                runtime,
-                wasFutureLiveRequest,
-            )
+            if (!holder.beginInFlightSegmentDemand(request, demandIdentity, wasFutureLiveRequest)) return true
+            try {
+                SabrPumpLogger.start(holder, "demand", request)
+                runtime.beginDemand(demandIdentity)
+                val result = pumpDemand(holder, localization, request, runtime)
+                return SabrDemandAttemptFinisher.finish(
+                    holder,
+                    request,
+                    demandIdentity,
+                    result,
+                    runtime,
+                    wasFutureLiveRequest,
+                )
+            } finally {
+                holder.finishInFlightSegmentDemand(demandIdentity)
+            }
         }
         if (holder.livePlaybackSnapshot()?.active == true) {
             holder.setPlaybackState(SabrPlaybackState.IDLE)

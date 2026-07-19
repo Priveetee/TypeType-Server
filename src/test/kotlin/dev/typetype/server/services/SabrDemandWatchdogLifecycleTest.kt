@@ -114,12 +114,76 @@ class SabrDemandWatchdogLifecycleTest {
         }
     }
 
+    @Test
+    fun `completed in flight demand interrupts without terminal failure`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            var cached = false
+            var progressVersion = 0L
+            every { holder.session.getCachedSegment(request) } answers {
+                if (cached) mockk(relaxed = true) else null
+            }
+            every { holder.session.mediaProgressVersion } answers { progressVersion }
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            assertTrue(holder.beginInFlightSegmentDemand(request, identity, futureLiveRequest = false))
+            cached = true
+            progressVersion = 1L
+            holder.clearSegmentDemand(request)
+            var interrupted = false
+            val job = launch {
+                interrupted = SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(SabrPumpPolicy.COMPLETED_DEMAND_IDLE_MS)
+            runCurrent()
+
+            assertTrue(job.isCompleted)
+            assertTrue(interrupted)
+            assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
+            assertEquals(null, holder.terminalFailure())
+        }
+    }
+
+    @Test
+    fun `missing in flight demand expires at its original deadline`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            assertTrue(holder.beginInFlightSegmentDemand(request, identity, futureLiveRequest = false))
+            holder.clearSegmentDemand(request)
+            var expired = false
+            val job = launch {
+                expired = SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS)
+            runCurrent()
+
+            assertTrue(job.isCompleted)
+            assertTrue(expired)
+            assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
+            assertEquals("SABR demand stalled for 299:50", holder.terminalFailure())
+        }
+    }
+
     private suspend fun withTracker(block: suspend (SabrSessionHolder) -> Unit) {
         SabrSegmentDemandTracker.clearAll()
+        SabrInFlightDemandTracker.clearAll()
         try {
             block(holder())
         } finally {
             SabrSegmentDemandTracker.clearAll()
+            SabrInFlightDemandTracker.clearAll()
         }
     }
 
