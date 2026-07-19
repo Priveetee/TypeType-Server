@@ -15,20 +15,19 @@ internal class SabrDemandWatchdog(
                 delay(intervalMs)
                 continue
             }
-            if (holder.isFutureLiveRequest(request)) {
+            val futureLiveRequest = holder.isFutureLiveRequest(request)
+            if (futureLiveRequest) {
                 holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
-                delay(maxOf(intervalMs, LIVE_EDGE_POLL_MS))
-                continue
             }
             val identity = holder.segmentDemandIdentity(request)
             val registeredAtMs = identity?.let { holder.segmentDemandRegisteredAtMs(request, it) }
             if (identity != null && registeredAtMs != null &&
                 clock() - registeredAtMs >= SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS &&
-                SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity)
+                SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity, futureLiveRequest)
             ) {
                 return true
             }
-            delay(intervalMs)
+            delay(if (futureLiveRequest) maxOf(intervalMs, LIVE_EDGE_POLL_MS) else intervalMs)
         }
         return false
     }

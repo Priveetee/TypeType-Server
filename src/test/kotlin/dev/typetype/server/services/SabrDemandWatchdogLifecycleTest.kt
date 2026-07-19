@@ -83,6 +83,37 @@ class SabrDemandWatchdogLifecycleTest {
         }
     }
 
+    @Test
+    fun `future live demand expires as recoverable`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            every { holder.session.isLive } returns true
+            every { holder.session.streamState.isLive } returns true
+            every { holder.session.streamState.getMaxSegment(holder.videoFormat) } returns 49
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            var expired = false
+            val job = launch {
+                expired = SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS)
+            runCurrent()
+            advanceTimeBy(LIVE_EDGE_POLL_MS)
+            runCurrent()
+
+            assertTrue(job.isCompleted)
+            assertTrue(expired)
+            assertEquals(
+                "$SABR_RECOVERABLE_FAILURE_PREFIX SABR demand stalled for 299:50",
+                holder.terminalFailure(),
+            )
+        }
+    }
+
     private suspend fun withTracker(block: suspend (SabrSessionHolder) -> Unit) {
         SabrSegmentDemandTracker.clearAll()
         try {
