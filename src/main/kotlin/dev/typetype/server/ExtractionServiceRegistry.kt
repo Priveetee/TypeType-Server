@@ -52,6 +52,7 @@ import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.net.ProxySelector
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 internal class ExtractionServiceRegistry(
@@ -74,6 +75,11 @@ internal class ExtractionServiceRegistry(
         .followRedirects(true)
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
+    val androidSabrSessionStore = SabrSessionStore(
+        subtitleServiceUrl,
+        idleEviction = Duration.ofMinutes(6),
+        initCache = cache,
+    )
     private val classicPipePipeStreamService = PipePipeStreamService(
         cache,
         YouTubeSubtitleService(httpClient, subtitleServiceUrl),

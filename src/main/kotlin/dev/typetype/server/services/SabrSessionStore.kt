@@ -51,7 +51,11 @@ internal class SabrSessionStore(
         purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
         audioOnly: Boolean = false,
     ): SabrSessionHolder {
-        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK) SabrSessionTokenGenerator.newToken() else null
+        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.ANDROID_PLAYBACK) {
+            SabrSessionTokenGenerator.newToken()
+        } else {
+            null
+        }
         val key = SabrSessionKey(
             videoId,
             userId,

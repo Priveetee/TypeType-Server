@@ -6,7 +6,10 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
 
-internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
+internal class SabrPlaybackSessionService(
+    private val sessionStore: SabrSessionStore,
+    private val purpose: SabrSessionPurpose = SabrSessionPurpose.PLAYBACK,
+) {
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -26,7 +29,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             initialToken = prepared.initialToken,
             startTimeMs = startTimeMs,
             startPump = false,
-            purpose = SabrSessionPurpose.PLAYBACK,
+            purpose = purpose,
             audioOnly = audioOnly,
         )
         if (isLive || prepared.isLive || prepared.isLiveContent) holder.markExpectedLive()
@@ -77,6 +80,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     }
 
     fun lookup(sessionId: String): SabrSessionHolder? = sessionStore.lookupByToken(sessionId)
+        ?.takeIf { it.key.purpose == purpose }
 
     fun startPump(holder: SabrSessionHolder): Unit = sessionStore.startPump(holder)
 
