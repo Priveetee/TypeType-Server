@@ -14,6 +14,7 @@ tags:
   - name: extraction
   - name: downloader
   - name: youtube-session
+  - name: android-playback
   - name: user-data
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
@@ -27,6 +28,11 @@ paths:
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }
   /streams/audio-only: { $ref: ./openapi/paths/streams.yaml#/AudioOnly }
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
+  /android/youtube/playback/{videoId}: { $ref: ./openapi/paths/android-playback.yaml#/Create }
+  /android/youtube/playback/{sessionId}/seek: { $ref: ./openapi/paths/android-playback.yaml#/Seek }
+  /android/youtube/playback/{sessionId}/manifest.mpd: { $ref: ./openapi/paths/android-playback.yaml#/Manifest }
+  /android/youtube/playback/{sessionId}/{itag}/init: { $ref: ./openapi/paths/android-playback.yaml#/Initialization }
+  /android/youtube/playback/{sessionId}/{itag}/segment/{sequence}: { $ref: ./openapi/paths/android-playback.yaml#/Segment }
   /search: { $ref: ./openapi/paths/search.yaml#/Search }
   /search/filters: { $ref: ./openapi/paths/search.yaml#/SearchFilters }
   /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
@@ -88,6 +94,12 @@ components:
       $ref: ./openapi/components/instance.yaml#/InstanceMinClientVersion
     InstanceResponse:
       $ref: ./openapi/components/instance.yaml#/InstanceResponse
+    AndroidPlaybackCreateRequest:
+      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackCreateRequest
+    AndroidPlaybackSeekRequest:
+      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackSeekRequest
+    AndroidPlaybackResponse:
+      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackResponse
     StreamResponse:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     AudioOnlyStreamResponse:
