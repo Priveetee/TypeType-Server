@@ -59,7 +59,7 @@ private fun SabrSessionHolder.liveSequenceAt(format: YoutubeSabrFormat, playerTi
         .coerceIn(1L, Int.MAX_VALUE.toLong())
         .toInt()
     val liveHead = live.headSequence.takeIf { it > 0L } ?: return sequence
-    val trackHead = runCatching { session.streamState.getMaxSegment(format) }.getOrDefault(0)
+    val trackHead = observed.header.sequenceNumber
     val distanceBehindLiveHead = liveHead - trackHead.toLong()
     val effectiveHead = trackHead.takeIf {
         it > 0 && distanceBehindLiveHead in 0L..LIVE_FUTURE_SEGMENT_TOLERANCE.toLong()

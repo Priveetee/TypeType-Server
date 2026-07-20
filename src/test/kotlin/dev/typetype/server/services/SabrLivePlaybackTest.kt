@@ -70,7 +70,17 @@ class SabrLivePlaybackTest {
         assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 965_000L))
         assertEquals(179, fixture.holder.playbackStartSequence(fixture.video, 964_999L))
         assertEquals(200, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
-        every { fixture.state.getMaxSegment(fixture.video) } returns 199
+        every { fixture.state.getMaxSegment(fixture.video) } returns 200
+        val nearHead = mockk<SabrMediaSegment> {
+            every { this@mockk.header } returns mockk {
+                every { isInitSegment } returns false
+                every { itag } returns fixture.video.itag
+                every { sequenceNumber } returns 199
+                every { startMs } returns 1_003_000L
+                every { durationMs } returns 2_000L
+            }
+        }
+        fixture.holder.observeMediaSegment(nearHead)
         assertEquals(199, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
     }
 
