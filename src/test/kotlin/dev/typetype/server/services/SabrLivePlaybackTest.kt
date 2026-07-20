@@ -70,6 +70,8 @@ class SabrLivePlaybackTest {
         assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 965_000L))
         assertEquals(179, fixture.holder.playbackStartSequence(fixture.video, 964_999L))
         assertEquals(200, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
+        every { fixture.state.getMaxSegment(fixture.video) } returns 199
+        assertEquals(199, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
     }
 
     @Test
