@@ -48,7 +48,7 @@ internal fun SabrSessionHolder.playbackSegmentEndMs(format: YoutubeSabrFormat, s
     playbackSegmentStartMs(format, sequence) + playbackSegmentDurationMs(format, sequence)
 
 private fun SabrSessionHolder.liveSequenceAt(format: YoutubeSabrFormat, playerTimeMs: Long): Int? {
-    livePlaybackSnapshot()?.takeIf { it.active } ?: return null
+    val live = livePlaybackSnapshot()?.takeIf { it.active } ?: return null
     val observed = observedMediaSegment(format) ?: return null
     val observedStartMs = observed.header.startMs.takeIf { it >= 0L }
         ?: return null
@@ -58,8 +58,8 @@ private fun SabrSessionHolder.liveSequenceAt(format: YoutubeSabrFormat, playerTi
     val sequence = (observed.header.sequenceNumber.toLong() + offset)
         .coerceIn(1L, Int.MAX_VALUE.toLong())
         .toInt()
-    val availableHead = runCatching { session.streamState.getMaxSegment(format) }.getOrDefault(0)
-    return if (availableHead > 0) sequence.coerceAtMost(availableHead) else sequence
+    val liveHead = live.headSequence.takeIf { it > 0L } ?: return sequence
+    return sequence.coerceAtMost(liveHead.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
 }
 
 private fun SabrLivePlaybackSnapshot.segmentDurationFrom(observedSequence: Int, observedStartMs: Long): Long? {
