@@ -5,6 +5,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -26,7 +27,7 @@ class SabrPlaybackSessionServiceTest {
     fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
 
     @Test
-    fun `prepare loads timing before selecting target segments`() = runTest {
+    fun `prepare loads timing before selecting target segments`() = runBlocking {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val info = mockk<YoutubeSabrInfo>()
