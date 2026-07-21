@@ -10,6 +10,7 @@ import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
 import dev.typetype.server.services.SubscriptionFeedCacheKeys
+import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutImporterService
@@ -34,18 +35,19 @@ class SubscriptionFeedCacheInvalidationTakeoutUnitTest {
     fun clean() = runBlocking {
         TestDatabase.truncateAll()
         cache.clear()
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
+        val feed = SubscriptionFeedService(SubscriptionsService(), FakeChannelService(), cache)
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
     }
 
     @Test
-    fun `takeout with subscriptions clears feed and shorts cache keys`() = runBlocking {
+    fun `takeout with subscriptions retains feed and clears shorts cache`() = runBlocking {
         val userId = TEST_USER_ID
         val feedKey = SubscriptionFeedCacheKeys.feed(userId)
         val shortsKey = SubscriptionFeedCacheKeys.shorts(userId)
         cache.set(feedKey, "warm", 300)
         cache.set(shortsKey, "warm", 300)
         importer().commit(userId, parsed(), withSubscriptions = true)
-        assertFalse(cache.get(feedKey) != null)
+        assertTrue(cache.get(feedKey) != null)
         assertFalse(cache.get(shortsKey) != null)
     }
 

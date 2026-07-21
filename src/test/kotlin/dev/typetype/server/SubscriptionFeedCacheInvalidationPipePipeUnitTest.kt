@@ -6,6 +6,7 @@ import dev.typetype.server.services.PipePipeBackupSubscriptionItem
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
 import dev.typetype.server.services.SubscriptionFeedCacheKeys
+import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -27,11 +28,12 @@ class SubscriptionFeedCacheInvalidationPipePipeUnitTest {
     fun clean() = runBlocking {
         TestDatabase.truncateAll()
         cache.clear()
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
+        val feed = SubscriptionFeedService(SubscriptionsService(), FakeChannelService(), cache)
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
     }
 
     @Test
-    fun `restore clears feed and shorts cache keys`() = runBlocking {
+    fun `restore retains feed snapshot and clears shorts cache`() = runBlocking {
         val userId = TEST_USER_ID
         val feedKey = SubscriptionFeedCacheKeys.feed(userId)
         val shortsKey = SubscriptionFeedCacheKeys.shorts(userId)
@@ -46,7 +48,7 @@ class SubscriptionFeedCacheInvalidationPipePipeUnitTest {
         )
         PipePipeBackupPersisterService().persist(userId, snapshot)
         assertTrue(SubscriptionsService().getAll(userId).isNotEmpty())
-        assertFalse(cache.get(feedKey) != null)
+        assertTrue(cache.get(feedKey) != null)
         assertFalse(cache.get(shortsKey) != null)
     }
 }
