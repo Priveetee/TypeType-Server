@@ -11,4 +11,8 @@ object SubscriptionFeedCacheInvalidation {
     suspend fun invalidate(userId: String) {
         invalidator?.invalidate(userId)
     }
+
+    suspend fun awaitRefresh(userId: String) {
+        invalidator?.awaitRefresh(userId)
+    }
 }
