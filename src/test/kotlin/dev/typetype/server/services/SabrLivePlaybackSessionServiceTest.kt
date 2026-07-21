@@ -77,6 +77,7 @@ class SabrLivePlaybackSessionServiceTest {
                 false,
                 SabrSessionPurpose.PLAYBACK,
                 false,
+                0L,
             )
         } returns holder
         coEvery { store.ensureWarmed(holder, 8) } returns Unit
@@ -95,9 +96,9 @@ class SabrLivePlaybackSessionServiceTest {
     @Test
     fun `live format change starts the replacement session from warmed track boundaries`() = runTest {
         val audio = format(140, isAudio = true)
-        val source = holder(audio, format(137, isAudio = false))
+        val source = holder(audio, format(137, isAudio = false), initialGeneration = 4L)
         val video = format(248, isAudio = false)
-        val replacement = holder(audio, video)
+        val replacement = holder(audio, video, initialGeneration = 5L)
         val info = mockk<YoutubeSabrInfo>()
         val prepared = SabrPreparedInfo(info, token(), isLive = true, isLiveContent = true)
         val audioSegment = mediaSegment(audio.itag, 995_010L, sequence = 101)
@@ -130,6 +131,7 @@ class SabrLivePlaybackSessionServiceTest {
                 false,
                 SabrSessionPurpose.PLAYBACK,
                 false,
+                5L,
             )
         } returns replacement
         coEvery { store.ensureWarmed(replacement, 8) } returns Unit
@@ -138,7 +140,7 @@ class SabrLivePlaybackSessionServiceTest {
         val result = SabrPlaybackSessionService(store).seek(source, prepared, audio, video, 995_000L)
 
         assertSame(replacement, result.holder)
-        assertEquals(0L, result.holder.activeGeneration())
+        assertEquals(5L, result.holder.activeGeneration())
         assertEquals(audio.itag, result.holder.audioFormat.itag)
         assertEquals(video.itag, result.holder.videoFormat.itag)
         assertNull(replacement.nextSegmentDemand())
@@ -150,7 +152,11 @@ class SabrLivePlaybackSessionServiceTest {
         verify(exactly = 1) { store.startPump(replacement) }
     }
 
-    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
+    private fun holder(
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        initialGeneration: Long = 0L,
+    ): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
@@ -168,6 +174,7 @@ class SabrLivePlaybackSessionServiceTest {
             sessionToken = "session-token-${sessionIds.incrementAndGet()}",
             key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
             lastRequestAt = Instant.EPOCH,
+            initialGeneration = initialGeneration,
         )
     }
 

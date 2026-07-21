@@ -22,6 +22,7 @@ internal class SabrSessionHolder(
     @Volatile var lastRequestAt: Instant,
     @Volatile var playerContextToken: SabrTokenBundle? = null,
     val pumpMutex: Mutex = Mutex(),
+    initialGeneration: Long = 0L,
 ) {
     private val readerPositions = ConcurrentHashMap<ReaderTrackKey, Long>()
     private val lastServedSequences = ConcurrentHashMap<ReaderTrackKey, Int>()
@@ -33,7 +34,7 @@ internal class SabrSessionHolder(
     private val pumpStarted = AtomicBoolean(false)
     private val unauthorizedRefreshAttempted = AtomicBoolean(false)
     private val expectedLive = AtomicBoolean(false)
-    private val activeGeneration = AtomicLong(0L)
+    private val activeGeneration = AtomicLong(initialGeneration.coerceAtLeast(0L))
     private val segmentMemory = SabrMemorySegmentCache(MAX_SEGMENT_MEMORY_BYTES)
     private val playbackStatus = SabrPlaybackStatus()
     private val requestedSeekTimeMs = AtomicLong(-1L)
@@ -42,7 +43,6 @@ internal class SabrSessionHolder(
     init {
         setActiveTracks(videoActive = true, audioActive = true)
     }
-
     fun activeGeneration(): Long = activeGeneration.get()
 
     fun advancePlaybackGeneration(ms: Long): Long {

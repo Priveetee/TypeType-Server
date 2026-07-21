@@ -50,6 +50,7 @@ internal class SabrSessionStore(
         startPump: Boolean = true,
         purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
         audioOnly: Boolean = false,
+        initialGeneration: Long = 0L,
     ): SabrSessionHolder {
         val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.ANDROID_PLAYBACK) {
             SabrSessionTokenGenerator.newToken()
@@ -85,6 +86,7 @@ internal class SabrSessionStore(
             key,
             Instant.now(),
             initialToken,
+            initialGeneration = initialGeneration,
         )
         holder.setPlayerTimeMs(normalizedStartTimeMs)
         registry.put(key, holder)

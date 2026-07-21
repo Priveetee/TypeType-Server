@@ -61,6 +61,7 @@ class SabrPlaybackSessionServiceTest {
                 false,
                 SabrSessionPurpose.PLAYBACK,
                 false,
+                0L,
             )
         } returns holder
         coEvery { store.fetchInitializationData(holder, video) } answers {

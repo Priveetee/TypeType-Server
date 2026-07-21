@@ -19,6 +19,7 @@ internal class SabrPlaybackSessionService(
         startTimeMs: Long,
         audioOnly: Boolean = false,
         isLive: Boolean = false,
+        initialGeneration: Long = 0L,
     ): SabrPlaybackPreparation {
         val holder = sessionStore.getOrCreate(
             videoId = videoId,
@@ -31,6 +32,7 @@ internal class SabrPlaybackSessionService(
             startPump = false,
             purpose = purpose,
             audioOnly = audioOnly,
+            initialGeneration = initialGeneration,
         )
         if (isLive || prepared.isLive || prepared.isLiveContent) holder.markExpectedLive()
         if (holder.expectsLive()) {
@@ -61,6 +63,7 @@ internal class SabrPlaybackSessionService(
             startTimeMs = playerTimeMs,
             audioOnly = audioOnly,
             isLive = source.expectsLive() || prepared.isLive || prepared.isLiveContent,
+            initialGeneration = source.nextReplacementGeneration(),
         )
     }
 
