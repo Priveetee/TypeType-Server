@@ -11,10 +11,15 @@ internal fun SabrSessionHolder.repositionTargets(
     playerTimeMs: Long,
     generation: Long,
 ): List<SabrSegmentRequest> = targets.filter { request ->
+    val cached = session.getCachedSegment(request)
     val warmedStartMs = adjacentWarmedLiveMediaStartMs(request, playerTimeMs)
-    val targetStartMs = warmedStartMs ?: playbackSegmentStartMs(request.format, request.sequenceNumber)
-    setReaderPosition(request.format, targetStartMs, generation)
-    session.getCachedSegment(request) == null && warmedStartMs == null
+    val targetPositionMs = when {
+        cached != null -> playbackSegmentEndMs(request.format, request.sequenceNumber)
+        warmedStartMs != null -> warmedStartMs
+        else -> playbackSegmentStartMs(request.format, request.sequenceNumber)
+    }
+    setReaderPosition(request.format, targetPositionMs, generation)
+    cached == null && warmedStartMs == null
 }
 
 private fun SabrSessionHolder.adjacentWarmedLiveMediaStartMs(

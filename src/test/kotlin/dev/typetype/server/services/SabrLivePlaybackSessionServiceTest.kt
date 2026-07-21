@@ -143,7 +143,9 @@ class SabrLivePlaybackSessionServiceTest {
         assertEquals(video.itag, result.holder.videoFormat.itag)
         assertNull(replacement.nextSegmentDemand())
         assertEquals(995_010L, replacement.readerPosition(audio))
+        assertEquals(1_000_000L, replacement.readerPosition(video))
         assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
+        assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == video.itag })
         coVerify(exactly = 1) { store.ensureWarmed(replacement, 8) }
         verify(exactly = 1) { store.startPump(replacement) }
     }
