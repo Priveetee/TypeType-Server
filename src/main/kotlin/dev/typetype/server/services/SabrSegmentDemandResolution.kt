@@ -9,11 +9,13 @@ internal fun SabrSessionHolder.resolveSegmentDemand(
     onResolved: (SabrMediaSegment) -> Unit = {},
 ): Boolean {
     val requested = session.getCachedSegment(request)
+    val live = livePlaybackSnapshot()?.active == true
     val rebased = if (requested != null) null else session.findCachedMediaAt(
         format = request.format,
         targetMs = playbackSegmentStartMs(request.format, request.sequenceNumber),
         predictedSequence = request.sequenceNumber,
-        allowFollowing = livePlaybackSnapshot()?.active == true,
+        fallbackDurationMs = if (live) playbackSegmentDurationMs(request.format, request.sequenceNumber) else null,
+        allowFollowing = live,
     )
     val resolved = requested ?: rebased ?: return false
     if (!clearSegmentDemand(request, identity)) return false

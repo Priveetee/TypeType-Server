@@ -53,13 +53,14 @@ class SabrSegmentDemandResolutionTest {
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         val request = SabrSegmentRequest.media(format, 92)
-        val replacement = segment(itag = 299, sequence = 93, startMs = 480_000L, durationMs = 5_000L)
+        val replacement = segment(itag = 299, sequence = 93, startMs = 480_000L, durationMs = -1L)
         every { format.itag } returns 299
         every { format.isAudio } returns false
         every { session.streamState } returns state
         every { session.isLive } returns true
         every { state.isLive } returns true
         every { state.getSegmentStartMs(format, 92) } returns 475_000L
+        every { state.getSegmentEndMs(format, 92) } returns 480_000L
         every { session.getCachedSegment(any()) } answers {
             firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 93 }?.let { replacement }
         }
