@@ -1,8 +1,13 @@
 package dev.typetype.server.services
 
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 
-internal fun SabrSessionHolder.resolveSegmentDemand(request: SabrSegmentRequest, identity: String): Boolean {
+internal fun SabrSessionHolder.resolveSegmentDemand(
+    request: SabrSegmentRequest,
+    identity: String,
+    onResolved: (SabrMediaSegment) -> Unit = {},
+): Boolean {
     val requested = session.getCachedSegment(request)
     val rebased = if (requested != null) null else session.findCachedMediaAt(
         format = request.format,
@@ -13,6 +18,7 @@ internal fun SabrSessionHolder.resolveSegmentDemand(request: SabrSegmentRequest,
     val resolved = requested ?: rebased ?: return false
     if (!clearSegmentDemand(request, identity)) return false
     observeMediaSegment(resolved)
+    onResolved(resolved)
     if (rebased != null) session.streamState.jumpBufferedTo(request.format, rebased.header.sequenceNumber)
     return true
 }

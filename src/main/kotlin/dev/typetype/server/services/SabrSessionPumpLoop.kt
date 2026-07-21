@@ -7,6 +7,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
@@ -15,6 +16,7 @@ import java.io.IOException
 internal class SabrSessionPumpLoop(
     private val unauthorizedRecovery: SabrUnauthorizedResponseRecovery = SabrUnauthorizedResponseRecovery { null },
     private val runtimeFactory: () -> SabrPumpRuntime = { SabrPumpRuntime() },
+    private val onResolved: (SabrSessionHolder, SabrMediaSegment) -> Unit = { _, _ -> },
 ) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "US")
@@ -104,6 +106,7 @@ internal class SabrSessionPumpLoop(
                     result,
                     runtime,
                     wasFutureLiveRequest,
+                    onResolved = { onResolved(holder, it) },
                 )
             } finally {
                 holder.finishInFlightSegmentDemand(demandIdentity)
