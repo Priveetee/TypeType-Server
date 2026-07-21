@@ -192,11 +192,7 @@ internal class SabrPlaybackSessionService(
             SabrSegmentRequest.media(format, playbackStartSequence(format, playerTimeMs))
         }
         val targets = listOfNotNull(request, companion)
-        targets.forEach { target ->
-            val targetStartMs = playbackSegmentStartMs(target.format, target.sequenceNumber)
-            setReaderPosition(target.format, targetStartMs, generation)
-        }
-        val missing = targets.filter { session.getCachedSegment(it) == null }
+        val missing = repositionTargets(targets, playerTimeMs, generation)
         if (missing.isEmpty()) return
         missing.forEach { requestSegmentDemand(it, generation) }
         if (livePlaybackSnapshot()?.active == true) return

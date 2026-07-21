@@ -7,6 +7,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -16,6 +19,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 
 class SabrLivePlaybackSessionServiceTest {
     @Test
@@ -88,11 +92,68 @@ class SabrLivePlaybackSessionServiceTest {
         verify(exactly = 1) { store.startPump(holder) }
     }
 
+    @Test
+    fun `live format change starts the replacement session from warmed track boundaries`() = runTest {
+        val audio = format(140, isAudio = true)
+        val source = holder(audio, format(137, isAudio = false))
+        val video = format(248, isAudio = false)
+        val replacement = holder(audio, video)
+        val info = mockk<YoutubeSabrInfo>()
+        val prepared = SabrPreparedInfo(info, token(), isLive = true, isLiveContent = true)
+        val audioSegment = mediaSegment(audio.itag, 995_010L, sequence = 101)
+        val videoSegment = mediaSegment(video.itag, 995_000L, sequence = 100)
+        replacement.markExpectedLive()
+        replacement.observeMediaSegment(audioSegment)
+        replacement.observeMediaSegment(videoSegment)
+        val replacementState = replacement.session.streamState
+        every { replacementState.liveHeadTimeMs } returns 1_005_000L
+        every {
+            replacement.session.getCachedSegment(match {
+                it.format.itag == video.itag && it.sequenceNumber == 100
+            })
+        } returns videoSegment
+        every {
+            replacement.session.getCachedSegment(match {
+                it.format.itag == audio.itag && it.sequenceNumber == 101
+            })
+        } returns audioSegment
+        val store = mockk<SabrSessionStore>()
+        every {
+            store.getOrCreate(
+                "video",
+                "user",
+                info,
+                audio,
+                video,
+                prepared.initialToken,
+                995_000L,
+                false,
+                SabrSessionPurpose.PLAYBACK,
+                false,
+            )
+        } returns replacement
+        coEvery { store.ensureWarmed(replacement, 8) } returns Unit
+        every { store.startPump(replacement) } returns Unit
+
+        val result = SabrPlaybackSessionService(store).seek(source, prepared, audio, video, 995_000L)
+
+        assertSame(replacement, result.holder)
+        assertEquals(0L, result.holder.activeGeneration())
+        assertEquals(audio.itag, result.holder.audioFormat.itag)
+        assertEquals(video.itag, result.holder.videoFormat.itag)
+        assertNull(replacement.nextSegmentDemand())
+        assertEquals(995_010L, replacement.readerPosition(audio))
+        assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
+        coVerify(exactly = 1) { store.ensureWarmed(replacement, 8) }
+        verify(exactly = 1) { store.startPump(replacement) }
+    }
+
     private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
         every { session.prepareForInitialization(any()) } returns Unit
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
@@ -102,7 +163,7 @@ class SabrLivePlaybackSessionServiceTest {
             info = mockk<YoutubeSabrInfo>(),
             audioFormat = audio,
             videoFormat = video,
-            sessionToken = "session-token",
+            sessionToken = "session-token-${sessionIds.incrementAndGet()}",
             key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
             lastRequestAt = Instant.EPOCH,
         )
@@ -118,10 +179,10 @@ class SabrLivePlaybackSessionServiceTest {
         return format
     }
 
-    private fun mediaSegment(itag: Int, startMs: Long): SabrMediaSegment {
+    private fun mediaSegment(itag: Int, startMs: Long, sequence: Int = 200): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>(relaxed = true)
         every { header.itag } returns itag
-        every { header.sequenceNumber } returns 200
+        every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
         every { header.durationMs } returns 5_000L
         every { header.isInitSegment } returns false
@@ -136,4 +197,8 @@ class SabrLivePlaybackSessionServiceTest {
         videoBoundPoToken = "video-token",
         videoBoundPoTokenBytes = byteArrayOf(2),
     )
+
+    private companion object {
+        val sessionIds = AtomicInteger()
+    }
 }
