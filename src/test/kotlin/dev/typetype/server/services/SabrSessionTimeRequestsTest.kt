@@ -94,6 +94,32 @@ class SabrSessionTimeRequestsTest {
         assertEquals(listOf(request), missing)
     }
 
+    @Test
+    fun `reposition advances to the next warmed live segment from inside a boundary`() {
+        val audio = sabrFormat(itag = 140, isAudio = true)
+        val video = sabrFormat(itag = 248, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { state.setActiveTrackTypes(any(), any()) } returns Unit
+        every { session.getCachedSegment(any()) } returns null
+        val holder = holder(session, audio, video)
+        val observed = mediaSegment(audio.itag, sequence = 101, startMs = 1_000_000L, durationMs = 5_000L)
+        holder.markExpectedLive()
+        holder.observeMediaSegment(observed)
+        every {
+            session.getCachedSegment(match {
+                it.format.itag == audio.itag && it.sequenceNumber == 101
+            })
+        } returns observed
+        val request = SabrSegmentRequest.media(audio, 100)
+
+        val missing = holder.repositionTargets(listOf(request), playerTimeMs = 996_200L, generation = 0L)
+
+        assertEquals(emptyList<SabrSegmentRequest>(), missing)
+        assertEquals(1_000_000L, holder.readerPosition(audio))
+    }
+
     private fun sabrFormat(itag: Int, isAudio: Boolean): YoutubeSabrFormat {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
@@ -102,11 +128,17 @@ class SabrSessionTimeRequestsTest {
         return format
     }
 
-    private fun mediaSegment(itag: Int, sequence: Int, startMs: Long): SabrMediaSegment {
+    private fun mediaSegment(
+        itag: Int,
+        sequence: Int,
+        startMs: Long,
+        durationMs: Long = 0L,
+    ): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>(relaxed = true)
         every { header.itag } returns itag
         every { header.sequenceNumber } returns sequence
         every { header.startMs } returns startMs
+        every { header.durationMs } returns durationMs
         every { header.isInitSegment } returns false
         return mockk { every { this@mockk.header } returns header }
     }
