@@ -176,6 +176,7 @@ class SabrLivePlaybackTest {
             every { itag } returns fixture.video.itag
             every { sequenceNumber } returns 198
             every { startMs } returns 998_000L
+            every { durationMs } returns 2_000L
         }
         fixture.holder.observeMediaSegment(mockk { every { this@mockk.header } returns header })
 
