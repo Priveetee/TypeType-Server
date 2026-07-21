@@ -43,6 +43,7 @@ paths:
   /playlist: { $ref: ./openapi/paths/playlists.yaml#/Playlist }
   /saved-playlists: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists }
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
+  /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
@@ -130,6 +131,8 @@ components:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistItem
     SavedPlaylistItem: { $ref: ./openapi/components/media.yaml#/SavedPlaylistItem }
     SavedPlaylistRequest: { $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest }
+    SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
+    SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
     AdminSettingsItem: { $ref: ./openapi/components/access-control.yaml#/AdminSettingsItem }
     AllowedChannelItem: { $ref: ./openapi/components/access-control.yaml#/AllowedChannelItem }

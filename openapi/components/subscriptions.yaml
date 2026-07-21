@@ -1,0 +1,35 @@
+SubscriptionFeedResponse:
+  type: object
+  required: [videos, nextpage, generation, generatedAt, refreshing]
+  properties:
+    videos:
+      type: array
+      maxItems: 100
+      items:
+        $ref: ./media.yaml#/VideoItem
+    nextpage:
+      type: string
+      nullable: true
+      description: Opaque continuation bound to this snapshot generation and page size.
+    generation:
+      type: integer
+      format: int64
+    generatedAt:
+      type: integer
+      format: int64
+      description: Unix timestamp in milliseconds for the snapshot build.
+    refreshing:
+      type: boolean
+      description: True while a stale snapshot is being rebuilt in the background.
+SubscriptionFeedPreparingResponse:
+  type: object
+  required: [code, retryAfterMs]
+  properties:
+    code:
+      type: string
+      enum: [subscription_feed_preparing]
+    retryAfterMs:
+      type: integer
+      format: int64
+      minimum: 100
+      maximum: 5000
