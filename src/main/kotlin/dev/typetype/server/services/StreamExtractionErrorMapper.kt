@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.ExtractionFailureKind
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
@@ -33,7 +34,14 @@ internal object StreamExtractionErrorMapper {
         is GeographicRestrictionException,
         is AgeRestrictedContentException,
         is PrivateContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: "Content not available")
-        else -> ExtractionResult.Failure(sanitize(error.message) ?: fallback)
+        else -> ExtractionResult.Failure(
+            sanitize(error.message) ?: fallback,
+            kind = if (error.isYoutubeSessionRejected()) {
+                ExtractionFailureKind.YoutubeSessionRejected
+            } else {
+                ExtractionFailureKind.Unknown
+            },
+        )
     }
 
     private fun paidContent(message: String?): ExtractionResult.BadRequest {
@@ -45,5 +53,12 @@ internal object StreamExtractionErrorMapper {
         }
     }
 
+    private fun Throwable.isYoutubeSessionRejected(): Boolean =
+        generateSequence(this) { it.cause }
+            .any { it.javaClass.name == YOUTUBE_SESSION_REJECTED_EXCEPTION }
+
     private fun sanitize(message: String?): String? = ExtractionErrorSanitizer.sanitize(message)
+
+    private const val YOUTUBE_SESSION_REJECTED_EXCEPTION =
+        "org.schabi.newpipe.extractor.exceptions.YoutubeSessionRejectedException"
 }

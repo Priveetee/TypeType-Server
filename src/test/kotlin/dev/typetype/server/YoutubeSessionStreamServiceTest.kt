@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.YoutubeSessionCompleteRequest
 import dev.typetype.server.services.SignedHlsManifestTokenResult
@@ -43,7 +44,7 @@ class YoutubeSessionStreamServiceTest {
     }
 
     @Test
-    fun `rejected authenticated extraction marks session needs reconnect`() = runBlocking {
+    fun `generic authenticated extraction failure keeps session connected`() = runBlocking {
         connectYoutubeSession()
         val service = YoutubeSessionStreamService(
             failingStreamService("No suitable stream"),
@@ -52,6 +53,22 @@ class YoutubeSessionStreamServiceTest {
             tokenService,
         )
         val result = service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test")
+        assertTrue(result is ExtractionResult.Failure)
+        assertEquals("connected", youtubeSessionService.status(TEST_USER_ID).status)
+    }
+
+    @Test
+    fun `explicit session rejection marks session needs reconnect`() = runBlocking {
+        connectYoutubeSession()
+        val service = testService(
+            failingStreamService(
+                "rejected",
+                ExtractionFailureKind.YoutubeSessionRejected,
+            ),
+        )
+
+        val result = service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test")
+
         assertTrue(result is ExtractionResult.BadRequest)
         assertEquals("needs_reconnect", youtubeSessionService.status(TEST_USER_ID).status)
     }
@@ -98,16 +115,19 @@ class YoutubeSessionStreamServiceTest {
         val result = youtubeSessionService.complete(
             YoutubeSessionCompleteRequest(
                 code = pairing.code,
-                cookies = "SID=secret-cookie",
+                cookies = "SID=secret-cookie; SAPISID=secret-sapisid",
                 poToken = "secret-pot-value",
             )
         )
         assertEquals(YoutubeSessionCompleteResult.Completed, result)
     }
 
-    private fun failingStreamService(message: String = "unexpected call"): StreamService = object : StreamService {
+    private fun failingStreamService(
+        message: String = "unexpected call",
+        kind: ExtractionFailureKind = ExtractionFailureKind.Unknown,
+    ): StreamService = object : StreamService {
         override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
-            ExtractionResult.Failure(message)
+            ExtractionResult.Failure(message, kind = kind)
     }
 
     private fun testService(stream: StreamService): YoutubeSessionStreamService =
