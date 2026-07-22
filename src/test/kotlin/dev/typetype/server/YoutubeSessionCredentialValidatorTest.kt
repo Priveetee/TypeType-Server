@@ -9,8 +9,14 @@ class YoutubeSessionCredentialValidatorTest {
     @Test
     fun `validates YouTube session cookie and po token shape`() {
         assertTrue(YoutubeSessionCredentialValidator.isValid("SID=abc; SAPISID=def", "po-token-value"))
-        assertTrue(YoutubeSessionCredentialValidator.isValid("__Secure-3PSID=abc", "po-token-value"))
+        assertTrue(
+            YoutubeSessionCredentialValidator.isValid(
+                "__Secure-3PSID=abc; __Secure-3PAPISID=def",
+                "po-token-value",
+            ),
+        )
         assertFalse(YoutubeSessionCredentialValidator.isValid("SAPISID=def", "po-token-value"))
+        assertFalse(YoutubeSessionCredentialValidator.isValid("SID=abc", "po-token-value"))
         assertFalse(YoutubeSessionCredentialValidator.isValid("SID=abc", "short"))
     }
 }

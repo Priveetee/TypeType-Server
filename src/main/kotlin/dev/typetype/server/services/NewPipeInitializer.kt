@@ -17,6 +17,9 @@ object NewPipeInitializer {
         val normalizedUrl = tokenServiceUrl?.trim()?.takeIf { it.isNotBlank() }
         if (normalizedUrl != null && normalizedUrl != decoderServiceUrl) {
             YoutubeApiDecoder.setLocalDecoder(TypetypeTokenYoutubeJavaScriptDecoder(normalizedUrl))
+            NewPipe.setYoutubeSessionPoTokenProvider(
+                TypetypeTokenYoutubeSessionPoTokenProvider(normalizedUrl),
+            )
             decoderServiceUrl = normalizedUrl
         }
         if (!initialized) {
