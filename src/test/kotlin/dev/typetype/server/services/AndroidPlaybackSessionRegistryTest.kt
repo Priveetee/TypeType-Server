@@ -15,13 +15,15 @@ class AndroidPlaybackSessionRegistryTest {
         val current = MutableNow(Instant.parse("2026-07-20T10:00:00Z"))
         val store = mockk<SabrSessionStore>()
         val holder = holder()
+        val subtitle = mockk<AndroidSubtitleTrack>()
         every { store.lookupByToken("android-session") } returns holder
         val registry = registry(store, current)
-        registry.register(holder)
+        registry.register(holder, listOf(subtitle))
 
         val result = registry.lookup("android-session") as AndroidPlaybackSessionLookup.Active
 
-        assertSame(holder, result.holder)
+        assertSame(holder, result.session.holder)
+        assertSame(subtitle, result.session.subtitles.single())
         verify(exactly = 1) { store.lookupByToken("android-session") }
     }
 
@@ -31,7 +33,7 @@ class AndroidPlaybackSessionRegistryTest {
         val store = mockk<SabrSessionStore>(relaxed = true)
         val holder = holder()
         val registry = registry(store, current)
-        registry.register(holder)
+        registry.register(holder, emptyList())
         current.value = current.value.plus(Duration.ofMinutes(5))
 
         assertEquals(AndroidPlaybackSessionLookup.Expired, registry.lookup("android-session"))
@@ -44,7 +46,7 @@ class AndroidPlaybackSessionRegistryTest {
         val current = MutableNow(Instant.parse("2026-07-20T10:00:00Z"))
         val store = mockk<SabrSessionStore>(relaxed = true)
         val registry = registry(store, current)
-        registry.register(holder())
+        registry.register(holder(), emptyList())
         current.value = current.value.plus(Duration.ofMinutes(5))
         assertEquals(AndroidPlaybackSessionLookup.Expired, registry.lookup("android-session"))
 
@@ -60,7 +62,7 @@ class AndroidPlaybackSessionRegistryTest {
         val holder = holder()
         every { store.lookupByToken("android-session") } returns null
         val registry = registry(store, current)
-        registry.register(holder)
+        registry.register(holder, emptyList())
 
         assertEquals(AndroidPlaybackSessionLookup.Expired, registry.lookup("android-session"))
         verify(exactly = 1) { store.release(holder) }

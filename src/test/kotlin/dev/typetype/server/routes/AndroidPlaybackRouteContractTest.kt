@@ -3,7 +3,9 @@ package dev.typetype.server.routes
 import dev.typetype.server.services.AndroidDashManifestResult
 import dev.typetype.server.services.AndroidPlaybackMediaResult
 import dev.typetype.server.services.AndroidPlaybackService
+import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidPlaybackSessionLookup
+import dev.typetype.server.services.AndroidSubtitleService
 import dev.typetype.server.services.SabrSessionHolder
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -30,7 +32,16 @@ class AndroidPlaybackRouteContractTest {
     fun `dedicated Android manifest path does not use the web SABR namespace`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { androidPlaybackRoutes(mockk(relaxed = true), mockk(), null, null, null) }
+            routing {
+                androidPlaybackRoutes(
+                    mockk(relaxed = true),
+                    mockk(),
+                    mockk(),
+                    null,
+                    null,
+                    null,
+                )
+            }
         }
 
         val response = client.get("/android/youtube/playback/unknown/manifest.mpd")
@@ -42,7 +53,7 @@ class AndroidPlaybackRouteContractTest {
     @Test
     fun `ready manifest returns dash xml with no store`() = testApplication {
         val fixture = fixture()
-        every { fixture.service.lookup(SESSION_ID) } returns AndroidPlaybackSessionLookup.Active(fixture.holder)
+        every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
         coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Ready(MPD, 1_000L)
         application {
             install(ContentNegotiation) { json() }
@@ -60,7 +71,7 @@ class AndroidPlaybackRouteContractTest {
     @Test
     fun `preparing manifest returns bounded json retry`() = testApplication {
         val fixture = fixture()
-        every { fixture.service.lookup(SESSION_ID) } returns AndroidPlaybackSessionLookup.Active(fixture.holder)
+        every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
         coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Preparing
         application {
             install(ContentNegotiation) { json() }
@@ -93,7 +104,7 @@ class AndroidPlaybackRouteContractTest {
     @Test
     fun `stale media generation returns conflict`() = testApplication {
         val fixture = fixture()
-        every { fixture.service.lookup(SESSION_ID) } returns AndroidPlaybackSessionLookup.Active(fixture.holder)
+        every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
         coEvery { fixture.service.segment(fixture.holder, 137, 1, 0L) } returns AndroidPlaybackMediaResult.StaleGeneration
         val media = AndroidPlaybackMediaHandler(fixture.service)
         application {
@@ -112,7 +123,7 @@ class AndroidPlaybackRouteContractTest {
     @Test
     fun `invalid complete index returns unprocessable entity`() = testApplication {
         val fixture = fixture()
-        every { fixture.service.lookup(SESSION_ID) } returns AndroidPlaybackSessionLookup.Active(fixture.holder)
+        every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
         coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Invalid("invalid index")
         application {
             install(ContentNegotiation) { json() }
@@ -136,8 +147,16 @@ class AndroidPlaybackRouteContractTest {
             every { videoFormat } returns video
             every { activeGeneration() } returns 0L
         }
-        val handler = AndroidPlaybackHandler(mockk(), mockk(), null, null, null, service)
-        return Fixture(service, holder, handler)
+        val handler = AndroidPlaybackHandler(
+            mockk(),
+            mockk(),
+            null,
+            null,
+            null,
+            mockk<AndroidSubtitleService>(),
+            service,
+        )
+        return Fixture(service, holder, handler, AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, emptyList())))
     }
 
     private fun format(itag: Int, audio: Boolean): YoutubeSabrFormat = mockk {
@@ -150,6 +169,7 @@ class AndroidPlaybackRouteContractTest {
         val service: AndroidPlaybackService,
         val holder: SabrSessionHolder,
         val handler: AndroidPlaybackHandler,
+        val lookup: AndroidPlaybackSessionLookup.Active,
     )
 
     private companion object {

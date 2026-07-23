@@ -55,7 +55,14 @@ class AndroidPlaybackServiceTest {
         val service = AndroidPlaybackService(store, mockk(relaxed = true))
         val prepared = SabrPreparedInfo(mockk<YoutubeSabrInfo>(), null, isLive = true)
 
-        val result = service.create("video", "user", prepared, format(140, true), format(137, false))
+        val result = service.create(
+            "video",
+            "user",
+            prepared,
+            format(140, true),
+            format(137, false),
+            emptyList(),
+        )
 
         assertEquals(AndroidPlaybackCreateResult.UnsupportedLive, result)
         coVerify(exactly = 0) { store.fetchInitializationData(any(), any()) }

@@ -76,9 +76,10 @@ class InstanceRoutesTest {
         assertEquals(listOf(0, 3, 4, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
         val androidPlayback = root["androidPlayback"]?.jsonObject
         assertEquals(true, androidPlayback?.get("supported")?.jsonPrimitive?.boolean)
-        assertEquals(1, androidPlayback?.get("contractVersion")?.jsonPrimitive?.int)
+        assertEquals(2, androidPlayback?.get("contractVersion")?.jsonPrimitive?.int)
         assertEquals(true, androidPlayback?.get("youtube")?.jsonObject?.get("vod")?.jsonPrimitive?.boolean)
         assertEquals(false, androidPlayback?.get("youtube")?.jsonObject?.get("live")?.jsonPrimitive?.boolean)
+        assertEquals(true, androidPlayback?.get("youtube")?.jsonObject?.get("subtitles")?.jsonPrimitive?.boolean)
     }
 
     @Test
