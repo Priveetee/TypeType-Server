@@ -16,10 +16,20 @@ internal class AndroidPlaybackSessionRegistry(
     fun register(
         holder: SabrSessionHolder,
         subtitles: List<AndroidSubtitleTrack>,
+    ): AndroidPlaybackSession = register(
+        holder,
+        AndroidSubtitleInventoryHandle.ready(subtitles),
+        deferredSubtitles = false,
+    )
+
+    fun register(
+        holder: SabrSessionHolder,
+        subtitleInventory: AndroidSubtitleInventoryHandle,
+        deferredSubtitles: Boolean,
     ): AndroidPlaybackSession {
         val current = now()
         cleanup(current)
-        val session = AndroidPlaybackSession(holder, subtitles)
+        val session = AndroidPlaybackSession(holder, subtitleInventory, deferredSubtitles)
         sessions[holder.sessionToken] = Lease(session, current)
         tombstones.remove(holder.sessionToken)
         return session
@@ -44,7 +54,7 @@ internal class AndroidPlaybackSessionRegistry(
             return AndroidPlaybackSessionLookup.Expired
         }
         lease.lastAccess = current
-        return AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, lease.session.subtitles))
+        return AndroidPlaybackSessionLookup.Active(lease.session.withHolder(holder))
     }
 
     internal fun expire(sessionId: String): Unit {
@@ -77,10 +87,23 @@ internal class AndroidPlaybackSessionRegistry(
     }
 }
 
-internal data class AndroidPlaybackSession(
+internal class AndroidPlaybackSession(
     val holder: SabrSessionHolder,
-    val subtitles: List<AndroidSubtitleTrack>,
-)
+    val subtitleInventory: AndroidSubtitleInventoryHandle,
+    val deferredSubtitles: Boolean,
+) {
+    constructor(holder: SabrSessionHolder, subtitles: List<AndroidSubtitleTrack>) : this(
+        holder,
+        AndroidSubtitleInventoryHandle.ready(subtitles),
+        deferredSubtitles = false,
+    )
+
+    val subtitles: List<AndroidSubtitleTrack>
+        get() = (subtitleInventory.snapshot() as? AndroidSubtitleInventorySnapshot.Ready)?.tracks.orEmpty()
+
+    fun withHolder(current: SabrSessionHolder): AndroidPlaybackSession =
+        AndroidPlaybackSession(current, subtitleInventory, deferredSubtitles)
+}
 
 internal sealed interface AndroidPlaybackSessionLookup {
     data class Active(val session: AndroidPlaybackSession) : AndroidPlaybackSessionLookup

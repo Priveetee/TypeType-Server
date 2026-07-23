@@ -47,10 +47,7 @@ internal class AndroidPlaybackMediaHandler(private val service: AndroidPlaybackS
         is AndroidPlaybackMediaResult.Ready -> respondSabrMediaBytes(result.mimeType, result.bytes)
         AndroidPlaybackMediaResult.Preparing -> respond(
             HttpStatusCode.Accepted,
-            session.holder.toAndroidPlaybackResponse(
-                dev.typetype.server.services.AndroidDashManifestResult.Preparing,
-                session.subtitles,
-            ),
+            session.toAndroidPlaybackResponse(dev.typetype.server.services.AndroidDashManifestResult.Preparing),
         )
         AndroidPlaybackMediaResult.StaleGeneration -> respondAndroidError(
             HttpStatusCode.Conflict,
