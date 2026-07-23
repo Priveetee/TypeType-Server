@@ -16,20 +16,10 @@ internal class AndroidPlaybackSessionRegistry(
     fun register(
         holder: SabrSessionHolder,
         subtitles: List<AndroidSubtitleTrack>,
-    ): AndroidPlaybackSession = register(
-        holder,
-        AndroidSubtitleInventoryHandle.ready(subtitles),
-        deferredSubtitles = false,
-    )
-
-    fun register(
-        holder: SabrSessionHolder,
-        subtitleInventory: AndroidSubtitleInventoryHandle,
-        deferredSubtitles: Boolean,
     ): AndroidPlaybackSession {
         val current = now()
         cleanup(current)
-        val session = AndroidPlaybackSession(holder, subtitleInventory, deferredSubtitles)
+        val session = AndroidPlaybackSession(holder, subtitles)
         sessions[holder.sessionToken] = Lease(session, current)
         tombstones.remove(holder.sessionToken)
         return session
@@ -89,20 +79,12 @@ internal class AndroidPlaybackSessionRegistry(
 
 internal class AndroidPlaybackSession(
     val holder: SabrSessionHolder,
-    val subtitleInventory: AndroidSubtitleInventoryHandle,
-    val deferredSubtitles: Boolean,
+    subtitles: List<AndroidSubtitleTrack>,
 ) {
-    constructor(holder: SabrSessionHolder, subtitles: List<AndroidSubtitleTrack>) : this(
-        holder,
-        AndroidSubtitleInventoryHandle.ready(subtitles),
-        deferredSubtitles = false,
-    )
-
-    val subtitles: List<AndroidSubtitleTrack>
-        get() = (subtitleInventory.snapshot() as? AndroidSubtitleInventorySnapshot.Ready)?.tracks.orEmpty()
+    val subtitles: List<AndroidSubtitleTrack> = subtitles.toList()
 
     fun withHolder(current: SabrSessionHolder): AndroidPlaybackSession =
-        AndroidPlaybackSession(current, subtitleInventory, deferredSubtitles)
+        AndroidPlaybackSession(current, subtitles)
 }
 
 internal sealed interface AndroidPlaybackSessionLookup {

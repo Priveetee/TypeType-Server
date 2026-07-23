@@ -48,9 +48,11 @@ internal class AndroidPlaybackHandler(
                 "android_playback_probe_failed",
                 "SABR probe failed",
             )
-        val deferredSubtitles = request.subtitleMode == AndroidSubtitleMode.DEFERRED
-        if (!deferredSubtitles && subtitleInventory.await() !is AndroidSubtitleInventorySnapshot.Ready) {
-            return call.respondAndroidError(
+        val subtitles = when (val inventory = subtitleInventory.await()) {
+            is AndroidSubtitleInventorySnapshot.Ready -> inventory.tracks
+            AndroidSubtitleInventorySnapshot.Preparing,
+            AndroidSubtitleInventorySnapshot.TemporaryFailure,
+            -> return call.respondAndroidError(
                 HttpStatusCode.ServiceUnavailable,
                 "android_subtitle_inventory_unavailable",
                 "Android subtitle inventory is temporarily unavailable",
@@ -75,8 +77,7 @@ internal class AndroidPlaybackHandler(
                 prepared,
                 audio,
                 video,
-                subtitleInventory,
-                deferredSubtitles,
+                subtitles,
             )
         ) {
             is AndroidPlaybackCreateResult.Created -> call.respondSession(

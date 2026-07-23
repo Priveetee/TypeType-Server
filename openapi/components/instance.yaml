@@ -57,17 +57,21 @@ AndroidPlaybackCapability:
   required: [supported, contractVersion, youtube]
   properties:
     supported: { type: boolean, example: true }
-    contractVersion: { type: integer, enum: [3] }
+    contractVersion: { type: integer, enum: [4] }
     youtube:
       $ref: '#/AndroidYoutubePlaybackCapability'
 AndroidYoutubePlaybackCapability:
   type: object
-  required: [vod, live, subtitles, deferredSubtitles]
+  required: [vod, live, subtitles, deferredSubtitleContent, bootstrapSubtitleDescriptors]
   properties:
     vod: { type: boolean, example: true }
     live: { type: boolean, example: false }
     subtitles: { type: boolean, example: true }
-    deferredSubtitles:
+    deferredSubtitleContent:
       type: boolean
       example: true
-      description: Android can request a session before its subtitle inventory is ready.
+      description: Subtitle documents are fetched only when a session-scoped WebVTT resource is requested.
+    bootstrapSubtitleDescriptors:
+      type: boolean
+      example: true
+      description: Every successful playback creation response contains the complete subtitle descriptor catalog.

@@ -5,14 +5,11 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidSubtitleContentResult
-import dev.typetype.server.services.AndroidSubtitleInventorySnapshot
 import dev.typetype.server.services.AndroidSubtitleService
 import dev.typetype.server.services.AuthService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.HttpHeaders
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 
 internal class AndroidSubtitleHandler(
@@ -43,31 +40,6 @@ internal class AndroidSubtitleHandler(
                 "android_subtitle_unavailable",
                 "Android subtitle cannot be produced",
             )
-        }
-    }
-
-    suspend fun inventory(call: ApplicationCall, sessionId: String) {
-        call.response.headers.append(HttpHeaders.CacheControl, "no-store")
-        val session = call.authorizedSession(sessionId) ?: return
-        when (val inventory = session.subtitleInventory.snapshot()) {
-            AndroidSubtitleInventorySnapshot.Preparing -> {
-                call.response.headers.append(HttpHeaders.RetryAfter, "1")
-                call.respond(HttpStatusCode.Accepted, AndroidSubtitleInventoryPreparingResponse())
-            }
-            is AndroidSubtitleInventorySnapshot.Ready -> call.respond(
-                HttpStatusCode.OK,
-                AndroidSubtitleInventoryReadyResponse(
-                    tracks = inventory.tracks.map { it.toResponse(sessionId) },
-                ),
-            )
-            AndroidSubtitleInventorySnapshot.TemporaryFailure -> {
-                call.response.headers.append(HttpHeaders.RetryAfter, "1")
-                call.respondAndroidError(
-                    HttpStatusCode.ServiceUnavailable,
-                    "android_subtitle_inventory_unavailable",
-                    "Android subtitle inventory is temporarily unavailable",
-                )
-            }
         }
     }
 

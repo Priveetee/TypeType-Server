@@ -15,8 +15,7 @@ internal class AndroidPlaybackService(
         prepared: SabrPreparedInfo,
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
-        subtitleInventory: AndroidSubtitleInventoryHandle,
-        deferredSubtitles: Boolean,
+        subtitles: List<AndroidSubtitleTrack>,
     ): AndroidPlaybackCreateResult {
         if (prepared.isLive || prepared.isLiveContent) return AndroidPlaybackCreateResult.UnsupportedLive
         val result = playback.prepare(
@@ -27,7 +26,7 @@ internal class AndroidPlaybackService(
             video = video,
             startTimeMs = 0L,
         )
-        val session = sessions.register(result.holder, subtitleInventory, deferredSubtitles)
+        val session = sessions.register(result.holder, subtitles)
         return AndroidPlaybackCreateResult.Created(session, manifests.build(result.holder))
     }
 

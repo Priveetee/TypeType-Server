@@ -4,11 +4,6 @@ AndroidPlaybackCreateRequest:
     videoItag: { type: integer, nullable: true }
     audioItag: { type: integer, nullable: true }
     audioTrackId: { type: string, nullable: true }
-    subtitleMode:
-      type: string
-      enum: [deferred]
-      nullable: true
-      description: Omit to retain the contract v2 inline subtitle behavior.
 AndroidPlaybackSeekRequest:
   type: object
   required: [generation, playerTimeMs]
@@ -39,11 +34,8 @@ AndroidPlaybackResponse:
     status: { type: string, enum: [ready, preparing] }
     subtitles:
       type: array
+      description: Complete authoritative descriptor catalog. Subtitle content remains demand-driven.
       items: { $ref: '#/AndroidSubtitle' }
-    subtitleInventory:
-      allOf:
-        - $ref: '#/AndroidSubtitleInventoryReference'
-      nullable: true
     retryAfterMs: { type: integer, format: int64, nullable: true, minimum: 100, maximum: 2000 }
 AndroidSubtitle:
   type: object
@@ -57,26 +49,3 @@ AndroidSubtitle:
     url:
       type: string
       description: Session-scoped same-origin resource that remains stable across playback generations.
-AndroidSubtitleInventoryReference:
-  type: object
-  required: [status, url]
-  properties:
-    status: { type: string, enum: [preparing, ready, unavailable] }
-    url:
-      type: string
-      description: Session-scoped same-origin inventory polling resource.
-    retryAfterMs: { type: integer, format: int64, nullable: true, minimum: 100, maximum: 2000 }
-AndroidSubtitleInventoryPreparingResponse:
-  type: object
-  required: [status, retryAfterMs]
-  properties:
-    status: { type: string, enum: [preparing] }
-    retryAfterMs: { type: integer, format: int64, minimum: 100, maximum: 2000, example: 250 }
-AndroidSubtitleInventoryReadyResponse:
-  type: object
-  required: [status, tracks]
-  properties:
-    status: { type: string, enum: [ready] }
-    tracks:
-      type: array
-      items: { $ref: '#/AndroidSubtitle' }

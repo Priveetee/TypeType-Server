@@ -61,11 +61,6 @@ internal fun Route.androidPlaybackRoutes(
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing trackId"))
         subtitles.content(call, sessionId, trackId)
     }
-    get("/android/youtube/playback/{sessionId}/subtitles") {
-        val sessionId = call.parameters["sessionId"]
-            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
-        subtitles.inventory(call, sessionId)
-    }
     get("/android/youtube/playback/{sessionId}/{itag}/init") {
         val sessionId = call.parameters["sessionId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
