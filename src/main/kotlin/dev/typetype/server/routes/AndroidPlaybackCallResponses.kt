@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AndroidPlaybackSessionLookup
+import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.SabrSessionHolder
 import io.ktor.http.HttpStatusCode
@@ -11,8 +12,13 @@ import io.ktor.server.response.respond
 internal suspend fun ApplicationCall.androidPlaybackHolder(
     service: AndroidPlaybackService,
     sessionId: String,
-): SabrSessionHolder? = when (val result = service.lookup(sessionId)) {
-    is AndroidPlaybackSessionLookup.Active -> result.holder
+): SabrSessionHolder? = androidPlaybackSession(service, sessionId)?.holder
+
+internal suspend fun ApplicationCall.androidPlaybackSession(
+    service: AndroidPlaybackService,
+    sessionId: String,
+): AndroidPlaybackSession? = when (val result = service.lookup(sessionId)) {
+    is AndroidPlaybackSessionLookup.Active -> result.session
     AndroidPlaybackSessionLookup.Expired -> {
         respondAndroidError(HttpStatusCode.Gone, "android_playback_expired", "Android playback session expired")
         null

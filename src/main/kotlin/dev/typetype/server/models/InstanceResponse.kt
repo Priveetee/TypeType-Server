@@ -30,7 +30,7 @@ data class InstanceResponse(
 @Serializable
 data class AndroidPlaybackCapability(
     val supported: Boolean = true,
-    val contractVersion: Int = 1,
+    val contractVersion: Int = 2,
     val youtube: AndroidYoutubePlaybackCapability = AndroidYoutubePlaybackCapability(),
 )
 
@@ -38,4 +38,5 @@ data class AndroidPlaybackCapability(
 data class AndroidYoutubePlaybackCapability(
     val vod: Boolean = true,
     val live: Boolean = false,
+    val subtitles: Boolean = true,
 )

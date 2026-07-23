@@ -15,6 +15,7 @@ internal class AndroidPlaybackService(
         prepared: SabrPreparedInfo,
         audio: YoutubeSabrFormat,
         video: YoutubeSabrFormat,
+        subtitles: List<AndroidSubtitleTrack>,
     ): AndroidPlaybackCreateResult {
         if (prepared.isLive || prepared.isLiveContent) return AndroidPlaybackCreateResult.UnsupportedLive
         val result = playback.prepare(
@@ -25,8 +26,8 @@ internal class AndroidPlaybackService(
             video = video,
             startTimeMs = 0L,
         )
-        sessions.register(result.holder)
-        return AndroidPlaybackCreateResult.Created(result.holder, manifests.build(result.holder))
+        val session = sessions.register(result.holder, subtitles)
+        return AndroidPlaybackCreateResult.Created(session, manifests.build(result.holder))
     }
 
     fun lookup(sessionId: String): AndroidPlaybackSessionLookup = sessions.lookup(sessionId)
@@ -91,7 +92,7 @@ internal class AndroidPlaybackService(
 
 internal sealed interface AndroidPlaybackCreateResult {
     data class Created(
-        val holder: SabrSessionHolder,
+        val session: AndroidPlaybackSession,
         val manifest: AndroidDashManifestResult,
     ) : AndroidPlaybackCreateResult
 

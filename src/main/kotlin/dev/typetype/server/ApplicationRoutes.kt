@@ -84,6 +84,7 @@ internal fun Application.installApplicationRoutes(
             androidPlaybackRoutes(
                 svc.androidSabrSessionStore,
                 svc.streamService,
+                svc.androidSubtitleService,
                 authService,
                 svc.accessControlService,
                 adminSettingsService,

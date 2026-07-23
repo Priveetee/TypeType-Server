@@ -13,11 +13,16 @@ internal class AndroidPlaybackSessionRegistry(
     private val sessions = ConcurrentHashMap<String, Lease>()
     private val tombstones = ConcurrentHashMap<String, Instant>()
 
-    fun register(holder: SabrSessionHolder): Unit {
+    fun register(
+        holder: SabrSessionHolder,
+        subtitles: List<AndroidSubtitleTrack>,
+    ): AndroidPlaybackSession {
         val current = now()
         cleanup(current)
-        sessions[holder.sessionToken] = Lease(holder, current)
+        val session = AndroidPlaybackSession(holder, subtitles)
+        sessions[holder.sessionToken] = Lease(session, current)
         tombstones.remove(holder.sessionToken)
+        return session
     }
 
     fun lookup(sessionId: String): AndroidPlaybackSessionLookup {
@@ -39,7 +44,7 @@ internal class AndroidPlaybackSessionRegistry(
             return AndroidPlaybackSessionLookup.Expired
         }
         lease.lastAccess = current
-        return AndroidPlaybackSessionLookup.Active(holder)
+        return AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, lease.session.subtitles))
     }
 
     internal fun expire(sessionId: String): Unit {
@@ -51,7 +56,7 @@ internal class AndroidPlaybackSessionRegistry(
     private fun expire(sessionId: String, lease: Lease, current: Instant): Unit {
         if (!sessions.remove(sessionId, lease)) return
         tombstones[sessionId] = current.plus(tombstoneTtl)
-        store.release(lease.holder)
+        store.release(lease.session.holder)
     }
 
     private fun cleanup(current: Instant): Unit {
@@ -65,15 +70,20 @@ internal class AndroidPlaybackSessionRegistry(
             .forEach { tombstones.remove(it.key, it.value) }
     }
 
-    private class Lease(val holder: SabrSessionHolder, @Volatile var lastAccess: Instant)
+    private class Lease(val session: AndroidPlaybackSession, @Volatile var lastAccess: Instant)
 
     private companion object {
         const val MAX_TOMBSTONES = 2_048
     }
 }
 
+internal data class AndroidPlaybackSession(
+    val holder: SabrSessionHolder,
+    val subtitles: List<AndroidSubtitleTrack>,
+)
+
 internal sealed interface AndroidPlaybackSessionLookup {
-    data class Active(val holder: SabrSessionHolder) : AndroidPlaybackSessionLookup
+    data class Active(val session: AndroidPlaybackSession) : AndroidPlaybackSessionLookup
     data object Expired : AndroidPlaybackSessionLookup
     data object Unknown : AndroidPlaybackSessionLookup
 }

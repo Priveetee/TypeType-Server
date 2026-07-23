@@ -8,15 +8,15 @@ import io.ktor.server.response.respond
 
 internal class AndroidPlaybackMediaHandler(private val service: AndroidPlaybackService) {
     suspend fun initialization(call: ApplicationCall, sessionId: String, itag: Int) {
-        val holder = call.androidPlaybackHolder(service, sessionId) ?: return
+        val session = call.androidPlaybackSession(service, sessionId) ?: return
         val generation = call.validGeneration(sessionId) ?: return
-        call.respondMediaResult(service.initialization(holder, itag, generation), holder)
+        call.respondMediaResult(service.initialization(session.holder, itag, generation), session)
     }
 
     suspend fun segment(call: ApplicationCall, sessionId: String, itag: Int, sequence: Int) {
-        val holder = call.androidPlaybackHolder(service, sessionId) ?: return
+        val session = call.androidPlaybackSession(service, sessionId) ?: return
         val generation = call.validGeneration(sessionId) ?: return
-        call.respondMediaResult(service.segment(holder, itag, sequence, generation), holder)
+        call.respondMediaResult(service.segment(session.holder, itag, sequence, generation), session)
     }
 
     private suspend fun ApplicationCall.validGeneration(sessionId: String): Long? {
@@ -42,12 +42,15 @@ internal class AndroidPlaybackMediaHandler(private val service: AndroidPlaybackS
 
     private suspend fun ApplicationCall.respondMediaResult(
         result: AndroidPlaybackMediaResult,
-        holder: dev.typetype.server.services.SabrSessionHolder,
+        session: dev.typetype.server.services.AndroidPlaybackSession,
     ): Unit = when (result) {
         is AndroidPlaybackMediaResult.Ready -> respondSabrMediaBytes(result.mimeType, result.bytes)
         AndroidPlaybackMediaResult.Preparing -> respond(
             HttpStatusCode.Accepted,
-            holder.toAndroidPlaybackResponse(dev.typetype.server.services.AndroidDashManifestResult.Preparing),
+            session.holder.toAndroidPlaybackResponse(
+                dev.typetype.server.services.AndroidDashManifestResult.Preparing,
+                session.subtitles,
+            ),
         )
         AndroidPlaybackMediaResult.StaleGeneration -> respondAndroidError(
             HttpStatusCode.Conflict,
