@@ -57,13 +57,17 @@ AndroidPlaybackCapability:
   required: [supported, contractVersion, youtube]
   properties:
     supported: { type: boolean, example: true }
-    contractVersion: { type: integer, enum: [2] }
+    contractVersion: { type: integer, enum: [3] }
     youtube:
       $ref: '#/AndroidYoutubePlaybackCapability'
 AndroidYoutubePlaybackCapability:
   type: object
-  required: [vod, live, subtitles]
+  required: [vod, live, subtitles, deferredSubtitles]
   properties:
     vod: { type: boolean, example: true }
     live: { type: boolean, example: false }
     subtitles: { type: boolean, example: true }
+    deferredSubtitles:
+      type: boolean
+      example: true
+      description: Android can request a session before its subtitle inventory is ready.

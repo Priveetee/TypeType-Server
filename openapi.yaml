@@ -31,6 +31,7 @@ paths:
   /android/youtube/playback/{videoId}: { $ref: ./openapi/paths/android-playback.yaml#/Create }
   /android/youtube/playback/{sessionId}/seek: { $ref: ./openapi/paths/android-playback.yaml#/Seek }
   /android/youtube/playback/{sessionId}/manifest.mpd: { $ref: ./openapi/paths/android-playback.yaml#/Manifest }
+  /android/youtube/playback/{sessionId}/subtitles: { $ref: ./openapi/paths/android-playback.yaml#/SubtitleInventory }
   /android/youtube/playback/{sessionId}/subtitles/{trackId}.vtt: { $ref: ./openapi/paths/android-playback.yaml#/Subtitle }
   /android/youtube/playback/{sessionId}/{itag}/init: { $ref: ./openapi/paths/android-playback.yaml#/Initialization }
   /android/youtube/playback/{sessionId}/{itag}/segment/{sequence}: { $ref: ./openapi/paths/android-playback.yaml#/Segment }
@@ -102,6 +103,8 @@ components:
       $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackSeekRequest
     AndroidPlaybackResponse:
       $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackResponse
+    AndroidSubtitleInventoryReadyResponse:
+      $ref: ./openapi/components/android-playback.yaml#/AndroidSubtitleInventoryReadyResponse
     StreamResponse:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     AudioOnlyStreamResponse:

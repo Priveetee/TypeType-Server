@@ -7,7 +7,7 @@ Create:
   post:
     tags: [android-playback]
     summary: Create an Android-only YouTube VOD playback session
-    description: Active livestreams are rejected. Media remains demand-driven after the complete virtual index is ready. The response includes the authoritative subtitle inventory before Media3 prepares the item.
+    description: Active livestreams are rejected. Media remains demand-driven after the complete virtual index is ready. Omitting subtitleMode preserves inline contract v2 behavior; deferred mode lets media preparation finish independently from subtitle discovery.
     requestBody:
       required: false
       content:
@@ -60,6 +60,36 @@ Manifest:
       '404': { $ref: ../components/common.yaml#/JsonError }
       '410': { $ref: ../components/common.yaml#/JsonError }
       '422': { $ref: ../components/common.yaml#/JsonError }
+SubtitleInventory:
+  parameters:
+    - $ref: '#/components/parameters/SessionId'
+  get:
+    tags: [android-playback]
+    summary: Poll the subtitle inventory for an Android VOD session
+    description: Uses the same account and expiration scope as the owning playback session. Track identities and URLs remain stable across seek generations.
+    responses:
+      '200':
+        description: Subtitle discovery completed. The tracks array is empty when the video has no captions.
+        headers:
+          Cache-Control:
+            schema: { type: string, example: no-store }
+        content:
+          application/json:
+            schema: { $ref: ../components/android-playback.yaml#/AndroidSubtitleInventoryReadyResponse }
+      '202':
+        description: Subtitle discovery is still running and playback remains usable.
+        headers:
+          Cache-Control:
+            schema: { type: string, example: no-store }
+          Retry-After:
+            schema: { type: integer, example: 1 }
+        content:
+          application/json:
+            schema: { $ref: ../components/android-playback.yaml#/AndroidSubtitleInventoryPreparingResponse }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '410': { $ref: ../components/common.yaml#/JsonError }
+      '503': { $ref: ../components/common.yaml#/JsonError }
 Subtitle:
   parameters:
     - $ref: '#/components/parameters/SessionId'
