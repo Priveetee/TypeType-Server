@@ -57,12 +57,13 @@ AndroidPlaybackCapability:
   required: [supported, contractVersion, youtube]
   properties:
     supported: { type: boolean, example: true }
-    contractVersion: { type: integer, enum: [1] }
+    contractVersion: { type: integer, enum: [2] }
     youtube:
       $ref: '#/AndroidYoutubePlaybackCapability'
 AndroidYoutubePlaybackCapability:
   type: object
-  required: [vod, live]
+  required: [vod, live, subtitles]
   properties:
     vod: { type: boolean, example: true }
     live: { type: boolean, example: false }
+    subtitles: { type: boolean, example: true }

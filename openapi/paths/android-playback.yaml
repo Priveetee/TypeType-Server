@@ -7,7 +7,7 @@ Create:
   post:
     tags: [android-playback]
     summary: Create an Android-only YouTube VOD playback session
-    description: Active livestreams are rejected. Media remains demand-driven after the complete virtual index is ready.
+    description: Active livestreams are rejected. Media remains demand-driven after the complete virtual index is ready. The response includes the authoritative subtitle inventory before Media3 prepares the item.
     requestBody:
       required: false
       content:
@@ -20,6 +20,7 @@ Create:
       '401': { $ref: ../components/common.yaml#/JsonError }
       '403': { $ref: ../components/common.yaml#/JsonError }
       '422': { $ref: ../components/common.yaml#/JsonError }
+      '503': { $ref: ../components/common.yaml#/JsonError }
 Seek:
   parameters:
     - $ref: '#/components/parameters/SessionId'
@@ -59,6 +60,28 @@ Manifest:
       '404': { $ref: ../components/common.yaml#/JsonError }
       '410': { $ref: ../components/common.yaml#/JsonError }
       '422': { $ref: ../components/common.yaml#/JsonError }
+Subtitle:
+  parameters:
+    - $ref: '#/components/parameters/SessionId'
+    - $ref: '#/components/parameters/TrackId'
+  get:
+    tags: [android-playback]
+    summary: Get one session-scoped Android subtitle as UTF-8 WebVTT
+    description: The caller must use the same account context that created the playback session. The resource remains valid across seek generations.
+    responses:
+      '200':
+        description: Complete UTF-8 WebVTT subtitle document.
+        headers:
+          Cache-Control:
+            schema: { type: string, example: no-store }
+        content:
+          text/vtt:
+            schema: { type: string }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '410': { $ref: ../components/common.yaml#/JsonError }
+      '422': { $ref: ../components/common.yaml#/JsonError }
+      '503': { $ref: ../components/common.yaml#/JsonError }
 Initialization:
   parameters:
     - $ref: '#/components/parameters/SessionId'
@@ -109,6 +132,11 @@ components:
       in: path
       required: true
       schema: { type: integer }
+    TrackId:
+      name: trackId
+      in: path
+      required: true
+      schema: { type: string }
     SessionQuery:
       name: session
       in: query
