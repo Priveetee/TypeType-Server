@@ -3,7 +3,6 @@ package dev.typetype.server.routes
 import dev.typetype.server.services.AndroidDashManifestResult
 import dev.typetype.server.services.AndroidSubtitleTrack
 import dev.typetype.server.services.AndroidPlaybackSession
-import dev.typetype.server.services.AndroidSubtitleInventoryHandle
 import dev.typetype.server.services.SabrSessionHolder
 import io.mockk.every
 import io.mockk.mockk
@@ -31,11 +30,7 @@ class AndroidPlaybackSubtitleModelsTest {
             "https://www.youtube.com/api/timedtext?v=video&lang=en".toHttpUrl(),
         )
 
-        val session = AndroidPlaybackSession(
-            holder,
-            AndroidSubtitleInventoryHandle.ready(listOf(track)),
-            deferredSubtitles = true,
-        )
+        val session = AndroidPlaybackSession(holder, listOf(track))
         val initial = session.toAndroidPlaybackResponse(MANIFEST)
         generation = 1L
         val afterSeek = session.toAndroidPlaybackResponse(MANIFEST)
@@ -46,11 +41,6 @@ class AndroidPlaybackSubtitleModelsTest {
         assertEquals(
             "/api/android/youtube/playback/session/subtitles/track-id.vtt",
             initial.subtitles.single().url,
-        )
-        assertEquals("ready", initial.subtitleInventory?.status)
-        assertEquals(
-            "/api/android/youtube/playback/session/subtitles",
-            initial.subtitleInventory?.url,
         )
     }
 

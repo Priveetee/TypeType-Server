@@ -5,7 +5,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
@@ -29,24 +28,20 @@ class AndroidPlaybackSessionRegistryTest {
     }
 
     @Test
-    fun `inventory completion updates the registered session atomically`() {
+    fun `registered subtitle catalog is an immutable snapshot`() {
         val current = MutableNow(Instant.parse("2026-07-20T10:00:00Z"))
         val store = mockk<SabrSessionStore>()
         val holder = holder()
         val track = mockk<AndroidSubtitleTrack>()
         every { store.lookupByToken("android-session") } returns holder
-        val inventory = AndroidSubtitleInventoryHandle.preparing()
+        val source = mutableListOf(track)
         val registry = registry(store, current)
-        registry.register(holder, inventory, deferredSubtitles = true)
+        registry.register(holder, source)
 
-        val preparing = registry.lookup("android-session") as AndroidPlaybackSessionLookup.Active
-        assertTrue(preparing.session.subtitles.isEmpty())
-        inventory.complete(AndroidSubtitleInventorySnapshot.Ready(listOf(track)))
-        val ready = registry.lookup("android-session") as AndroidPlaybackSessionLookup.Active
+        source.clear()
+        val active = registry.lookup("android-session") as AndroidPlaybackSessionLookup.Active
 
-        assertSame(track, ready.session.subtitles.single())
-        assertSame(inventory, ready.session.subtitleInventory)
-        assertEquals(true, ready.session.deferredSubtitles)
+        assertSame(track, active.session.subtitles.single())
     }
 
     @Test

@@ -61,8 +61,7 @@ class AndroidPlaybackServiceTest {
             prepared,
             format(140, true),
             format(137, false),
-            AndroidSubtitleInventoryHandle.ready(emptyList()),
-            deferredSubtitles = false,
+            emptyList(),
         )
 
         assertEquals(AndroidPlaybackCreateResult.UnsupportedLive, result)

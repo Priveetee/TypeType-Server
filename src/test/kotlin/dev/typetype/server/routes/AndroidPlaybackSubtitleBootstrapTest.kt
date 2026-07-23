@@ -6,6 +6,8 @@ import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidSubtitleInventoryCoordinator
 import dev.typetype.server.services.AndroidSubtitleInventoryHandle
+import dev.typetype.server.services.AndroidSubtitleInventorySnapshot
+import dev.typetype.server.services.AndroidSubtitleTrack
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
@@ -26,51 +28,49 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.yield
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
-class AndroidPlaybackDeferredCreateTest {
+class AndroidPlaybackSubtitleBootstrapTest {
     @Test
-    fun `deferred mode returns playable media while subtitle inventory is preparing`() = testApplication {
+    fun `creation waits for the authoritative descriptor catalog`() = testApplication {
         val inventory = AndroidSubtitleInventoryHandle.preparing()
         val fixture = fixture(inventory)
-        coEvery {
-            fixture.service.create(
-                VIDEO_ID,
-                "guest",
-                fixture.prepared,
-                fixture.audio,
-                fixture.video,
-                inventory,
-                true,
-            )
-        } returns AndroidPlaybackCreateResult.Created(
-            AndroidPlaybackSession(fixture.holder, inventory, deferredSubtitles = true),
-            AndroidDashManifestResult.Ready(MPD, 213_000L),
-        )
+        fixture.stubCreated(listOf(TRACK), AndroidDashManifestResult.Ready(MPD, 213_000L))
         application { installRoute(fixture.handler) }
 
-        val response = client.post("/playback") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"subtitleMode":"deferred"}""")
-        }
-        val body = response.bodyAsText()
+        coroutineScope {
+            val pending = async {
+                client.post("/playback") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"subtitleMode":"deferred"}""")
+                }
+            }
+            yield()
+            assertFalse(pending.isCompleted)
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"ready\":true"))
-        assertTrue(body.contains("\"subtitles\":[]"))
-        assertTrue(body.contains("\"status\":\"preparing\""))
-        assertTrue(body.contains("\"retryAfterMs\":250"))
-        assertTrue(body.contains("/subtitles\""))
+            inventory.complete(AndroidSubtitleInventorySnapshot.Ready(listOf(TRACK)))
+            val response = pending.await()
+            val body = response.bodyAsText()
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(body.contains("\"subtitles\":[{\"id\":\"track\""))
+            assertTrue(body.contains("/subtitles/track.vtt"))
+            assertFalse(body.contains("subtitleInventory"))
+        }
     }
 
     @Test
-    fun `omitted mode preserves inline failure behavior`() = testApplication {
-        val inventory = AndroidSubtitleInventoryHandle.temporaryFailure()
-        val fixture = fixture(inventory)
+    fun `creation fails when a complete descriptor catalog is unavailable`() = testApplication {
+        val fixture = fixture(AndroidSubtitleInventoryHandle.temporaryFailure())
         application { installRoute(fixture.handler) }
 
         val response = client.post("/playback") {
@@ -80,47 +80,44 @@ class AndroidPlaybackDeferredCreateTest {
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         assertTrue(response.bodyAsText().contains("android_subtitle_inventory_unavailable"))
-        coVerify(exactly = 0) {
-            fixture.service.create(any(), any(), any(), any(), any(), any(), any())
-        }
+        coVerify(exactly = 0) { fixture.service.create(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun `deferred inventory failure does not block playable media`() = testApplication {
-        val inventory = AndroidSubtitleInventoryHandle.temporaryFailure()
-        val fixture = fixture(inventory)
-        fixture.stubCreated(inventory, deferred = true)
-        application { installRoute(fixture.handler) }
-
-        val response = client.post("/playback") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"subtitleMode":"deferred"}""")
-        }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"status\":\"unavailable\""))
-    }
-
-    @Test
-    fun `omitted mode keeps ready subtitles inline`() = testApplication {
-        val inventory = AndroidSubtitleInventoryHandle.ready(listOf(TRACK))
-        val fixture = fixture(inventory)
-        fixture.stubCreated(inventory, deferred = false)
+    fun `video without captions returns an authoritative empty catalog`() = testApplication {
+        val fixture = fixture(AndroidSubtitleInventoryHandle.ready(emptyList()))
+        fixture.stubCreated(emptyList(), AndroidDashManifestResult.Ready(MPD, 213_000L))
         application { installRoute(fixture.handler) }
 
         val response = client.post("/playback") {
             contentType(ContentType.Application.Json)
             setBody("{}")
         }
-        val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"id\":\"track\""))
-        assertTrue(body.contains("/subtitles/track.vtt"))
+        assertTrue(response.bodyAsText().contains("\"subtitles\":[]"))
+    }
+
+    @Test
+    fun `preparing media response still contains every subtitle descriptor`() = testApplication {
+        val fixture = fixture(AndroidSubtitleInventoryHandle.ready(listOf(TRACK)))
+        fixture.stubCreated(listOf(TRACK), AndroidDashManifestResult.Preparing)
+        application { installRoute(fixture.handler) }
+
+        val response = client.post("/playback") {
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("\"id\":\"track\""))
+        assertTrue(response.bodyAsText().contains("\"retryAfterMs\":500"))
     }
 
     private fun io.ktor.server.application.Application.installRoute(handler: AndroidPlaybackHandler) {
-        install(ContentNegotiation) { json() }
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true; encodeDefaults = true })
+        }
         routing { post("/playback") { handler.create(call, VIDEO_ID) } }
     }
 
@@ -174,20 +171,15 @@ class AndroidPlaybackDeferredCreateTest {
         val audio: YoutubeSabrFormat,
         val video: YoutubeSabrFormat,
     ) {
-        fun stubCreated(inventory: AndroidSubtitleInventoryHandle, deferred: Boolean) {
+        fun stubCreated(
+            subtitles: List<AndroidSubtitleTrack>,
+            manifest: AndroidDashManifestResult,
+        ) {
             coEvery {
-                service.create(
-                    VIDEO_ID,
-                    "guest",
-                    prepared,
-                    audio,
-                    video,
-                    inventory,
-                    deferred,
-                )
+                service.create(VIDEO_ID, "guest", prepared, audio, video, subtitles)
             } returns AndroidPlaybackCreateResult.Created(
-                AndroidPlaybackSession(holder, inventory, deferred),
-                AndroidDashManifestResult.Ready(MPD, 213_000L),
+                AndroidPlaybackSession(holder, subtitles),
+                manifest,
             )
         }
     }
@@ -196,7 +188,7 @@ class AndroidPlaybackDeferredCreateTest {
         const val VIDEO_ID = "dQw4w9WgXcQ"
         const val SESSION_ID = "android-session"
         const val MPD = "<?xml version=\"1.0\"?><MPD/>"
-        val TRACK = mockk<dev.typetype.server.services.AndroidSubtitleTrack>(relaxed = true) {
+        val TRACK = mockk<AndroidSubtitleTrack>(relaxed = true) {
             every { id } returns "track"
             every { languageTag } returns "en"
             every { displayLanguageName } returns "English"
