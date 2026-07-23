@@ -5,6 +5,10 @@ import java.security.MessageDigest
 object SubscriptionFeedCacheKeys {
     fun feed(userId: String): String = "feed:${hash(userId)}"
 
+    fun previousFeed(userId: String): String = "feed:previous:${hash(userId)}"
+
+    fun invalidation(userId: String): String = "feed:invalidation:${hash(userId)}"
+
     fun shorts(userId: String): String = "feed:shorts:${hash(userId)}"
 
     private fun hash(userId: String): String = MessageDigest

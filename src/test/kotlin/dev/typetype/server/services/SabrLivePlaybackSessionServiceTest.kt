@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -18,6 +19,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 
 class SabrLivePlaybackSessionServiceTest {
     @Test
@@ -75,6 +77,7 @@ class SabrLivePlaybackSessionServiceTest {
                 false,
                 SabrSessionPurpose.PLAYBACK,
                 false,
+                0L,
             )
         } returns holder
         coEvery { store.ensureWarmed(holder, 8) } returns Unit
@@ -91,40 +94,74 @@ class SabrLivePlaybackSessionServiceTest {
     }
 
     @Test
-    fun `live quality change skips the unavailable segment before a nearby audio boundary`() {
+    fun `live format change starts the replacement session from warmed track boundaries`() = runTest {
         val audio = format(140, isAudio = true)
+        val source = holder(audio, format(137, isAudio = false), initialGeneration = 4L)
         val video = format(248, isAudio = false)
-        val holder = holder(audio, video)
+        val replacement = holder(audio, video, initialGeneration = 5L)
+        val info = mockk<YoutubeSabrInfo>()
+        val prepared = SabrPreparedInfo(info, token(), isLive = true, isLiveContent = true)
         val audioSegment = mediaSegment(audio.itag, 995_010L, sequence = 101)
         val videoSegment = mediaSegment(video.itag, 995_000L, sequence = 100)
-        holder.markExpectedLive()
-        holder.observeMediaSegment(audioSegment)
-        holder.observeMediaSegment(videoSegment)
+        replacement.markExpectedLive()
+        replacement.observeMediaSegment(audioSegment)
+        replacement.observeMediaSegment(videoSegment)
+        val replacementState = replacement.session.streamState
+        every { replacementState.liveHeadTimeMs } returns 1_005_000L
         every {
-            holder.session.getCachedSegment(match {
+            replacement.session.getCachedSegment(match {
                 it.format.itag == video.itag && it.sequenceNumber == 100
             })
         } returns videoSegment
         every {
-            holder.session.getCachedSegment(match {
+            replacement.session.getCachedSegment(match {
                 it.format.itag == audio.itag && it.sequenceNumber == 101
             })
         } returns audioSegment
         val store = mockk<SabrSessionStore>()
-        every { store.startPump(holder) } returns Unit
+        every {
+            store.getOrCreate(
+                "video",
+                "user",
+                info,
+                audio,
+                video,
+                prepared.initialToken,
+                995_000L,
+                false,
+                SabrSessionPurpose.PLAYBACK,
+                false,
+                5L,
+            )
+        } returns replacement
+        coEvery { store.ensureWarmed(replacement, 8) } returns Unit
+        every { store.startPump(replacement) } returns Unit
 
-        SabrPlaybackSessionService(store).seekExisting(holder, 995_000L)
+        val result = SabrPlaybackSessionService(store).seek(source, prepared, audio, video, 995_000L)
 
-        assertNull(holder.nextSegmentDemand())
-        assertEquals(995_010L, holder.readerPosition(audio))
-        assertFalse(holder.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
+        assertSame(replacement, result.holder)
+        assertEquals(5L, result.holder.activeGeneration())
+        assertEquals(audio.itag, result.holder.audioFormat.itag)
+        assertEquals(video.itag, result.holder.videoFormat.itag)
+        assertNull(replacement.nextSegmentDemand())
+        assertEquals(995_010L, replacement.readerPosition(audio))
+        assertEquals(1_000_000L, replacement.readerPosition(video))
+        assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
+        assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == video.itag })
+        coVerify(exactly = 1) { store.ensureWarmed(replacement, 8) }
+        verify(exactly = 1) { store.startPump(replacement) }
     }
 
-    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
+    private fun holder(
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        initialGeneration: Long = 0L,
+    ): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
         every { session.prepareForInitialization(any()) } returns Unit
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
@@ -134,9 +171,10 @@ class SabrLivePlaybackSessionServiceTest {
             info = mockk<YoutubeSabrInfo>(),
             audioFormat = audio,
             videoFormat = video,
-            sessionToken = "session-token",
+            sessionToken = "session-token-${sessionIds.incrementAndGet()}",
             key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
             lastRequestAt = Instant.EPOCH,
+            initialGeneration = initialGeneration,
         )
     }
 
@@ -168,4 +206,8 @@ class SabrLivePlaybackSessionServiceTest {
         videoBoundPoToken = "video-token",
         videoBoundPoTokenBytes = byteArrayOf(2),
     )
+
+    private companion object {
+        val sessionIds = AtomicInteger()
+    }
 }

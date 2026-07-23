@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -52,13 +53,14 @@ class SabrSegmentDemandResolutionTest {
         val session = mockk<YoutubeSabrSession>(relaxed = true)
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         val request = SabrSegmentRequest.media(format, 92)
-        val replacement = segment(itag = 299, sequence = 93, startMs = 480_000L, durationMs = 5_000L)
+        val replacement = segment(itag = 299, sequence = 93, startMs = 480_000L, durationMs = -1L)
         every { format.itag } returns 299
         every { format.isAudio } returns false
         every { session.streamState } returns state
         every { session.isLive } returns true
         every { state.isLive } returns true
         every { state.getSegmentStartMs(format, 92) } returns 475_000L
+        every { state.getSegmentEndMs(format, 92) } returns 480_000L
         every { session.getCachedSegment(any()) } answers {
             firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 93 }?.let { replacement }
         }
@@ -92,6 +94,32 @@ class SabrSegmentDemandResolutionTest {
 
         assertSame(cached, holder.observedMediaSegment(format))
         assertNull(holder.pendingSegmentDemandSummary())
+    }
+
+    @Test
+    fun `resolved demand remains in server cache after extractor eviction`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val request = SabrSegmentRequest.media(format, 2_752)
+        val cached = segment(sequence = 2_752, startMs = 13_757_066L, durationMs = 4_997L)
+        var extractorCached = false
+        every { format.itag } returns 140
+        every { format.isAudio } returns true
+        every { format.mimeType } returns "audio/mp4"
+        every { format.lastModified } returns 0L
+        every { format.xtags } returns ""
+        every { cached.data } returns byteArrayOf(1, 2, 3)
+        every { session.getCachedSegment(request) } answers { cached.takeIf { extractorCached } }
+        val holder = holder(session, format)
+        val serverCache = SabrSegmentCache()
+        holder.requestSegmentDemand(request)
+        val identity = requireNotNull(holder.segmentDemandIdentity(request))
+        extractorCached = true
+
+        assertTrue(holder.resolveSegmentDemand(request, identity) { serverCache.put(holder, it) })
+        extractorCached = false
+
+        assertArrayEquals(byteArrayOf(1, 2, 3), serverCache.get(holder, request)?.bytes)
     }
 
     private fun holder(session: YoutubeSabrSession, audio: YoutubeSabrFormat): SabrSessionHolder {

@@ -5,6 +5,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -26,7 +27,7 @@ class SabrPlaybackSessionServiceTest {
     fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
 
     @Test
-    fun `prepare loads timing before selecting target segments`() = runTest {
+    fun `prepare loads timing before selecting target segments`() = runBlocking {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val info = mockk<YoutubeSabrInfo>()
@@ -60,6 +61,7 @@ class SabrPlaybackSessionServiceTest {
                 false,
                 SabrSessionPurpose.PLAYBACK,
                 false,
+                0L,
             )
         } returns holder
         coEvery { store.fetchInitializationData(holder, video) } answers {
@@ -223,6 +225,7 @@ class SabrPlaybackSessionServiceTest {
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(false) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 299L) } returns 1
         every { holder.session.streamState.getSegmentStartMs(audio, 1) } returns 0L
+        every { holder.session.streamState.getSegmentEndMs(audio, 1) } returns 5_000L
         every { holder.session.getCachedSegment(match { it.format.itag == 140 && it.sequenceNumber == 1 }) } returns
             mockk<SabrMediaSegment>()
         val store = mockk<SabrSessionStore>()
@@ -231,7 +234,7 @@ class SabrPlaybackSessionServiceTest {
         SabrPlaybackSessionService(store).seekExisting(holder, playerTimeMs = 299L, audioOnly = true)
 
         assertEquals(1L, holder.activeGeneration())
-        assertEquals(0L, holder.readerTailMs())
+        assertEquals(5_000L, holder.readerTailMs())
         assertEquals(null, holder.consumeRefetch())
         assertEquals(null, holder.consumeForwardSeek())
         verify { holder.session.streamState.setActiveTrackTypes(false, true) }

@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 
@@ -45,13 +46,14 @@ internal object SabrDemandAttemptFinisher {
         result: YoutubeSabrSession.DemandResponseResult,
         runtime: SabrPumpRuntime,
         wasFutureLiveRequest: Boolean,
+        onResolved: (SabrMediaSegment) -> Unit = {},
     ): Boolean = synchronized(holder) {
         if (!holder.isSegmentDemandActive(request, identity)) {
             runtime.finishDemand(identity)
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             return@synchronized true
         }
-        val resolved = holder.resolveSegmentDemand(request, identity)
+        val resolved = holder.resolveSegmentDemand(request, identity, onResolved)
         SabrPumpLogger.finish(holder, "demand", request, result.segmentCount)
         if (!resolved && (wasFutureLiveRequest || holder.isFutureLiveRequest(request))) {
             runtime.finishDemand(identity)

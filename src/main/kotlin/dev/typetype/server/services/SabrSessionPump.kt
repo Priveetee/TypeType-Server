@@ -11,7 +11,10 @@ internal class SabrSessionPump(
     private val segmentCache: SabrSegmentCache? = null,
     refreshPoToken: (String) -> SabrTokenBundle? = { null },
 ) {
-    private val loop = SabrSessionPumpLoop(SabrUnauthorizedResponseRecovery(refreshPoToken))
+    private val loop = SabrSessionPumpLoop(
+        unauthorizedRecovery = SabrUnauthorizedResponseRecovery(refreshPoToken),
+        onResolved = { holder, segment -> segmentCache?.put(holder, segment) },
+    )
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int) {
         val localization = Localization("en", "US")

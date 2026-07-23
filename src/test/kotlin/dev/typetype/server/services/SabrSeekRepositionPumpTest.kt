@@ -5,6 +5,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
@@ -130,6 +131,38 @@ class SabrSeekRepositionPumpTest {
             verify(exactly = 1) { session.prepareForRewind(request) }
             verify(exactly = 1) { session.prepareForMediaSegment(request) }
             verify(exactly = 1) { state.setBufferedRangesOverride(null) }
+            verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `historical live demand keeps rewinding after the observed segment`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(299, false)
+            val request = SabrSegmentRequest.media(video, 3_077)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+            every { session.streamState } returns state
+            every { session.isLive } returns true
+            every { state.isLive } returns true
+            every { state.isPostLiveDvr } returns false
+            every { state.liveHeadTimeMs } returns 15_750_000L
+            every { session.getCachedSegment(any()) } returns null
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
+            val holder = holder(session, audio, video)
+            holder.observeMediaSegment(mediaSegment(video.itag, sequence = 3_076))
+            holder.requestSegmentDemand(request)
+            assertFalse(holder.isFutureLiveRequest(request))
+            assertEquals(DEFAULT_PLAYBACK_RETRY_MS, holder.liveRetryAfterMs(listOf(request)))
+            var rounds = 0
+
+            SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
+
+            verify(exactly = 1) { session.prepareForRewind(request) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()

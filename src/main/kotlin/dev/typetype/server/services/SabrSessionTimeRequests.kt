@@ -11,10 +11,15 @@ internal fun SabrSessionHolder.repositionTargets(
     playerTimeMs: Long,
     generation: Long,
 ): List<SabrSegmentRequest> = targets.filter { request ->
+    val cached = session.getCachedSegment(request)
     val warmedStartMs = adjacentWarmedLiveMediaStartMs(request, playerTimeMs)
-    val targetStartMs = warmedStartMs ?: playbackSegmentStartMs(request.format, request.sequenceNumber)
-    setReaderPosition(request.format, targetStartMs, generation)
-    session.getCachedSegment(request) == null && warmedStartMs == null
+    val targetPositionMs = when {
+        cached != null -> playbackSegmentEndMs(request.format, request.sequenceNumber)
+        warmedStartMs != null -> warmedStartMs
+        else -> playbackSegmentStartMs(request.format, request.sequenceNumber)
+    }
+    setReaderPosition(request.format, targetPositionMs, generation)
+    cached == null && warmedStartMs == null
 }
 
 private fun SabrSessionHolder.adjacentWarmedLiveMediaStartMs(
@@ -27,8 +32,10 @@ private fun SabrSessionHolder.adjacentWarmedLiveMediaStartMs(
     val observedStartMs = observed.header.startMs.takeIf { it >= 0L } ?: return null
     val observedRequest = SabrSegmentRequest.media(request.format, observed.header.sequenceNumber)
     if (session.getCachedSegment(observedRequest) == null) return null
+    val boundaryLeadMs = playbackSegmentDurationMs(request.format, request.sequenceNumber) +
+        LIVE_TRACK_BOUNDARY_DRIFT_MS
     return observedStartMs.takeIf {
-        it - playerTimeMs.coerceAtLeast(0L) in 0L..LIVE_TRACK_BOUNDARY_TOLERANCE_MS
+        it - playerTimeMs.coerceAtLeast(0L) in 0L..boundaryLeadMs
     }
 }
 
@@ -52,4 +59,4 @@ private fun SabrSessionHolder.mediaRequestAt(
     return SabrSegmentRequest.media(format, sequence)
 }
 
-private const val LIVE_TRACK_BOUNDARY_TOLERANCE_MS = 500L
+private const val LIVE_TRACK_BOUNDARY_DRIFT_MS = 500L

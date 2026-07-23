@@ -96,8 +96,8 @@ class StreamRoutesDeliveryModeTest {
     }
 
     @Test
-    fun `sabr endpoint skips public extraction when authenticated sabr is available`() = testApplication {
-        coEvery { sabrService.getStreamInfo(any()) } returns ExtractionResult.Failure("unexpected public path")
+    fun `sabr endpoint never uses the connected YouTube session`() = testApplication {
+        coEvery { sabrService.getStreamInfo(any()) } returns ExtractionResult.Success(sabrResponse())
         var sessionCalls = 0
         application {
             installRoutes(session = { _, _ ->
@@ -111,8 +111,8 @@ class StreamRoutesDeliveryModeTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(1, sessionCalls)
-        coVerify(exactly = 0) { sabrService.getStreamInfo(any()) }
+        assertEquals(0, sessionCalls)
+        coVerify(exactly = 1) { sabrService.getStreamInfo(VIDEO_URL) }
         coVerify(exactly = 0) { legacyService.getStreamInfo(any()) }
     }
 

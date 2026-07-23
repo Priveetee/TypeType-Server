@@ -49,6 +49,7 @@ class SabrLivePlaybackTest {
     @Test
     fun `active live maps time from an observed sabr segment for every codec`() {
         val fixture = fixture()
+        every { fixture.state.getMaxSegment(fixture.video) } returns 180
         val header = mockk<SabrMediaHeader> {
             every { isInitSegment } returns false
             every { itag } returns fixture.video.itag
@@ -69,6 +70,18 @@ class SabrLivePlaybackTest {
         assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 965_000L))
         assertEquals(179, fixture.holder.playbackStartSequence(fixture.video, 964_999L))
         assertEquals(200, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
+        every { fixture.state.getMaxSegment(fixture.video) } returns 200
+        val nearHead = mockk<SabrMediaSegment> {
+            every { this@mockk.header } returns mockk {
+                every { isInitSegment } returns false
+                every { itag } returns fixture.video.itag
+                every { sequenceNumber } returns 199
+                every { startMs } returns 1_003_000L
+                every { durationMs } returns 2_000L
+            }
+        }
+        fixture.holder.observeMediaSegment(nearHead)
+        assertEquals(199, fixture.holder.playbackStartSequence(fixture.video, 1_006_000L))
     }
 
     @Test
@@ -88,6 +101,23 @@ class SabrLivePlaybackTest {
 
         assertEquals(195, fixture.holder.playbackStartSequence(fixture.video, 995_000L))
         assertEquals(180, fixture.holder.playbackStartSequence(fixture.video, 965_000L))
+    }
+
+    @Test
+    fun `active live maps time before the head sequence is reported`() {
+        val fixture = fixture()
+        every { fixture.session.liveHeadSequenceNumber } returns 0L
+        every { fixture.state.liveHeadSequenceNumber } returns 0L
+        val header = mockk<SabrMediaHeader> {
+            every { isInitSegment } returns false
+            every { itag } returns fixture.video.itag
+            every { sequenceNumber } returns 180
+            every { startMs } returns 965_000L
+            every { durationMs } returns 2_000L
+        }
+        fixture.holder.observeMediaSegment(mockk { every { this@mockk.header } returns header })
+
+        assertEquals(195, fixture.holder.playbackStartSequence(fixture.video, 995_000L))
     }
 
     @Test
@@ -146,6 +176,7 @@ class SabrLivePlaybackTest {
             every { itag } returns fixture.video.itag
             every { sequenceNumber } returns 198
             every { startMs } returns 998_000L
+            every { durationMs } returns 2_000L
         }
         fixture.holder.observeMediaSegment(mockk { every { this@mockk.header } returns header })
 

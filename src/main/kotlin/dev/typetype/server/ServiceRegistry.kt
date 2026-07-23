@@ -42,10 +42,6 @@ internal class ServiceRegistry(
     adminSettingsService: AdminSettingsService,
     youtubeProxySelector: ProxySelector? = null,
 ) {
-    init {
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
-    }
-
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
     val accountIdentityService = AccountIdentityService()
     val customAvatarService = CustomAvatarService()
@@ -81,6 +77,8 @@ internal class ServiceRegistry(
     val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
     val sabrSessionStore = extraction.sabrSessionStore
+    val androidSabrSessionStore = extraction.androidSabrSessionStore
+    val androidSubtitleService = extraction.androidSubtitleService
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
@@ -90,6 +88,11 @@ internal class ServiceRegistry(
         SubscriptionShortsBlendService(trendingService),
         cache,
     )
+    init {
+        SubscriptionFeedCacheInvalidation.configure(
+            SubscriptionFeedCacheInvalidator(cache, subscriptionFeedService),
+        )
+    }
     val notificationsService = NotificationsService(subscriptionFeedService)
     val playlistService = PlaylistService()
     val videoMetadataRepairService = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))

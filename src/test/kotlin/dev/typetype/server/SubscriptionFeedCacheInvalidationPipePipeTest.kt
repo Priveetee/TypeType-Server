@@ -51,7 +51,7 @@ class SubscriptionFeedCacheInvalidationPipePipeTest {
     fun clean() = runBlocking {
         TestDatabase.truncateAll()
         cache.clear()
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache))
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
     }
 
     @Test
@@ -66,8 +66,12 @@ class SubscriptionFeedCacheInvalidationPipePipeTest {
 
         subscriptions.add(TEST_USER_ID, SubscriptionItem("https://yt.com/c/pre", "Pre", ""))
         val before = client.get("/subscriptions/feed") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
-        assertEquals(HttpStatusCode.OK, before.status)
-        assertTrue(before.bodyAsText().contains("pre/video"))
+        assertEquals(HttpStatusCode.Accepted, before.status)
+        feed.awaitRefresh(TEST_USER_ID)
+        assertTrue(
+            client.get("/subscriptions/feed") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+                .bodyAsText().contains("pre/video"),
+        )
 
         val zip = PipePipeBackupTestFixtures.createBackupZip()
         val payload = Files.readAllBytes(zip)
@@ -89,6 +93,8 @@ class SubscriptionFeedCacheInvalidationPipePipeTest {
 
         val after = client.get("/subscriptions/feed") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.OK, after.status)
-        assertTrue(after.bodyAsText().contains("youtube.com/@x/video"))
+        feed.awaitRefresh(TEST_USER_ID)
+        val refreshed = client.get("/subscriptions/feed") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertTrue(refreshed.bodyAsText().contains("youtube.com/@x/video"))
     }
 }

@@ -1,9 +1,11 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.services.StreamExtractionErrorMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
@@ -73,5 +75,21 @@ class StreamExtractionErrorMapperTest {
         val result = StreamExtractionErrorMapper.map<Any>(IllegalStateException("boom"))
         assertTrue(result is ExtractionResult.Failure)
         assertEquals("boom", (result as ExtractionResult.Failure).message)
+        assertEquals(ExtractionFailureKind.Unknown, result.kind)
+    }
+
+    @Test
+    fun `maps explicit YouTube session rejection without inspecting its message`() {
+        val type = runCatching {
+            Class.forName("org.schabi.newpipe.extractor.exceptions.YoutubeSessionRejectedException")
+        }.getOrNull()
+        assumeTrue(type != null, "requires the local updated PipePipeExtractor")
+        val rejectionType = type ?: return
+        val error = rejectionType.getConstructor(String::class.java).newInstance("arbitrary") as Throwable
+
+        val result = StreamExtractionErrorMapper.map<Any>(error)
+
+        assertTrue(result is ExtractionResult.Failure)
+        assertEquals(ExtractionFailureKind.YoutubeSessionRejected, (result as ExtractionResult.Failure).kind)
     }
 }

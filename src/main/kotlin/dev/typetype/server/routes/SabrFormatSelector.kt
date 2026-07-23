@@ -14,6 +14,13 @@ internal object SabrFormatSelector {
         info.formats.filter { it.isSupportedVideo() }
             .minWithOrNull(compareBy<YoutubeSabrFormat> { it.height }.thenBy { it.bitrate })
 
+    fun androidVideo(info: YoutubeSabrInfo, itag: Int?): YoutubeSabrFormat? {
+        if (itag != null) return video(info, itag)
+        val supported = info.formats.filter { it.isSupportedVideo() }
+        return supported.filter { it.videoCodec().contains("avc1") }.maxByOrNull { it.height }
+            ?: supported.maxByOrNull { it.height }
+    }
+
     fun audio(info: YoutubeSabrInfo, itag: Int?, trackId: String?, requireAac: Boolean): YoutubeSabrFormat? {
         if (itag != null) return info.formats.filter { it.matchesAudio(itag, trackId, requireAac) }
             .maxWithOrNull(audioComparator)

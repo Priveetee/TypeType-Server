@@ -7,6 +7,7 @@ internal class SabrDemandWatchdog(
     private val intervalMs: Long = SabrPumpPolicy.IDLE_POLL_MS,
 ) {
     suspend fun monitor(isAlive: () -> Boolean, holder: SabrSessionHolder): Boolean {
+        val deadline = SabrDemandDeadline(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS)
         while (isAlive()) {
             val state = holder.playbackState()
             if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return false
@@ -14,18 +15,24 @@ internal class SabrDemandWatchdog(
             if (inFlightDemand != null) {
                 if (inFlightDemand.futureLiveRequest) holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
                 val nowMs = clock()
+                val backoffRemainingMs = holder.session.demandBackoffRemainingMs
                 val lastProgressAtMs = inFlightDemand.observeProgress(holder.session.mediaProgressVersion, nowMs)
                 val completedIdle = holder.session.getCachedSegment(inFlightDemand.request) != null &&
                     nowMs - lastProgressAtMs >= SabrPumpPolicy.COMPLETED_DEMAND_IDLE_MS
                 if (completedIdle && SabrDemandAttemptFinisher.interruptCompletedInFlightDemand(holder, inFlightDemand)) {
                     return true
                 }
-                if (nowMs - inFlightDemand.registeredAtMs >= SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS &&
+                if (deadline.isExpired(
+                        inFlightDemand.identity,
+                        inFlightDemand.registeredAtMs,
+                        nowMs,
+                        backoffRemainingMs,
+                    ) &&
                     SabrDemandAttemptFinisher.expireStalledInFlightDemand(holder, inFlightDemand)
                 ) {
                     return true
                 }
-                delay(if (inFlightDemand.futureLiveRequest) maxOf(intervalMs, LIVE_EDGE_POLL_MS) else intervalMs)
+                delay(nextCheckDelayMs(backoffRemainingMs, inFlightDemand.futureLiveRequest))
                 continue
             }
             val request = holder.nextSegmentDemand()
@@ -39,14 +46,23 @@ internal class SabrDemandWatchdog(
             }
             val identity = holder.segmentDemandIdentity(request)
             val registeredAtMs = identity?.let { holder.segmentDemandRegisteredAtMs(request, it) }
-            if (identity != null && registeredAtMs != null &&
-                clock() - registeredAtMs >= SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS &&
+            val nowMs = clock()
+            val backoffRemainingMs = holder.session.demandBackoffRemainingMs
+            if (identity != null && registeredAtMs != null && deadline.isExpired(
+                    identity,
+                    registeredAtMs,
+                    nowMs,
+                    backoffRemainingMs,
+                ) &&
                 SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity, futureLiveRequest)
             ) {
                 return true
             }
-            delay(if (futureLiveRequest) maxOf(intervalMs, LIVE_EDGE_POLL_MS) else intervalMs)
+            delay(nextCheckDelayMs(backoffRemainingMs, futureLiveRequest))
         }
         return false
     }
+
+    private fun nextCheckDelayMs(backoffRemainingMs: Long, futureLiveRequest: Boolean): Long =
+        maxOf(intervalMs, backoffRemainingMs, LIVE_EDGE_POLL_MS.takeIf { futureLiveRequest } ?: 0L)
 }

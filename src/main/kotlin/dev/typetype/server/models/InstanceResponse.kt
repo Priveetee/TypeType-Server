@@ -24,4 +24,19 @@ data class InstanceResponse(
     val youtubeRemoteLoginEnabled: Boolean = false,
     val youtubeRemoteLoginReady: Boolean = false,
     val youtubeRemoteLoginUnavailableReason: String? = null,
+    val androidPlayback: AndroidPlaybackCapability = AndroidPlaybackCapability(),
+)
+
+@Serializable
+data class AndroidPlaybackCapability(
+    val supported: Boolean = true,
+    val contractVersion: Int = 2,
+    val youtube: AndroidYoutubePlaybackCapability = AndroidYoutubePlaybackCapability(),
+)
+
+@Serializable
+data class AndroidYoutubePlaybackCapability(
+    val vod: Boolean = true,
+    val live: Boolean = false,
+    val subtitles: Boolean = true,
 )

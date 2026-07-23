@@ -66,7 +66,11 @@ class YoutubeSessionHlsManifestServiceTest {
     private suspend fun connectYoutubeSession(): Unit {
         val pairing = youtubeSessionService.createPairing(TEST_USER_ID)
         val result = youtubeSessionService.complete(
-            YoutubeSessionCompleteRequest(pairing.code, cookies = "SID=secret-cookie", poToken = "secret-pot-value")
+            YoutubeSessionCompleteRequest(
+                pairing.code,
+                cookies = "SID=secret-cookie; SAPISID=secret-sapisid",
+                poToken = "secret-pot-value",
+            )
         )
         assertEquals(YoutubeSessionCompleteResult.Completed, result)
     }

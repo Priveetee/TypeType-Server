@@ -23,7 +23,8 @@ internal enum class StreamDeliveryMode {
         GenericLegacy -> runCatching { URI(url).host?.lowercase() }.getOrNull()?.let {
             it == "youtu.be" || it.endsWith(".youtube.com") || it == "youtube.com"
         } == true
-        YoutubeLegacy, YoutubeSabr -> true
+        YoutubeLegacy -> true
+        YoutubeSabr -> false
         NicoNico, BiliBili -> false
     }
 

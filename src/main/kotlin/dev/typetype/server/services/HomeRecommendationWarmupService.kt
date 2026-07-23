@@ -31,6 +31,7 @@ class HomeRecommendationWarmupService(
         activeUsers[userId] = System.currentTimeMillis()
         scope.launch {
             invalidate(userId)
+            SubscriptionFeedCacheInvalidation.awaitRefresh(userId)
             schedule(userId, force = true)
         }
     }
@@ -54,8 +55,7 @@ class HomeRecommendationWarmupService(
     }
 
     private suspend fun invalidate(userId: String) {
-        cache.delete(SubscriptionFeedCacheKeys.feed(userId))
-        cache.delete(SubscriptionFeedCacheKeys.shorts(userId))
+        SubscriptionFeedCacheInvalidation.invalidate(userId)
         poolCache.delete(userId, YOUTUBE_SERVICE_ID, HomeRecommendationPoolMode.FULL)
         poolCache.delete(userId, YOUTUBE_SERVICE_ID, HomeRecommendationPoolMode.SHORTS)
     }

@@ -1,121 +1,157 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.currentRequestId
 import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.models.VideoItem
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.builtins.ListSerializer
-import java.net.URI
-import java.util.Base64
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.slf4j.LoggerFactory
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 class SubscriptionFeedService(
     private val subscriptionsService: SubscriptionsService,
-    private val channelService: ChannelService,
-    private val cache: CacheService,
+    channelService: ChannelService,
+    cache: CacheService,
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val refreshScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
-    private val semaphore = Semaphore(MAX_CONCURRENT_FETCHES)
+    private val store = SubscriptionFeedSnapshotStore(cache, clock)
+    private val builder = SubscriptionFeedBuilder(channelService)
+    private val refreshJobs = ConcurrentHashMap<String, Job>()
+    private val generation = AtomicLong(clock())
 
-    suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse {
-        val all = cachedAll(userId)
-        val from = page * limit
-        if (from >= all.size) return SubscriptionFeedResponse(videos = emptyList(), nextpage = null)
-        val to = minOf(from + limit, all.size)
-        val nextpage = if (to < all.size) encodeNextPage(page + 1) else null
-        return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = nextpage)
+    internal suspend fun getPage(
+        userId: String,
+        page: Int,
+        limit: Int,
+        cursor: String?,
+        requestId: String? = currentRequestId(),
+    ): SubscriptionFeedPageResult {
+        val current = store.current(userId)
+        if (current == null) {
+            scheduleRefresh(userId, requestId)
+            return SubscriptionFeedPageResult.Preparing(PREPARING_RETRY_AFTER_MS)
+        }
+        if (current.stale || clock() - current.generatedAt >= FRESHNESS_MS) {
+            scheduleRefresh(userId, requestId)
+        }
+        val cursorState = cursor?.let(SubscriptionFeedCursorCodec::decode)
+        if (cursor != null && cursorState == null) return SubscriptionFeedPageResult.InvalidCursor
+        if (cursorState != null && cursorState.limit != limit) return SubscriptionFeedPageResult.InvalidCursor
+        val snapshot = when {
+            cursorState == null -> current
+            cursorState.generation == current.generation -> current
+            else -> store.previous(userId)?.takeIf { it.generation == cursorState.generation }
+                ?: return SubscriptionFeedPageResult.StaleGeneration
+        }
+        val offset = cursorState?.offset ?: page * limit
+        return SubscriptionFeedPageResult.Ready(snapshot.page(offset, limit, isRefreshing(userId)))
     }
 
-    suspend fun getAll(userId: String): List<VideoItem> = cachedAll(userId)
+    suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse =
+        when (val result = getPage(userId, page, limit, cursor = null)) {
+            is SubscriptionFeedPageResult.Ready -> result.response
+            else -> SubscriptionFeedResponse(emptyList(), null, refreshing = true)
+        }
+
+    suspend fun getAll(userId: String): List<VideoItem> {
+        val snapshot = store.current(userId)
+        if (snapshot == null || snapshot.stale || clock() - snapshot.generatedAt >= FRESHNESS_MS) {
+            scheduleRefresh(userId, currentRequestId())
+        }
+        if (snapshot != null) return snapshot.videos
+        withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
+        return store.current(userId)?.videos.orEmpty()
+    }
 
     suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
-        val key = SubscriptionFeedCacheKeys.feed(userId)
-        val raw = runCatching { cache.get(key) }.getOrNull() ?: return null
-        val all = runCatching {
-            CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw)
-        }.getOrNull() ?: return null
-        val from = page * limit
-        if (from >= all.size) return SubscriptionFeedResponse(videos = emptyList(), nextpage = null)
-        val to = minOf(from + limit, all.size)
-        val nextpage = if (to < all.size) encodeNextPage(page + 1) else null
-        return SubscriptionFeedResponse(videos = all.subList(from, to), nextpage = nextpage)
+        val snapshot = store.current(userId) ?: return null
+        return snapshot.page(page * limit, limit, isRefreshing(userId))
     }
 
-    private suspend fun cachedAll(userId: String): List<VideoItem> {
-        val key = SubscriptionFeedCacheKeys.feed(userId)
-        runCatching { cache.get(key) }.getOrNull()?.let { raw ->
-            return runCatching { CacheJson.decodeFromString(ListSerializer(VideoItem.serializer()), raw) }
-                .getOrElse { fetchAndCache(userId, key) }
+    suspend fun invalidate(userId: String) {
+        runCatching { store.invalidate(userId, UUID.randomUUID().toString()) }
+            .onFailure { logger.warn("subscription_feed event=invalidate_failed user={} error={}", userKey(userId), it.message) }
+        scheduleRefresh(userId, currentRequestId())
+    }
+
+    internal suspend fun awaitRefresh(userId: String) {
+        while (true) {
+            val jobs = listOfNotNull(refreshJobs[userId])
+            if (jobs.isEmpty()) return
+            jobs.joinAll()
         }
-        return fetchAndCache(userId, key)
     }
 
-    private suspend fun fetchAndCache(userId: String, key: String): List<VideoItem> {
-        val subs = subscriptionsService.getAll(userId)
-        val videos = coroutineScope {
-            subs.map { sub ->
-                async {
-                    runCatching { fetchForSubscription(sub.channelUrl) }.getOrElse { emptyList() }
-                }
-            }.map { it.await() }.flatten()
-        }
-        val sorted = videos.sortedWith(
-            compareByDescending<VideoItem> { it.isLive }
-                .thenByDescending { if (it.uploaded == -1L) Long.MIN_VALUE else it.uploaded }
-        )
-        runCatching { cache.set(key, CacheJson.encodeToString(ListSerializer(VideoItem.serializer()), sorted), FEED_TTL_SECONDS) }
-        return sorted
-    }
+    internal fun isRefreshing(userId: String): Boolean = refreshJobs[userId]?.isActive == true
 
-    private suspend fun fetchForSubscription(channelUrl: String): List<VideoItem> = coroutineScope {
-        val channel = async { fetchVideos(channelUrl) }
-        val livestreams = if (isYoutubeUrl(channelUrl)) {
-            async { fetchVideos(channelUrl.toLivestreamsTabUrl()) }
-        } else null
-        mergeVideos(channel.await(), livestreams?.await().orEmpty())
-    }
-
-    private suspend fun fetchVideos(url: String): List<VideoItem> = semaphore.withPermit {
-        runCatching {
-            withTimeout(CHANNEL_TIMEOUT_MS) {
-                (channelService.getChannel(url, null) as? ExtractionResult.Success)?.data?.videos.orEmpty()
+    private fun scheduleRefresh(userId: String, requestId: String?) {
+        val job = refreshScope.launch(start = CoroutineStart.LAZY) {
+            var retry = false
+            val invalidation = store.invalidationToken(userId)
+            try {
+                retry = refresh(userId, requestId, invalidation)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                logger.warn("subscription_feed event=refresh_failed user={} error={}", userKey(userId), error.message)
+            } finally {
+                coroutineContext[Job]?.let { refreshJobs.remove(userId, it) }
             }
-        }.getOrElse {
-            emptyList()
+            if (retry || store.invalidationToken(userId) != invalidation) scheduleRefresh(userId, requestId)
         }
+        val existing = refreshJobs.putIfAbsent(userId, job)
+        if (existing == null) job.start() else job.cancel()
     }
 
-    private fun mergeVideos(channel: List<VideoItem>, livestreams: List<VideoItem>): List<VideoItem> =
-        buildMap {
-            channel.forEach { put(it.feedKey(), it) }
-            livestreams.forEach { put(it.feedKey(), it) }
-        }.values.toList()
-
-    private fun VideoItem.feedKey(): String = url.ifBlank { id.ifBlank { "$uploaderUrl|$title" } }
-
-    private fun String.toLivestreamsTabUrl(): String {
-        val uri = URI(this)
-        val path = uri.path.trimEnd('/')
-        val segments = path.split('/').filter(String::isNotBlank)
-        val basePath = if (segments.size >= 2 && segments.last() in YOUTUBE_CHANNEL_TABS) {
-            path.substringBeforeLast('/')
-        } else {
-            path
+    private suspend fun refresh(userId: String, requestId: String?, invalidation: String?): Boolean {
+        val startedAt = clock()
+        val previous = store.current(userId)
+        logger.info("subscription_feed event=refresh_started user={} requestId={}", userKey(userId), requestId ?: "none")
+        val subscriptions = subscriptionsService.getAll(userId)
+        val result = builder.build(subscriptions)
+        if (store.invalidationToken(userId) != invalidation) return true
+        val valid = result.failedSources == 0 || previous == null && result.successfulSources > 0 || subscriptions.isEmpty()
+        if (!valid) {
+            logger.warn(
+                "subscription_feed event=refresh_kept_previous user={} durationMs={} failedSources={}",
+                userKey(userId), clock() - startedAt, result.failedSources,
+            )
+            return false
         }
-        return URI(uri.scheme, uri.userInfo, uri.host, uri.port, "$basePath/streams", null, null).toString()
+        val nextGeneration = generation.updateAndGet { maxOf(it + 1, clock(), (previous?.generation ?: 0L) + 1) }
+        val snapshot = SubscriptionFeedSnapshot(nextGeneration, clock(), stale = false, result.videos)
+        runCatching { store.publish(userId, snapshot) }.onFailure {
+            logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)
+            return false
+        }
+        if (store.invalidationToken(userId) != invalidation) {
+            runCatching { store.markStale(userId) }
+            return true
+        }
+        logger.info(
+            "subscription_feed event=refresh_completed user={} requestId={} generation={} videos={} failedSources={} durationMs={}",
+            userKey(userId), requestId ?: "none", nextGeneration, result.videos.size, result.failedSources, clock() - startedAt,
+        )
+        return false
     }
 
-    private fun encodeNextPage(page: Int): String =
-        Base64.getEncoder().encodeToString("""{"page":$page}""".toByteArray())
+    private fun userKey(userId: String): String = SubscriptionFeedCacheKeys.feed(userId).substringAfter(':')
 
     companion object {
-        private const val FEED_TTL_SECONDS = 60L
-        private const val MAX_CONCURRENT_FETCHES = 20
-        private const val CHANNEL_TIMEOUT_MS = 15_000L
-        private val YOUTUBE_CHANNEL_TABS = setOf("featured", "videos", "shorts", "streams", "playlists", "community", "about")
+        private const val FRESHNESS_MS = 60_000L
+        private const val PREPARING_RETRY_AFTER_MS = 500L
+        private const val INTERNAL_COLD_WAIT_MS = 400L
+        private val logger = LoggerFactory.getLogger(SubscriptionFeedService::class.java)
     }
 }

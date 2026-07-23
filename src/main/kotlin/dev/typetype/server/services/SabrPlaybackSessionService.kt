@@ -6,7 +6,10 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
 
-internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
+internal class SabrPlaybackSessionService(
+    private val sessionStore: SabrSessionStore,
+    private val purpose: SabrSessionPurpose = SabrSessionPurpose.PLAYBACK,
+) {
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -16,6 +19,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         startTimeMs: Long,
         audioOnly: Boolean = false,
         isLive: Boolean = false,
+        initialGeneration: Long = 0L,
     ): SabrPlaybackPreparation {
         val holder = sessionStore.getOrCreate(
             videoId = videoId,
@@ -26,8 +30,9 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             initialToken = prepared.initialToken,
             startTimeMs = startTimeMs,
             startPump = false,
-            purpose = SabrSessionPurpose.PLAYBACK,
+            purpose = purpose,
             audioOnly = audioOnly,
+            initialGeneration = initialGeneration,
         )
         if (isLive || prepared.isLive || prepared.isLiveContent) holder.markExpectedLive()
         if (holder.expectsLive()) {
@@ -58,6 +63,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             startTimeMs = playerTimeMs,
             audioOnly = audioOnly,
             isLive = source.expectsLive() || prepared.isLive || prepared.isLiveContent,
+            initialGeneration = source.nextReplacementGeneration(),
         )
     }
 
@@ -77,6 +83,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
     }
 
     fun lookup(sessionId: String): SabrSessionHolder? = sessionStore.lookupByToken(sessionId)
+        ?.takeIf { it.key.purpose == purpose }
 
     fun startPump(holder: SabrSessionHolder): Unit = sessionStore.startPump(holder)
 

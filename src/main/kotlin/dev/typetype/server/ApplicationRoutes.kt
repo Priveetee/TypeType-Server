@@ -7,6 +7,7 @@ import dev.typetype.server.routes.adminIdentityRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
+import dev.typetype.server.routes.androidPlaybackRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
@@ -80,6 +81,14 @@ internal fun Application.installApplicationRoutes(
         }
         installProxyRoutes(svc)
         rateLimit(PROXY_ZONE) {
+            androidPlaybackRoutes(
+                svc.androidSabrSessionStore,
+                svc.streamService,
+                svc.androidSubtitleService,
+                authService,
+                svc.accessControlService,
+                adminSettingsService,
+            )
             sabrRoutes(
                 svc.sabrSessionStore,
                 svc.streamService,

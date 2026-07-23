@@ -1,6 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.AndroidSubtitleHttpClient
+import dev.typetype.server.services.AndroidSubtitleService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.CachedChannelService
@@ -51,7 +53,9 @@ import dev.typetype.server.services.YoutubeSessionStreamService
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import java.net.Proxy
 import java.net.ProxySelector
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 internal class ExtractionServiceRegistry(
@@ -74,14 +78,36 @@ internal class ExtractionServiceRegistry(
         .followRedirects(true)
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
+    val androidSabrSessionStore = SabrSessionStore(
+        subtitleServiceUrl,
+        idleEviction = Duration.ofMinutes(6),
+        initCache = cache,
+    )
+    val youtubeSubtitleService = YouTubeSubtitleService(httpClient, subtitleServiceUrl)
+    val androidSubtitleService = AndroidSubtitleService(
+        youtubeSubtitleService,
+        AndroidSubtitleHttpClient(
+            httpClient.newBuilder()
+                .followRedirects(false)
+                .callTimeout(10, TimeUnit.SECONDS)
+                .build(),
+            youtubeProxySelector?.let {
+                httpClient.newBuilder()
+                    .proxy(Proxy.NO_PROXY)
+                    .followRedirects(false)
+                    .callTimeout(10, TimeUnit.SECONDS)
+                    .build()
+            },
+        ),
+    )
     private val classicPipePipeStreamService = PipePipeStreamService(
         cache,
-        YouTubeSubtitleService(httpClient, subtitleServiceUrl),
+        youtubeSubtitleService,
         BilibiliRelatedService(),
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,
-        YouTubeSubtitleService(httpClient, subtitleServiceUrl),
+        youtubeSubtitleService,
         BilibiliRelatedService(),
         sabrSessionStore::rememberExtractedInfo,
     )

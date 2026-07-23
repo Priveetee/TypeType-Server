@@ -69,7 +69,9 @@ class YoutubeSessionRoutesTest {
 
     private suspend fun ApplicationTestBuilder.completeSession(code: String) = client.post("/youtube-session/complete") {
         headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-        setBody("""{"code":"$code","cookies":"SID=secret-cookie","poToken":"secret-pot-value"}""")
+        setBody(
+            """{"code":"$code","cookies":"SID=secret-cookie; SAPISID=secret-sapisid","poToken":"secret-pot-value"}""",
+        )
     }
 
     @Test

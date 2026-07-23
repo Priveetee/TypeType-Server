@@ -9,15 +9,22 @@ internal fun YoutubeSabrSession.findCachedMediaAt(
     format: YoutubeSabrFormat,
     targetMs: Long,
     predictedSequence: Int,
+    fallbackDurationMs: Long? = null,
     allowFollowing: Boolean = false,
 ): SabrMediaSegment? {
     for (distance in 1..MAX_SEQUENCE_DISTANCE) {
-        cachedMedia(format, predictedSequence + distance)?.takeIf { it.covers(targetMs) }?.let { return it }
-        cachedMedia(format, predictedSequence - distance)?.takeIf { it.covers(targetMs) }?.let { return it }
+        cachedMedia(format, predictedSequence + distance)
+            ?.takeIf { it.covers(targetMs, fallbackDurationMs) }
+            ?.let { return it }
+        cachedMedia(format, predictedSequence - distance)
+            ?.takeIf { it.covers(targetMs, fallbackDurationMs) }
+            ?.let { return it }
     }
     if (!allowFollowing) return null
     for (distance in 1..MAX_SEQUENCE_DISTANCE) {
-        cachedMedia(format, predictedSequence + distance)?.takeIf { it.startsWithinNextSegment(targetMs) }?.let { return it }
+        cachedMedia(format, predictedSequence + distance)
+            ?.takeIf { it.startsWithinNextSegment(targetMs, fallbackDurationMs) }
+            ?.let { return it }
     }
     return null
 }
@@ -27,17 +34,18 @@ private fun YoutubeSabrSession.cachedMedia(format: YoutubeSabrFormat, sequence: 
     return getCachedSegment(SabrSegmentRequest.media(format, sequence))
 }
 
-private fun SabrMediaSegment.covers(targetMs: Long): Boolean {
+private fun SabrMediaSegment.covers(targetMs: Long, fallbackDurationMs: Long?): Boolean {
     val startMs = header.startMs
+    val durationMs = header.durationMs.takeIf { it > 0L } ?: fallbackDurationMs ?: return false
     return startMs >= 0L &&
-        header.durationMs > 0L &&
         targetMs >= startMs - TIMING_TOLERANCE_MS &&
-        targetMs < startMs + header.durationMs
+        targetMs < startMs + durationMs
 }
 
-private fun SabrMediaSegment.startsWithinNextSegment(targetMs: Long): Boolean {
+private fun SabrMediaSegment.startsWithinNextSegment(targetMs: Long, fallbackDurationMs: Long?): Boolean {
+    val durationMs = header.durationMs.takeIf { it > 0L } ?: fallbackDurationMs ?: return false
     val leadMs = header.startMs - targetMs
-    return header.startMs >= 0L && header.durationMs > 0L && leadMs in -TIMING_TOLERANCE_MS..header.durationMs
+    return header.startMs >= 0L && leadMs in -TIMING_TOLERANCE_MS..durationMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24

@@ -1,18 +1,18 @@
 package dev.typetype.server
 
-import dev.typetype.server.cache.CacheService
-import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.SubscriptionFeedTestFixtures.channel
 import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
 import dev.typetype.server.SubscriptionFeedTestFixtures.video
+import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import io.ktor.client.request.get
-import io.ktor.client.request.headers
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -25,27 +25,36 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.system.measureTimeMillis
 
 class SubscriptionFeedRoutesTest {
-
-    private val channelService: ChannelService = mockk()
-    private val cacheService: CacheService = mockk()
-    private val subscriptionsService = SubscriptionsService()
-    private val feedService = SubscriptionFeedService(subscriptionsService, channelService, cacheService)
+    private lateinit var channelService: ChannelService
+    private lateinit var cacheService: FakeCacheService
+    private lateinit var subscriptionsService: SubscriptionsService
+    private lateinit var feedService: SubscriptionFeedService
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
 
-    @BeforeEach fun clean() {
+    @BeforeEach
+    fun clean() {
         TestDatabase.truncateAll()
-        coEvery { cacheService.get(any()) } returns null
-        coEvery { cacheService.set(any(), any(), any()) } returns Unit
+        channelService = mockk()
+        cacheService = FakeCacheService()
+        subscriptionsService = SubscriptionsService()
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, cacheService)
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -62,108 +71,159 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
-    fun `GET subscriptions feed with no subscriptions returns empty`() = withApp {
-        val body = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        assertTrue(body.contains("\"videos\":[]"))
+    fun `cold feed with one slow source returns bounded 202`() = withApp {
+        repeat(100) { subscriptionsService.add(TEST_USER_ID, subscription(it + 1)) }
+        val slowSource = CompletableDeferred<Unit>()
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            if (firstArg<String>().endsWith("/100")) slowSource.await()
+            channel(video(1000L))
+        }
+        lateinit var response: HttpResponse
+        val elapsed = measureTimeMillis { response = requestFeed() }
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertEquals("1", response.headers[HttpHeaders.RetryAfter])
+        assertTrue(response.bodyAsText().contains("subscription_feed_preparing"))
+        assertTrue(elapsed < 500, "cold response took ${elapsed}ms")
+        slowSource.complete(Unit)
+        feedService.awaitRefresh(TEST_USER_ID)
+        assertEquals(HttpStatusCode.OK, requestFeed().status)
     }
 
     @Test
-    fun `GET subscriptions feed returns videos sorted by uploaded desc`() = withApp {
+    fun `concurrent cold requests share one refresh`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
-        subscriptionsService.add(TEST_USER_ID, subscription(2))
-        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L), video(3000L))
-        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns channel(video(2000L))
-        val body = client.get("/subscriptions/feed?page=0&limit=10") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-        assertTrue(body.indexOf("3000") < body.indexOf("2000"))
-        assertTrue(body.indexOf("2000") < body.indexOf("1000"))
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            delay(100)
+            channel(video(1000L))
+        }
+        val responses = coroutineScope { List(12) { async { requestFeed() } }.map { it.await() } }
+        assertTrue(responses.all { it.status == HttpStatusCode.Accepted })
+        feedService.awaitRefresh(TEST_USER_ID)
+        coVerify(exactly = 1) { channelService.getChannel("https://yt.com/c/1", null) }
     }
 
     @Test
-    fun `GET subscriptions feed merges livestream tab and promotes active live`() = withApp {
+    fun `ready feed sorts live first and unknown dates last`() = withApp {
         val channelUrl = "https://www.youtube.com/channel/UC1"
-        val liveUrl = "https://www.youtube.com/watch?v=live"
         subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
         coEvery { channelService.getChannel(channelUrl, null) } returns channel(
             video(3000L, url = "https://www.youtube.com/watch?v=normal"),
-            video(2000L, url = liveUrl),
+            video(2000L, url = "https://www.youtube.com/watch?v=live"),
         )
         coEvery { channelService.getChannel("$channelUrl/streams", null) } returns channel(
-            video(-1L, url = liveUrl, live = true),
-            video(5000L, url = "https://www.youtube.com/watch?v=upcoming"),
-        )
-
-        val body = client.get("/subscriptions/feed") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-        val feed = Json.decodeFromString<SubscriptionFeedResponse>(body)
-
-        assertEquals(liveUrl, feed.videos.first().url)
-        assertTrue(feed.videos.first().isLive)
-        assertEquals(1, feed.videos.count { it.url == liveUrl })
-        assertTrue(feed.videos.any { it.url.endsWith("v=upcoming") })
-        coVerify { cacheService.set(any(), any(), 60L) }
-    }
-
-    @Test
-    fun `GET subscriptions feed keeps channel videos when livestream tab fails`() = withApp {
-        val channelUrl = "https://www.youtube.com/channel/UC2"
-        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Channel"))
-        coEvery { channelService.getChannel(channelUrl, null) } returns channel(video(1000L))
-        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns ExtractionResult.Failure("err")
-
-        val body = client.get("/subscriptions/feed") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-
-        assertTrue(body.contains("V1000"))
-    }
-
-    @Test
-    fun `GET subscriptions feed replaces existing channel tab with livestream tab`() = withApp {
-        val channelUrl = "https://www.youtube.com/channel/UC3/videos"
-        val livestreamUrl = "https://www.youtube.com/channel/UC3/streams"
-        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Imported channel"))
-        coEvery { channelService.getChannel(channelUrl, null) } returns channel(video(1000L))
-        coEvery { channelService.getChannel(livestreamUrl, null) } returns channel(
             video(-1L, url = "https://www.youtube.com/watch?v=live", live = true),
+            video(-1L, url = "https://www.youtube.com/watch?v=unknown"),
         )
-
-        val body = client.get("/subscriptions/feed") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-
-        assertTrue(body.contains("v=live"))
+        val feed = buildAndRead()
+        assertTrue(feed.videos.first().isLive)
+        assertEquals(1, feed.videos.count { it.url.endsWith("v=live") })
+        assertTrue(feed.videos.last().url.endsWith("v=unknown"))
+        assertNotNull(feed.generation)
+        assertNotNull(feed.generatedAt)
     }
 
     @Test
-    fun `GET subscriptions feed pagination works`() = withApp {
+    fun `cursor keeps pagination on one generation after refresh`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
-        coEvery { channelService.getChannel(any(), null) } returns channel(video(5000L), video(4000L), video(3000L))
-        val body = client.get("/subscriptions/feed?page=0&limit=2") {
-            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
-        }.bodyAsText()
-        assertTrue(body.contains("5000") && body.contains("4000") && !body.contains("3000"))
-        assertTrue(body.contains("\"nextpage\":\""))
+        var newest = 5_000L
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            channel(video(newest), video(4000L), video(3000L))
+        }
+        val first = buildAndRead(limit = 2)
+        val cursor = requireNotNull(first.nextpage)
+        newest = 9_000L
+        feedService.invalidate(TEST_USER_ID)
+        feedService.awaitRefresh(TEST_USER_ID)
+        val second = requestFeed(limit = 2, cursor = cursor)
+        assertEquals(HttpStatusCode.OK, second.status)
+        val page = Json.decodeFromString<SubscriptionFeedResponse>(second.bodyAsText())
+        assertEquals(first.generation, page.generation)
+        assertEquals(listOf(3000L), page.videos.map { it.uploaded })
     }
 
     @Test
-    fun `GET subscriptions feed failed channel is silently ignored`() = withApp {
+    fun `cursor older than retained generation returns typed 409`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        var newest = 5_000L
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            channel(video(newest), video(1000L))
+        }
+        val cursor = requireNotNull(buildAndRead(limit = 1).nextpage)
+        repeat(2) {
+            newest += 1_000
+            feedService.invalidate(TEST_USER_ID)
+            feedService.awaitRefresh(TEST_USER_ID)
+        }
+        val response = requestFeed(limit = 1, cursor = cursor)
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertTrue(response.bodyAsText().contains("subscription_feed_stale_generation"))
+    }
+
+    @Test
+    fun `stale feed returns immediately while one refresh runs`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        val gate = CompletableDeferred<Unit>()
+        var rebuilding = false
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            if (rebuilding) gate.await()
+            channel(video(if (rebuilding) 2000L else 1000L))
+        }
+        buildAndRead()
+        rebuilding = true
+        feedService.invalidate(TEST_USER_ID)
+        lateinit var response: HttpResponse
+        val elapsed = measureTimeMillis { response = requestFeed() }
+        val stale = Json.decodeFromString<SubscriptionFeedResponse>(response.bodyAsText())
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(1000L, stale.videos.single().uploaded)
+        assertTrue(stale.refreshing)
+        assertTrue(elapsed < 500, "stale response took ${elapsed}ms")
+        gate.complete(Unit)
+        feedService.awaitRefresh(TEST_USER_ID)
+    }
+
+    @Test
+    fun `partial refresh keeps the previous complete snapshot`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
         subscriptionsService.add(TEST_USER_ID, subscription(2))
-        coEvery { channelService.getChannel("https://yt.com/c/1", null) } returns channel(video(1000L))
-        coEvery { channelService.getChannel("https://yt.com/c/2", null) } returns ExtractionResult.Failure("err")
-        val resp = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
-        assertEquals(HttpStatusCode.OK, resp.status)
-        assertTrue(resp.bodyAsText().contains("1000"))
+        var rebuilding = false
+        coEvery { channelService.getChannel("https://yt.com/c/1", null) } coAnswers {
+            channel(video(if (rebuilding) 9000L else 1000L))
+        }
+        coEvery { channelService.getChannel("https://yt.com/c/2", null) } coAnswers {
+            if (rebuilding) error("channel unavailable") else channel(video(2000L))
+        }
+        val original = buildAndRead()
+        rebuilding = true
+        feedService.invalidate(TEST_USER_ID)
+        feedService.awaitRefresh(TEST_USER_ID)
+        val retained = Json.decodeFromString<SubscriptionFeedResponse>(requestFeed().bodyAsText())
+        assertEquals(original.generation, retained.generation)
+        assertEquals(setOf(1000L, 2000L), retained.videos.map { it.uploaded }.toSet())
+        assertFalse(retained.videos.any { it.uploaded == 9000L })
     }
 
     @Test
-    fun `GET subscriptions feed last page has null nextpage`() = withApp {
-        subscriptionsService.add(TEST_USER_ID, subscription(1))
+    fun `invalid cursor returns typed 400`() = withApp {
         coEvery { channelService.getChannel(any(), null) } returns channel(video(1000L))
-        val body = client.get("/subscriptions/feed") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        assertTrue(body.contains("\"nextpage\":null"))
+        buildAndRead()
+        val response = requestFeed(cursor = "not-a-cursor")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("subscription_feed_invalid_cursor"))
     }
+
+    private suspend fun ApplicationTestBuilder.buildAndRead(limit: Int = 30): SubscriptionFeedResponse {
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+        val response = requestFeed(limit)
+        assertEquals(HttpStatusCode.OK, response.status)
+        return Json.decodeFromString(response.bodyAsText())
+    }
+
+    private suspend fun ApplicationTestBuilder.requestFeed(limit: Int = 30, cursor: String? = null): HttpResponse =
+        client.get("/subscriptions/feed") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            parameter("limit", limit)
+            cursor?.let { parameter("cursor", it) }
+        }
 }

@@ -49,6 +49,27 @@ class SabrCachedSegmentLocatorTest {
         assertSame(segment, found)
     }
 
+    @Test
+    fun `uses derived live duration when media header omits duration`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 2_049_677, startMs = 4_099_349_989L, durationMs = -1L)
+        every { format.itag } returns 140
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 2_049_677 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 4_099_347_988L,
+            predictedSequence = 2_049_676,
+            fallbackDurationMs = 2_001L,
+            allowFollowing = true,
+        )
+
+        assertSame(segment, found)
+    }
+
     private fun segment(sequence: Int, startMs: Long, durationMs: Long): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>()
         every { header.sequenceNumber } returns sequence

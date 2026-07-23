@@ -1,6 +1,5 @@
 package dev.typetype.server
 
-import dev.typetype.server.cache.CacheService
 import dev.typetype.server.SubscriptionFeedTestFixtures.channel
 import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
 import dev.typetype.server.SubscriptionFeedTestFixtures.video
@@ -31,11 +30,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class NotificationsRoutesTest {
-    private val channelService: ChannelService = mockk()
-    private val cacheService: CacheService = mockk()
-    private val subscriptionsService = SubscriptionsService()
-    private val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cacheService)
-    private val notificationsService = NotificationsService(subscriptionFeedService)
+    private lateinit var channelService: ChannelService
+    private lateinit var subscriptionsService: SubscriptionsService
+    private lateinit var notificationsService: NotificationsService
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object { @BeforeAll @JvmStatic fun initDb() = TestDatabase.setup() }
@@ -43,8 +40,14 @@ class NotificationsRoutesTest {
     @BeforeEach
     fun clean() {
         TestDatabase.truncateAll()
-        coEvery { cacheService.get(any()) } returns null
-        coEvery { cacheService.set(any(), any(), any()) } returns Unit
+        channelService = mockk()
+        subscriptionsService = SubscriptionsService()
+        val subscriptionFeedService = SubscriptionFeedService(
+            subscriptionsService,
+            channelService,
+            FakeCacheService(),
+        )
+        notificationsService = NotificationsService(subscriptionFeedService)
     }
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
