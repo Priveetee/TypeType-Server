@@ -5,7 +5,7 @@ import dev.typetype.server.services.AndroidPlaybackMediaResult
 import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidPlaybackSessionLookup
-import dev.typetype.server.services.AndroidSubtitleService
+import dev.typetype.server.services.AndroidSubtitleInventoryCoordinator
 import dev.typetype.server.services.SabrSessionHolder
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -35,6 +35,7 @@ class AndroidPlaybackRouteContractTest {
             routing {
                 androidPlaybackRoutes(
                     mockk(relaxed = true),
+                    mockk(),
                     mockk(),
                     mockk(),
                     null,
@@ -153,7 +154,7 @@ class AndroidPlaybackRouteContractTest {
             null,
             null,
             null,
-            mockk<AndroidSubtitleService>(),
+            mockk<AndroidSubtitleInventoryCoordinator>(),
             service,
         )
         return Fixture(service, holder, handler, AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, emptyList())))
