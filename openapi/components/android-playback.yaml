@@ -32,6 +32,11 @@ AndroidPlaybackResponse:
     generation: { type: integer, format: int64, minimum: 0 }
     ready: { type: boolean }
     status: { type: string, enum: [ready, preparing] }
+    preparationStage:
+      type: string
+      nullable: true
+      enum: [audio_index, video_index, audio_video_index, media_bytes]
+      description: Current bounded preparation stage when ready is false.
     subtitles:
       type: array
       description: Complete authoritative descriptor catalog. Subtitle content remains demand-driven.

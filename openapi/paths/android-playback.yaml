@@ -7,7 +7,7 @@ Create:
   post:
     tags: [android-playback]
     summary: Create an Android-only YouTube VOD playback session
-    description: Active livestreams are rejected. Every successful response contains the complete authoritative subtitle descriptor catalog, including an empty list when the video has no captions. Descriptor discovery does not fetch subtitle documents; media and WebVTT content remain demand-driven.
+    description: Active livestreams are rejected. Every successful response contains the complete authoritative subtitle descriptor catalog, including an empty list when the video has no captions. Descriptor discovery does not fetch subtitle documents; media and WebVTT content remain demand-driven. A 202 response represents one shared session preparation with an eight-second server deadline.
     requestBody:
       required: false
       content:
@@ -41,12 +41,14 @@ Seek:
       '409': { $ref: ../components/common.yaml#/JsonError }
       '410': { $ref: ../components/common.yaml#/JsonError }
       '422': { $ref: ../components/common.yaml#/JsonError }
+      '503': { $ref: ../components/common.yaml#/JsonError }
 Manifest:
   parameters:
     - $ref: '#/components/parameters/SessionId'
   get:
     tags: [android-playback]
     summary: Get the complete static DASH presentation for an Android VOD session
+    description: Polling reads the current session state only and does not restart index extraction. Preparation ends as a complete MPD or a typed 422 or 503 response.
     responses:
       '200':
         description: Complete standards-compatible static DASH MPD.
@@ -60,6 +62,7 @@ Manifest:
       '404': { $ref: ../components/common.yaml#/JsonError }
       '410': { $ref: ../components/common.yaml#/JsonError }
       '422': { $ref: ../components/common.yaml#/JsonError }
+      '503': { $ref: ../components/common.yaml#/JsonError }
 Subtitle:
   parameters:
     - $ref: '#/components/parameters/SessionId'
@@ -154,7 +157,7 @@ components:
         application/json:
           schema: { $ref: ../components/android-playback.yaml#/AndroidPlaybackResponse }
     PreparingSession:
-      description: The exact virtual segment index or requested bytes are still preparing.
+      description: The shared exact virtual index or requested bytes are still preparing. Retry after retryAfterMs without creating another session.
       content:
         application/json:
           schema: { $ref: ../components/android-playback.yaml#/AndroidPlaybackResponse }
