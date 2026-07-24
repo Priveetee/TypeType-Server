@@ -4,8 +4,6 @@ val localPipePipeExtractor = file("../PipePipeExtractor")
 if (localPipePipeExtractor.isDirectory) {
     includeBuild(localPipePipeExtractor) {
         dependencySubstitution {
-            substitute(module("com.github.Priveetee.PipePipeExtractor:extractor"))
-                .using(project(":extractor"))
             substitute(module("com.github.InfinityLoop1308.PipePipeExtractor:extractor"))
                 .using(project(":extractor"))
         }
