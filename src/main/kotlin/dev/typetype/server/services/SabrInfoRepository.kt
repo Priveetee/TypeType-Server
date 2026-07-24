@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
+import org.schabi.newpipe.extractor.services.youtube.sabr.TypeTypeYoutubeSabrInfoFactory
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +27,12 @@ internal class SabrInfoRepository(
         sharedInfos.getInitialization(videoId)?.let { initializationInfos[videoId] = it }
         val info = sharedInfos.getPlayback(videoId) ?: return null
         if (info.visitorData != token.visitorData) return null
-        return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(info, token), share = false)
+        val restored = TypeTypeYoutubeSabrInfoFactory.withPlayerIdentity(
+            info,
+            token.visitorData,
+            token.visitorBoundPoToken,
+        )
+        return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(restored, token), share = false)
     }
 
     suspend fun rememberInitialization(videoId: String, info: YoutubeSabrInfo): Unit {

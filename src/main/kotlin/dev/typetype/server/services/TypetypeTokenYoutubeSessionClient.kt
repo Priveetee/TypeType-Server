@@ -118,6 +118,8 @@ internal class TypetypeTokenYoutubeSessionClient(
                 playbackUrl,
                 clientVersion,
                 playbackCpn ?: info.cpn,
+                getString("visitorData"),
+                optString("visitorBoundPoToken").ifBlank { getString("poToken") },
             )
         } else {
             info

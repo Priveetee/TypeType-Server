@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 class TypetypeTokenYoutubeSessionClientTest {
     @Test
@@ -112,6 +113,7 @@ class TypetypeTokenYoutubeSessionClientTest {
         )
         assertEquals("2.20260205.04.01", info?.clientVersion)
         assertEquals("token-cpn", info?.cpn)
+        assertEquals("AQ", playerPoToken(info))
         assertEquals(2, info?.formats?.size)
         assertTrue(info?.formats?.any { it.itag == 137 && it.contentLength == 1_000_000L } == true)
         assertTrue(info?.formats?.any { it.itag == 140 && it.audioTrackId == "fr-FR.4" } == true)
@@ -130,5 +132,11 @@ class TypetypeTokenYoutubeSessionClientTest {
         assertEquals("Ag", session?.token?.videoBoundPoToken)
         assertTrue(session?.token?.visitorBoundPoTokenBytes?.contentEquals(byteArrayOf(1)) == true)
         assertTrue(session?.token?.videoBoundPoTokenBytes?.contentEquals(byteArrayOf(2)) == true)
+    }
+
+    private fun playerPoToken(info: YoutubeSabrInfo?): String? {
+        val field = YoutubeSabrInfo::class.java.getDeclaredField("playerPoToken")
+        field.isAccessible = true
+        return field.get(info) as? String
     }
 }
