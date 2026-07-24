@@ -105,12 +105,20 @@ internal class TypetypeTokenYoutubeSessionClient(
             JsonParser.`object`().from(playerResponse.toString()),
         )
         val playbackUrl = optString("serverAbrStreamingUrl").takeIf { it.isNotBlank() }
-        val clientVersion = playbackUrl
-            ?.toHttpUrlOrNull()
+        val parsedPlaybackUrl = playbackUrl?.toHttpUrlOrNull()
+        val clientVersion = parsedPlaybackUrl
             ?.queryParameter("cver")
             ?.takeIf { it.isNotBlank() }
+        val playbackCpn = parsedPlaybackUrl
+            ?.queryParameter("cpn")
+            ?.takeIf { it.isNotBlank() }
         if (playbackUrl != null && clientVersion != null) {
-            TypeTypeYoutubeSabrInfoFactory.withPlaybackUrlAndClientVersion(info, playbackUrl, clientVersion)
+            TypeTypeYoutubeSabrInfoFactory.withPlaybackIdentity(
+                info,
+                playbackUrl,
+                clientVersion,
+                playbackCpn ?: info.cpn,
+            )
         } else {
             info
         }
