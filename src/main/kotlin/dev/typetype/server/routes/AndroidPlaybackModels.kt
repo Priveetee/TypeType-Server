@@ -31,6 +31,7 @@ internal data class AndroidPlaybackResponse(
     val status: String,
     val subtitles: List<AndroidSubtitleResponse>,
     val retryAfterMs: Long? = null,
+    val preparationStage: String? = null,
 )
 
 @Serializable
@@ -57,6 +58,7 @@ internal fun AndroidPlaybackSession.toAndroidPlaybackResponse(
     status = if (manifest is AndroidDashManifestResult.Ready) "ready" else "preparing",
     subtitles = subtitles.map { it.toResponse(holder.sessionToken) },
     retryAfterMs = if (manifest is AndroidDashManifestResult.Ready) null else ANDROID_RETRY_AFTER_MS,
+    preparationStage = (manifest as? AndroidDashManifestResult.Preparing)?.stage?.wireValue,
 )
 
 internal fun AndroidSubtitleTrack.toResponse(sessionId: String): AndroidSubtitleResponse =

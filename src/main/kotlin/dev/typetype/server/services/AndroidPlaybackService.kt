@@ -5,9 +5,11 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 internal class AndroidPlaybackService(
     private val store: SabrSessionStore,
     private val sessions: AndroidPlaybackSessionRegistry = AndroidPlaybackSessionRegistry(store),
+    private val manifests: AndroidDashManifestService = AndroidDashManifestService(),
+    private val preparation: AndroidPlaybackPreparationCoordinator =
+        AndroidPlaybackPreparationCoordinator(store, manifests),
 ) {
     private val playback = SabrPlaybackSessionService(store, SabrSessionPurpose.ANDROID_PLAYBACK)
-    private val manifests = AndroidDashManifestService()
 
     suspend fun create(
         videoId: String,
@@ -25,29 +27,29 @@ internal class AndroidPlaybackService(
             audio = audio,
             video = video,
             startTimeMs = 0L,
+            preloadInitialization = false,
+            startPumpOnPrepare = false,
         )
         val session = sessions.register(result.holder, subtitles)
-        return AndroidPlaybackCreateResult.Created(session, manifests.build(result.holder))
+        preparation.start(session)
+        return AndroidPlaybackCreateResult.Created(session, session.preparation.result(result.holder, manifests))
     }
 
     fun lookup(sessionId: String): AndroidPlaybackSessionLookup = sessions.lookup(sessionId)
 
     fun seek(
-        holder: SabrSessionHolder,
+        session: AndroidPlaybackSession,
         generation: Long,
         playerTimeMs: Long,
     ): AndroidPlaybackSeekResult {
+        val holder = session.holder
         if (generation != holder.activeGeneration()) return AndroidPlaybackSeekResult.StaleGeneration
         playback.seekExisting(holder, playerTimeMs.coerceAtLeast(0L))
-        return AndroidPlaybackSeekResult.Ready(holder, manifests.build(holder))
+        return AndroidPlaybackSeekResult.Ready(holder, session.preparation.result(holder, manifests))
     }
 
-    suspend fun manifest(holder: SabrSessionHolder): AndroidDashManifestResult {
-        val initial = manifests.build(holder)
-        if (initial !is AndroidDashManifestResult.Preparing) return initial
-        SabrPlaybackInitializationPreloader.preload(store, holder, MANIFEST_PRELOAD_TIMEOUT_MS)
-        return manifests.build(holder)
-    }
+    fun manifest(session: AndroidPlaybackSession): AndroidDashManifestResult =
+        session.preparation.result(session.holder, manifests)
 
     suspend fun initialization(
         holder: SabrSessionHolder,
@@ -85,7 +87,6 @@ internal class AndroidPlaybackService(
     }
 
     private companion object {
-        const val MANIFEST_PRELOAD_TIMEOUT_MS = 2_000L
         const val MEDIA_TIMEOUT_MS = 4_000L
     }
 }

@@ -24,7 +24,7 @@ internal class SabrSessionStore(
     private val pumpLoopIntervalMs: Long = SabrPumpPolicy.IDLE_POLL_MS,
     private val tokenClient: TypetypeTokenSabrTokenClient = TypetypeTokenSabrTokenClient(tokenServiceUrl),
     private val sessionClient: TypetypeTokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(tokenServiceUrl),
-    private val initCache: CacheService? = null,
+    internal val initCache: CacheService? = null,
 ) {
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache()

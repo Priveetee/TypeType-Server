@@ -111,7 +111,7 @@ internal class AndroidPlaybackHandler(
                 "Invalid seek position",
             )
         }
-        when (val result = service.seek(holder, request.generation, request.playerTimeMs)) {
+        when (val result = service.seek(session, request.generation, request.playerTimeMs)) {
             is AndroidPlaybackSeekResult.Ready -> call.respondSession(
                 session.withHolder(result.holder).toAndroidPlaybackResponse(result.manifest),
                 result.manifest,
@@ -127,12 +127,11 @@ internal class AndroidPlaybackHandler(
     suspend fun manifest(call: ApplicationCall, sessionId: String) {
         call.response.headers.append("Cache-Control", "no-store")
         val session = call.androidPlaybackSession(service, sessionId) ?: return
-        val holder = session.holder
-        when (val result = service.manifest(holder)) {
+        when (val result = service.manifest(session)) {
             is AndroidDashManifestResult.Ready -> {
                 call.respondText(result.manifest, DASH_CONTENT_TYPE)
             }
-            AndroidDashManifestResult.Preparing -> call.respond(
+            is AndroidDashManifestResult.Preparing -> call.respond(
                 HttpStatusCode.Accepted,
                 session.toAndroidPlaybackResponse(result),
             )
@@ -146,6 +145,11 @@ internal class AndroidPlaybackHandler(
                 "android_playback_invalid_index",
                 result.reason,
             )
+            is AndroidDashManifestResult.TemporaryFailure -> call.respondAndroidError(
+                HttpStatusCode.ServiceUnavailable,
+                result.code,
+                result.reason,
+            )
         }
     }
 
@@ -154,7 +158,7 @@ internal class AndroidPlaybackHandler(
         manifest: AndroidDashManifestResult,
     ): Unit = when (manifest) {
         is AndroidDashManifestResult.Ready -> respond(HttpStatusCode.OK, response)
-        AndroidDashManifestResult.Preparing -> respond(HttpStatusCode.Accepted, response)
+        is AndroidDashManifestResult.Preparing -> respond(HttpStatusCode.Accepted, response)
         AndroidDashManifestResult.UnsupportedLive -> respondAndroidError(
             HttpStatusCode.UnprocessableEntity,
             "android_live_playback_unsupported",
@@ -163,6 +167,11 @@ internal class AndroidPlaybackHandler(
         is AndroidDashManifestResult.Invalid -> respondAndroidError(
             HttpStatusCode.UnprocessableEntity,
             "android_playback_invalid_index",
+            manifest.reason,
+        )
+        is AndroidDashManifestResult.TemporaryFailure -> respondAndroidError(
+            HttpStatusCode.ServiceUnavailable,
+            manifest.code,
             manifest.reason,
         )
     }

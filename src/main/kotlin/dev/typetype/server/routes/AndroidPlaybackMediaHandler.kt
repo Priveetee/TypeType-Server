@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.AndroidPlaybackMediaResult
+import dev.typetype.server.services.AndroidPlaybackPreparationStage
 import dev.typetype.server.services.AndroidPlaybackService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -47,7 +48,11 @@ internal class AndroidPlaybackMediaHandler(private val service: AndroidPlaybackS
         is AndroidPlaybackMediaResult.Ready -> respondSabrMediaBytes(result.mimeType, result.bytes)
         AndroidPlaybackMediaResult.Preparing -> respond(
             HttpStatusCode.Accepted,
-            session.toAndroidPlaybackResponse(dev.typetype.server.services.AndroidDashManifestResult.Preparing),
+            session.toAndroidPlaybackResponse(
+                dev.typetype.server.services.AndroidDashManifestResult.Preparing(
+                    AndroidPlaybackPreparationStage.MEDIA_BYTES,
+                ),
+            ),
         )
         AndroidPlaybackMediaResult.StaleGeneration -> respondAndroidError(
             HttpStatusCode.Conflict,
