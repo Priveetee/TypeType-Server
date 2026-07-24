@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.AndroidDashManifestResult
+import dev.typetype.server.services.AndroidPlaybackPreparationStage
 import dev.typetype.server.services.AndroidPlaybackCreateResult
 import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.AndroidPlaybackSession
@@ -101,7 +102,10 @@ class AndroidPlaybackSubtitleBootstrapTest {
     @Test
     fun `preparing media response still contains every subtitle descriptor`() = testApplication {
         val fixture = fixture(AndroidSubtitleInventoryHandle.ready(listOf(TRACK)))
-        fixture.stubCreated(listOf(TRACK), AndroidDashManifestResult.Preparing)
+        fixture.stubCreated(
+            listOf(TRACK),
+            AndroidDashManifestResult.Preparing(AndroidPlaybackPreparationStage.AUDIO_VIDEO_INDEX),
+        )
         application { installRoute(fixture.handler) }
 
         val response = client.post("/playback") {

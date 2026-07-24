@@ -40,7 +40,22 @@ class AndroidDashManifestServiceTest {
         val fixture = fixture(audioCount = 5, videoCount = 5, segmentMs = 1_000L)
         every { fixture.state.hasSegmentIndex(fixture.audio) } returns false
 
-        assertEquals(AndroidDashManifestResult.Preparing, AndroidDashManifestService().build(fixture.holder))
+        assertEquals(
+            AndroidDashManifestResult.Preparing(AndroidPlaybackPreparationStage.AUDIO_INDEX),
+            AndroidDashManifestService().build(fixture.holder),
+        )
+    }
+
+    @Test
+    fun `missing indexes expose the current preparation stage`() {
+        val fixture = fixture(audioCount = 5, videoCount = 5, segmentMs = 1_000L)
+        every { fixture.state.hasSegmentIndex(fixture.audio) } returns false
+        every { fixture.state.hasSegmentIndex(fixture.video) } returns false
+
+        assertEquals(
+            AndroidDashManifestResult.Preparing(AndroidPlaybackPreparationStage.AUDIO_VIDEO_INDEX),
+            AndroidDashManifestService().build(fixture.holder),
+        )
     }
 
     @Test
@@ -80,7 +95,7 @@ class AndroidDashManifestServiceTest {
             every { activeGeneration() } returns 0L
             every { expectsLive() } returns false
         }
-        return Fixture(holder, state, audio)
+        return Fixture(holder, state, audio, video)
     }
 
     private fun format(itag: Int, audio: Boolean): YoutubeSabrFormat = mockk {
@@ -97,5 +112,6 @@ class AndroidDashManifestServiceTest {
         val holder: SabrSessionHolder,
         val state: YoutubeSabrStreamState,
         val audio: YoutubeSabrFormat,
+        val video: YoutubeSabrFormat,
     )
 }
