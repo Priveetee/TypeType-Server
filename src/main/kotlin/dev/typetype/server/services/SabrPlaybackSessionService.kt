@@ -39,6 +39,10 @@ internal class SabrPlaybackSessionService(
         if (holder.expectsLive()) {
             holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
             holder.session.streamState.setSelectVideoFormatBeforeAudio(!audioOnly)
+            if (startTimeMs == 0L) {
+                holder.session.streamState.setPlayerTimeMs(OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS)
+                holder.session.streamState.setWriteTopLevelPlayerTimeMs(false)
+            }
             sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
         } else if (preloadInitialization) {
             SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
@@ -173,5 +177,6 @@ internal class SabrPlaybackSessionService(
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
         const val SEGMENT_WAIT_MS = 250L
         const val LIVE_INITIAL_PUMPS = 8
+        const val OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS = 9_007_199_254_740_991L
     }
 }
