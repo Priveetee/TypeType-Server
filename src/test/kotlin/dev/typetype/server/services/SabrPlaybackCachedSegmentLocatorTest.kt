@@ -44,6 +44,36 @@ class SabrPlaybackCachedSegmentLocatorTest {
         assertEquals(1841446, segment?.sequence)
     }
 
+    @Test
+    fun `finds cached audio after a rounded multi-sequence live gap`() = runTest {
+        val store = mockk<SabrSessionStore>()
+        val holder = mockk<SabrSessionHolder>()
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        every { format.itag } returns 140
+        every { holder.observedMediaSegment(format) } returns null
+        every { holder.session } returns session
+        every { session.streamState } returns state
+        every { state.getSegmentStartMs(format, any()) } returns 0L
+        every { state.getSegmentEndMs(format, any()) } returns 5_000L
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            secondArg<SabrSegmentRequest>().sequenceNumber
+                .takeIf { it == 3_980 }
+                ?.let { cached(it, 19_900_081L) }
+        }
+
+        val segment = store.findCachedPlaybackMediaAt(
+            holder,
+            format,
+            targetMs = 19_865_073L,
+            predictedSequence = 3_973,
+            allowFollowing = true,
+        )
+
+        assertEquals(3_980, segment?.sequence)
+    }
+
     private fun cached(sequence: Int, startMs: Long): CachedSabrSegment = CachedSabrSegment(
         itag = 140,
         sequence = sequence,

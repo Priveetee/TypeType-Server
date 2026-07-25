@@ -23,7 +23,7 @@ internal fun YoutubeSabrSession.findCachedMediaAt(
     if (!allowFollowing) return null
     for (distance in 1..MAX_SEQUENCE_DISTANCE) {
         cachedMedia(format, predictedSequence + distance)
-            ?.takeIf { it.startsWithinNextSegment(targetMs, fallbackDurationMs) }
+            ?.takeIf { it.startsWithinFollowingRange(targetMs, fallbackDurationMs, distance) }
             ?.let { return it }
     }
     return null
@@ -42,11 +42,23 @@ private fun SabrMediaSegment.covers(targetMs: Long, fallbackDurationMs: Long?): 
         targetMs < startMs + durationMs
 }
 
-private fun SabrMediaSegment.startsWithinNextSegment(targetMs: Long, fallbackDurationMs: Long?): Boolean {
+private fun SabrMediaSegment.startsWithinFollowingRange(
+    targetMs: Long,
+    fallbackDurationMs: Long?,
+    sequenceDistance: Int,
+): Boolean {
     val durationMs = header.durationMs.takeIf { it > 0L } ?: fallbackDurationMs ?: return false
     val leadMs = header.startMs - targetMs
-    return header.startMs >= 0L && leadMs in -TIMING_TOLERANCE_MS..durationMs
+    val maximumLeadMs = maximumFollowingLeadMs(durationMs, sequenceDistance)
+    return header.startMs >= 0L && leadMs in -TIMING_TOLERANCE_MS..maximumLeadMs
+}
+
+internal fun maximumFollowingLeadMs(durationMs: Long, sequenceDistance: Int): Long {
+    val distance = sequenceDistance.coerceAtLeast(1).toLong()
+    val toleranceMs = TIMING_TOLERANCE_MS * distance
+    val boundedDurationMs = durationMs.coerceAtMost((Long.MAX_VALUE - toleranceMs) / distance)
+    return boundedDurationMs * distance + toleranceMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24
-private const val TIMING_TOLERANCE_MS = 2L
+internal const val TIMING_TOLERANCE_MS = 2L

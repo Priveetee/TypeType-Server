@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
@@ -68,6 +69,69 @@ class SabrCachedSegmentLocatorTest {
         )
 
         assertSame(segment, found)
+    }
+
+    @Test
+    fun `finds next live segment across a multi-sequence gap`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 3_909, startMs = 19_545_066L, durationMs = 5_000L)
+        every { format.itag } returns 137
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 3_909 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 19_530_066L,
+            predictedSequence = 3_906,
+            fallbackDurationMs = 5_000L,
+            allowFollowing = true,
+        )
+
+        assertSame(segment, found)
+    }
+
+    @Test
+    fun `accepts cumulative audio rounding across a live sequence gap`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 3_980, startMs = 19_900_081L, durationMs = -1L)
+        every { format.itag } returns 140
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 3_980 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 19_865_073L,
+            predictedSequence = 3_973,
+            fallbackDurationMs = 5_000L,
+            allowFollowing = true,
+        )
+
+        assertSame(segment, found)
+    }
+
+    @Test
+    fun `rejects following live segment beyond its sequence range`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 3_909, startMs = 19_550_067L, durationMs = 5_000L)
+        every { format.itag } returns 137
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 3_909 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 19_530_066L,
+            predictedSequence = 3_906,
+            fallbackDurationMs = 5_000L,
+            allowFollowing = true,
+        )
+
+        assertNull(found)
     }
 
     private fun segment(sequence: Int, startMs: Long, durationMs: Long): SabrMediaSegment {
