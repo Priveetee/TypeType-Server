@@ -4,16 +4,18 @@ public final class TypeTypeYoutubeSabrInfoFactory {
     private TypeTypeYoutubeSabrInfoFactory() {
     }
 
-    public static YoutubeSabrInfo withPlaybackUrlAndClientVersion(
+    public static YoutubeSabrInfo withPlaybackIdentity(
             final YoutubeSabrInfo info,
             final String serverAbrStreamingUrl,
-            final String clientVersion) {
+            final String clientVersion,
+            final String cpn,
+            final String visitorData) {
         return new YoutubeSabrInfo(
                 info.getProfile(),
                 info.getVideoId(),
-                info.getCpn(),
+                cpn,
                 clientVersion,
-                info.getVisitorData(),
+                visitorData,
                 serverAbrStreamingUrl,
                 info.getVideoPlaybackUstreamerConfig(),
                 info.getFormats());
