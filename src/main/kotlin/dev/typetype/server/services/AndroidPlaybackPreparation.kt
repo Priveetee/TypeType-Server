@@ -41,6 +41,8 @@ internal class AndroidPlaybackPreparationCoordinator(
     private val timeoutMs: Long = PREPARATION_TIMEOUT_MS,
     private val initializationTimeoutMs: Long = INITIALIZATION_TIMEOUT_MS,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val sharedInitializer: suspend (SabrSessionHolder, YoutubeSabrFormat) -> ByteArray? =
+        store::fetchInitializationData,
     private val exactInitializer: suspend (SabrSessionHolder, YoutubeSabrFormat, Long) -> ByteArray =
         store::fetchExactInitializationData,
 ) {
@@ -54,8 +56,9 @@ internal class AndroidPlaybackPreparationCoordinator(
         val startedAt = System.currentTimeMillis()
         try {
             withTimeout(timeoutMs) {
-                initializeIfMissing(holder, holder.videoFormat)
-                initializeIfMissing(holder, holder.audioFormat)
+                initializeFromPlaybackSession(holder)
+                initializeExactlyIfMissing(holder, holder.videoFormat)
+                initializeExactlyIfMissing(holder, holder.audioFormat)
             }
             val result = manifests.build(holder)
             if (result is AndroidDashManifestResult.Preparing) {
@@ -83,7 +86,21 @@ internal class AndroidPlaybackPreparationCoordinator(
         }
     }
 
-    private suspend fun initializeIfMissing(holder: SabrSessionHolder, format: YoutubeSabrFormat): Unit {
+    private suspend fun initializeFromPlaybackSession(holder: SabrSessionHolder): Unit {
+        try {
+            initializeSharedIfMissing(holder, holder.videoFormat)
+            initializeSharedIfMissing(holder, holder.audioFormat)
+        } catch (_: IOException) {
+            // The exact initialization path below remains a bounded fallback.
+        }
+    }
+
+    private suspend fun initializeSharedIfMissing(holder: SabrSessionHolder, format: YoutubeSabrFormat): Unit {
+        if (holder.session.streamState.hasSegmentIndex(format)) return
+        sharedInitializer(holder, format)
+    }
+
+    private suspend fun initializeExactlyIfMissing(holder: SabrSessionHolder, format: YoutubeSabrFormat): Unit {
         if (holder.session.streamState.hasSegmentIndex(format)) return
         exactInitializer(holder, format, initializationTimeoutMs)
         if (!holder.session.streamState.hasSegmentIndex(format)) {

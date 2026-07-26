@@ -26,17 +26,69 @@ class AndroidPlaybackPreparationTest {
     fun `one shared preparation publishes the complete manifest`() = runTest {
         val fixture = fixture()
         val calls = mutableListOf<Int>()
-        val coordinator = coordinator(fixture, this) { _, format, _ ->
+        val coordinator = coordinator(fixture, this, sharedInitializer = { _, format ->
             calls += format.itag
-            fixture.ready[format.itag] = true
+            fixture.ready.keys.forEach { fixture.ready[it] = true }
             byteArrayOf(1)
-        }
+        })
 
         coordinator.start(fixture.session)
         coordinator.start(fixture.session)
         advanceUntilIdle()
 
-        assertEquals(listOf(137, 140), calls)
+        assertEquals(listOf(137), calls)
+        assertInstanceOf(
+            AndroidDashManifestResult.Ready::class.java,
+            fixture.session.preparation.result(fixture.holder, fixture.manifests),
+        )
+    }
+
+    @Test
+    fun `incomplete shared initialization uses exact fallback`() = runTest {
+        val fixture = fixture()
+        val sharedCalls = mutableListOf<Int>()
+        val exactCalls = mutableListOf<Int>()
+        val coordinator = coordinator(
+            fixture,
+            this,
+            sharedInitializer = { _, format ->
+                sharedCalls += format.itag
+                null
+            },
+            exactInitializer = { _, format, _ ->
+                exactCalls += format.itag
+                fixture.ready[format.itag] = true
+                byteArrayOf(1)
+            },
+        )
+
+        coordinator.start(fixture.session)
+        advanceUntilIdle()
+
+        assertEquals(listOf(137, 140), sharedCalls)
+        assertEquals(listOf(137, 140), exactCalls)
+        assertInstanceOf(
+            AndroidDashManifestResult.Ready::class.java,
+            fixture.session.preparation.result(fixture.holder, fixture.manifests),
+        )
+    }
+
+    @Test
+    fun `shared initialization failure uses exact fallback`() = runTest {
+        val fixture = fixture()
+        val coordinator = coordinator(
+            fixture,
+            this,
+            sharedInitializer = { _, _ -> throw IOException("SABR bootstrap failed") },
+            exactInitializer = { _, format, _ ->
+                fixture.ready[format.itag] = true
+                byteArrayOf(1)
+            },
+        )
+
+        coordinator.start(fixture.session)
+        advanceUntilIdle()
+
         assertInstanceOf(
             AndroidDashManifestResult.Ready::class.java,
             fixture.session.preparation.result(fixture.holder, fixture.manifests),
@@ -46,10 +98,10 @@ class AndroidPlaybackPreparationTest {
     @Test
     fun `preparation deadline becomes a typed temporary failure`() = runTest {
         val fixture = fixture()
-        val coordinator = coordinator(fixture, this, timeoutMs = 100L) { _, _, _ ->
+        val coordinator = coordinator(fixture, this, timeoutMs = 100L, sharedInitializer = { _, _ ->
             delay(1_000L)
             byteArrayOf(1)
-        }
+        })
 
         coordinator.start(fixture.session)
         advanceUntilIdle()
@@ -62,7 +114,12 @@ class AndroidPlaybackPreparationTest {
     @Test
     fun `initialization failure becomes a typed temporary failure`() = runTest {
         val fixture = fixture()
-        val coordinator = coordinator(fixture, this) { _, _, _ -> throw IOException("upstream failed") }
+        val coordinator = coordinator(
+            fixture,
+            this,
+            sharedInitializer = { _, _ -> null },
+            exactInitializer = { _, _, _ -> throw IOException("upstream failed") },
+        )
 
         coordinator.start(fixture.session)
         advanceUntilIdle()
@@ -76,13 +133,13 @@ class AndroidPlaybackPreparationTest {
     fun `session cancellation stops preparation work`() = runTest {
         val fixture = fixture()
         val cancelled = AtomicBoolean()
-        val coordinator = coordinator(fixture, this) { _, _, _ ->
+        val coordinator = coordinator(fixture, this, sharedInitializer = { _, _ ->
             try {
                 awaitCancellation()
             } finally {
                 cancelled.set(true)
             }
-        }
+        })
 
         coordinator.start(fixture.session)
         runCurrent()
@@ -96,14 +153,18 @@ class AndroidPlaybackPreparationTest {
         fixture: Fixture,
         scope: CoroutineScope,
         timeoutMs: Long = 1_000L,
-        initializer: suspend (SabrSessionHolder, YoutubeSabrFormat, Long) -> ByteArray,
+        sharedInitializer: suspend (SabrSessionHolder, YoutubeSabrFormat) -> ByteArray? = { _, _ -> null },
+        exactInitializer: suspend (SabrSessionHolder, YoutubeSabrFormat, Long) -> ByteArray = { _, _, _ ->
+            byteArrayOf(1)
+        },
     ): AndroidPlaybackPreparationCoordinator = AndroidPlaybackPreparationCoordinator(
         store = mockk(relaxed = true),
         manifests = fixture.manifests,
         timeoutMs = timeoutMs,
         initializationTimeoutMs = 500L,
         scope = scope,
-        exactInitializer = initializer,
+        sharedInitializer = sharedInitializer,
+        exactInitializer = exactInitializer,
     )
 
     private fun fixture(): Fixture {
