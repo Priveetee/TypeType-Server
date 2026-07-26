@@ -55,10 +55,11 @@ private fun SabrMediaSegment.startsWithinFollowingRange(
 
 internal fun maximumFollowingLeadMs(durationMs: Long, sequenceDistance: Int): Long {
     val distance = sequenceDistance.coerceAtLeast(1).toLong()
-    val toleranceMs = TIMING_TOLERANCE_MS * distance
+    val toleranceMs = LIVE_FOLLOWING_TIMING_TOLERANCE_MS
     val boundedDurationMs = durationMs.coerceAtMost((Long.MAX_VALUE - toleranceMs) / distance)
     return boundedDurationMs * distance + toleranceMs
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24
 internal const val TIMING_TOLERANCE_MS = 2L
+internal const val LIVE_FOLLOWING_TIMING_TOLERANCE_MS = 250L

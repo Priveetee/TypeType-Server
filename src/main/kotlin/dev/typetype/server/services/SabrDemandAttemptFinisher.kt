@@ -15,14 +15,18 @@ internal object SabrDemandAttemptFinisher {
             true
         }
 
-    fun expireStalledInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =
+    fun expireStalledInFlightDemand(
+        holder: SabrSessionHolder,
+        demand: SabrInFlightDemand,
+        recoverable: Boolean = demand.futureLiveRequest,
+    ): Boolean =
         synchronized(holder) {
             val state = holder.playbackState()
             if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
             if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
             holder.clearSegmentDemands()
             val message = "SABR demand stalled for ${demand.request.summary()}"
-            holder.failTerminal(if (demand.futureLiveRequest) sabrRecoverableFailureMessage(message) else message)
+            holder.failTerminal(if (recoverable) sabrRecoverableFailureMessage(message) else message)
             true
         }
 
@@ -88,10 +92,6 @@ internal object SabrDemandAttemptFinisher {
             holder.session.prepareForMissingSegment(request)
             SabrPumpLogger.recovery(holder, action, request)
             true
-        }
-        SabrDemandRecoveryAction.FAIL -> {
-            runtime.finishDemand(identity)
-            !fail(holder, request, identity)
         }
     }
 

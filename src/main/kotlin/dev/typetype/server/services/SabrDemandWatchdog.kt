@@ -13,6 +13,11 @@ internal class SabrDemandWatchdog(
             if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return false
             val inFlightDemand = holder.inFlightSegmentDemand()
             if (inFlightDemand != null) {
+                if (holder.isLiveDemandOutsideRecoverableWindow(inFlightDemand.request) &&
+                    SabrDemandAttemptFinisher.expireStalledInFlightDemand(holder, inFlightDemand, recoverable = true)
+                ) {
+                    return true
+                }
                 if (inFlightDemand.futureLiveRequest) holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
                 val nowMs = clock()
                 val backoffRemainingMs = holder.session.demandBackoffRemainingMs
@@ -40,7 +45,16 @@ internal class SabrDemandWatchdog(
                 delay(intervalMs)
                 continue
             }
+            val outsideLiveWindow = holder.isLiveDemandOutsideRecoverableWindow(request)
             val futureLiveRequest = holder.isFutureLiveRequest(request)
+            if (outsideLiveWindow) {
+                val identity = holder.segmentDemandIdentity(request)
+                if (identity != null &&
+                    SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity, recoverable = true)
+                ) {
+                    return true
+                }
+            }
             if (futureLiveRequest) {
                 holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
             }

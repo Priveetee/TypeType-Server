@@ -151,13 +151,22 @@ internal class SabrPlaybackSessionService(
             delay(SEGMENT_WAIT_MS)
             segment = sessionStore.cachedSegment(holder, request)
             if (segment == null && holder.livePlaybackSnapshot()?.active == true) {
-                segment = sessionStore.findCachedPlaybackMediaAt(
+                val targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
+                val following = sessionStore.findCachedPlaybackMediaAt(
                     holder = holder,
                     format = request.format,
-                    targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber),
+                    targetMs = targetMs,
                     predictedSequence = request.sequenceNumber,
                     allowFollowing = true,
                 )
+                segment = following?.takeUnless {
+                    holder.failLivePlaybackDiscontinuity(
+                        request.format,
+                        targetMs,
+                        it,
+                        holder.lastServedSequence(request.format) != null,
+                    )
+                }
             }
         }
         segment
