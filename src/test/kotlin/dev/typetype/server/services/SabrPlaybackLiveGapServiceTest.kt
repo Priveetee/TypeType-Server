@@ -6,6 +6,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -44,6 +45,41 @@ class SabrPlaybackLiveGapServiceTest {
 
         assertArrayEquals(byteArrayOf(1, 2, 3), result.bytes)
         assertEquals(93, holder.lastServedSequence(video))
+    }
+
+    @Test
+    fun `rejects a following live segment outside the recoverable window`() = runTest {
+        val video = format(299, isAudio = false)
+        val audio = format(140, isAudio = true)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.isLive } returns true
+        every { state.isLive } returns true
+        every { state.liveHeadTimeMs } returns 31_680_059L
+        every { state.getSegmentStartMs(video, 6_320) } returns 31_600_059L
+        every { state.getSegmentEndMs(video, 6_320) } returns 31_605_059L
+        val holder = holder(session, audio, video)
+        holder.markExpectedLive()
+        holder.setLastServedSequence(video.itag, 6_319)
+        val replacement = cachedSegment(299, 6_335, 31_675_059L, byteArrayOf(1, 2, 3))
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            secondArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 6_335 }?.let { replacement }
+        }
+        every { store.requestSegmentDemand(holder, any(), 0L) } returns Unit
+
+        val result = SabrPlaybackSessionService(store).fetchMedia(
+            holder = holder,
+            format = video,
+            sequence = 6_320,
+            timeoutMs = 1_000L,
+            generation = 0L,
+        )
+
+        assertEquals(SabrPlaybackSegmentResult.Retry(holder, "repositioning"), result)
+        assertEquals(6_319, holder.lastServedSequence(video))
+        assertTrue(holder.terminalFailure().orEmpty().contains("live 299 media discontinuity"))
     }
 
     private fun holder(

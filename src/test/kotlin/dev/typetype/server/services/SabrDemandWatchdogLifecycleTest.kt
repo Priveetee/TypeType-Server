@@ -115,6 +115,43 @@ class SabrDemandWatchdogLifecycleTest {
     }
 
     @Test
+    fun `historical live demand outside recoverable window ignores backoff`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            var liveHeadTimeMs = 470_250L
+            every { holder.session.isLive } returns true
+            every { holder.session.streamState.isLive } returns true
+            every { holder.session.streamState.liveHeadTimeMs } answers { liveHeadTimeMs }
+            every { holder.session.streamState.getSegmentStartMs(holder.videoFormat, 50) } returns 400_000L
+            every { holder.session.streamState.getSegmentEndMs(holder.videoFormat, 50) } returns 410_000L
+            every { holder.session.demandBackoffRemainingMs } returns 30_000L
+            assertFalse(holder.isLiveDemandOutsideRecoverableWindow(request))
+            liveHeadTimeMs++
+            assertTrue(holder.isLiveDemandOutsideRecoverableWindow(request))
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            assertTrue(holder.beginInFlightSegmentDemand(request, identity, futureLiveRequest = false))
+            holder.clearSegmentDemand(request)
+            var expired = false
+
+            val job = launch {
+                expired = SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            assertTrue(job.isCompleted)
+            assertTrue(expired)
+            assertEquals(
+                "$SABR_RECOVERABLE_FAILURE_PREFIX SABR demand stalled for 299:50",
+                holder.terminalFailure(),
+            )
+        }
+    }
+
+    @Test
     fun `completed in flight demand interrupts without terminal failure`() = runTest {
         withTracker { holder ->
             val request = SabrSegmentRequest.media(holder.videoFormat, 50)

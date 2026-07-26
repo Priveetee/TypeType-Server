@@ -114,6 +114,27 @@ class SabrCachedSegmentLocatorTest {
     }
 
     @Test
+    fun `accepts live segment just beyond exact sequence duration`() {
+        val format = mockk<YoutubeSabrFormat>()
+        val session = mockk<YoutubeSabrSession>()
+        val segment = segment(sequence = 5_947, startMs = 29_735_079L, durationMs = -1L)
+        every { format.itag } returns 140
+        every { session.getCachedSegment(any()) } answers {
+            firstArg<SabrSegmentRequest>().takeIf { it.sequenceNumber == 5_947 }?.let { segment }
+        }
+
+        val found = session.findCachedMediaAt(
+            format = format,
+            targetMs = 29_720_066L,
+            predictedSequence = 5_944,
+            fallbackDurationMs = 5_000L,
+            allowFollowing = true,
+        )
+
+        assertSame(segment, found)
+    }
+
+    @Test
     fun `rejects following live segment beyond its sequence range`() {
         val format = mockk<YoutubeSabrFormat>()
         val session = mockk<YoutubeSabrSession>()

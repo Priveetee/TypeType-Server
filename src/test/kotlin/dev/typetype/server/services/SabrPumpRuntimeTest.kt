@@ -69,13 +69,14 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
-    fun `three responses without demanded segment fail demand`() {
+    fun `repeated responses without demanded segment stay retryable`() {
         val runtime = SabrPumpRuntime { 1_000L }
         runtime.beginDemand("140:44")
 
         assertEquals(SabrDemandRecoveryAction.READVERTISE_TRACK, runtime.demandRecoveryAction("140:44", 1, false))
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 1, false))
-        assertEquals(SabrDemandRecoveryAction.FAIL, runtime.demandRecoveryAction("140:44", 1, false))
+        repeat(5) {
+            assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 1, false))
+        }
     }
 
     private fun holder(
