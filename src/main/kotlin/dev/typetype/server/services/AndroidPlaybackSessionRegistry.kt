@@ -44,7 +44,7 @@ internal class AndroidPlaybackSessionRegistry(
             return AndroidPlaybackSessionLookup.Expired
         }
         lease.lastAccess = current
-        return AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, lease.session.subtitles))
+        return AndroidPlaybackSessionLookup.Active(lease.session.withHolder(holder))
     }
 
     internal fun expire(sessionId: String): Unit {
@@ -56,6 +56,7 @@ internal class AndroidPlaybackSessionRegistry(
     private fun expire(sessionId: String, lease: Lease, current: Instant): Unit {
         if (!sessions.remove(sessionId, lease)) return
         tombstones[sessionId] = current.plus(tombstoneTtl)
+        lease.session.cancelPreparation()
         store.release(lease.session.holder)
     }
 
@@ -77,10 +78,18 @@ internal class AndroidPlaybackSessionRegistry(
     }
 }
 
-internal data class AndroidPlaybackSession(
+internal class AndroidPlaybackSession(
     val holder: SabrSessionHolder,
-    val subtitles: List<AndroidSubtitleTrack>,
-)
+    subtitles: List<AndroidSubtitleTrack>,
+    val preparation: AndroidPlaybackPreparation = AndroidPlaybackPreparation(),
+) {
+    val subtitles: List<AndroidSubtitleTrack> = subtitles.toList()
+
+    fun withHolder(current: SabrSessionHolder): AndroidPlaybackSession =
+        AndroidPlaybackSession(current, subtitles, preparation)
+
+    fun cancelPreparation(): Unit = preparation.cancel()
+}
 
 internal sealed interface AndroidPlaybackSessionLookup {
     data class Active(val session: AndroidPlaybackSession) : AndroidPlaybackSessionLookup

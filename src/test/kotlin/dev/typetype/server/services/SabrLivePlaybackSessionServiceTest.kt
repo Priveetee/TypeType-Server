@@ -88,6 +88,8 @@ class SabrLivePlaybackSessionServiceTest {
         assertEquals(985_000L, result.startTimeMs)
         assertEquals(985_000L, holder.playerTimeMs())
         assertTrue(holder.expectsLive())
+        verify(exactly = 1) { state.setPlayerTimeMs(9_007_199_254_740_991L) }
+        verify(exactly = 1) { state.setWriteTopLevelPlayerTimeMs(false) }
         coVerify(exactly = 1) { store.ensureWarmed(holder, 8) }
         coVerify(exactly = 0) { store.fetchInitializationData(any(), any()) }
         verify(exactly = 1) { store.startPump(holder) }
@@ -148,6 +150,8 @@ class SabrLivePlaybackSessionServiceTest {
         assertEquals(1_000_000L, replacement.readerPosition(video))
         assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == audio.itag })
         assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == video.itag })
+        verify(exactly = 0) { replacementState.setPlayerTimeMs(9_007_199_254_740_991L) }
+        verify(exactly = 0) { replacementState.setWriteTopLevelPlayerTimeMs(false) }
         coVerify(exactly = 1) { store.ensureWarmed(replacement, 8) }
         verify(exactly = 1) { store.startPump(replacement) }
     }

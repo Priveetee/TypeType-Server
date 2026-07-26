@@ -2,10 +2,11 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.AndroidDashManifestResult
 import dev.typetype.server.services.AndroidPlaybackMediaResult
+import dev.typetype.server.services.AndroidPlaybackPreparationStage
 import dev.typetype.server.services.AndroidPlaybackService
 import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidPlaybackSessionLookup
-import dev.typetype.server.services.AndroidSubtitleService
+import dev.typetype.server.services.AndroidSubtitleInventoryCoordinator
 import dev.typetype.server.services.SabrSessionHolder
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -37,6 +38,7 @@ class AndroidPlaybackRouteContractTest {
                     mockk(relaxed = true),
                     mockk(),
                     mockk(),
+                    mockk(),
                     null,
                     null,
                     null,
@@ -54,7 +56,7 @@ class AndroidPlaybackRouteContractTest {
     fun `ready manifest returns dash xml with no store`() = testApplication {
         val fixture = fixture()
         every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
-        coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Ready(MPD, 1_000L)
+        every { fixture.service.manifest(fixture.lookup.session) } returns AndroidDashManifestResult.Ready(MPD, 1_000L)
         application {
             install(ContentNegotiation) { json() }
             routing { get("/manifest") { fixture.handler.manifest(call, SESSION_ID) } }
@@ -72,7 +74,9 @@ class AndroidPlaybackRouteContractTest {
     fun `preparing manifest returns bounded json retry`() = testApplication {
         val fixture = fixture()
         every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
-        coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Preparing
+        every { fixture.service.manifest(fixture.lookup.session) } returns AndroidDashManifestResult.Preparing(
+            AndroidPlaybackPreparationStage.AUDIO_VIDEO_INDEX,
+        )
         application {
             install(ContentNegotiation) { json() }
             routing { get("/manifest") { fixture.handler.manifest(call, SESSION_ID) } }
@@ -82,6 +86,7 @@ class AndroidPlaybackRouteContractTest {
 
         assertEquals(HttpStatusCode.Accepted, response.status)
         assertTrue(response.bodyAsText().contains("\"retryAfterMs\":500"))
+        assertTrue(response.bodyAsText().contains("\"preparationStage\":\"audio_video_index\""))
     }
 
     @Test
@@ -124,7 +129,7 @@ class AndroidPlaybackRouteContractTest {
     fun `invalid complete index returns unprocessable entity`() = testApplication {
         val fixture = fixture()
         every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
-        coEvery { fixture.service.manifest(fixture.holder) } returns AndroidDashManifestResult.Invalid("invalid index")
+        every { fixture.service.manifest(fixture.lookup.session) } returns AndroidDashManifestResult.Invalid("invalid index")
         application {
             install(ContentNegotiation) { json() }
             routing { get("/manifest") { fixture.handler.manifest(call, SESSION_ID) } }
@@ -134,6 +139,25 @@ class AndroidPlaybackRouteContractTest {
 
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("android_playback_invalid_index"))
+    }
+
+    @Test
+    fun `preparation failure returns a typed service unavailable response`() = testApplication {
+        val fixture = fixture()
+        every { fixture.service.lookup(SESSION_ID) } returns fixture.lookup
+        every { fixture.service.manifest(fixture.lookup.session) } returns AndroidDashManifestResult.TemporaryFailure(
+            "android_playback_preparation_timeout",
+            "Android playback preparation is temporarily unavailable",
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            routing { get("/manifest") { fixture.handler.manifest(call, SESSION_ID) } }
+        }
+
+        val response = client.get("/manifest")
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertTrue(response.bodyAsText().contains("android_playback_preparation_timeout"))
     }
 
     private fun fixture(): Fixture {
@@ -153,7 +177,7 @@ class AndroidPlaybackRouteContractTest {
             null,
             null,
             null,
-            mockk<AndroidSubtitleService>(),
+            mockk<AndroidSubtitleInventoryCoordinator>(),
             service,
         )
         return Fixture(service, holder, handler, AndroidPlaybackSessionLookup.Active(AndroidPlaybackSession(holder, emptyList())))

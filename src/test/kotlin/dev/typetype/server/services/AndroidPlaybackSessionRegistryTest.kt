@@ -28,6 +28,23 @@ class AndroidPlaybackSessionRegistryTest {
     }
 
     @Test
+    fun `registered subtitle catalog is an immutable snapshot`() {
+        val current = MutableNow(Instant.parse("2026-07-20T10:00:00Z"))
+        val store = mockk<SabrSessionStore>()
+        val holder = holder()
+        val track = mockk<AndroidSubtitleTrack>()
+        every { store.lookupByToken("android-session") } returns holder
+        val source = mutableListOf(track)
+        val registry = registry(store, current)
+        registry.register(holder, source)
+
+        source.clear()
+        val active = registry.lookup("android-session") as AndroidPlaybackSessionLookup.Active
+
+        assertSame(track, active.session.subtitles.single())
+    }
+
+    @Test
     fun `idle session returns gone while unknown session returns not found`() {
         val current = MutableNow(Instant.parse("2026-07-20T10:00:00Z"))
         val store = mockk<SabrSessionStore>(relaxed = true)

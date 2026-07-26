@@ -73,10 +73,15 @@ class AndroidSubtitleRouteTest {
 
     private fun io.ktor.server.application.Application.installRoute(handler: AndroidSubtitleHandler) {
         install(ContentNegotiation) { json() }
-        routing { get("/subtitle") { handler.content(call, SESSION_ID, TRACK.id) } }
+        routing {
+            get("/subtitle") { handler.content(call, SESSION_ID, TRACK.id) }
+        }
     }
 
-    private fun fixture(owner: String, authenticatedUser: String = owner): Fixture {
+    private fun fixture(
+        owner: String,
+        authenticatedUser: String = owner,
+    ): Fixture {
         val playback = mockk<AndroidPlaybackService>()
         val holder = mockk<SabrSessionHolder> {
             every { key } returns SabrSessionKey(
@@ -99,11 +104,12 @@ class AndroidSubtitleRouteTest {
             null,
             null,
         )
-        return Fixture(handler, subtitles)
+        return Fixture(handler, playback, subtitles)
     }
 
     private data class Fixture(
         val handler: AndroidSubtitleHandler,
+        val playback: AndroidPlaybackService,
         val subtitles: AndroidSubtitleService,
     )
 

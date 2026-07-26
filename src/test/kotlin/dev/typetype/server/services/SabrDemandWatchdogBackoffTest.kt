@@ -76,6 +76,30 @@ class SabrDemandWatchdogBackoffTest {
         }
     }
 
+    @Test
+    fun `renewed backoffs cannot extend a demand forever`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            every { holder.session.demandBackoffRemainingMs } returns 2_000L
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            var expired = false
+            val job = launch {
+                expired = watchdog { testScheduler.currentTime }.monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(45_900L)
+            runCurrent()
+            assertFalse(job.isCompleted)
+
+            advanceTimeBy(100L)
+            runCurrent()
+            assertTrue(job.isCompleted)
+            assertTrue(expired)
+            assertEquals("SABR demand stalled for 299:50", holder.terminalFailure())
+        }
+    }
+
     private fun watchdog(clock: () -> Long): SabrDemandWatchdog = SabrDemandWatchdog(
         clock = clock,
         intervalMs = 100L,

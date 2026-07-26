@@ -7,8 +7,8 @@ import dev.typetype.server.services.AndroidDashManifestResult
 import dev.typetype.server.services.AndroidPlaybackCreateResult
 import dev.typetype.server.services.AndroidPlaybackSeekResult
 import dev.typetype.server.services.AndroidPlaybackService
-import dev.typetype.server.services.AndroidSubtitleInventoryResult
-import dev.typetype.server.services.AndroidSubtitleService
+import dev.typetype.server.services.AndroidSubtitleInventoryCoordinator
+import dev.typetype.server.services.AndroidSubtitleInventorySnapshot
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -18,8 +18,6 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveNullable
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
 internal class AndroidPlaybackHandler(
     private val store: SabrSessionStore,
@@ -27,7 +25,7 @@ internal class AndroidPlaybackHandler(
     private val authService: AuthService?,
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
-    private val subtitleService: AndroidSubtitleService,
+    private val subtitleCoordinator: AndroidSubtitleInventoryCoordinator,
     val service: AndroidPlaybackService = AndroidPlaybackService(store),
 ) {
     suspend fun create(call: ApplicationCall, videoId: String) {
@@ -42,23 +40,24 @@ internal class AndroidPlaybackHandler(
             )
         }
         val request = requestResult.getOrNull() ?: AndroidPlaybackCreateRequest()
-        val (prepared, subtitleInventory) = coroutineScope {
-            val prepared = async { store.fetchInfo(videoId, cachedFirst = true) }
-            val subtitles = async { subtitleService.inventory(videoId) }
-            prepared.await() to subtitles.await()
-        }
+        val subtitleInventory = subtitleCoordinator.start(videoId)
+        val prepared = store.fetchInfo(videoId, cachedFirst = true)
         prepared
             ?: return call.respondAndroidError(
                 HttpStatusCode.UnprocessableEntity,
                 "android_playback_probe_failed",
                 "SABR probe failed",
             )
-        val subtitles = (subtitleInventory as? AndroidSubtitleInventoryResult.Ready)?.tracks
-            ?: return call.respondAndroidError(
+        val subtitles = when (val inventory = subtitleInventory.await()) {
+            is AndroidSubtitleInventorySnapshot.Ready -> inventory.tracks
+            AndroidSubtitleInventorySnapshot.Preparing,
+            AndroidSubtitleInventorySnapshot.TemporaryFailure,
+            -> return call.respondAndroidError(
                 HttpStatusCode.ServiceUnavailable,
                 "android_subtitle_inventory_unavailable",
                 "Android subtitle inventory is temporarily unavailable",
             )
+        }
         val audio = SabrFormatSelector.audio(prepared.info, request.audioItag, request.audioTrackId, requireAac = true)
             ?: return call.respondAndroidError(
                 HttpStatusCode.UnprocessableEntity,
@@ -71,9 +70,18 @@ internal class AndroidPlaybackHandler(
                 "android_playback_video_unavailable",
                 "No compatible SABR video for this video",
             )
-        when (val result = service.create(videoId, access.userId ?: "guest", prepared, audio, video, subtitles)) {
+        when (
+            val result = service.create(
+                videoId,
+                access.userId ?: "guest",
+                prepared,
+                audio,
+                video,
+                subtitles,
+            )
+        ) {
             is AndroidPlaybackCreateResult.Created -> call.respondSession(
-                result.session.holder.toAndroidPlaybackResponse(result.manifest, result.session.subtitles),
+                result.session.toAndroidPlaybackResponse(result.manifest),
                 result.manifest,
             )
             AndroidPlaybackCreateResult.UnsupportedLive -> call.respondAndroidError(
@@ -103,9 +111,9 @@ internal class AndroidPlaybackHandler(
                 "Invalid seek position",
             )
         }
-        when (val result = service.seek(holder, request.generation, request.playerTimeMs)) {
+        when (val result = service.seek(session, request.generation, request.playerTimeMs)) {
             is AndroidPlaybackSeekResult.Ready -> call.respondSession(
-                result.holder.toAndroidPlaybackResponse(result.manifest, session.subtitles),
+                session.withHolder(result.holder).toAndroidPlaybackResponse(result.manifest),
                 result.manifest,
             )
             AndroidPlaybackSeekResult.StaleGeneration -> call.respondAndroidError(
@@ -119,14 +127,13 @@ internal class AndroidPlaybackHandler(
     suspend fun manifest(call: ApplicationCall, sessionId: String) {
         call.response.headers.append("Cache-Control", "no-store")
         val session = call.androidPlaybackSession(service, sessionId) ?: return
-        val holder = session.holder
-        when (val result = service.manifest(holder)) {
+        when (val result = service.manifest(session)) {
             is AndroidDashManifestResult.Ready -> {
                 call.respondText(result.manifest, DASH_CONTENT_TYPE)
             }
-            AndroidDashManifestResult.Preparing -> call.respond(
+            is AndroidDashManifestResult.Preparing -> call.respond(
                 HttpStatusCode.Accepted,
-                holder.toAndroidPlaybackResponse(result, session.subtitles),
+                session.toAndroidPlaybackResponse(result),
             )
             AndroidDashManifestResult.UnsupportedLive -> call.respondAndroidError(
                 HttpStatusCode.UnprocessableEntity,
@@ -138,6 +145,11 @@ internal class AndroidPlaybackHandler(
                 "android_playback_invalid_index",
                 result.reason,
             )
+            is AndroidDashManifestResult.TemporaryFailure -> call.respondAndroidError(
+                HttpStatusCode.ServiceUnavailable,
+                result.code,
+                result.reason,
+            )
         }
     }
 
@@ -146,7 +158,7 @@ internal class AndroidPlaybackHandler(
         manifest: AndroidDashManifestResult,
     ): Unit = when (manifest) {
         is AndroidDashManifestResult.Ready -> respond(HttpStatusCode.OK, response)
-        AndroidDashManifestResult.Preparing -> respond(HttpStatusCode.Accepted, response)
+        is AndroidDashManifestResult.Preparing -> respond(HttpStatusCode.Accepted, response)
         AndroidDashManifestResult.UnsupportedLive -> respondAndroidError(
             HttpStatusCode.UnprocessableEntity,
             "android_live_playback_unsupported",
@@ -155,6 +167,11 @@ internal class AndroidPlaybackHandler(
         is AndroidDashManifestResult.Invalid -> respondAndroidError(
             HttpStatusCode.UnprocessableEntity,
             "android_playback_invalid_index",
+            manifest.reason,
+        )
+        is AndroidDashManifestResult.TemporaryFailure -> respondAndroidError(
+            HttpStatusCode.ServiceUnavailable,
+            manifest.code,
             manifest.reason,
         )
     }

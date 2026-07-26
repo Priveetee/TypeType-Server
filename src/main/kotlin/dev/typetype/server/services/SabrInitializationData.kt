@@ -1,10 +1,13 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.Collections
@@ -76,6 +79,32 @@ internal object SabrInitializationData {
         return initialized.firstOrNull { (candidate) -> candidate.matches(format) }?.second
     }
 
+    suspend fun fetchExact(
+        holder: SabrSessionHolder,
+        format: YoutubeSabrFormat,
+        timeoutMs: Long,
+        cache: CacheService? = null,
+    ): ByteArray {
+        fetch(holder.key.videoId, format, cache)?.let { cached ->
+            if (holder.session.streamState.ingestInitializationData(format, cached) &&
+                holder.session.streamState.hasSegmentIndex(format)
+            ) {
+                return cached
+            }
+        }
+        val poToken = holder.session.streamState.poToken
+            ?.takeIf { it.isNotEmpty() }
+            ?: holder.playerContextToken?.streamingPoTokenBytesFor(holder.info)
+            ?: throw IOException("Missing video-bound PO token for Android playback initialization")
+        val bytes = runInterruptible(Dispatchers.IO) {
+            holder.withPlayerContext {
+                fetchInitializationData(format, Localization("en", "US"), timeoutMs, poToken)
+            }
+        }
+        remember(holder.key.videoId, format, bytes, cache)
+        return bytes
+    }
+
     private suspend fun CacheService.getBytes(key: String): ByteArray? = runCatching {
         get(key)?.let { Base64.getDecoder().decode(it) }
     }.getOrNull()
@@ -104,3 +133,9 @@ internal object SabrInitializationData {
         .digest(value.toByteArray())
         .joinToString("") { byte -> "%02x".format(byte) }
 }
+
+internal suspend fun SabrSessionStore.fetchExactInitializationData(
+    holder: SabrSessionHolder,
+    format: YoutubeSabrFormat,
+    timeoutMs: Long,
+): ByteArray = SabrInitializationData.fetchExact(holder, format, timeoutMs, initCache)

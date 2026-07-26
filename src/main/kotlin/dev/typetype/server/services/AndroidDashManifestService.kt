@@ -6,8 +6,15 @@ internal class AndroidDashManifestService {
         val state = holder.session.streamState
         val audio = AndroidDashTimelineReader.read(state, holder.audioFormat)
         val video = AndroidDashTimelineReader.read(state, holder.videoFormat)
-        if (audio is AndroidDashTimelineResult.Pending || video is AndroidDashTimelineResult.Pending) {
-            return AndroidDashManifestResult.Preparing
+        val audioPending = audio is AndroidDashTimelineResult.Pending
+        val videoPending = video is AndroidDashTimelineResult.Pending
+        if (audioPending || videoPending) {
+            val stage = when {
+                audioPending && videoPending -> AndroidPlaybackPreparationStage.AUDIO_VIDEO_INDEX
+                audioPending -> AndroidPlaybackPreparationStage.AUDIO_INDEX
+                else -> AndroidPlaybackPreparationStage.VIDEO_INDEX
+            }
+            return AndroidDashManifestResult.Preparing(stage)
         }
         if (audio is AndroidDashTimelineResult.Invalid) return AndroidDashManifestResult.Invalid(audio.reason)
         if (video is AndroidDashTimelineResult.Invalid) return AndroidDashManifestResult.Invalid(video.reason)
@@ -40,7 +47,15 @@ internal class AndroidDashManifestService {
 
 internal sealed interface AndroidDashManifestResult {
     data class Ready(val manifest: String, val durationMs: Long) : AndroidDashManifestResult
-    data object Preparing : AndroidDashManifestResult
+    data class Preparing(val stage: AndroidPlaybackPreparationStage) : AndroidDashManifestResult
     data object UnsupportedLive : AndroidDashManifestResult
     data class Invalid(val reason: String) : AndroidDashManifestResult
+    data class TemporaryFailure(val code: String, val reason: String) : AndroidDashManifestResult
+}
+
+internal enum class AndroidPlaybackPreparationStage(val wireValue: String) {
+    AUDIO_INDEX("audio_index"),
+    VIDEO_INDEX("video_index"),
+    AUDIO_VIDEO_INDEX("audio_video_index"),
+    MEDIA_BYTES("media_bytes"),
 }

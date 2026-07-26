@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AndroidPlaybackService
+import dev.typetype.server.services.AndroidPlaybackSession
 import dev.typetype.server.services.AndroidSubtitleContentResult
 import dev.typetype.server.services.AndroidSubtitleService
 import dev.typetype.server.services.AuthService
@@ -20,11 +21,7 @@ internal class AndroidSubtitleHandler(
 ) {
     suspend fun content(call: ApplicationCall, sessionId: String, trackId: String) {
         call.response.headers.append("Cache-Control", "no-store")
-        val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
-        val session = call.androidPlaybackSession(playbackService, sessionId) ?: return
-        if (session.holder.key.userId != (access.userId ?: "guest")) {
-            return call.notFound()
-        }
+        val session = call.authorizedSession(sessionId) ?: return
         val track = session.subtitles.firstOrNull { it.id == trackId }
             ?: return call.notFound()
         when (val result = subtitleService.content(session.holder.key.videoId, track)) {
@@ -44,6 +41,14 @@ internal class AndroidSubtitleHandler(
                 "Android subtitle cannot be produced",
             )
         }
+    }
+
+    private suspend fun ApplicationCall.authorizedSession(sessionId: String): AndroidPlaybackSession? {
+        val access = accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return null
+        val session = androidPlaybackSession(playbackService, sessionId) ?: return null
+        if (session.holder.key.userId == (access.userId ?: "guest")) return session
+        notFound()
+        return null
     }
 
     private suspend fun ApplicationCall.notFound() {

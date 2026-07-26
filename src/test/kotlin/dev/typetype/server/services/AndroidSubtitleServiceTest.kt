@@ -4,6 +4,7 @@ import dev.typetype.server.models.SubtitleItem
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,16 +12,19 @@ import org.junit.jupiter.api.Test
 
 class AndroidSubtitleServiceTest {
     @Test
-    fun `inventory exposes all Token tracks with stable identities`() = runTest {
+    fun `inventory exposes all Token tracks without fetching slow subtitle content`() = runTest {
         val source = mockk<YouTubeSubtitleService>()
+        val http = mockk<AndroidSubtitleHttpClient>()
         val items = listOf(item("en", false), item("en", true), item("fr", false))
         coEvery { source.fetchSubtitleInventory(VIDEO_ID) } returns YouTubeSubtitleInventoryResult.Ready(items)
-        val service = AndroidSubtitleService(source, mockk())
+        coEvery { http.fetch(any()) } coAnswers { awaitCancellation() }
+        val service = AndroidSubtitleService(source, http)
 
         val result = service.inventory(VIDEO_ID) as AndroidSubtitleInventoryResult.Ready
 
         assertEquals(3, result.tracks.size)
         assertEquals(3, result.tracks.map { it.id }.distinct().size)
+        coVerify(exactly = 0) { http.fetch(any()) }
     }
 
     @Test

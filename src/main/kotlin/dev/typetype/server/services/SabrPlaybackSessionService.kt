@@ -4,7 +4,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackSessionService(
     private val sessionStore: SabrSessionStore,
@@ -20,6 +19,8 @@ internal class SabrPlaybackSessionService(
         audioOnly: Boolean = false,
         isLive: Boolean = false,
         initialGeneration: Long = 0L,
+        preloadInitialization: Boolean = true,
+        startPumpOnPrepare: Boolean = true,
     ): SabrPlaybackPreparation {
         val holder = sessionStore.getOrCreate(
             videoId = videoId,
@@ -38,11 +39,21 @@ internal class SabrPlaybackSessionService(
         if (holder.expectsLive()) {
             holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
             holder.session.streamState.setSelectVideoFormatBeforeAudio(!audioOnly)
+            if (startTimeMs == 0L) {
+                holder.session.streamState.setPlayerTimeMs(OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS)
+                holder.session.streamState.setWriteTopLevelPlayerTimeMs(false)
+            }
             sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
-        } else {
+        } else if (preloadInitialization) {
             SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         }
-        return prepareHolder(holder, holder.resolvePlaybackStartMs(startTimeMs), audioOnly)
+        return SabrPlaybackStarter.start(
+            sessionStore,
+            holder,
+            holder.resolvePlaybackStartMs(startTimeMs),
+            audioOnly,
+            startPumpOnPrepare,
+        )
     }
 
     suspend fun seek(
@@ -76,8 +87,8 @@ internal class SabrPlaybackSessionService(
         val generation = holder.advancePlaybackGeneration(playerTimeMs)
         holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
         holder.setRequestedSeekTimeMs(playerTimeMs)
-        holder.session.streamState.setSelectVideoFormatBeforeAudio(playerTimeMs > SEEK_FORMAT_ORDER_MS)
-        holder.requestReposition(playerTimeMs, generation)
+        holder.session.streamState.setSelectVideoFormatBeforeAudio(playerTimeMs > SABR_SEEK_FORMAT_ORDER_MS)
+        holder.requestPlaybackReposition(playerTimeMs, generation)
         sessionStore.startPump(holder)
         SabrPlaybackPreparation(holder, playerTimeMs, ready = false)
     }
@@ -140,13 +151,22 @@ internal class SabrPlaybackSessionService(
             delay(SEGMENT_WAIT_MS)
             segment = sessionStore.cachedSegment(holder, request)
             if (segment == null && holder.livePlaybackSnapshot()?.active == true) {
-                segment = sessionStore.findCachedPlaybackMediaAt(
+                val targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
+                val following = sessionStore.findCachedPlaybackMediaAt(
                     holder = holder,
                     format = request.format,
-                    targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber),
+                    targetMs = targetMs,
                     predictedSequence = request.sequenceNumber,
                     allowFollowing = true,
                 )
+                segment = following?.takeUnless {
+                    holder.failLivePlaybackDiscontinuity(
+                        request.format,
+                        targetMs,
+                        it,
+                        holder.lastServedSequence(request.format) != null,
+                    )
+                }
             }
         }
         segment
@@ -157,64 +177,15 @@ internal class SabrPlaybackSessionService(
             ?.let { SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes) }
             ?: SabrPlaybackSegmentResult.Stale(holder)
 
-    private suspend fun prepareHolder(
-        holder: SabrSessionHolder,
-        startTimeMs: Long,
-        audioOnly: Boolean,
-    ): SabrPlaybackPreparation {
-        val startedAt = System.currentTimeMillis()
-        holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
-        holder.setPlayerTimeMs(startTimeMs)
-        holder.session.streamState.setSelectVideoFormatBeforeAudio(startTimeMs > SEEK_FORMAT_ORDER_MS)
-        if (startTimeMs > SEEK_FORMAT_ORDER_MS) holder.anchorReaderPositions(startTimeMs)
-        if (startTimeMs > 0L) {
-            holder.setRequestedSeekTimeMs(startTimeMs)
-            holder.requestReposition(startTimeMs, holder.activeGeneration())
-        }
-        sessionStore.startPump(holder)
-        logger.info(
-            "sabr_playback_prepare videoId={} startTimeMs={} elapsedMs={} ready=false",
-            holder.key.videoId,
-            startTimeMs,
-            System.currentTimeMillis() - startedAt,
-        )
-        return SabrPlaybackPreparation(holder, startTimeMs, ready = false)
-    }
-
     private fun SabrSessionHolder.matches(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): Boolean =
         audioFormat.itag == audio.itag && audioFormat.audioTrackId == audio.audioTrackId && videoFormat.itag == video.itag
 
-    private fun SabrSessionHolder.requestReposition(
-        playerTimeMs: Long,
-        generation: Long,
-    ): Unit {
-        val targetFormat = if (isVideoActive()) videoFormat else audioFormat
-        val sequence = playbackStartSequence(targetFormat, playerTimeMs)
-        val request = SabrSegmentRequest.media(targetFormat, sequence)
-        val companion = audioFormat.takeIf { isVideoActive() }?.let { format ->
-            SabrSegmentRequest.media(format, playbackStartSequence(format, playerTimeMs))
-        }
-        val targets = listOfNotNull(request, companion)
-        val missing = repositionTargets(targets, playerTimeMs, generation)
-        if (missing.isEmpty()) return
-        missing.forEach { requestSegmentDemand(it, generation) }
-        if (livePlaybackSnapshot()?.active == true) return
-        val anchor = missing.first()
-        val startMs = playbackSegmentStartMs(anchor.format, anchor.sequenceNumber)
-        if (startMs < session.streamState.getMinBufferedEndMs()) {
-            requestRefetch(anchor)
-        } else {
-            requestForwardSeek(anchor)
-        }
-    }
-
     private companion object {
-        val logger = LoggerFactory.getLogger(SabrPlaybackSessionService::class.java)
         const val PREPARING = "preparing"
         const val REPOSITIONING = "repositioning"
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
-        const val SEEK_FORMAT_ORDER_MS = 1_000L
         const val SEGMENT_WAIT_MS = 250L
         const val LIVE_INITIAL_PUMPS = 8
+        const val OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS = 9_007_199_254_740_991L
     }
 }

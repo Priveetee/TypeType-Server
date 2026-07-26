@@ -2,11 +2,11 @@ package dev.typetype.server.services
 
 internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis) {
     private val startedAtMs = clock()
+    private val protectedResponseGuard = SabrProtectedResponseGuard()
     private var lastRequestMs = 0L
     private var seekModeUntilMs = 0L
     private var demandKey: String? = null
     private var demandTrackReadvertised = false
-    private var demandTargetTrackResponsesWithoutSegment = 0
 
     fun activateSeekMode(): Unit {
         seekModeUntilMs = clock() + SabrPumpPolicy.SEEK_MODE_MS
@@ -15,6 +15,13 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     fun recordRequest(): Unit {
         lastRequestMs = clock()
     }
+
+    fun verifyProtectedResponse(holder: SabrSessionHolder): Unit =
+        protectedResponseGuard.verify(
+            holder.session.diagnosticTrace,
+            holder.activeGeneration(),
+            holder.playerTimeMs(),
+        )
 
     fun requestPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         if (isStartupBurst()) cappedServerAheadPlayerTimeMs(holder, edgeMs) else holder.playerTimeMs()
@@ -39,10 +46,6 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
         }
         ensureDemand(requestKey)
         if (targetTrackSegmentCount > 0) {
-            demandTargetTrackResponsesWithoutSegment++
-            if (demandTargetTrackResponsesWithoutSegment >= SabrPumpPolicy.MAX_DEMAND_RESPONSES_WITHOUT_TARGET) {
-                return SabrDemandRecoveryAction.FAIL
-            }
             if (!demandTrackReadvertised) {
                 demandTrackReadvertised = true
                 return SabrDemandRecoveryAction.READVERTISE_TRACK
@@ -90,12 +93,10 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
         if (demandKey == requestKey) return
         demandKey = requestKey
         demandTrackReadvertised = false
-        demandTargetTrackResponsesWithoutSegment = 0
     }
 
     private fun resetDemandRecovery(): Unit {
         demandKey = null
         demandTrackReadvertised = false
-        demandTargetTrackResponsesWithoutSegment = 0
     }
 }

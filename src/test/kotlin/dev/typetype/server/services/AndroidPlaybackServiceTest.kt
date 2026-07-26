@@ -26,7 +26,11 @@ class AndroidPlaybackServiceTest {
         }
         val service = AndroidPlaybackService(store, mockk(relaxed = true))
 
-        val result = service.seek(holder, generation = 0L, playerTimeMs = 45_000L) as AndroidPlaybackSeekResult.Ready
+        val result = service.seek(
+            AndroidPlaybackSession(holder, emptyList()),
+            generation = 0L,
+            playerTimeMs = 45_000L,
+        ) as AndroidPlaybackSeekResult.Ready
 
         assertSame(holder, result.holder)
         assertEquals(1L, holder.activeGeneration())
@@ -45,7 +49,10 @@ class AndroidPlaybackServiceTest {
         holder.advancePlaybackGeneration(1_000L)
         val service = AndroidPlaybackService(mockk(relaxed = true), mockk(relaxed = true))
 
-        assertEquals(AndroidPlaybackSeekResult.StaleGeneration, service.seek(holder, 0L, 30_000L))
+        assertEquals(
+            AndroidPlaybackSeekResult.StaleGeneration,
+            service.seek(AndroidPlaybackSession(holder, emptyList()), 0L, 30_000L),
+        )
         assertEquals(1L, holder.activeGeneration())
     }
 

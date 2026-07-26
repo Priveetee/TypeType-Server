@@ -33,9 +33,14 @@ internal class TypetypeTokenYoutubeSessionClient(
     }
 
     suspend fun fetchPlaybackSession(videoId: String): TokenYoutubeSession? = fetchSession(videoId)?.let { session ->
-        val info = session.toSabrInfo(videoId) ?: return@let null
+        session.toPlaybackSession(videoId)
+    }
+
+    private fun JSONObject.toPlaybackSession(videoId: String): TokenYoutubeSession? {
+        val session = this
+        val info = session.toSabrInfo(videoId) ?: return null
         val metadata = session.optJSONObject("metadata") ?: JSONObject()
-        TokenYoutubeSession(
+        return TokenYoutubeSession(
             info = info,
             token = SabrTokenBundle.fromResponse(videoId, session),
             title = metadata.optString("title", session.optString("title")),
@@ -105,14 +110,24 @@ internal class TypetypeTokenYoutubeSessionClient(
             JsonParser.`object`().from(playerResponse.toString()),
         )
         val playbackUrl = optString("serverAbrStreamingUrl").takeIf { it.isNotBlank() }
-        val clientVersion = playbackUrl
-            ?.toHttpUrlOrNull()
+        val parsedPlaybackUrl = playbackUrl?.toHttpUrlOrNull()
+        val clientVersion = parsedPlaybackUrl
             ?.queryParameter("cver")
             ?.takeIf { it.isNotBlank() }
+        val playbackCpn = parsedPlaybackUrl
+            ?.queryParameter("cpn")
+            ?.takeIf { it.isNotBlank() }
         if (playbackUrl != null && clientVersion != null) {
-            TypeTypeYoutubeSabrInfoFactory.withPlaybackUrlAndClientVersion(info, playbackUrl, clientVersion)
+            TypeTypeYoutubeSabrInfoFactory.withPlaybackIdentity(
+                info,
+                playbackUrl,
+                clientVersion,
+                playbackCpn ?: info.cpn,
+                getString("visitorData"),
+            )
         } else {
             info
         }
     }.getOrNull()
+
 }
