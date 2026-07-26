@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis) {
     private val startedAtMs = clock()
+    private val protectedResponseGuard = SabrProtectedResponseGuard()
     private var lastRequestMs = 0L
     private var seekModeUntilMs = 0L
     private var demandKey: String? = null
@@ -14,6 +15,9 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     fun recordRequest(): Unit {
         lastRequestMs = clock()
     }
+
+    fun verifyProtectedResponse(holder: SabrSessionHolder): Unit =
+        protectedResponseGuard.verify(holder.session.diagnosticTrace)
 
     fun requestPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         if (isStartupBurst()) cappedServerAheadPlayerTimeMs(holder, edgeMs) else holder.playerTimeMs()

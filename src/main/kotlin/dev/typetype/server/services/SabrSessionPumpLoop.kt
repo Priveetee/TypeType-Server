@@ -40,6 +40,9 @@ internal class SabrSessionPumpLoop(
             } catch (error: SabrRecoverableException) {
                 holder.failTerminal(sabrRecoverableFailureMessage(error.message))
                 return
+            } catch (error: SabrProtectedNoMediaException) {
+                holder.failTerminal(error.message)
+                return
             } catch (error: ExtractionException) {
                 holder.failTerminal(error.message)
                 return
@@ -133,6 +136,7 @@ internal class SabrSessionPumpLoop(
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreaming(localization) } }
                 .also { unauthorizedRecovery.verify(holder) }
+                .also { runtime.verifyProtectedResponse(holder) }
         } finally {
             runtime.recordRequest()
         }
@@ -147,6 +151,7 @@ internal class SabrSessionPumpLoop(
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreamingForDemand(localization, request) } }
                 .also { unauthorizedRecovery.verify(holder) }
+                .also { runtime.verifyProtectedResponse(holder) }
         } finally {
             runtime.recordRequest()
         }

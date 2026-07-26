@@ -13,6 +13,8 @@ internal object SabrPumpPolicy {
     const val MIN_SERVER_READAHEAD_CUSHION_MS = 3_000L
     const val SERVER_AHEAD_MARGIN_MS = 16_000L
     const val DEMAND_TARGET_DEADLINE_MS = 15_000L
+    const val MAX_DEMAND_BACKOFF_EXTENSION_MS = 30_000L
+    const val MAX_PROTECTED_NO_MEDIA_RESPONSES = 5
     const val COMPLETED_DEMAND_IDLE_MS = 1_000L
     const val MAX_AHEAD_BYTES = 24L * 1024L * 1024L
     const val BACK_BUFFER_MS = 12_000L
