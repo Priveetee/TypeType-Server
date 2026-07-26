@@ -19,19 +19,19 @@ class YoutubePlayerClientFallbackStreamServiceTest {
             override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
                 val client = NewPipe.getYoutubePlayerClient()
                 observed += client
-                return if (client == YoutubePlayerClient.ANDROID_VR.value) success else ExtractionResult.Failure("blocked")
+                return if (client == YoutubePlayerClient.TV_DOWNGRADED.value) success else ExtractionResult.Failure("blocked")
             }
         }
         val service = YoutubePlayerClientFallbackStreamService(
             delegate,
-            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.ANDROID_VR),
+            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_DOWNGRADED),
         )
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
         assertSame(success, result)
         assertEquals(
-            listOf(YoutubePlayerClient.WEB_SAFARI.value, YoutubePlayerClient.ANDROID_VR.value),
+            listOf(YoutubePlayerClient.WEB_SAFARI.value, YoutubePlayerClient.TV_DOWNGRADED.value),
             observed,
         )
         assertEquals(YoutubePlayerClient.MWEB.value, NewPipe.getYoutubePlayerClient())
@@ -49,7 +49,7 @@ class YoutubePlayerClientFallbackStreamServiceTest {
         }
         val service = YoutubePlayerClientFallbackStreamService(
             delegate,
-            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.ANDROID_VR),
+            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_DOWNGRADED),
         )
 
         val result = service.getStreamInfo(YOUTUBE_URL)

@@ -27,44 +27,11 @@ private object NoOpCache : CacheService {
 class ExtractionTest {
 
     private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient(), "http://localhost:8081"), BilibiliRelatedService())
-    private val classicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.ANDROID_VR)
-    private val tvClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.TV_SIMPLY)
     private val safariClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.WEB_SAFARI)
 
     @BeforeAll
     fun setup() {
         NewPipe.init(OkHttpDownloader.instance())
-    }
-
-    @Test
-    fun `YouTube rickroll has non-empty videoOnlyStreams`() = kotlinx.coroutines.runBlocking {
-        val result = classicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        assertTrue(result is ExtractionResult.Success)
-        val data = (result as ExtractionResult.Success).data
-        assertTrue(data.videoOnlyStreams.isNotEmpty())
-    }
-
-    @Test
-    fun `YouTube rickroll streams have positive indexStart`() = kotlinx.coroutines.runBlocking {
-        val result = classicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        val data = (result as ExtractionResult.Success).data
-        assertTrue(data.videoOnlyStreams.any { it.indexStart > 0 })
-    }
-
-    @Test
-    fun `YouTube rickroll has non-empty audioStreams`() = kotlinx.coroutines.runBlocking {
-        val result = classicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        val data = (result as ExtractionResult.Success).data
-        assertTrue(data.audioStreams.isNotEmpty())
-    }
-
-    @Test
-    fun `YouTube classic streams use Android VR URLs without SABR`() = kotlinx.coroutines.runBlocking {
-        val result = classicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        val data = (result as ExtractionResult.Success).data
-        val streams = data.videoStreams + data.videoOnlyStreams
-        assertTrue(streams.none { it.deliveryMethod == "sabr" })
-        assertTrue(streams.any { "c=ANDROID_VR" in it.url })
     }
 
     @Test
@@ -74,16 +41,6 @@ class ExtractionTest {
         val data = (result as ExtractionResult.Success).data
         val streams = data.videoStreams + data.videoOnlyStreams
         assertTrue(streams.isNotEmpty() || data.hlsUrl.isNotEmpty())
-        assertTrue(streams.none { it.deliveryMethod == "sabr" })
-    }
-
-    @Test
-    fun `YouTube classic TV path has playable streams without SABR`() = kotlinx.coroutines.runBlocking {
-        val result = tvClassicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        assertTrue(result is ExtractionResult.Success)
-        val data = (result as ExtractionResult.Success).data
-        val streams = data.videoStreams + data.videoOnlyStreams
-        assertTrue(streams.isNotEmpty())
         assertTrue(streams.none { it.deliveryMethod == "sabr" })
     }
 

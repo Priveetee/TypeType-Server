@@ -86,9 +86,9 @@ internal class ExtractionServiceRegistry(
         BilibiliRelatedService(),
         sabrSessionStore::rememberExtractedInfo,
     )
-    private val classicPublicStreamService = YoutubePlayerClientFallbackStreamService(
+    private val classicPublicStreamService = YoutubePlayerClientStreamService(
         classicPipePipeStreamService,
-        listOf(YoutubePlayerClient.ANDROID_VR, YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_SIMPLY),
+        YoutubePlayerClient.WEB_SAFARI,
     )
     private val classicAuthenticatedStreamService = YoutubePlayerClientFallbackStreamService(
         classicPipePipeStreamService,
