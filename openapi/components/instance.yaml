@@ -20,7 +20,6 @@ InstanceResponse:
     - oidcAutoRedirect
     - youtubeRemoteLoginEnabled
     - youtubeRemoteLoginReady
-    - androidPlayback
   properties:
     name: { type: string, example: TypeType }
     tagline: { type: string, nullable: true }
@@ -50,28 +49,3 @@ InstanceResponse:
       type: string
       nullable: true
       enum: [disabled, not_configured, token_unreachable]
-    androidPlayback:
-      $ref: '#/AndroidPlaybackCapability'
-AndroidPlaybackCapability:
-  type: object
-  required: [supported, contractVersion, youtube]
-  properties:
-    supported: { type: boolean, example: true }
-    contractVersion: { type: integer, enum: [4] }
-    youtube:
-      $ref: '#/AndroidYoutubePlaybackCapability'
-AndroidYoutubePlaybackCapability:
-  type: object
-  required: [vod, live, subtitles, deferredSubtitleContent, bootstrapSubtitleDescriptors]
-  properties:
-    vod: { type: boolean, example: true }
-    live: { type: boolean, example: false }
-    subtitles: { type: boolean, example: true }
-    deferredSubtitleContent:
-      type: boolean
-      example: true
-      description: Subtitle documents are fetched only when a session-scoped WebVTT resource is requested.
-    bootstrapSubtitleDescriptors:
-      type: boolean
-      example: true
-      description: Every successful playback creation response contains the complete subtitle descriptor catalog.

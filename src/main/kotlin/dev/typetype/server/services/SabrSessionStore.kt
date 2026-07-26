@@ -52,7 +52,7 @@ internal class SabrSessionStore(
         audioOnly: Boolean = false,
         initialGeneration: Long = 0L,
     ): SabrSessionHolder {
-        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.ANDROID_PLAYBACK) {
+        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK) {
             SabrSessionTokenGenerator.newToken()
         } else {
             null

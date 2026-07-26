@@ -7,7 +7,6 @@ import dev.typetype.server.routes.adminIdentityRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.avatarRoutes
-import dev.typetype.server.routes.androidPlaybackRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
@@ -27,7 +26,6 @@ import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.routes.youtubeRemoteBrowserRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
-import dev.typetype.server.services.AndroidSubtitleInventoryCoordinator
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.DownloaderGatewayService
@@ -63,7 +61,6 @@ internal fun Application.installApplicationRoutes(
     restoreService: PipePipeBackupImporterService,
     youtubeRemoteBrowserService: YoutubeRemoteBrowserService,
 ) {
-    val androidSubtitleCoordinator = AndroidSubtitleInventoryCoordinator(svc.androidSubtitleService, this)
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
@@ -83,15 +80,6 @@ internal fun Application.installApplicationRoutes(
         }
         installProxyRoutes(svc)
         rateLimit(PROXY_ZONE) {
-            androidPlaybackRoutes(
-                svc.androidSabrSessionStore,
-                svc.streamService,
-                svc.androidSubtitleService,
-                androidSubtitleCoordinator,
-                authService,
-                svc.accessControlService,
-                adminSettingsService,
-            )
             sabrRoutes(
                 svc.sabrSessionStore,
                 svc.streamService,

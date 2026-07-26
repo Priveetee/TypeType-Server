@@ -5,10 +5,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
-internal class SabrPlaybackSessionService(
-    private val sessionStore: SabrSessionStore,
-    private val purpose: SabrSessionPurpose = SabrSessionPurpose.PLAYBACK,
-) {
+internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -19,8 +16,6 @@ internal class SabrPlaybackSessionService(
         audioOnly: Boolean = false,
         isLive: Boolean = false,
         initialGeneration: Long = 0L,
-        preloadInitialization: Boolean = true,
-        startPumpOnPrepare: Boolean = true,
     ): SabrPlaybackPreparation {
         val holder = sessionStore.getOrCreate(
             videoId = videoId,
@@ -31,7 +26,7 @@ internal class SabrPlaybackSessionService(
             initialToken = prepared.initialToken,
             startTimeMs = startTimeMs,
             startPump = false,
-            purpose = purpose,
+            purpose = SabrSessionPurpose.PLAYBACK,
             audioOnly = audioOnly,
             initialGeneration = initialGeneration,
         )
@@ -44,7 +39,7 @@ internal class SabrPlaybackSessionService(
                 holder.session.streamState.setWriteTopLevelPlayerTimeMs(false)
             }
             sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
-        } else if (preloadInitialization) {
+        } else {
             SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
         }
         return SabrPlaybackStarter.start(
@@ -52,7 +47,7 @@ internal class SabrPlaybackSessionService(
             holder,
             holder.resolvePlaybackStartMs(startTimeMs),
             audioOnly,
-            startPumpOnPrepare,
+            startPump = true,
         )
     }
 
@@ -94,7 +89,7 @@ internal class SabrPlaybackSessionService(
     }
 
     fun lookup(sessionId: String): SabrSessionHolder? = sessionStore.lookupByToken(sessionId)
-        ?.takeIf { it.key.purpose == purpose }
+        ?.takeIf { it.key.purpose == SabrSessionPurpose.PLAYBACK }
 
     fun startPump(holder: SabrSessionHolder): Unit = sessionStore.startPump(holder)
 
