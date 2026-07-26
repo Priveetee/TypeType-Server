@@ -17,7 +17,11 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     }
 
     fun verifyProtectedResponse(holder: SabrSessionHolder): Unit =
-        protectedResponseGuard.verify(holder.session.diagnosticTrace)
+        protectedResponseGuard.verify(
+            holder.session.diagnosticTrace,
+            holder.activeGeneration(),
+            holder.playerTimeMs(),
+        )
 
     fun requestPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         if (isStartupBurst()) cappedServerAheadPlayerTimeMs(holder, edgeMs) else holder.playerTimeMs()

@@ -4,17 +4,24 @@ internal class SabrProtectedResponseGuard(
     private val maximumResponses: Int = SabrPumpPolicy.MAX_PROTECTED_NO_MEDIA_RESPONSES,
 ) {
     private var lastResponseNumber: Int? = null
+    private var lastGeneration: Long? = null
+    private var lastPlayerTimeMs: Long? = null
     private var consecutiveResponses = 0
 
-    fun verify(diagnosticTrace: String): Unit {
+    fun verify(diagnosticTrace: String, generation: Long, playerTimeMs: Long): Unit {
         val response = diagnosticTrace.substringAfterLast("response n=", missingDelimiterValue = "")
         val responseNumber = response.substringBefore(' ').toIntOrNull() ?: return
         if (responseNumber == lastResponseNumber) return
+        val playbackProgressed = lastGeneration?.let { it != generation } == true ||
+            lastPlayerTimeMs?.let { generation == lastGeneration && playerTimeMs > it } == true
         lastResponseNumber = responseNumber
+        lastGeneration = generation
+        lastPlayerTimeMs = playerTimeMs
         if (!response.isProtectedNoMedia()) {
             consecutiveResponses = 0
             return
         }
+        if (playbackProgressed) consecutiveResponses = 0
         consecutiveResponses++
         if (consecutiveResponses >= maximumResponses) {
             throw SabrProtectedNoMediaException(
