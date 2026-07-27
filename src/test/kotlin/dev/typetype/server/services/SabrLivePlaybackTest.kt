@@ -22,15 +22,26 @@ class SabrLivePlaybackTest {
     fun clearDemands(): Unit = SabrSegmentDemandTracker.clearAll()
 
     @Test
-    fun `active live resolves zero start behind the observed head`() {
+    fun `active live starts from media that the session can retrieve`() {
         val fixture = fixture()
+        listOf(fixture.audio, fixture.video).forEach { format ->
+            fixture.holder.observeMediaSegment(mockk {
+                every { header } returns mockk {
+                    every { isInitSegment } returns false
+                    every { itag } returns format.itag
+                    every { sequenceNumber } returns 199
+                    every { startMs } returns 1_003_000L
+                    every { durationMs } returns 2_000L
+                }
+            })
+        }
 
         val live = requireNotNull(fixture.holder.livePlaybackSnapshot())
 
         assertTrue(live.active)
         assertFalse(live.postLiveDvr)
         assertEquals(1_005_000L, live.seekableEndMs)
-        assertEquals(985_000L, fixture.holder.resolvePlaybackStartMs(0L))
+        assertEquals(1_003_000L, fixture.holder.resolvePlaybackStartMs(0L))
         assertEquals(1_005_000L, fixture.holder.resolvePlaybackStartMs(1_100_000L))
     }
 
@@ -154,7 +165,16 @@ class SabrLivePlaybackTest {
     @Test
     fun `advertised live head waits until its media is complete`() {
         val fixture = fixture()
-        every { fixture.state.getSegmentStartMs(fixture.video, 200) } returns 1_002_000L
+        every { fixture.state.liveHeadTimeMs } returns 1_025_000L
+        fixture.holder.observeMediaSegment(mockk {
+            every { header } returns mockk {
+                every { isInitSegment } returns false
+                every { itag } returns fixture.video.itag
+                every { sequenceNumber } returns 200
+                every { startMs } returns 1_002_000L
+                every { durationMs } returns 2_000L
+            }
+        })
 
         assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 200)))
     }
@@ -179,19 +199,10 @@ class SabrLivePlaybackTest {
             every { durationMs } returns 2_000L
         }
         fixture.holder.observeMediaSegment(mockk { every { this@mockk.header } returns header })
-
-        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 200)))
-        assertFalse(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 197)))
-    }
-
-    @Test
-    fun `live retries immediately behind the head and paces future media`() {
-        val fixture = fixture()
-        val available = SabrSegmentRequest.media(fixture.video, 200)
-        val future = SabrSegmentRequest.media(fixture.video, 201)
-
-        assertEquals(DEFAULT_PLAYBACK_RETRY_MS, fixture.holder.liveRetryAfterMs(listOf(available)))
-        assertEquals(LIVE_EDGE_POLL_MS, fixture.holder.liveRetryAfterMs(listOf(future)))
+        every { fixture.state.liveHeadTimeMs } returns 1_025_000L
+        fixture.holder.setLastServedSequence(fixture.video.itag, 200)
+        assertTrue(fixture.holder.isFutureLiveRequest(SabrSegmentRequest.media(fixture.video, 201)))
+        assertFalse(fixture.holder.isHistoricalLiveRequest(SabrSegmentRequest.media(fixture.video, 201)))
     }
 
     @Test

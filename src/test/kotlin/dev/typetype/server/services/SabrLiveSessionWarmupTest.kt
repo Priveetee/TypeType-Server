@@ -46,16 +46,30 @@ class SabrLiveSessionWarmupTest {
             segment(140, 0, 0L, -1L, audioInit + mediaFragment(5)),
             segment(299, 0, 0L, -1L, videoInit + mediaFragment(6)),
         )
-        val liveMedia = listOf(
-            segment(140, TARGET_SEQUENCE, TARGET_TIME_MS, 2_000L, audioInit + mediaFragment(7)),
-            segment(299, TARGET_SEQUENCE, TARGET_TIME_MS, 2_000L, videoInit + mediaFragment(8)),
-        )
         every { session.pumpOnce(any()) } answers {
             pumps++
             when (pumps) {
                 1 -> bootstrap
                 2 -> emptyList()
-                else -> liveMedia
+                else -> {
+                    val offset = pumps - 3
+                    listOf(
+                        segment(
+                            140,
+                            TARGET_SEQUENCE + offset,
+                            TARGET_TIME_MS + offset * 2_000L,
+                            2_000L,
+                            audioInit + mediaFragment(7),
+                        ),
+                        segment(
+                            299,
+                            TARGET_SEQUENCE + offset,
+                            TARGET_TIME_MS + offset * 2_000L,
+                            2_000L,
+                            videoInit + mediaFragment(8),
+                        ),
+                    )
+                }
             }
         }
         val holder = holder(session, audio, video)
@@ -74,7 +88,9 @@ class SabrLiveSessionWarmupTest {
             "itag=140:seq=1-3319:time=0+6640000:timescale=1000",
             "itag=299:seq=1-3319:time=0+6640000:timescale=1000",
         )
-        assertEquals(listOf(expectedRanges, expectedRanges), targetedRanges)
+        assertEquals(2, targetedRanges.size)
+        assertEquals(expectedRanges, targetedRanges.first())
+        assertEquals(expectedRanges, targetedRanges[1])
         assertNull(rangeOverrides.last())
     }
 
