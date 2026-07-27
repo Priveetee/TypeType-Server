@@ -4,12 +4,12 @@ import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrInitializationData
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
-import dev.typetype.server.services.findCachedPlaybackMediaAt
 import dev.typetype.server.services.coversPlaybackTime
+import dev.typetype.server.services.findCachedPlaybackMediaAt
+import dev.typetype.server.services.isAcceptableLiveFollowingSegment
 import dev.typetype.server.services.failLivePlaybackDiscontinuity
 import dev.typetype.server.services.livePlaybackSnapshot
 import dev.typetype.server.services.playbackContinuationSequence
-import dev.typetype.server.services.playbackSegmentDurationMs
 import dev.typetype.server.services.playbackSegmentStartMs
 import dev.typetype.server.services.resolvePlaybackStartMs
 import dev.typetype.server.services.playbackStartSequence
@@ -94,11 +94,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             .filter { it.blockedRequest != null }
             .minByOrNull { it.coveredEndMs }
 
-    private fun readyAheadMs(request: SabrPlaybackWindowRequest, activeLive: Boolean): Long {
-        val minimum = if (activeLive && request.bufferedRanges.isEmpty()) LIVE_STARTUP_READY_AHEAD_MS else MIN_READY_AHEAD_MS
-        return minOf(request.bufferGoalMs.coerceAtLeast(1L), minimum)
-    }
-
     private suspend fun buildTrack(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
@@ -109,7 +104,8 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val continuesServedTrack = !activeLive || holder.lastServedSequence(format) != null
         val targetMs = if (continuesServedTrack) request.bufferedEndFor(format, requestedStartMs) else requestedStartMs.coerceAtLeast(0L)
         val goalStartMs = if (activeLive) targetMs else request.playerTimeMs.coerceAtLeast(0L)
-        var goalEndMs = goalStartMs + request.bufferGoalMs.coerceAtLeast(1L)
+        var goalEndMs = maxOf(goalStartMs, request.playerTimeMs.coerceAtLeast(0L)) +
+            request.bufferGoalMs.coerceAtLeast(1L)
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
@@ -129,7 +125,9 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 val authoritative = sabrSessionStore.findCachedPlaybackMediaAt(
                     holder, format, expectedStartMs, seq, activeLive && segments.isEmpty(),
                 )
-                if (authoritative != null) {
+                if (authoritative != null &&
+                    (!activeLive || authoritative.isAcceptableLiveFollowingSegment(seq, targetMs, continuesServedTrack))
+                ) {
                     seq = authoritative.sequence
                     holder.session.streamState.jumpBufferedTo(format, seq)
                     segment = authoritative
@@ -151,7 +149,11 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                 seq = holder.previousPlaybackSequence(format, seq, segment, targetMs)
                 continue
             }
-            val windowSegment = segment.toWindowSegment(holder, format)
+            val windowSegment = segment.toWindowSegment(
+                holder,
+                format,
+                sabrSessionStore.resolvePlaybackDurationMs(holder, format, segment),
+            )
             segments += windowSegment
             if (activeLive && segments.size == 1) {
                 goalEndMs = maxOf(goalEndMs, windowSegment.startMs + request.bufferGoalMs.coerceAtLeast(1L))
@@ -185,15 +187,14 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
     private fun CachedSabrSegment.toWindowSegment(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,
+        resolvedDurationMs: Long,
     ): SabrPlaybackWindowSegment {
         val startMs = startMs.takeIf { it >= 0L }
             ?: holder.playbackSegmentStartMs(format, sequence)
-        val durationMs = durationMs.takeIf { it > 0L }
-            ?: holder.playbackSegmentDurationMs(format, sequence)
         return SabrPlaybackWindowSegment(
             url = "${SabrPlaybackPaths.mediaBasePath(holder.sessionToken)}/${format.itag}/segment/$sequence?generation=${holder.activeGeneration()}",
             startMs = startMs,
-            durationMs = durationMs,
+            durationMs = resolvedDurationMs,
         )
     }
 
@@ -209,7 +210,5 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
 
     private companion object {
         const val MAX_SEGMENTS_PER_TRACK = 12
-        const val MIN_READY_AHEAD_MS = 1_000L
-        const val LIVE_STARTUP_READY_AHEAD_MS = 8_000L
     }
 }

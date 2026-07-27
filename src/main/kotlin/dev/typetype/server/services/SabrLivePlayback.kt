@@ -67,48 +67,50 @@ internal fun SabrSessionHolder.resolvePlaybackStartMs(requestedStartMs: Long): L
 }
 
 private fun SabrSessionHolder.availableLiveMediaStartMs(): Long? {
-    val audioStartMs = observedMediaSegment(audioFormat)?.header?.startMs?.takeIf { it >= 0L }
-        ?: return null
+    val audioStartMs = earliestObservedMediaStartMs(audioFormat) ?: return null
     if (!isVideoActive()) return audioStartMs
-    val videoStartMs = observedMediaSegment(videoFormat)?.header?.startMs?.takeIf { it >= 0L }
-        ?: return null
+    val videoStartMs = earliestObservedMediaStartMs(videoFormat) ?: return null
     return maxOf(audioStartMs, videoStartMs)
 }
 
 internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
     livePlaybackSnapshot()?.takeIf { it.active } ?: return false
-    if (isHistoricalLiveRequest(request)) return false
-    if (session.getCachedSegment(request) == null && session.getReadableSegment(request) != null) return true
+    if (session.getCachedSegment(request) != null) return false
+    if (session.getReadableSegment(request) != null && !isHistoricalLiveRequest(request)) return true
     val state = session.streamState
     observedMediaSegment(request.format)?.let { observed ->
         val distanceFromComplete = request.sequenceNumber.toLong() - observed.header.sequenceNumber.toLong()
-        return distanceFromComplete in 1L..LIVE_FUTURE_SEGMENT_TOLERANCE.toLong()
+        if (distanceFromComplete < 0L) return false
+        if (distanceFromComplete == 0L) return true
+        if (distanceFromComplete <= LIVE_FUTURE_SEGMENT_TOLERANCE && !isHistoricalLiveRequest(request)) return true
     }
     val trackHeadSequence = runCatching { state.getMaxSegment(request.format) }.getOrDefault(0)
     if (trackHeadSequence <= 0) return false
+    if (request.sequenceNumber < trackHeadSequence) return false
     if (request.sequenceNumber > trackHeadSequence) {
-        return request.sequenceNumber <= trackHeadSequence + LIVE_FUTURE_SEGMENT_TOLERANCE
+        return request.sequenceNumber <= trackHeadSequence + LIVE_FUTURE_SEGMENT_TOLERANCE &&
+            !isHistoricalLiveRequest(request)
     }
-    if (request.sequenceNumber != trackHeadSequence) return false
     val requestStartMs = playbackSegmentStartMs(request.format, request.sequenceNumber)
     val completeEndMs = runCatching { state.getBufferedEndMs(request.format) }.getOrDefault(0L)
-    return requestStartMs > 0L && requestStartMs >= completeEndMs
+    return requestStartMs > 0L && requestStartMs >= completeEndMs && !isHistoricalLiveRequest(request)
 }
 
 internal fun SabrSessionHolder.isHistoricalLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
     val live = livePlaybackSnapshot()?.takeIf { it.active } ?: return false
+    lastServedSequence(request.format)?.let { lastServed ->
+        if (request.sequenceNumber in lastServed..lastServed + LIVE_FUTURE_SEGMENT_TOLERANCE) return false
+    }
     val observed = observedMediaSegment(request.format) ?: return false
     if (request.sequenceNumber < observed.header.sequenceNumber) return true
     val requestEndMs = playbackSegmentEndMs(request.format, request.sequenceNumber)
-    return requestEndMs < live.headTimeMs - LIVE_EDGE_TOLERANCE_MS
+    return requestEndMs < live.headTimeMs - LIVE_HISTORICAL_REQUEST_TOLERANCE_MS
 }
 
 internal fun SabrSessionHolder.liveRetryAfterMs(blockedRequests: List<SabrSegmentRequest> = emptyList()): Long =
-    if (livePlaybackSnapshot()?.active == true &&
-        (blockedRequests.isEmpty() || blockedRequests.all(::isFutureLiveRequest))
-    ) LIVE_EDGE_POLL_MS else DEFAULT_PLAYBACK_RETRY_MS
+    DEFAULT_PLAYBACK_RETRY_MS
 
 private fun org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState.observedEndMs(
     format: YoutubeSabrFormat,
@@ -121,5 +123,6 @@ internal const val LIVE_EDGE_POLL_MS = 2_000L
 internal const val DEFAULT_PLAYBACK_RETRY_MS = 500L
 private const val LIVE_TARGET_LATENCY_MS = 20_000L
 private const val LIVE_EDGE_TOLERANCE_MS = 15_000L
+private const val LIVE_HISTORICAL_REQUEST_TOLERANCE_MS = LIVE_TARGET_LATENCY_MS + LIVE_EDGE_TOLERANCE_MS
 private const val LIVE_DVR_WINDOW_MS = 12L * 60L * 60L * 1_000L
 internal const val LIVE_FUTURE_SEGMENT_TOLERANCE = 2

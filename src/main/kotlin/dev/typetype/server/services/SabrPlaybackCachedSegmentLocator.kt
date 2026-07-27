@@ -21,8 +21,11 @@ internal suspend fun SabrSessionStore.findCachedPlaybackMediaAt(
         }
     }
     if (!allowFollowing) return null
-    for (distance in 0..MAX_SEQUENCE_DISTANCE) {
-        cachedMedia(holder, format, predictedSequence + distance)?.let {
+    val firstSequence = (predictedSequence.toLong() - MAX_SEQUENCE_DISTANCE).coerceAtLeast(1L).toInt()
+    val lastSequence = (predictedSequence.toLong() + MAX_SEQUENCE_DISTANCE).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    for (sequence in firstSequence..lastSequence) {
+        cachedMedia(holder, format, sequence)?.let {
+            val distance = kotlin.math.abs(sequence.toLong() - predictedSequence).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             if (it.startsWithinFollowingRange(holder, format, targetMs, distance)) return it
         }
     }
@@ -48,6 +51,14 @@ internal fun CachedSabrSegment.coversPlaybackTime(
     return targetMs >= effectiveStartMs - TIMING_TOLERANCE_MS && targetMs < effectiveStartMs + effectiveDurationMs
 }
 
+internal fun CachedSabrSegment.isAcceptableLiveFollowingSegment(
+    expectedSequence: Int,
+    targetMs: Long,
+    continuesServedTrack: Boolean,
+): Boolean = !continuesServedTrack ||
+    sequence <= expectedSequence + LIVE_CONTINUATION_SEQUENCE_GAP ||
+    startMs > targetMs + MAX_RECOVERABLE_LIVE_GAP_MS
+
 private fun CachedSabrSegment.startsWithinFollowingRange(
     holder: SabrSessionHolder,
     format: YoutubeSabrFormat,
@@ -61,3 +72,4 @@ private fun CachedSabrSegment.startsWithinFollowingRange(
 }
 
 private const val MAX_SEQUENCE_DISTANCE = 24
+private const val LIVE_CONTINUATION_SEQUENCE_GAP = 1
