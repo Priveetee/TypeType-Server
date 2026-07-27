@@ -91,7 +91,7 @@ class SabrSessionPumpLoopTest {
     }
 
     @Test
-    fun `active live pump waits for a reader demand after warmup`() = runTest {
+    fun `active live pump maintains read ahead after warmup`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -108,7 +108,7 @@ class SabrSessionPumpLoopTest {
 
         SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
 
-        verify(exactly = 0) { session.pumpOnceStreaming(any()) }
+        verify(exactly = 1) { session.pumpOnceStreaming(any()) }
         verify(exactly = 1) { session.setPlayHeadMs(match { it in 988_000L..998_000L }) }
         verify(exactly = 1) { session.evictPlayed() }
         assertEquals(LIVE_EDGE_POLL_MS, testScheduler.currentTime)
