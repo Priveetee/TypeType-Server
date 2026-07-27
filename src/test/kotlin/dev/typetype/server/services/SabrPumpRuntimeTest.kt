@@ -28,6 +28,23 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
+    fun `readahead cushions scale with playback rate while remaining bounded`() {
+        var now = 1_000L
+        val holder = holder(
+            policy(targetAudioMs = 4_000, targetVideoMs = 7_000),
+            playerTimeMs = 1_000L,
+            playbackRate = 4.0f,
+        )
+        val runtime = SabrPumpRuntime { now }
+
+        assertEquals(60_000L, runtime.targetReadaheadCushionMs(holder))
+        now += 25_001L
+        assertEquals(28_000L, runtime.targetReadaheadCushionMs(holder))
+        runtime.activateSeekMode()
+        assertEquals(20_000L, runtime.targetReadaheadCushionMs(holder))
+    }
+
+    @Test
     fun `server heartbeat bypasses time throttling`() {
         var now = 1_000L
         val holder = holder(
@@ -83,12 +100,14 @@ class SabrPumpRuntimeTest {
         policy: SabrNextRequestPolicy,
         playerTimeMs: Long,
         edgeMs: Long = 0L,
+        playbackRate: Float = 1.0f,
     ): SabrSessionHolder {
         val holder = mockk<SabrSessionHolder>()
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { holder.session } returns session
         every { holder.playerTimeMs() } returns playerTimeMs
+        every { holder.playbackRate() } returns playbackRate
         every { holder.readerTailMs() } returns 1L
         every { session.streamState } returns state
         every { session.cachedBytes } returns 0L

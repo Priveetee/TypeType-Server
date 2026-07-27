@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import kotlin.math.roundToLong
+
 internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis) {
     private val startedAtMs = clock()
     private val protectedResponseGuard = SabrProtectedResponseGuard()
@@ -63,11 +65,17 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     }
 
     internal fun targetReadaheadCushionMs(holder: SabrSessionHolder): Long {
-        if (isSeekMode()) return SabrPumpPolicy.SEEK_READAHEAD_CUSHION_MS
-        if (isStartupBurst()) return SabrPumpPolicy.STARTUP_BURST_READAHEAD_CUSHION_MS
-        if (holder.playerTimeMs() == 0L && holder.readerTailMs() == 0L) {
-            return SabrPumpPolicy.STARTUP_READAHEAD_CUSHION_MS
+        val baseCushionMs = when {
+            isSeekMode() -> SabrPumpPolicy.SEEK_READAHEAD_CUSHION_MS
+            isStartupBurst() -> SabrPumpPolicy.STARTUP_BURST_READAHEAD_CUSHION_MS
+            holder.playerTimeMs() == 0L && holder.readerTailMs() == 0L ->
+                SabrPumpPolicy.STARTUP_READAHEAD_CUSHION_MS
+            else -> serverReadaheadCushionMs(holder)
         }
+        return rateAwareCushionMs(baseCushionMs, holder.playbackRate())
+    }
+
+    private fun serverReadaheadCushionMs(holder: SabrSessionHolder): Long {
         val policy = holder.session.streamState.nextRequestPolicy ?: return SabrPumpPolicy.READAHEAD_CUSHION_MS
         val serverTargetMs = maxOf(policy.targetAudioReadaheadMs, policy.targetVideoReadaheadMs)
         if (serverTargetMs <= 0) return SabrPumpPolicy.READAHEAD_CUSHION_MS
@@ -76,6 +84,9 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
             SabrPumpPolicy.READAHEAD_CUSHION_MS,
         )
     }
+
+    private fun rateAwareCushionMs(baseMs: Long, playbackRate: Float): Long =
+        (baseMs * playbackRate.coerceIn(0.25f, 4.0f)).roundToLong().coerceAtMost(MAX_RATE_AWARE_CUSHION_MS)
 
     private fun cappedServerAheadPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         maxOf(holder.playerTimeMs(), edgeMs - SabrPumpPolicy.SERVER_AHEAD_MARGIN_MS)
@@ -98,5 +109,9 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
     private fun resetDemandRecovery(): Unit {
         demandKey = null
         demandTrackReadvertised = false
+    }
+
+    private companion object {
+        const val MAX_RATE_AWARE_CUSHION_MS = 60_000L
     }
 }
