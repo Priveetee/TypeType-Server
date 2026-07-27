@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
@@ -129,7 +131,7 @@ class SabrLivePlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `active live startup waits beyond five seconds of shared media`() = runTest {
+    fun `active live startup waits for the full media cushion`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -150,13 +152,62 @@ class SabrLivePlaybackWindowBuilderTest {
             }
         }
 
+        val builder = SabrPlaybackWindowBuilder(store)
+        val request = SabrPlaybackWindowRequest(0L, 100_000L, 299, 140, bufferGoalMs = 8_000L)
+        val startup = builder.build(holder, request)
+        val continuation = builder.build(
+            holder,
+            request.copy(
+                bufferedRanges = listOf(
+                    SabrPlaybackBufferedRange(140, 0L, 100_000L),
+                    SabrPlaybackBufferedRange(299, 0L, 100_000L),
+                ),
+            ),
+        )
+
+        assertFalse(startup.isReady)
+        assertTrue(continuation.isReady)
+        assertEquals(listOf(53, 53), continuation.blockedRequests.map { it.sequenceNumber })
+    }
+
+    @Test
+    fun `active live startup derives timing from adjacent cached segments`() = runTest {
+        val audio = format(itag = 140, isAudio = true)
+        val video = format(itag = 299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns streamState
+        every { session.isLive } returns true
+        every { streamState.isLive } returns true
+        every { streamState.liveHeadTimeMs } returns 120_000L
+        every { streamState.liveHeadSequenceNumber } returns 60L
+        every { session.liveHeadSequenceNumber } returns 60L
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 60
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            if (request.sequenceNumber in 50..60) {
+                cached(
+                    request.format.itag,
+                    request.sequenceNumber,
+                    100_000L + (request.sequenceNumber - 50) * 2_000L,
+                    -1L,
+                )
+            } else {
+                null
+            }
+        }
+        holder.observeMediaSegment(mediaSegment(audio.itag, 60, 120_000L))
+        holder.observeMediaSegment(mediaSegment(video.itag, 60, 120_000L))
         val result = SabrPlaybackWindowBuilder(store).build(
             holder,
             SabrPlaybackWindowRequest(0L, 100_000L, 299, 140, bufferGoalMs = 8_000L),
         )
-
-        assertFalse(result.isReady)
-        assertEquals(listOf(53, 53), result.blockedRequests.map { it.sequenceNumber })
+        assertTrue(result.isReady)
+        assertEquals(100_000L, result.response.startTimeMs)
+        assertEquals(4, result.response.audio.segments.size)
+        assertEquals(List(4) { 2_000L }, result.response.audio.segments.map { it.durationMs })
     }
 
     @Test
@@ -234,4 +285,16 @@ class SabrLivePlaybackWindowBuilderTest {
         bytesBase64 = "AA==",
         byteLength = 1,
     )
+
+    private fun mediaSegment(itag: Int, sequence: Int, startMs: Long): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>()
+        every { header.isInitSegment } returns false
+        every { header.itag } returns itag
+        every { header.sequenceNumber } returns sequence
+        every { header.startMs } returns startMs
+        every { header.durationMs } returns -1L
+        val segment = mockk<SabrMediaSegment>()
+        every { segment.header } returns header
+        return segment
+    }
 }

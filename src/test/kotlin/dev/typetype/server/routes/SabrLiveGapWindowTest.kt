@@ -117,6 +117,48 @@ class SabrLiveGapWindowTest {
     }
 
     @Test
+    fun `advancing live head does not replace the next playback segment`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.isLive } returns true
+        every { state.isLive } returns true
+        every { state.liveHeadTimeMs } returns 510_000L
+        val holder = holder(session, audio, video)
+        holder.setLastServedSequence(video.itag, 91)
+        holder.setLastServedSequence(audio.itag, 48)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } answers {
+            val request = secondArg<SabrSegmentRequest>()
+            when {
+                request.format.itag == 299 && request.sequenceNumber == 99 ->
+                    cached(299, 99, 483_000L, 1_000L)
+                request.format.itag == 140 && request.sequenceNumber == 56 ->
+                    cached(140, 56, 483_000L, 1_000L)
+                else -> null
+            }
+        }
+        val ranges = listOf(
+            SabrPlaybackBufferedRange(video.itag, 450_000L, 475_000L),
+            SabrPlaybackBufferedRange(audio.itag, 450_000L, 475_000L),
+        )
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 474_000L, 299, 140, bufferGoalMs = 8_000L, bufferedRanges = ranges),
+        )
+
+        assertFalse(result.isReady)
+        assertEquals(
+            listOf(299 to 92, 140 to 49),
+            result.blockedRequests.map { it.format.itag to it.sequenceNumber },
+        )
+        assertNull(holder.terminalFailure())
+    }
+
+    @Test
     fun `large live gap requests a fresh playback session`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(299, isAudio = false)
