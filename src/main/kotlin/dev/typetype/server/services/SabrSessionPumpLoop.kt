@@ -24,10 +24,12 @@ internal class SabrSessionPumpLoop(
         var consecutiveIoErrors = 0
         while (isAlive() && holder.playbackState() != SabrPlaybackState.TERMINAL) {
             try {
+                val wakeVersion = holder.pumpWakeVersion()
                 val requestNumber = holder.session.requestNumber
                 val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
                 if (holder.session.requestNumber != requestNumber) consecutiveIoErrors = 0
-                delay(if (immediate) 0L else demandDelayMs(holder, intervalMs))
+                if (immediate) delay(0L)
+                else holder.awaitPumpWake(wakeVersion, pumpDemandDelayMs(holder, intervalMs))
             } catch (error: CancellationException) {
                 throw error
             } catch (error: IOException) {
@@ -60,12 +62,13 @@ internal class SabrSessionPumpLoop(
             holder.setPlaybackState(SabrPlaybackState.STOPPED)
         }
     }
+
     private suspend fun pumpRound(
         holder: SabrSessionHolder,
         localization: Localization,
         runtime: SabrPumpRuntime,
     ): Boolean {
-        prepareEviction(holder)
+        preparePumpEviction(holder)
         holder.consumeRefetch()?.let { request ->
             if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) {
                 holder.clearSegmentDemand(request)
@@ -116,8 +119,12 @@ internal class SabrSessionPumpLoop(
             }
         }
         if (holder.livePlaybackSnapshot()?.active == true) {
-            holder.setPlaybackState(SabrPlaybackState.IDLE)
-            return false
+            return pumpLiveReadAhead(
+                holder = holder,
+                runtime = runtime,
+                pump = { pumpOnce(holder, localization, runtime) },
+                onResolved = onResolved,
+            )
         }
         if (holder.session.requestNumber == 0 && !holder.expectsLive()) return false
         if (holder.session.isComplete && holder.livePlaybackSnapshot()?.active != true && !holder.hasPendingSeek()) return false
@@ -175,7 +182,7 @@ internal class SabrSessionPumpLoop(
                 }
             }
             holder.setPlaybackState(SabrPlaybackState.REQUESTING)
-            return withTargetedRequestShape(holder, request) {
+            return withLiveContinuationRequestShape(holder) {
                 pumpUntilCached(holder, localization, request, runtime)
             }
         }
@@ -198,18 +205,4 @@ internal class SabrSessionPumpLoop(
         }
     }
 
-    private fun prepareEviction(holder: SabrSessionHolder): Unit {
-        holder.session.setPlayHeadMs((holder.readerTailMs() - SabrPumpPolicy.backBufferMs(holder)).coerceAtLeast(0L))
-        holder.session.evictPlayed()
-    }
-
-    private fun demandDelayMs(holder: SabrSessionHolder, intervalMs: Long): Long {
-        val demand = holder.nextSegmentDemand()
-        return SabrPumpPolicy.demandDelayMs(
-            intervalMs,
-            holder.session.demandBackoffRemainingMs.takeIf { demand != null } ?: 0L,
-            holder.livePlaybackSnapshot()?.active == true,
-            demand?.let(holder::isFutureLiveRequest),
-        )
-    }
 }

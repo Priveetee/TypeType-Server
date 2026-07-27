@@ -13,7 +13,11 @@ internal fun CoroutineScope.launchSabrPump(
     watchdog: SabrDemandWatchdog = SabrDemandWatchdog(),
 ): Unit {
     val state = holder.playbackState()
-    if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED || !holder.markPumpStarted()) return
+    if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return
+    if (!holder.markPumpStarted()) {
+        holder.wakePump()
+        return
+    }
     launch {
         val owner = currentCoroutineContext().job
         val watchdogJob = launch {

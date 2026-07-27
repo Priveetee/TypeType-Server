@@ -1,9 +1,14 @@
 package dev.typetype.server.services
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
-internal data class SabrLiveWarmupTarget(val sequence: Int, val timeMs: Long)
+internal data class SabrLiveWarmupTarget(
+    val sequence: Int,
+    val timeMs: Long,
+    val segmentDurationMs: Long,
+)
 
 internal fun SabrSessionHolder.liveWarmupTarget(): SabrLiveWarmupTarget? {
     val live = livePlaybackSnapshot()
@@ -19,7 +24,32 @@ internal fun SabrSessionHolder.liveWarmupTarget(): SabrLiveWarmupTarget? {
         .coerceIn(1L, Int.MAX_VALUE.toLong())
         .toInt()
     val targetTimeMs = (live.headTimeMs - live.targetLatencyMs).coerceAtLeast(0L)
-    return SabrLiveWarmupTarget(targetSequence, targetTimeMs)
+    return SabrLiveWarmupTarget(targetSequence, targetTimeMs, segmentDurationMs)
+}
+
+internal fun SabrSessionHolder.advanceLiveWarmupTarget(
+    target: SabrLiveWarmupTarget,
+    segments: List<SabrMediaSegment>,
+): SabrLiveWarmupTarget {
+    val activeFormats = listOfNotNull(
+        audioFormat.takeIf { isAudioActive() },
+        videoFormat.takeIf { isVideoActive() },
+    )
+    val nextSequence = activeFormats.minOfOrNull { format ->
+        val received = segments.asSequence()
+            .filter { !it.header.isInitSegment && it.header.itag == format.itag }
+            .map { it.header.sequenceNumber }
+            .filter { it >= target.sequence }
+            .toSet()
+        var sequence = target.sequence
+        while (sequence in received && sequence < Int.MAX_VALUE) sequence++
+        sequence
+    } ?: target.sequence
+    val advancedBy = nextSequence - target.sequence
+    return target.copy(
+        sequence = nextSequence,
+        timeMs = target.timeMs + advancedBy * target.segmentDurationMs,
+    )
 }
 
 internal inline fun <T> withLiveWarmupRequestShape(
