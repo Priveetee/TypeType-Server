@@ -12,6 +12,7 @@ tags:
   - name: health
   - name: metadata
   - name: extraction
+  - name: playback
   - name: downloader
   - name: youtube-session
   - name: android-playback
@@ -34,6 +35,10 @@ paths:
   /android/youtube/playback/{sessionId}/subtitles/{trackId}.vtt: { $ref: ./openapi/paths/android-playback.yaml#/Subtitle }
   /android/youtube/playback/{sessionId}/{itag}/init: { $ref: ./openapi/paths/android-playback.yaml#/Initialization }
   /android/youtube/playback/{sessionId}/{itag}/segment/{sequence}: { $ref: ./openapi/paths/android-playback.yaml#/Segment }
+  /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
+  /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
+  /sabr/playback/{sessionId}/prefetch: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPrefetch }
+  /sabr/playback/{sessionId}/segments: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackSegments }
   /search: { $ref: ./openapi/paths/search.yaml#/Search }
   /search/filters: { $ref: ./openapi/paths/search.yaml#/SearchFilters }
   /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
@@ -106,6 +111,10 @@ components:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     AudioOnlyStreamResponse:
       $ref: ./openapi/components/streams.yaml#/AudioOnlyStreamResponse
+    SabrPlaybackPositionRequest:
+      $ref: ./openapi/components/sabr-playback.yaml#/SabrPlaybackPositionRequest
+    SabrPlaybackWindowRequest:
+      $ref: ./openapi/components/sabr-playback.yaml#/SabrPlaybackWindowRequest
     SearchPageResponse:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
     SearchFilterOption:

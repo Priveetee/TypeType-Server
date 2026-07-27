@@ -1,0 +1,100 @@
+SabrPlaybackPosition:
+  post:
+    tags: [playback]
+    summary: Update the SABR playhead, active formats, ranges, and playback rate
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/sabr-playback.yaml#/SabrPlaybackPositionRequest
+    responses:
+      '200':
+        description: Current server-side SABR playback position.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/sabr-playback.yaml#/SabrPlaybackPositionResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+SabrPlaybackWindow:
+  post:
+    tags: [playback]
+    summary: Update playback state and return the current playable SABR window
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/sabr-playback.yaml#/SabrPlaybackWindowRequest
+    responses:
+      '200':
+        $ref: '#/components/responses/Window'
+      '202':
+        $ref: '#/components/responses/Window'
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+SabrPlaybackPrefetch:
+  post:
+    tags: [playback]
+    summary: Advance demand-driven SABR preparation for the current window
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/sabr-playback.yaml#/SabrPlaybackWindowRequest
+    responses:
+      '200':
+        $ref: '#/components/responses/Window'
+      '202':
+        $ref: '#/components/responses/Window'
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+SabrPlaybackSegments:
+  post:
+    tags: [playback]
+    summary: Read the currently prepared SABR segment window without starting demand
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/sabr-playback.yaml#/SabrPlaybackWindowRequest
+    responses:
+      '200':
+        $ref: '#/components/responses/Window'
+      '202':
+        $ref: '#/components/responses/Window'
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Window:
+      description: Ready or preparing SABR playback window.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/sabr-playback.yaml#/SabrPlaybackWindowResponse

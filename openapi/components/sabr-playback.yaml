@@ -1,0 +1,53 @@
+SabrPlaybackBufferedRange:
+  type: object
+  required: [itag, startMs, endMs]
+  properties:
+    itag: { type: integer }
+    startMs: { type: integer, format: int64, minimum: 0 }
+    endMs: { type: integer, format: int64, minimum: 0 }
+SabrPlaybackPositionRequest:
+  type: object
+  required: [generation, playerTimeMs, videoItag, audioItag]
+  properties:
+    generation: { type: integer, format: int64, minimum: 0 }
+    playerTimeMs: { type: integer, format: int64, minimum: 0 }
+    videoItag: { type: integer, minimum: 1 }
+    audioItag: { type: integer, minimum: 1 }
+    audioTrackId: { type: string, nullable: true }
+    playbackRate: { type: number, format: float, minimum: 0.25, maximum: 4, default: 1 }
+    bufferedRanges:
+      type: array
+      items:
+        $ref: '#/SabrPlaybackBufferedRange'
+    audioOnly: { type: boolean, default: false }
+SabrPlaybackWindowRequest:
+  allOf:
+    - $ref: '#/SabrPlaybackPositionRequest'
+    - type: object
+      properties:
+        bufferGoalMs: { type: integer, format: int64, minimum: 1, default: 30000 }
+        backBufferMs: { type: integer, format: int64, minimum: 1, default: 30000 }
+SabrPlaybackPositionResponse:
+  type: object
+  required: [sessionId, generation, playerTimeMs, readerHeadMs, readerTailMs, bufferedEdgeMs]
+  properties:
+    sessionId: { type: string }
+    generation: { type: integer, format: int64 }
+    playerTimeMs: { type: integer, format: int64 }
+    readerHeadMs: { type: integer, format: int64 }
+    readerTailMs: { type: integer, format: int64 }
+    bufferedEdgeMs: { type: integer, format: int64 }
+SabrPlaybackWindowResponse:
+  type: object
+  required: [sessionId, generation, ready]
+  additionalProperties: true
+  properties:
+    sessionId: { type: string }
+    generation: { type: integer, format: int64 }
+    ready: { type: boolean }
+    retryAfterMs: { type: integer, format: int64, nullable: true }
+    terminalError: { type: string, nullable: true }
+    recoveryAction: { type: string, nullable: true }
+    retryVideoItags:
+      type: array
+      items: { type: integer }
