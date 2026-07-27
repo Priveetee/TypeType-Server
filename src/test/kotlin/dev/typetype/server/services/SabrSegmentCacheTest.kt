@@ -34,6 +34,7 @@ class SabrSegmentCacheTest {
         assertEquals(9985L, cached.durationMs)
         assertEquals("audio/mp4", cached.mimeType)
         assertArrayEquals(byteArrayOf(1, 2, 3), cached.bytes)
+        assertEquals(4, holder.observedMediaSegment(audio)?.header?.sequenceNumber)
     }
 
     @Test
