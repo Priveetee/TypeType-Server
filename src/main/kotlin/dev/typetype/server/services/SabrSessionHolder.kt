@@ -28,10 +28,11 @@ internal class SabrSessionHolder(
     private val lastServedSequences = ConcurrentHashMap<ReaderTrackKey, Int>()
     private val activeItags: MutableSet<Int> = ConcurrentHashMap.newKeySet()
     private val observedMediaAnchors = ConcurrentHashMap<Int, SabrMediaSegment>()
+    private val earliestObservedMediaStarts = ConcurrentHashMap<Int, Long>()
     private val liveInitializationData = ConcurrentHashMap<Int, ByteArray>()
     private val pendingRefetch = AtomicReference<SabrSegmentRequest?>()
     private val pendingForwardSeek = AtomicReference<SabrSegmentRequest?>()
-    private val pumpStarted = AtomicBoolean(false)
+    internal val pumpCoordinator = SabrPumpCoordinator()
     private val unauthorizedRefreshAttempted = AtomicBoolean(false)
     private val expectedLive = AtomicBoolean(false)
     private val activeGeneration = AtomicLong(initialGeneration.coerceAtLeast(0L))
@@ -68,10 +69,6 @@ internal class SabrSessionHolder(
         lastRequestAt = now
     }
 
-    fun markPumpStarted(): Boolean = pumpStarted.compareAndSet(false, true)
-
-    fun markPumpStopped(): Unit = pumpStarted.set(false)
-
     fun markUnauthorizedRefreshAttempted(): Boolean = unauthorizedRefreshAttempted.compareAndSet(false, true)
 
     fun markExpectedLive(): Unit {
@@ -85,12 +82,14 @@ internal class SabrSessionHolder(
         if (header.isInitSegment || header.sequenceNumber <= 0 ||
             (header.itag != audioFormat.itag && header.itag != videoFormat.itag)
         ) return
+        if (header.startMs >= 0L) earliestObservedMediaStarts.merge(header.itag, header.startMs, ::minOf)
         observedMediaAnchors.compute(header.itag) { _, current ->
             if (current == null || header.startMs >= current.header.startMs) segment else current
         }
     }
 
     fun observedMediaSegment(format: YoutubeSabrFormat): SabrMediaSegment? = observedMediaAnchors[format.itag]
+    fun earliestObservedMediaStartMs(format: YoutubeSabrFormat): Long? = earliestObservedMediaStarts[format.itag]
 
     fun rememberLiveInitialization(itag: Int, data: ByteArray): Unit {
         liveInitializationData.putIfAbsent(itag, data)

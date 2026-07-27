@@ -21,20 +21,27 @@ internal class SabrSessionPump(
         var pumps = 0
         var liveWarmupTarget: SabrLiveWarmupTarget? = null
         holder.setPlaybackState(SabrPlaybackState.PREPARING)
-        while (pumps < maxPumps && !isWarmEnough(holder) && (!holder.session.isComplete || holder.expectsLive())) {
+        while (pumps < maxPumps &&
+            !isWarmEnough(holder) &&
+            (!holder.session.isComplete || holder.expectsLive())
+        ) {
+            val currentLiveTarget = liveWarmupTarget
             holder.pumpMutex.withLock {
                 holder.setPlaybackState(SabrPlaybackState.REQUESTING)
                 if (holder.expectsLive()) {
-                    runCatchingNonCancellation {
-                        withLiveWarmupRequestShape(holder, liveWarmupTarget) {
+                    val segments = runCatchingNonCancellation {
+                        withLiveWarmupRequestShape(holder, currentLiveTarget) {
                             holder.withPlayerContext { pumpOnce(localization) }
                         }
                     }
                         .getOrDefault(emptyList())
-                        .forEach { segment ->
-                            segmentCache?.put(holder, segment)
-                            holder.observeMediaSegment(segment)
-                        }
+                    segments.forEach { segment ->
+                        segmentCache?.put(holder, segment)
+                        holder.observeMediaSegment(segment)
+                    }
+                    if (currentLiveTarget != null) {
+                        liveWarmupTarget = holder.advanceLiveWarmupTarget(currentLiveTarget, segments)
+                    }
                     if (liveWarmupTarget == null) liveWarmupTarget = holder.liveWarmupTarget()
                 } else {
                     runCatchingNonCancellation { holder.withPlayerContext { pumpOnceStreaming(localization) } }
