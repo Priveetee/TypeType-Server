@@ -44,6 +44,7 @@ class SabrPlaybackGranularRoutesTest {
     fun `position updates player time without prefetching`() = testApplication {
         val store = mockk<SabrSessionStore>(relaxed = true)
         val holder = holder()
+        val streamState = holder.session.streamState
         every { store.lookupByToken("session-token") } returns holder
         installApp(store)
 
@@ -55,6 +56,7 @@ class SabrPlaybackGranularRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"playerTimeMs\":13000"))
         assertEquals(13_000L, holder.playerTimeMs())
+        verify(exactly = 1) { streamState.setPlaybackRate(4.0f) }
         verify(exactly = 0) { store.startPump(holder) }
         verify(exactly = 0) { store.warmPlaybackAsync(holder) }
     }
@@ -232,6 +234,7 @@ class SabrPlaybackGranularRoutesTest {
         every { session.getCachedSegment(any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
         every { state.setActiveTrackTypes(true, true) } returns Unit
+        every { state.setPlaybackRate(any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
         every { state.getEndSegment(any()) } returns 0L
         every { state.getSegmentStartMs(any(), any()) } answers { (secondArg<Int>() - 1) * 10_000L }
@@ -277,7 +280,7 @@ class SabrPlaybackGranularRoutesTest {
     )
 
     private fun positionBody(ms: Long): String =
-        """{"generation":0,"playerTimeMs":$ms,"videoItag":136,"audioItag":140}"""
+        """{"generation":0,"playerTimeMs":$ms,"videoItag":136,"audioItag":140,"playbackRate":4.0}"""
 
     private fun windowBody(playerTimeMs: Long = 0L): String =
         """{"generation":0,"playerTimeMs":$playerTimeMs,"videoItag":136,"audioItag":140,"bufferGoalMs":30000}"""

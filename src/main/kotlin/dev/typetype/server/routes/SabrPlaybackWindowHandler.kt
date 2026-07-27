@@ -23,6 +23,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid window request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
 
+        holder.setPlaybackRate(request.playbackRate)
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(holder.resolvePlaybackStartMs(request.playerTimeMs))
         holder.applyClientPreferences()
@@ -39,6 +40,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackPositionRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid position request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setPlaybackRate(request.playbackRate)
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         val playerTimeMs = holder.resolvePlaybackStartMs(request.playerTimeMs)
         holder.setPlayerTimeMs(playerTimeMs)
@@ -60,6 +62,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid prefetch request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setPlaybackRate(request.playbackRate)
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.setPlayerTimeMs(holder.resolvePlaybackStartMs(request.playerTimeMs))
         holder.applyClientPreferences()
@@ -73,6 +76,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         val request = runCatching { call.receive<SabrPlaybackWindowRequest>() }.getOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid segments request"))
         val holder = validatedHolder(call, sessionId, request) ?: return
+        holder.setPlaybackRate(request.playbackRate)
         holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         holder.applyClientPreferences()
         val window = windowBuilder.build(holder, request)
@@ -111,7 +115,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
             pendingSegmentDemand = pendingSegmentDemandSummary(),
             terminalError = terminalFailure() ?: networkFailure(),
             recoveryAction = recovery.action(this),
-            retryVideoItags = recovery.retryVideoItags(this),
+            retryVideoItags = recovery.retryVideoItags(),
             live = livePlaybackSnapshot()?.toResponse(),
         )
 
@@ -136,7 +140,7 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         pendingSegmentDemand = pendingSegmentDemandSummary(),
         terminalError = terminalFailure() ?: networkFailure(),
         recoveryAction = recovery.action(this),
-        retryVideoItags = recovery.retryVideoItags(this),
+        retryVideoItags = recovery.retryVideoItags(),
         live = livePlaybackSnapshot()?.toResponse(),
     )
 
@@ -153,6 +157,9 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         if (request.generation != holder.activeGeneration()) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation")).let { null }
         }
+        if (!request.playbackRate.isSupportedSabrPlaybackRate()) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid playback rate")).let { null }
+        }
         return holder
     }
 
@@ -168,6 +175,9 @@ internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessi
         }
         if (request.generation != holder.activeGeneration()) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid generation")).let { null }
+        }
+        if (!request.playbackRate.isSupportedSabrPlaybackRate()) {
+            return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid playback rate")).let { null }
         }
         return holder
     }
