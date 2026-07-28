@@ -80,7 +80,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             video = video,
             startTimeMs = playerTimeMs,
             audioOnly = audioOnly,
-            isLive = source.expectsLive() || prepared.isLive || prepared.isLiveContent,
+            isLive = source.expectsLive() || prepared.isLive,
             initialGeneration = source.nextReplacementGeneration(),
         )
     }
