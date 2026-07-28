@@ -22,16 +22,11 @@ internal fun Route.installStreamRoutes(
     rateLimit(STREAMS_ZONE) {
         streamRoutes(
             streamService = svc.youtubeSabrStreamService,
-            legacyStreamService = svc.legacyStreamService,
-            genericLegacyStreamService = svc.streamService,
             nicoNicoStreamService = svc.nicoNicoStreamService,
             bilibiliStreamService = svc.bilibiliStreamService,
             sabrBootstrapStreamService = svc.youtubeSabrBootstrapStreamService,
             authService = authService,
             accessControlService = svc.accessControlService,
-            youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                { userId, url -> service.getStreamInfo(userId, url) }
-            },
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },

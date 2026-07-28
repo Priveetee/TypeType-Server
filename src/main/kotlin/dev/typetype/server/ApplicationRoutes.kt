@@ -82,7 +82,7 @@ internal fun Application.installApplicationRoutes(
         rateLimit(PROXY_ZONE) {
             sabrRoutes(
                 svc.sabrSessionStore,
-                svc.streamService,
+                svc.youtubeSabrStreamService,
                 authService,
                 svc.accessControlService,
                 adminSettingsService,

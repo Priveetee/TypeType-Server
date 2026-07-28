@@ -42,7 +42,7 @@ class StreamFieldsTest {
                     hlsUrl = "https://example.com/live.m3u8",
                 )
             )
-        val body = client.get("/streams/legacy?url=https://youtube.com/watch?v=test").bodyAsText()
+        val body = client.get(STREAM_URL).bodyAsText()
         assertTrue(body.contains("\"streamType\":\"live_stream\""))
         assertTrue(body.contains("\"isLive\":true"))
         assertTrue(body.contains("\"isPostLive\":false"))
@@ -60,7 +60,7 @@ class StreamFieldsTest {
                     startPosition = 42L,
                 )
             )
-        val body = client.get("/streams/legacy?url=https://youtube.com/shorts/test").bodyAsText()
+        val body = client.get(STREAM_URL).bodyAsText()
         assertTrue(body.contains("\"isShortFormContent\":true"))
         assertTrue(body.contains("\"requiresMembership\":true"))
         assertTrue(body.contains("\"startPosition\":42"))
@@ -77,7 +77,7 @@ class StreamFieldsTest {
         )
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(testStreamResponse().copy(streamSegments = listOf(segment)))
-        val body = client.get("/streams/legacy?url=https://youtube.com/watch?v=test").bodyAsText()
+        val body = client.get(STREAM_URL).bodyAsText()
         assertTrue(body.contains("\"streamSegments\""))
         assertTrue(body.contains("\"title\":\"Intro\""))
         assertTrue(body.contains("\"startTimeSeconds\":0"))
@@ -93,7 +93,7 @@ class StreamFieldsTest {
                     preferredDefaultAudioTrackId = "en.0",
                 )
             )
-        val body = client.get("/streams/legacy?url=https://youtube.com/watch?v=test").bodyAsText()
+        val body = client.get(STREAM_URL).bodyAsText()
         assertTrue(body.contains("\"audioLocale\":\"en\""))
         assertTrue(body.contains("\"isOriginal\":true"))
         assertTrue(body.contains("\"originalAudioTrackId\":\"en.0\""))
@@ -110,10 +110,14 @@ class StreamFieldsTest {
         )
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(testStreamResponse().copy(sponsorBlockSegments = listOf(segment)))
-        val body = client.get("/streams/legacy?url=https://youtube.com/watch?v=test").bodyAsText()
+        val body = client.get(STREAM_URL).bodyAsText()
         assertTrue(body.contains("\"sponsorBlockSegments\""))
         assertTrue(body.contains("\"category\":\"sponsor\""))
         assertTrue(body.contains("\"action\":\"skip\""))
         assertTrue(body.contains("55649.0"))
+    }
+
+    private companion object {
+        const val STREAM_URL = "/streams/niconico?url=https://www.nicovideo.jp/watch/sm9"
     }
 }

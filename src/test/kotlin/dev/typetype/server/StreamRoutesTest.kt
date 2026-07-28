@@ -28,19 +28,19 @@ class StreamRoutesTest {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
-        val response = client.get("/streams")
+        val response = client.get("/streams/youtube/sabr")
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test
     fun `GET streams with valid url returns 200 on Success`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns
-            ExtractionResult.Success(testStreamResponse())
+            ExtractionResult.Success(sabrResponse())
         application {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
-        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test")
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
     }
@@ -53,7 +53,7 @@ class StreamRoutesTest {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=bad")
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=bad")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"scheduled_premiere\""))
     }
@@ -66,7 +66,7 @@ class StreamRoutesTest {
             install(ContentNegotiation) { json() }
             routing { streamRoutes(streamService) }
         }
-        val response = client.get("/streams?url=https://unsupported.com/video")
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=paid")
         assertEquals(HttpStatusCode.BadRequest, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"paid_content\""))
     }
@@ -96,4 +96,9 @@ class StreamRoutesTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(body.contains("\"code\":\"no_playable_streams\""))
     }
+
+    private fun sabrResponse() = testStreamResponse(
+        videoOnlyStreams = listOf(testVideoStream().copy(deliveryMethod = "sabr")),
+        audioStreams = listOf(testAudioStream(deliveryMethod = "sabr")),
+    )
 }
