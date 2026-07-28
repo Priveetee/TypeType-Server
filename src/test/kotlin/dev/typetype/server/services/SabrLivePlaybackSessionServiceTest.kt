@@ -96,6 +96,45 @@ class SabrLivePlaybackSessionServiceTest {
     }
 
     @Test
+    fun `historical live content prepares as vod`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val info = mockk<YoutubeSabrInfo>()
+        val prepared = SabrPreparedInfo(info, token(), isLive = false, isLiveContent = true)
+        val holder = holder(audio, video)
+        val state = holder.session.streamState
+        val store = mockk<SabrSessionStore>()
+        every {
+            store.getOrCreate(
+                "video",
+                "user",
+                info,
+                audio,
+                video,
+                prepared.initialToken,
+                0L,
+                false,
+                SabrSessionPurpose.PLAYBACK,
+                false,
+                0L,
+            )
+        } returns holder
+        coEvery { store.fetchInitializationData(holder, video) } returns byteArrayOf(1)
+        coEvery { store.fetchInitializationData(holder, audio) } returns byteArrayOf(2)
+        every { store.startPump(holder) } returns Unit
+
+        val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 0L)
+
+        assertEquals(0L, result.startTimeMs)
+        assertFalse(holder.expectsLive())
+        verify(exactly = 0) { state.setPlayerTimeMs(9_007_199_254_740_991L) }
+        coVerify(exactly = 0) { store.ensureWarmed(any(), any()) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, video) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, audio) }
+        verify(exactly = 1) { store.startPump(holder) }
+    }
+
+    @Test
     fun `live format change starts the replacement session from warmed track boundaries`() = runTest {
         val audio = format(140, isAudio = true)
         val source = holder(audio, format(137, isAudio = false), initialGeneration = 4L)
