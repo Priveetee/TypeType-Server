@@ -40,7 +40,19 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             }
             sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
         } else {
-            SabrPlaybackInitializationPreloader.preload(sessionStore, holder, INITIALIZATION_PRELOAD_TIMEOUT_MS)
+            val initialization = SabrPlaybackInitializationPreloader.preload(
+                sessionStore,
+                holder,
+                audioOnly,
+                INITIALIZATION_PRELOAD_TIMEOUT_MS,
+            )
+            if (!initialization.isComplete(audioOnly)) {
+                val missing = initialization.missingTracks(audioOnly, video.itag, audio.itag)
+                holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
+                holder.setPlayerTimeMs(startTimeMs)
+                holder.failTerminal(sabrRecoverableFailureMessage("SABR initialization unavailable for $missing"))
+                return SabrPlaybackPreparation(holder, startTimeMs, ready = false)
+            }
         }
         return SabrPlaybackStarter.start(
             sessionStore,
