@@ -22,23 +22,44 @@ class YoutubeTakeoutActivitySignalServiceTest {
                 "https://www.youtube.com/watch?v=like456",
                 "https://www.youtube.com/watch?v=like789",
             ),
-            result.second,
+            result.second.map { it.videoUrl },
         )
+        assertEquals(1_783_530_662_000L, result.second.first().favoritedAt)
+        assertEquals("A video", result.second.first().title)
+        assertEquals("Channel Name", result.second.first().channelName)
+        assertEquals("https://www.youtube.com/channel/UC999", result.second.first().channelUrl)
         Files.deleteIfExists(zip)
     }
 
-    private fun createZip(): Path {
+    @Test
+    fun `parse omits unavailable activity favorites`() {
+        val zip = createZip(
+            """
+            You liked <a href="https://www.youtube.com/watch?v=gone123">Deleted Video</a><br>
+            8 Jul 2026, 19:11:02 CEST<br>
+            """.trimIndent(),
+        )
+
+        assertTrue(YoutubeTakeoutActivitySignalService.parse(zip).second.isEmpty())
+        Files.deleteIfExists(zip)
+    }
+
+    private fun createZip(
+        html: String = """
+            Vous vous êtes abonné à <a href="https://www.youtube.com/channel/UC999">Channel Name</a><br>
+            Vous avez aimé <a href="https://www.youtube.com/watch?v=like123">A video</a><br>
+            <a href="https://www.youtube.com/channel/UC999">Channel Name</a><br>
+            8 juil. 2026, 19:11:02 CEST<br>
+            A aimé <a href="https://www.youtube.com/watch?v=like456">Another video</a><br>
+            5 juil. 2026, 19:10:19 CEST<br>
+            Beğendiniz <a href="https://www.youtube.com/watch?v=like789">Turkish video</a><br>
+            4 Jul 2026, 12:00:00 CEST<br>
+        """.trimIndent(),
+    ): Path {
         val zip = Files.createTempFile("yt-activity-signals-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->
             out.putNextEntry(ZipEntry("Takeout/Mon activité/YouTube/MonActivité.html"))
-            out.write("""
-                <html><body>
-                Vous vous êtes abonné à <a href="https://www.youtube.com/channel/UC999">Channel Name</a><br>
-                Vous avez aimé <a href="https://www.youtube.com/watch?v=like123">A video</a><br>
-                A aimé <a href="https://www.youtube.com/watch?v=like456">Another video</a><br>
-                Beğendiniz <a href="https://www.youtube.com/watch?v=like789">Turkish video</a><br>
-                </body></html>
-            """.trimIndent().toByteArray())
+            out.write("<html><body>$html</body></html>".toByteArray())
             out.closeEntry()
         }
         return zip
