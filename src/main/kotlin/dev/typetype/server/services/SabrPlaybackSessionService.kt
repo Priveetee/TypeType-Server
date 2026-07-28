@@ -85,7 +85,7 @@ internal class SabrPlaybackSessionService(
             video = video,
             startTimeMs = playerTimeMs,
             audioOnly = audioOnly,
-            isLive = source.expectsLive() || prepared.isLive || prepared.isLiveContent,
+            isLive = source.expectsLive() || prepared.isLive,
             initialGeneration = source.nextReplacementGeneration(),
         )
     }
