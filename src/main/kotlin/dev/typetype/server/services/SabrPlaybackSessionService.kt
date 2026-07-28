@@ -35,7 +35,7 @@ internal class SabrPlaybackSessionService(
             audioOnly = audioOnly,
             initialGeneration = initialGeneration,
         )
-        if (isLive || prepared.isLive || prepared.isLiveContent) holder.markExpectedLive()
+        if (isLive || prepared.isLive) holder.markExpectedLive()
         if (holder.expectsLive()) {
             holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
             holder.session.streamState.setSelectVideoFormatBeforeAudio(!audioOnly)
