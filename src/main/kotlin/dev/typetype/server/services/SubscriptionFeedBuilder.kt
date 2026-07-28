@@ -26,7 +26,7 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
                 }
             }
         }.map { it.await() }
-        val videos = outcomes.flatMap { it.videos }.deduplicated().sortedWith(FEED_ORDER)
+        val videos = outcomes.flatMap { it.videos }.deduplicated()
         SubscriptionFeedBuildResult(
             videos = videos,
             successfulSources = outcomes.sumOf { it.successfulSources },
@@ -64,13 +64,11 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
 
     private fun List<VideoItem>.deduplicated(): List<VideoItem> = buildMap<String, VideoItem> {
         this@deduplicated.forEach { video ->
-            val key = video.feedKey()
+            val key = video.subscriptionFeedKey()
             val current = get(key)
             if (current == null || video.isLive && !current.isLive) put(key, video)
         }
     }.values.toList()
-
-    private fun VideoItem.feedKey(): String = url.ifBlank { id.ifBlank { "$uploaderUrl|$title" } }
 
     private fun String.toLivestreamsTabUrl(): String {
         val uri = URI(this)
@@ -95,8 +93,6 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
         private const val MAX_CONCURRENT_FETCHES = 20
         private const val CHANNEL_TIMEOUT_MS = 15_000L
         private val YOUTUBE_CHANNEL_TABS = setOf("featured", "videos", "shorts", "streams", "playlists", "community", "about")
-        private val FEED_ORDER = compareByDescending<VideoItem> { it.isLive }
-            .thenByDescending { if (it.uploaded < 0L) Long.MIN_VALUE else it.uploaded }
     }
 }
 

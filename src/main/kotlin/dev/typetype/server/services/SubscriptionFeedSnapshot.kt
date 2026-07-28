@@ -12,6 +12,7 @@ internal data class SubscriptionFeedSnapshot(
     val generatedAt: Long,
     val stale: Boolean,
     val videos: List<VideoItem>,
+    val livePromotedAt: Map<String, Long> = emptyMap(),
 )
 
 @Serializable

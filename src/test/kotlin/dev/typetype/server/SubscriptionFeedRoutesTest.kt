@@ -103,7 +103,7 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
-    fun `ready feed sorts live first and unknown dates last`() = withApp {
+    fun `ready feed promotes a newly observed live and keeps unknown dates last`() = withApp {
         val channelUrl = "https://www.youtube.com/channel/UC1"
         subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
         coEvery { channelService.getChannel(channelUrl, null) } returns channel(

@@ -27,6 +27,7 @@ class SubscriptionFeedService(
 ) {
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
     private val builder = SubscriptionFeedBuilder(channelService)
+    private val orderer = SubscriptionFeedOrderer()
     private val refreshJobs = ConcurrentHashMap<String, Job>()
     private val generation = AtomicLong(clock())
 
@@ -129,8 +130,16 @@ class SubscriptionFeedService(
             )
             return false
         }
+        val refreshedAt = clock()
+        val ordering = orderer.order(result.videos, previous, refreshedAt)
         val nextGeneration = generation.updateAndGet { maxOf(it + 1, clock(), (previous?.generation ?: 0L) + 1) }
-        val snapshot = SubscriptionFeedSnapshot(nextGeneration, clock(), stale = false, result.videos)
+        val snapshot = SubscriptionFeedSnapshot(
+            generation = nextGeneration,
+            generatedAt = refreshedAt,
+            stale = false,
+            videos = ordering.videos,
+            livePromotedAt = ordering.livePromotedAt,
+        )
         runCatching { store.publish(userId, snapshot) }.onFailure {
             logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)
             return false
@@ -141,7 +150,7 @@ class SubscriptionFeedService(
         }
         logger.info(
             "subscription_feed event=refresh_completed user={} requestId={} generation={} videos={} failedSources={} durationMs={}",
-            userKey(userId), requestId ?: "none", nextGeneration, result.videos.size, result.failedSources, clock() - startedAt,
+            userKey(userId), requestId ?: "none", nextGeneration, ordering.videos.size, result.failedSources, clock() - startedAt,
         )
         return false
     }

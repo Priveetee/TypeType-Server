@@ -46,6 +46,18 @@ class SubscriptionFeedSnapshotStoreTest {
         assertEquals(86_400L, cache.ttls[SubscriptionFeedCacheKeys.feed("user")])
     }
 
+    @Test
+    fun `snapshot without live promotion metadata remains readable`() = runTest {
+        val cache = RecordingCache()
+        val raw = """
+            {"generation":1,"generatedAt":1000,"stale":false,"videos":[]}
+        """.trimIndent()
+        cache.set(SubscriptionFeedCacheKeys.feed("user"), raw, 60)
+        val store = SubscriptionFeedSnapshotStore(cache) { 10_000L }
+
+        assertEquals(emptyMap<String, Long>(), store.current("user")?.livePromotedAt)
+    }
+
     private class RecordingCache : CacheService {
         val values = mutableMapOf<String, String>()
         val ttls = mutableMapOf<String, Long>()
