@@ -8,8 +8,22 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.core.SortOrder
 
 class ProgressService {
+
+    suspend fun getAll(userId: String): List<ProgressItem> = DatabaseFactory.query {
+        ProgressTable.selectAll()
+            .where { ProgressTable.userId eq userId }
+            .orderBy(ProgressTable.updatedAt to SortOrder.DESC)
+            .map {
+                ProgressItem(
+                    videoUrl = it[ProgressTable.videoUrl],
+                    position = it[ProgressTable.position],
+                    updatedAt = it[ProgressTable.updatedAt],
+                )
+            }
+    }
 
     suspend fun get(userId: String, videoUrl: String): ProgressItem? = DatabaseFactory.query {
         ProgressTable.selectAll()
