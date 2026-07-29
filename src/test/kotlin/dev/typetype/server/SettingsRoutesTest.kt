@@ -60,6 +60,7 @@ class SettingsRoutesTest {
         assertTrue(body.contains("\"volume\":1.0"))
         assertTrue(body.contains("\"muted\":false"))
         assertTrue(body.contains("\"defaultLandingPage\":\"home\""))
+        assertTrue(body.contains("\"defaultPlaybackSpeed\":1.0"))
     }
 
     @Test
@@ -115,5 +116,18 @@ class SettingsRoutesTest {
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody("""not json""")
         }.status)
+    }
+
+    @Test
+    fun `PUT settings persists and bounds default playback speed`() = withApp {
+        client.put("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"defaultPlaybackSpeed":8.0}""")
+        }
+        val body = client.get("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        assertTrue(body.contains("\"defaultPlaybackSpeed\":4.0"))
     }
 }

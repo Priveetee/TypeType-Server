@@ -19,6 +19,7 @@ private val CAPTION_STYLES_SERIALIZER = CaptionStylesItem.serializer()
 internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultService = this[SettingsTable.defaultService],
     defaultQuality = this[SettingsTable.defaultQuality],
+    defaultPlaybackSpeed = this[SettingsTable.defaultPlaybackSpeed],
     defaultLandingPage = this[SettingsTable.defaultLandingPage],
     autoplay = this[SettingsTable.autoplay],
     skipPlaylistAutoplayScreen = this[SettingsTable.skipPlaylistAutoplayScreen],
@@ -55,6 +56,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
 internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.defaultService] = settings.defaultService
     this[SettingsTable.defaultQuality] = settings.defaultQuality
+    this[SettingsTable.defaultPlaybackSpeed] = settings.defaultPlaybackSpeed
     this[SettingsTable.defaultLandingPage] = settings.defaultLandingPage
     this[SettingsTable.autoplay] = settings.autoplay
     this[SettingsTable.skipPlaylistAutoplayScreen] = settings.skipPlaylistAutoplayScreen
@@ -92,6 +94,8 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
 
 internal fun SettingsItem.normalized(): SettingsItem = copy(
     defaultLandingPage = defaultLandingPage.ifBlank { "home" },
+    defaultPlaybackSpeed = defaultPlaybackSpeed.takeIf { it.isFinite() }
+        ?.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED) ?: 1.0,
     accessMode = accessMode.toAccessMode(),
     sponsorBlockCategoryActions = sponsorBlockCategoryActions.withDefaultSponsorBlockCategoryActions(),
     sponsorBlockMinimumDuration = sponsorBlockMinimumDuration.coerceAtLeast(0),
@@ -101,6 +105,8 @@ internal fun SettingsItem.normalized(): SettingsItem = copy(
 )
 
 private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
+private const val MIN_PLAYBACK_SPEED = 0.25
+private const val MAX_PLAYBACK_SPEED = 4.0
 private val DEARROW_THUMBNAIL_MODES = setOf("original", "dearrow", "random", "dearrow_or_random")
 private val DEARROW_TRUST_MODES = setOf("accepted", "locked")
 
