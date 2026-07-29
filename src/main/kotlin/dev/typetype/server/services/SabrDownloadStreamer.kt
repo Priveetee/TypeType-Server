@@ -3,6 +3,8 @@ package dev.typetype.server.services
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -10,7 +12,10 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.io.OutputStream
 
-internal class SabrDownloadStreamer(private val store: SabrSessionStore) {
+internal class SabrDownloadStreamer(
+    private val store: SabrSessionStore,
+    private val pumpTimeoutMs: Long = PUMP_TIMEOUT_MS,
+) {
     private val localization = Localization("en", "US")
     private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery(store::refreshVideoPoToken)
 
@@ -135,12 +140,17 @@ internal class SabrDownloadStreamer(private val store: SabrSessionStore) {
         playerTimeMs: Long,
         target: SabrSegmentRequest,
     ): Int {
-        return runInterruptible(Dispatchers.IO) {
-            holder.withPlayerContext {
-                prepareForForwardJump(target, playerTimeMs.coerceAtLeast(0L))
-                pumpOnceStreamingUntilCached(localization, target)
+        val pumped = withContext(Dispatchers.IO) {
+            withTimeoutOrNull(pumpTimeoutMs) {
+                runInterruptible {
+                    holder.withPlayerContext {
+                        prepareForForwardJump(target, playerTimeMs.coerceAtLeast(0L))
+                        pumpOnceStreamingUntilCached(localization, target)
+                    }
+                }
             }
-        }.also { unauthorizedRecovery.verify(holder) }
+        } ?: throw IOException("SABR download upstream pump timed out")
+        return pumped.also { unauthorizedRecovery.verify(holder) }
     }
 
     private fun complete(holder: SabrSessionHolder, tracks: List<DownloadTrack>): Boolean =
@@ -180,5 +190,6 @@ internal class SabrDownloadStreamer(private val store: SabrSessionStore) {
         const val MAX_EMPTY_ROUNDS = 12
         const val EMPTY_ROUND_DELAY_MS = 50L
         const val MAX_SESSION_CACHE_BYTES = 64L * 1024 * 1024
+        const val PUMP_TIMEOUT_MS = 30_000L
     }
 }

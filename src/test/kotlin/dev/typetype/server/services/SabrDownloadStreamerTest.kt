@@ -7,6 +7,7 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
@@ -14,6 +15,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 class SabrDownloadStreamerTest {
     @Test
@@ -167,6 +169,54 @@ class SabrDownloadStreamerTest {
         )
 
         verify { session.prepareForForwardJump(match { it.sequenceNumber == 5 }, 50) }
+    }
+
+    @Test
+    fun `fails when an upstream pump stops responding`() = runTest {
+        val store = mockk<SabrSessionStore>()
+        val holder = mockk<SabrSessionHolder>()
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        val audio = format(140)
+        every { holder.session } returns session
+        every { holder.audioFormat } returns audio
+        every { holder.isAudioActive() } returns true
+        every { holder.isVideoActive() } returns false
+        every { holder.key } returns SabrSessionKey(
+            "video",
+            "user",
+            140,
+            null,
+            137,
+            0,
+            SabrSessionPurpose.DOWNLOAD,
+        )
+        every { holder.playerContextToken } returns null
+        every { store.initCache } returns null
+        every { session.streamState } returns state
+        every { state.poToken } returns null
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 0) } returns 1
+        every { state.getSegmentStartMs(audio, 1) } returns 0
+        every { state.isComplete(audio) } returns false
+        every { session.isBeyondEnd(any()) } returns false
+        every { session.cachedBytes } returns 0
+        every { session.getCachedSegment(any()) } returns null
+        every { session.discardCachedSegment(any()) } returns Unit
+        every { session.prepareForForwardJump(any(), any()) } returns Unit
+        every { session.pumpOnceStreamingUntilCached(any(), any()) } answers {
+            Thread.sleep(10_000)
+            0
+        }
+        coEvery { store.fetchInitializationData(holder, audio) } returns byteArrayOf(1, 2)
+
+        val error = try {
+            SabrDownloadStreamer(store, pumpTimeoutMs = 25).stream(holder, ByteArrayOutputStream())
+            null
+        } catch (caught: IOException) {
+            caught
+        }
+
+        assertEquals("SABR download upstream pump timed out", error?.message)
     }
 
     private fun format(itag: Int): YoutubeSabrFormat = mockk {
