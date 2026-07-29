@@ -6,18 +6,28 @@ internal class SabrUnauthorizedResponseRecovery(
     private val refreshPoToken: (String) -> SabrTokenBundle?,
 ) {
     fun verify(holder: SabrSessionHolder): Unit {
-        val response = holder.session.diagnosticTrace.substringAfterLast("response n=", missingDelimiterValue = "")
-        if (!response.contains(" http=403 ")) return
-        if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized()
-        val refreshed = refreshPoToken(holder.key.videoId) ?: throw unauthorized()
+        val status = latestUnauthorizedStatus(holder.session.diagnosticTrace) ?: return
+        if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized(status)
+        val refreshed = refreshPoToken(holder.key.videoId) ?: throw unauthorized(status)
         val token = refreshed.streamingPoTokenBytesFor(holder.info)
             ?.takeUnless { holder.session.streamState.poToken?.contentEquals(it) == true }
-            ?: throw unauthorized()
+            ?: throw unauthorized(status)
         holder.playerContextToken = refreshed
         holder.session.streamState.setPoToken(token)
-        holder.session.addDiagnosticEvent("upstream 403 refreshed TypeType PO token")
+        holder.session.addDiagnosticEvent("upstream $status refreshed TypeType PO token")
     }
 
-    private fun unauthorized(): SabrRecoverableException =
-        SabrRecoverableException("SABR upstream unauthorized HTTP 403 after TypeType token refresh")
+    private fun unauthorized(status: Int): SabrRecoverableException =
+        SabrRecoverableException("SABR upstream unauthorized HTTP $status after TypeType token refresh")
+
+    companion object {
+        fun latestUnauthorizedStatus(trace: String): Int? {
+            val response = trace.substringAfterLast("response n=", missingDelimiterValue = "")
+            return when {
+                response.contains(" http=401 ") -> 401
+                response.contains(" http=403 ") -> 403
+                else -> null
+            }
+        }
+    }
 }
