@@ -42,6 +42,10 @@ paths:
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
+  /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
+  /restore/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeRestore }
+  /blocked/keywords: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeywords }
+  /blocked/keywords/{keyword}: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeyword }
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
@@ -129,6 +133,9 @@ components:
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
+    TypeTypeBackupItem: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeBackupItem }
+    TypeTypeRestoreSummary: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeRestoreSummary }
+    BlockedKeywordItem: { $ref: ./openapi/components/user-backup.yaml#/BlockedKeywordItem }
     AdminSettingsItem: { $ref: ./openapi/components/access-control.yaml#/AdminSettingsItem }
     AllowedChannelItem: { $ref: ./openapi/components/access-control.yaml#/AllowedChannelItem }
     CommentsPageResponse: { $ref: ./openapi/components/media.yaml#/CommentsPageResponse }

@@ -1,0 +1,71 @@
+BlockedKeywordItem:
+  type: object
+  required: [keyword]
+  properties:
+    keyword: { type: string, minLength: 1, maxLength: 100 }
+    blockedAt: { type: integer, format: int64, default: 0 }
+    global: { type: boolean, nullable: true }
+TypeTypeContentFiltersBackup:
+  type: object
+  properties:
+    blockedChannels:
+      type: array
+      items: { type: object, additionalProperties: true }
+    blockedVideos:
+      type: array
+      items: { type: object, additionalProperties: true }
+    blockedKeywords:
+      type: array
+      items: { $ref: '#/BlockedKeywordItem' }
+    allowedChannels:
+      type: array
+      items: { $ref: ./access-control.yaml#/AllowedChannelItem }
+    allowedPlaylists:
+      type: array
+      items: { $ref: ./access-control.yaml#/AllowedPlaylistItem }
+TypeTypeBackupItem:
+  type: object
+  required: [format, version, exportedAt, categories]
+  properties:
+    format: { type: string, enum: [typetype-backup] }
+    version: { type: integer, enum: [1] }
+    exportedAt: { type: integer, format: int64 }
+    categories:
+      type: array
+      uniqueItems: true
+      items:
+        type: string
+        enum:
+          - subscriptions
+          - history
+          - playlists
+          - watchLater
+          - favorites
+          - progress
+          - searchHistory
+          - savedPlaylists
+          - settings
+          - contentFilters
+    subscriptions: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    history: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    playlists: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    watchLater: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    favorites: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    progress: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    searchHistory: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    savedPlaylists: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    settings:
+      allOf:
+        - { $ref: ./access-control.yaml#/SettingsItem }
+      nullable: true
+    contentFilters:
+      allOf:
+        - { $ref: '#/TypeTypeContentFiltersBackup' }
+      nullable: true
+TypeTypeRestoreSummary:
+  type: object
+  required: [restored]
+  properties:
+    restored:
+      type: object
+      additionalProperties: { type: integer, minimum: 0 }
