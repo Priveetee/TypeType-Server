@@ -1,4 +1,4 @@
 services:
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.39.0
     platform: linux/arm64

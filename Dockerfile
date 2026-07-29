@@ -14,7 +14,9 @@ COPY src/ ./src/
 RUN ./gradlew shadowJar --no-daemon -q -PappVersion="$APP_VERSION"
 
 FROM eclipse-temurin:25-jre-alpine AS runner
-RUN addgroup -S typetype && adduser -S typetype -G typetype
+RUN apk upgrade --no-cache \
+    && addgroup -S typetype \
+    && adduser -S typetype -G typetype
 WORKDIR /app
 COPY --from=builder /app/build/libs/typetype-server-all.jar app.jar
 USER typetype

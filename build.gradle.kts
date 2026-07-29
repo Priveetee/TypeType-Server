@@ -1,8 +1,8 @@
 import java.time.Instant
 
 plugins {
-    kotlin("jvm") version "2.4.0"
-    kotlin("plugin.serialization") version "2.4.0"
+    kotlin("jvm") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.10"
     id("io.ktor.plugin") version "3.5.1"
     id("jacoco")
 }
@@ -25,6 +25,8 @@ repositories {
 }
 
 dependencies {
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
+    implementation(platform("io.netty:netty-bom:4.2.16.Final"))
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
@@ -35,20 +37,20 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
-    implementation("ch.qos.logback:logback-classic:1.5.38")
+    implementation("ch.qos.logback:logback-classic:1.6.1")
     implementation("com.github.Priveetee.PipePipeExtractor:extractor:21ab9b6ac415d23ef88df19c5ad126c7952bb543")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
-    implementation("org.json:json:20260522")
+    implementation("org.json:json:20260719")
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.3.1")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.1")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
-    implementation("org.xerial:sqlite-jdbc:3.53.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.2.1")
     implementation("com.password4j:password4j:1.8.4")
-    implementation("com.auth0:java-jwt:4.5.2")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.1")
+    implementation("com.auth0:java-jwt:4.6.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
@@ -112,7 +114,7 @@ tasks.test {
 }
 
 jacoco {
-    toolVersion = "0.8.14"
+    toolVersion = "0.8.15"
 }
 
 tasks.jacocoTestReport {

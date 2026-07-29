@@ -104,7 +104,7 @@ services:
         fi
     restart: "no"
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.39.0
     ulimits: { memlock: -1 }
     restart: unless-stopped
   garage:
