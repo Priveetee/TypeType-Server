@@ -32,7 +32,10 @@ internal class TypetypeTokenYoutubeSessionClient(
         session.toSabrInfo(videoId)
     }
 
-    suspend fun fetchPlaybackSession(videoId: String): TokenYoutubeSession? = fetchSession(videoId)?.let { session ->
+    suspend fun fetchPlaybackSession(
+        videoId: String,
+        isolated: Boolean = false,
+    ): TokenYoutubeSession? = fetchSession(videoId, isolated)?.let { session ->
         session.toPlaybackSession(videoId)
     }
 
@@ -60,9 +63,10 @@ internal class TypetypeTokenYoutubeSessionClient(
         )
     }
 
-    private suspend fun fetchSession(videoId: String): JSONObject? {
+    private suspend fun fetchSession(videoId: String, isolated: Boolean = false): JSONObject? {
         val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
-        val url = "${tokenServiceUrl.trimEnd('/')}/youtube/sabr/session?videoId=$encodedVideoId&client=MWEB"
+        val url = "${tokenServiceUrl.trimEnd('/')}/youtube/sabr/session?videoId=$encodedVideoId&client=MWEB" +
+            if (isolated) "&isolated=true" else ""
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(Request.Builder().url(url).get().build())
             continuation.invokeOnCancellation { call.cancel() }

@@ -37,6 +37,26 @@ class TypetypeTokenYoutubeSessionClientTest {
     }
 
     @Test
+    fun `requests isolated playback material for download sessions`() = runTest {
+        var isolated: String? = null
+        val httpClient = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+            isolated = chain.request().url.queryParameter("isolated")
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("{}".toResponseBody())
+                .build()
+        }).build()
+
+        TypetypeTokenYoutubeSessionClient("https://token.example", httpClient)
+            .fetchPlaybackSession("video-id", isolated = true)
+
+        assertEquals("true", isolated)
+    }
+
+    @Test
     fun `reconstructs pipepipe sabr info from token session`() = runTest {
         val body = """
             {

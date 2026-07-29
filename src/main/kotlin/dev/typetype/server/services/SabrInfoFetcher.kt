@@ -22,8 +22,13 @@ internal class SabrInfoFetcher(
         videoId: String,
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
+        isolatedPlayback: Boolean = false,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
         val startedAt = System.currentTimeMillis()
+        if (isolatedPlayback) {
+            return@withContext fetchInfoOnce(videoId, startTimeMs, isolatedPlayback = true)
+                ?.also { logFetch(videoId, startTimeMs, startedAt, "isolated_network") }
+        }
         if (cachedFirst) repository.local(videoId, startTimeMs)?.let {
             logFetch(videoId, startTimeMs, startedAt, "cache")
             return@withContext it
@@ -66,9 +71,13 @@ internal class SabrInfoFetcher(
     private suspend fun fetchPlayable(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
         fetchInfoOnce(videoId, startTimeMs)?.let { repository.putPrepared(videoId, startTimeMs, it) }
 
-    private suspend fun fetchInfoOnce(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
+    private suspend fun fetchInfoOnce(
+        videoId: String,
+        startTimeMs: Long,
+        isolatedPlayback: Boolean = false,
+    ): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
-            val tokenSession = sessionClient?.fetchPlaybackSession(videoId)
+            val tokenSession = sessionClient?.fetchPlaybackSession(videoId, isolatedPlayback)
             tokenSession?.token
                 ?.takeIf { it.visitorData == tokenSession.info.visitorData }
                 ?.let { sessionToken ->

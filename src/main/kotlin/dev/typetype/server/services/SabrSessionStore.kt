@@ -52,10 +52,9 @@ internal class SabrSessionStore(
         audioOnly: Boolean = false,
         initialGeneration: Long = 0L,
     ): SabrSessionHolder {
-        val playbackToken = if (purpose == SabrSessionPurpose.PLAYBACK) {
-            SabrSessionTokenGenerator.newToken()
-        } else {
-            null
+        val sessionToken = SabrSessionTokenGenerator.newToken()
+        val isolatedSourceId = sessionToken.takeIf {
+            purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.DOWNLOAD
         }
         val key = SabrSessionKey(
             videoId,
@@ -66,23 +65,24 @@ internal class SabrSessionStore(
             startTimeMs.coerceAtLeast(0L),
             purpose,
             audioOnly,
-            playbackToken,
+            isolatedSourceId,
         )
         registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
-        val session = YoutubeSabrSession(info, audioFormat, videoFormat, provider)
+        val sessionInfo = if (isolatedSourceId == null) info else SabrSessionIdentity.fresh(info)
+        val session = YoutubeSabrSession(sessionInfo, audioFormat, videoFormat, provider)
         val normalizedStartTimeMs = startTimeMs.coerceAtLeast(0L)
         session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
-        runCatching { provider.getPoToken(info, session.streamState) }
+        runCatching { provider.getPoToken(sessionInfo, session.streamState) }
             .getOrNull()
             ?.let { session.streamState.setPoToken(it) }
         val holder = SabrSessionHolder(
             session,
-            info,
+            sessionInfo,
             audioFormat,
             videoFormat,
-            playbackToken ?: SabrSessionTokenGenerator.newToken(),
+            sessionToken,
             key,
             Instant.now(),
             initialToken,
@@ -151,12 +151,16 @@ internal class SabrSessionStore(
         videoId: String,
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
-    ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst)
+        isolatedPlayback: Boolean = false,
+    ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst, isolatedPlayback)
 
     internal suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
         infoFetcher.rememberExtractedInfo(videoId, info)
 
     internal suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
+
+    internal fun refreshVideoPoToken(videoId: String): SabrTokenBundle? =
+        tokenClient.fetch(videoId, refreshVideo = true)
 
     internal suspend fun fetchSegment(
         holder: SabrSessionHolder,
