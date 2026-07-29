@@ -1,0 +1,56 @@
+SabrDownload:
+  get:
+    tags: [playback]
+    summary: Stream selected YouTube SABR tracks for the Downloader
+    operationId: streamSabrDownload
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: videoId
+        required: true
+        schema: { type: string }
+      - in: query
+        name: audioItag
+        required: true
+        schema: { type: integer }
+      - in: query
+        name: videoItag
+        schema: { type: integer }
+      - in: query
+        name: audioTrackId
+        schema: { type: string }
+      - in: query
+        name: audioOnly
+        schema: { type: boolean, default: false }
+      - in: query
+        name: part
+        description: Zero-based temporal part to stream
+        schema: { type: integer, minimum: 0, default: 0 }
+      - in: query
+        name: parts
+        description: Number of independent SABR parts
+        schema: { type: integer, minimum: 1, maximum: 12, default: 1 }
+    responses:
+      '200':
+        description: Ordered framed SABR track stream
+        content:
+          application/vnd.typetype.sabr-download:
+            schema:
+              type: string
+              format: binary
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/ErrorResponse }
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/ErrorResponse }
+      '422':
+        description: SABR preparation failed
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/ErrorResponse }

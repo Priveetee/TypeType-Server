@@ -25,6 +25,7 @@ paths:
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }
   /streams/audio-only: { $ref: ./openapi/paths/streams.yaml#/AudioOnly }
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
+  /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
   /sabr/playback/{sessionId}/prefetch: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPrefetch }

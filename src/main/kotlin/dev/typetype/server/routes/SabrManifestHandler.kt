@@ -29,9 +29,17 @@ internal class SabrManifestHandler(
     private val audioOnlyTokenService: AudioOnlyMediaTokenService?,
 ) {
     private val accessResolver = SabrManifestAccessResolver(audioOnlyTokenService)
+    private val responder = SabrManifestResponder(sabrSessionStore)
 
-    suspend fun handle(call: ApplicationCall, videoId: String) {
+    suspend fun handle(call: ApplicationCall, videoId: String, download: Boolean = false) {
         val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
+        val downloadRange = if (download) {
+            call.sabrDownloadRange().getOrElse {
+                return call.respond(HttpStatusCode.BadRequest, ErrorResponse(it.message ?: "Invalid download range"))
+            }
+        } else {
+            null
+        }
         val hls = call.request.queryParameters["format"].equals("hls", ignoreCase = true)
         val playlist = call.request.queryParameters["playlist"]
         val sessionToken = call.request.queryParameters["session"]
@@ -39,10 +47,12 @@ internal class SabrManifestHandler(
             return handleHlsPlaylist(call, videoId, playlist)
         }
         if (sessionToken != null) {
+            if (download) {
+                return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Download streams require a new SABR session"))
+            }
             val holder = sabrSessionStore.lookupByToken(videoId, sessionToken)
                 ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR session for this request"))
-            sabrSessionStore.startPump(holder)
-            return call.respondSabrManifest(holder, videoId, audioOnly, hls)
+            return responder.respond(call, holder, videoId, audioOnly, hls, download = false)
         }
         val manifestAccess = accessResolver.resolve(call, videoId) ?: return
         val access = when (manifestAccess) {
@@ -64,10 +74,15 @@ internal class SabrManifestHandler(
                     return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             }
         }
-        val startTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
+        val requestedStartTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: call.request.queryParameters["startTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: 0L
-        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
+        val prepared = sabrSessionStore.fetchInfo(
+            videoId,
+            if (downloadRange == null) requestedStartTimeMs else 0L,
+            cachedFirst = !download,
+            isolatedPlayback = download,
+        )
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audioToken = (manifestAccess as? SabrManifestAccess.AudioOnlyToken)?.token
         val audio = SabrFormatSelector.audio(
@@ -88,13 +103,26 @@ internal class SabrManifestHandler(
                 HttpStatusCode.UnprocessableEntity,
                 ErrorResponse("No SABR video for this video"),
             )
+        val startTimeMs = downloadRange?.startTimeMs(audio, video, audioOnly) ?: requestedStartTimeMs
         val userId = audioToken?.userId ?: access?.userId ?: videoId
-        val purpose = if (call.request.queryParameters["workload"] == "download") {
+        val purpose = if (download || call.request.queryParameters["workload"] == "download") {
             SabrSessionPurpose.DOWNLOAD
         } else {
             SabrSessionPurpose.MANIFEST
         }
         val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs, purpose, audioOnly)
+        if (download) {
+            holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
+            return responder.respond(
+                call,
+                holder,
+                videoId,
+                audioOnly,
+                hls = false,
+                download = true,
+                downloadRange = downloadRange,
+            )
+        }
         if (audioOnly) {
             holder.setActiveTracks(videoActive = false, audioActive = true)
             sabrSessionStore.ensureWarmed(holder)
@@ -103,11 +131,9 @@ internal class SabrManifestHandler(
             if (readyHolder == null) {
                 return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR preflight failed"))
             }
-            sabrSessionStore.startPump(readyHolder)
-            return call.respondSabrManifest(readyHolder, videoId, audioOnly, hls)
+            return responder.respond(call, readyHolder, videoId, audioOnly, hls, download = false)
         }
-        sabrSessionStore.startPump(holder)
-        call.respondSabrManifest(holder, videoId, audioOnly, hls)
+        responder.respond(call, holder, videoId, audioOnly, hls, download = false)
     }
 
     private suspend fun preflightOrRecreate(
