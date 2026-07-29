@@ -37,6 +37,7 @@ internal fun Route.userDataRoutes(
     accountIdentityRoutes(svc.accountIdentityService, authService)
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
+    typeTypeBackupRoutes(svc.typeTypeBackupService, authService)
     homeRecommendationRoutes(svc.homeRecommendationService, authService, svc.accessControlService)
     homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.accessControlService)
 }
