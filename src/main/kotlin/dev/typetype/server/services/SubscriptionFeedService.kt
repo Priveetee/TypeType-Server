@@ -122,7 +122,7 @@ class SubscriptionFeedService(
         val subscriptions = subscriptionsService.getAll(userId)
         val result = builder.build(subscriptions)
         if (store.invalidationToken(userId) != invalidation) return true
-        val valid = result.failedSources == 0 || previous == null && result.successfulSources > 0 || subscriptions.isEmpty()
+        val valid = result.successfulSources > 0 || subscriptions.isEmpty()
         if (!valid) {
             logger.warn(
                 "subscription_feed event=refresh_kept_previous user={} durationMs={} failedSources={}",
