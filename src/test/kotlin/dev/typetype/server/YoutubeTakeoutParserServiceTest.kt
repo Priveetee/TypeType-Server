@@ -102,6 +102,41 @@ class YoutubeTakeoutParserServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse preserves favorite dates from video added timestamp header`() {
+        val zip = Files.createTempFile("yt-takeout-favorite-order-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("Takeout/YouTube/playlists/Liked videos.csv"))
+            out.write(
+                "Video ID,Video Added Timestamp\nnewer000001,2026-01-02T00:00:00Z\nolder000001,2026-01-01T00:00:00Z\n"
+                    .toByteArray(),
+            )
+            out.closeEntry()
+        }
+
+        val favorites = YoutubeTakeoutParserService().parse(zip).favorites
+
+        assertEquals(listOf("newer000001", "older000001"), favorites.map { it.videoUrl.substringAfter("v=") })
+        assertEquals(listOf(1_767_312_000_000L, 1_767_225_600_000L), favorites.map { it.favoritedAt })
+        Files.deleteIfExists(zip)
+    }
+
+    @Test
+    fun `parse preserves favorite dates from a localized timestamp header`() {
+        val zip = Files.createTempFile("yt-takeout-localized-favorite-order-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("Takeout/YouTube/playlists/Liked videos.csv"))
+            out.write("Video ID,Ajoutee a la playlist\nvideo000001,2026-01-03T00:00:00Z\n".toByteArray())
+            out.closeEntry()
+        }
+
+        val favorite = YoutubeTakeoutParserService().parse(zip).favorites.single()
+
+        assertEquals("video000001", favorite.videoUrl.substringAfter("v="))
+        assertEquals(1_767_398_400_000L, favorite.favoritedAt)
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(): Path {
         val zip = Files.createTempFile("yt-takeout-parser-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->

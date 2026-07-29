@@ -49,7 +49,9 @@ object YoutubeTakeoutRowParser {
         val duration = values.pickExact("duration")?.toLongOrNull() ?: 0L
         val position = values.pickExact("position")?.toIntOrNull() ?: 0
         val addedAt = values.pickHeader(YoutubeTakeoutSchemaHints::isPlaylistItemAddedAtHeader)
-            ?.let { YoutubeTakeoutDateParser.parseEpochMillis(it) }
+            ?.let(YoutubeTakeoutDateParser::parseEpochMillis)
+            ?: values.pickValue { YoutubeTakeoutDateParser.parseEpochMillis(it) != null }
+                ?.let(YoutubeTakeoutDateParser::parseEpochMillis)
             ?: 0L
         return playlistKey to PlaylistVideoItem(
             url = videoUrl,
