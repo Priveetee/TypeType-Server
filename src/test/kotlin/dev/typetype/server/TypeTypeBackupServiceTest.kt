@@ -83,7 +83,7 @@ class TypeTypeBackupServiceTest {
         playlists.addVideo(SOURCE, playlist.id, playlistVideo())
         watchLater.add(SOURCE, watchLaterItem())
         favorites.add(SOURCE, FavoriteItem(videoUrl = VIDEO_URL, title = "Favorite"))
-        progress.upsert(SOURCE, VIDEO_URL, 42)
+        progress.upsert(SOURCE, VIDEO_URL, 90_000)
         searchHistory.add(SOURCE, "kotlin")
         savedPlaylists.save(
             SOURCE,
@@ -103,6 +103,7 @@ class TypeTypeBackupServiceTest {
 
         val backup = service.export(SOURCE, TypeTypeBackupCategory.all)
         assertFalse(backup.contentFilters.orEmptyKeywords().contains("global policy"))
+        assertEquals(90, backup.history?.single()?.progress)
         val result = service.restore(TARGET, backup)
 
         assertEquals(1, result.restored["subscriptions"])

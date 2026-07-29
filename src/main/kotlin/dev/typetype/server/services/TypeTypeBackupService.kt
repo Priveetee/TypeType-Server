@@ -34,11 +34,7 @@ class TypeTypeBackupService(
             exportedAt = System.currentTimeMillis(),
             categories = categories.map(TypeTypeBackupCategory::wireName).sorted(),
             subscriptions = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) subscriptions.getAll(userId) else null,
-            history = if (includes(TypeTypeBackupCategory.HISTORY)) {
-                history.search(userId, null, null, null, Int.MAX_VALUE, 0).first
-            } else {
-                null
-            },
+            history = if (includes(TypeTypeBackupCategory.HISTORY)) history.getAll(userId) else null,
             playlists = fullPlaylists,
             watchLater = if (includes(TypeTypeBackupCategory.WATCH_LATER)) watchLater.getAll(userId) else null,
             favorites = if (includes(TypeTypeBackupCategory.FAVORITES)) favorites.getAll(userId) else null,

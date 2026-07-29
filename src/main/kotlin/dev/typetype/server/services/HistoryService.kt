@@ -20,6 +20,14 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 
 class HistoryService {
+    suspend fun getAll(userId: String): List<HistoryItem> = DatabaseFactory.query {
+        val rows = HistoryTable.selectAll()
+            .where { HistoryTable.userId eq userId }
+            .orderBy(HistoryTable.watchedAt to SortOrder.DESC, HistoryTable.id to SortOrder.DESC)
+            .toList()
+        HistoryProgressMapper.toHistoryItemsForExport(userId, rows)
+    }
+
     suspend fun search(userId: String, q: String?, from: Long?, to: Long?, limit: Int, offset: Int): Pair<List<HistoryItem>, Long> = DatabaseFactory.query {
         val query = HistoryTable.selectAll().where { HistoryTable.userId eq userId }
         if (!q.isNullOrBlank()) {
