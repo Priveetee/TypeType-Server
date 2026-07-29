@@ -9,6 +9,7 @@ object DatabasePrimaryKeyMigrations {
         recreatePrimaryKey(table = "favorites", keyName = "favorites_pkey", columns = "user_id, video_url")
         recreatePrimaryKey(table = "watch_later", keyName = "watch_later_pkey", columns = "user_id, url")
         recreatePrimaryKey(table = "blocked_channels", keyName = "blocked_channels_pkey", columns = "user_id, channel_url")
+        recreatePrimaryKey(table = "blocked_keywords", keyName = "blocked_keywords_pkey", columns = "user_id, keyword")
         recreatePrimaryKey(table = "blocked_videos", keyName = "blocked_videos_pkey", columns = "user_id, video_url")
         recreatePrimaryKey(table = "settings", keyName = "settings_pkey", columns = "user_id")
     }

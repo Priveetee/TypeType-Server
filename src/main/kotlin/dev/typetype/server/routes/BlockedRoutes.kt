@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.BlockedItem
+import dev.typetype.server.models.BlockedKeywordItem
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
@@ -54,6 +55,33 @@ fun Route.blockedRoutes(blockedService: BlockedService, authService: AuthService
             val role = authService.getUserRole(userId) ?: "user"
             val deleted = blockedService.deleteVideo(userId, videoUrl, role)
             if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
+        }
+    }
+    get("/blocked/keywords") {
+        call.withJwtAuth(authService) { userId -> call.respond(blockedService.getKeywords(userId)) }
+    }
+    post("/blocked/keywords") {
+        call.withJwtAuth(authService) { userId ->
+            val item = runCatching { call.receive<BlockedKeywordItem>() }.getOrElse {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            }
+            val keyword = item.keyword.trim()
+            if (keyword.isEmpty() || keyword.length > 100) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Keyword must contain 1 to 100 characters"))
+            }
+            val role = authService.getUserRole(userId) ?: "user"
+            val global = (role == "admin" || role == "moderator") && item.global == true
+            call.respond(HttpStatusCode.Created, blockedService.addKeyword(userId, keyword, global))
+        }
+    }
+    delete("/blocked/keywords/{keyword...}") {
+        call.withJwtAuth(authService) { userId ->
+            val keyword = call.urlTailParameter("keyword")
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing keyword"))
+            val role = authService.getUserRole(userId) ?: "user"
+            val deleted = blockedService.deleteKeyword(userId, keyword, role)
+            if (deleted) call.respond(HttpStatusCode.NoContent)
+            else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
         }
     }
 }

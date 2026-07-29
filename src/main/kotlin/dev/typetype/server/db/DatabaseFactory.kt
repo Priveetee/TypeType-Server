@@ -3,6 +3,7 @@ package dev.typetype.server.db
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import dev.typetype.server.db.tables.BlockedChannelsTable
+import dev.typetype.server.db.tables.BlockedKeywordsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.HistoryTable
@@ -63,6 +64,7 @@ object DatabaseFactory {
                 dev.typetype.server.db.tables.AllowedPlaylistsTable,
                 SearchHistoryTable,
                 BlockedChannelsTable,
+                BlockedKeywordsTable,
                 BlockedVideosTable,
                 PasswordResetTable,
                 YoutubeTakeoutImportJobsTable,

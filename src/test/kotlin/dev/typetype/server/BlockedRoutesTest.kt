@@ -107,4 +107,31 @@ class BlockedRoutesTest {
     fun `DELETE blocked-videos returns 404 when not found`() = withApp {
         assertEquals(HttpStatusCode.NotFound, client.delete("/blocked/videos/https%3A%2F%2Fyt.com") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
     }
+
+    @Test
+    fun `blocked keywords are normalized persisted and deleted`() = withApp {
+        val created = client.post("/blocked/keywords") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"keyword":"  ClickBait  "}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status)
+        assertTrue(created.bodyAsText().contains("\"keyword\":\"clickbait\""))
+        assertTrue(client.get("/blocked/keywords") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText().contains("\"keyword\":\"clickbait\""))
+        assertEquals(HttpStatusCode.NoContent, client.delete("/blocked/keywords/clickbait") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.status)
+    }
+
+    @Test
+    fun `POST blocked keyword rejects blank values`() = withApp {
+        val response = client.post("/blocked/keywords") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"keyword":"   "}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
 }

@@ -19,12 +19,14 @@ class HomeRecommendationUserSignalService(
         }
         val blockedVideosDeferred = async { blockedService.getVideos(userId).map { it.url }.toSet() }
         val blockedChannelsDeferred = async { blockedService.getChannels(userId).map { it.url }.toSet() }
+        val blockedKeywordsDeferred = async { blockedService.getKeywords(userId).map { it.keyword }.toSet() }
         val subscriptions = subscriptionsDeferred.await()
         val favorites = favoritesDeferred.await()
         val watchLater = watchLaterDeferred.await()
         val historyItems = historyDeferred.await()
         val blockedVideos = blockedVideosDeferred.await()
         val blockedChannels = blockedChannelsDeferred.await()
+        val blockedKeywords = blockedKeywordsDeferred.await()
         val seenUrls = historyItems.map { it.url }.toSet()
         val favoriteUrls = favorites.map { it.videoUrl }.toSet()
         val watchLaterUrls = watchLater.map { it.url }.toSet()
@@ -33,6 +35,7 @@ class HomeRecommendationUserSignalService(
             seenUrls = seenUrls,
             blockedVideos = blockedVideos,
             blockedChannels = blockedChannels,
+            blockedKeywords = blockedKeywords,
             feedbackBlockedVideos = emptySet(),
             feedbackBlockedChannels = emptySet(),
             subscriptionChannels = subscriptionChannels,

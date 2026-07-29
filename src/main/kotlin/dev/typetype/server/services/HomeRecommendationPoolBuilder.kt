@@ -51,6 +51,7 @@ class HomeRecommendationPoolBuilder {
             val video = tagged.video
             if (video.url.isBlank()) return@forEach
             if (video.url in profile.seenUrls || video.url in profile.blockedVideos) return@forEach
+            if (profile.blockedKeywords.any { containsBlockedKeyword(video.title, it) }) return@forEach
             if (shortsOnly && !(video.isShortFormContent || video.duration in 1L..85L)) return@forEach
             if (video.url in profile.feedbackBlockedVideos || video.url in profile.implicitBlockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach

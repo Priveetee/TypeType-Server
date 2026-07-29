@@ -52,6 +52,19 @@ class HomeRecommendationPoolBuilderTest {
     }
 
     @Test
+    fun `pool builder excludes titles containing a blocked keyword`() {
+        val profile = profile(blockedKeywords = setOf("ＳＰＯＮＳＯＲＥＤ"))
+        val discovery = listOf(
+            tagged(video("blocked", "a", title = "A sponsored review"), HomeRecommendationSourceTag.DISCOVERY_THEME),
+            tagged(video("allowed", "b", title = "A regular review"), HomeRecommendationSourceTag.DISCOVERY_THEME),
+        )
+
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery, context)
+
+        assertEquals(listOf("https://yt.com/v/allowed"), pool.discovery.map { it.url })
+    }
+
+    @Test
     fun `pool builder keeps neutral home source weights`() {
         val profile = profile(
             subscriptionEngagement = 6.0,
