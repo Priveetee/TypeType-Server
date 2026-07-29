@@ -7,13 +7,10 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenResult
 import dev.typetype.server.services.AudioOnlyMediaTokenService
-import dev.typetype.server.services.AudioOnlyStreamKind
 import dev.typetype.server.services.AudioOnlyStreamResolver
-import dev.typetype.server.services.AudioOnlyStreamSelection
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
-import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.isYoutubeUrl
 import io.ktor.http.HttpHeaders
@@ -33,7 +30,6 @@ fun Route.audioOnlyContractRoutes(
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     proxyService: ProxyService? = null,
-    sabrAudioOnlyUnavailableReason: (suspend (String, String?, AudioOnlyStreamSelection) -> String?)? = null,
 ) {
     get("/streams/audio-only") {
         val url = call.request.queryParameters["url"]
@@ -54,15 +50,6 @@ fun Route.audioOnlyContractRoutes(
             is ExtractionResult.Success -> {
                 if (!access.profile.allowsUploader(result.data.response.uploaderUrl, result.data.response.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
-                }
-                val sabrReason = if (result.data.kind == AudioOnlyStreamKind.SabrProgressive) {
-                    sabrAudioOnlyUnavailableReason?.invoke(url, access.userId, result.data)
-                } else null
-                if (sabrReason != null) {
-                    return@get call.respond(
-                        HttpStatusCode.UnprocessableEntity,
-                        ErrorResponse(sabrReason),
-                    )
                 }
                 call.response.headers.append(HttpHeaders.CacheControl, "no-store")
                 when (val response = result.data.toResponse(
@@ -89,46 +76,29 @@ internal fun Route.audioOnlySourceRoutes(
     proxyService: ProxyService,
     tokenService: AudioOnlyMediaTokenService,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
-    sabrSessionStore: SabrSessionStore? = null,
 ) {
     head("/streams/audio-only/source") {
-        val result = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo, sabrSessionStore)
+        val result = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo)
             ?: return@head
-        if (result.result is ExtractionResult.Success && result.result.data.kind == AudioOnlyStreamKind.SabrProgressive) {
-            val store = sabrSessionStore ?: return@head call.respond(
-                HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("No audio-only stream is available"),
-            )
-            return@head call.respondSabrAudioOnlyHead(store, result.token, result.result.data)
-        }
         call.respondAudioOnlyHead(result, proxyService)
     }
     get("/streams/audio-only/source") {
-        val source = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo, sabrSessionStore)
+        val source = call.resolveAudioOnlySource(tokenService, streamService, youtubeSessionStreamInfo)
             ?: return@get
         when (val result = source.result) {
-            is ExtractionResult.Success -> when (result.data.kind) {
-                AudioOnlyStreamKind.SabrProgressive -> {
-                    val store = sabrSessionStore ?: return@get call.respond(
-                        HttpStatusCode.UnprocessableEntity,
-                        ErrorResponse("No audio-only stream is available"),
-                    )
-                    call.respondSabrAudioOnlySource(store, source.token, result.data)
-                }
-                else -> call.respondProxyResult(
-                    result = proxyService.pipe(
-                        url = result.data.stream.url,
-                        rangeHeader = proxyService.resolveAudioOnlyRangeHeader(
-                            call.request.headers,
-                            result.data.stream.url,
-                            result.data.stream.contentLength,
-                        ),
-                        domandBid = null,
-                    )
-                        .ensureProgressiveAudio(),
-                    contentTypeOverride = result.data.stream.mimeType,
+            is ExtractionResult.Success -> call.respondProxyResult(
+                result = proxyService.pipe(
+                    url = result.data.stream.url,
+                    rangeHeader = proxyService.resolveAudioOnlyRangeHeader(
+                        call.request.headers,
+                        result.data.stream.url,
+                        result.data.stream.contentLength,
+                    ),
+                    domandBid = null,
                 )
-            }
+                    .ensureProgressiveAudio(),
+                contentTypeOverride = result.data.stream.mimeType,
+            )
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
         }
@@ -139,7 +109,6 @@ private suspend fun ApplicationCall.resolveAudioOnlySource(
     tokenService: AudioOnlyMediaTokenService,
     streamService: StreamService,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
-    sabrSessionStore: SabrSessionStore?,
 ): AudioOnlySourceResolution? {
     val raw = request.queryParameters["token"]
         ?: return respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'token' parameter")).let { null }
@@ -163,7 +132,7 @@ private suspend fun ApplicationCall.resolveAudioOnlySource(
             token.preferOriginal,
             token.preferredLocale,
             allowHls = false,
-            allowSabr = sabrSessionStore != null,
+            allowSabr = false,
             selectedItag = token.selectedItag,
             selectedAudioTrackId = token.selectedAudioTrackId,
         ),
