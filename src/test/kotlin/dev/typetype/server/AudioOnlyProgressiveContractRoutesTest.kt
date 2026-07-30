@@ -5,7 +5,6 @@ import dev.typetype.server.models.ProxyResponse
 import dev.typetype.server.routes.audioOnlyContractRoutes
 import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.services.AudioOnlyMediaTokenService
-import dev.typetype.server.services.AudioOnlyStreamSelection
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.StreamService
@@ -96,7 +95,7 @@ class AudioOnlyProgressiveContractRoutesTest {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
             testStreamResponse(audioStreams = listOf(sabrAudio))
         )
-        installContractApp { _, _, _ -> "SABR audio-only body is incomplete" }
+        installContractApp()
 
         val response = client.get("/streams/audio-only?url=https://youtube.com/watch?v=test")
         val body = response.bodyAsText()
@@ -131,16 +130,13 @@ class AudioOnlyProgressiveContractRoutesTest {
         assertTrue(response.bodyAsText().contains("Audio-only source did not return progressive audio"))
     }
 
-    private fun io.ktor.server.testing.ApplicationTestBuilder.installContractApp(
-        sabrAudioOnlyUnavailableReason: (suspend (String, String?, AudioOnlyStreamSelection) -> String?)? = null,
-    ): Unit = application {
+    private fun io.ktor.server.testing.ApplicationTestBuilder.installContractApp(): Unit = application {
         install(ContentNegotiation) { json() }
         routing {
             audioOnlyContractRoutes(
                 streamService,
                 tokenService,
                 publicHlsManifestTokenService = hlsTokenService,
-                sabrAudioOnlyUnavailableReason = sabrAudioOnlyUnavailableReason,
             )
         }
     }

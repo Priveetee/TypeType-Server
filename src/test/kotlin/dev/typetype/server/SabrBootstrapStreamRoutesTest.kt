@@ -26,7 +26,6 @@ class SabrBootstrapStreamRoutesTest {
     fun `bootstrap endpoint uses isolated sabr service`() = testApplication {
         val full = mockk<StreamService>()
         val bootstrap = mockk<StreamService>()
-        var youtubeSessionCalls = 0
         coEvery { bootstrap.getStreamInfo(VIDEO_URL) } returns ExtractionResult.Success(sabrResponse())
         application {
             install(ContentNegotiation) { json() }
@@ -34,10 +33,6 @@ class SabrBootstrapStreamRoutesTest {
                 streamRoutes(
                     streamService = full,
                     authService = AuthService.fixed(TEST_USER_ID),
-                    youtubeSessionStreamInfo = { _, _ ->
-                        youtubeSessionCalls += 1
-                        ExtractionResult.Failure("unexpected session extraction")
-                    },
                     sabrBootstrapStreamService = bootstrap,
                 )
             }
@@ -49,7 +44,6 @@ class SabrBootstrapStreamRoutesTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"deliveryMethod\":\"sabr\""))
-        assertEquals(0, youtubeSessionCalls)
         coVerify(exactly = 1) { bootstrap.getStreamInfo(VIDEO_URL) }
         coVerify(exactly = 0) { full.getStreamInfo(any()) }
     }

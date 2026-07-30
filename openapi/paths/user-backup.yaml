@@ -1,0 +1,84 @@
+TypeTypeBackup:
+  get:
+    tags: [user-data]
+    summary: Export selected TypeType user data
+    parameters:
+      - name: categories
+        in: query
+        description: Comma-separated categories, or all. All categories are exported when omitted.
+        schema: { type: string, default: all }
+    responses:
+      '200':
+        description: Versioned TypeType backup
+        headers:
+          Content-Disposition:
+            schema: { type: string }
+        content:
+          application/json:
+            schema: { $ref: ../components/user-backup.yaml#/TypeTypeBackupItem }
+      '400': { description: Invalid categories }
+      '401': { description: Missing or invalid token }
+TypeTypeRestore:
+  post:
+    tags: [user-data]
+    summary: Restore categories from a TypeType backup
+    description: Each category present in the backup replaces that category for the current user.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary }
+    responses:
+      '200':
+        description: Restored item counts
+        content:
+          application/json:
+            schema: { $ref: ../components/user-backup.yaml#/TypeTypeRestoreSummary }
+      '400': { description: Invalid TypeType backup }
+      '401': { description: Missing or invalid token }
+BlockedKeywords:
+  get:
+    tags: [user-data]
+    summary: List blocked title keywords
+    responses:
+      '200':
+        description: Blocked keywords
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/user-backup.yaml#/BlockedKeywordItem }
+      '401': { description: Missing or invalid token }
+  post:
+    tags: [user-data]
+    summary: Block a title keyword
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/user-backup.yaml#/BlockedKeywordItem }
+    responses:
+      '201':
+        description: Created blocked keyword
+        content:
+          application/json:
+            schema: { $ref: ../components/user-backup.yaml#/BlockedKeywordItem }
+      '400': { description: Invalid keyword }
+      '401': { description: Missing or invalid token }
+BlockedKeyword:
+  delete:
+    tags: [user-data]
+    summary: Delete a blocked title keyword
+    parameters:
+      - name: keyword
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '204': { description: Deleted }
+      '401': { description: Missing or invalid token }
+      '404': { description: Not found }

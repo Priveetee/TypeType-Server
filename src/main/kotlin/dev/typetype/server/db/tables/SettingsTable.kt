@@ -6,6 +6,7 @@ object SettingsTable : Table("settings") {
     val userId = text("user_id")
     val defaultService = integer("default_service").default(0)
     val defaultQuality = text("default_quality").default("1080p")
+    val defaultPlaybackSpeed = double("default_playback_speed").default(1.0)
     val defaultLandingPage = text("default_landing_page").default("home")
     val autoplay = bool("autoplay").default(true)
     val skipPlaylistAutoplayScreen = bool("skip_playlist_autoplay_screen").default(false)

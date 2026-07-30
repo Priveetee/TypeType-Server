@@ -5,7 +5,6 @@ import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.proxyRoutes
-import dev.typetype.server.routes.sabrAudioOnlyUnplayableReason
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.withPlayableSabrStreams
@@ -22,16 +21,11 @@ internal fun Route.installStreamRoutes(
     rateLimit(STREAMS_ZONE) {
         streamRoutes(
             streamService = svc.youtubeSabrStreamService,
-            legacyStreamService = svc.legacyStreamService,
-            genericLegacyStreamService = svc.streamService,
             nicoNicoStreamService = svc.nicoNicoStreamService,
             bilibiliStreamService = svc.bilibiliStreamService,
             sabrBootstrapStreamService = svc.youtubeSabrBootstrapStreamService,
             authService = authService,
             accessControlService = svc.accessControlService,
-            youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
-                { userId, url -> service.getStreamInfo(userId, url) }
-            },
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
@@ -47,9 +41,6 @@ internal fun Route.installStreamRoutes(
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             proxyService = svc.proxyService,
-            sabrAudioOnlyUnavailableReason = { url, userId, selection ->
-                svc.sabrSessionStore.sabrAudioOnlyUnplayableReason(url, userId, selection)
-            },
         )
         manifestRoutes(
             svc.manifestService,
@@ -73,7 +64,6 @@ internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
             youtubeSessionStreamInfo = svc.youtubeSessionStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
             },
-            sabrSessionStore = svc.sabrSessionStore,
         )
         nicoVideoProxyRoutes(svc.nicoVideoProxyService)
     }

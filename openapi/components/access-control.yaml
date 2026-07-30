@@ -3,6 +3,12 @@ SettingsItem:
   properties:
     defaultService: { type: integer, default: 0 }
     defaultQuality: { type: string, default: 1080p }
+    defaultPlaybackSpeed:
+      type: number
+      format: double
+      minimum: 0.25
+      maximum: 4
+      default: 1
     defaultLandingPage: { type: string, default: home }
     autoplay: { type: boolean, default: true }
     volume: { type: number, format: double, default: 1.0 }

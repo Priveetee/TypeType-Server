@@ -124,6 +124,11 @@ internal fun Route.sabrRoutes(
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
         manifestHandler.handle(call, videoId)
     }
+    get("/sabr/download/{videoId}") {
+        val videoId = call.parameters["videoId"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoId"))
+        manifestHandler.handle(call, videoId, download = true)
+    }
     get("/sabr/{videoId}/{itag}/init") {
         segmentHandler.handle(call, isInit = true, seq = 0)
     }

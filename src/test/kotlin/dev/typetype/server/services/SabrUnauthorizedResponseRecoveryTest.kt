@@ -45,9 +45,25 @@ class SabrUnauthorizedResponseRecoveryTest {
         verify(exactly = 1) { holder.playerContextToken = refreshed }
     }
 
+    @Test
+    fun refreshesAfterUpstreamHttp401(): Unit {
+        val freshToken = byteArrayOf(2)
+        val refreshed = bundle("visitor-a", freshToken)
+        val (holder, state) = holder(
+            visitorData = "visitor-a",
+            currentToken = byteArrayOf(1),
+            responseStatus = 401,
+        )
+
+        SabrUnauthorizedResponseRecovery { refreshed }.verify(holder)
+
+        verify(exactly = 1) { state.setPoToken(match { it.contentEquals(freshToken) }) }
+    }
+
     private fun holder(
         visitorData: String,
         currentToken: ByteArray,
+        responseStatus: Int = 403,
     ): Pair<SabrSessionHolder, YoutubeSabrStreamState> {
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -55,7 +71,7 @@ class SabrUnauthorizedResponseRecoveryTest {
         val holder = mockk<SabrSessionHolder>(relaxed = true)
         every { state.poToken } returns currentToken
         every { session.streamState } returns state
-        every { session.diagnosticTrace } returns "response n=4 http=403 segments=count=0"
+        every { session.diagnosticTrace } returns "response n=4 http=$responseStatus segments=count=0"
         every { info.videoId } returns "video"
         every { info.visitorData } returns visitorData
         every { holder.session } returns session

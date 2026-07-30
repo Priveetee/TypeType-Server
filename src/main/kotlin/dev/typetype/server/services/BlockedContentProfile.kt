@@ -1,13 +1,17 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.BlockedItem
+import dev.typetype.server.models.BlockedKeywordItem
 
 data class BlockedContentProfile(
     val videos: List<BlockedItem>,
     val channels: List<BlockedItem>,
+    val keywords: List<BlockedKeywordItem>,
 ) {
-    fun allowsVideo(url: String, uploaderUrl: String, uploaderName: String): Boolean =
-        videos.none { normalizeUrl(it.url) == normalizeUrl(url) } && allowsChannel(uploaderUrl, uploaderName)
+    fun allowsVideo(url: String, title: String, uploaderUrl: String, uploaderName: String): Boolean =
+        videos.none { normalizeUrl(it.url) == normalizeUrl(url) } &&
+            keywords.none { containsBlockedKeyword(title, it.keyword) } &&
+            allowsChannel(uploaderUrl, uploaderName)
 
     fun allowsChannel(url: String, name: String): Boolean = channels.none { item ->
         val blockedUrl = normalizeChannelKey(item.url)
@@ -17,7 +21,7 @@ data class BlockedContentProfile(
     }
 
     companion object {
-        val empty = BlockedContentProfile(videos = emptyList(), channels = emptyList())
+        val empty = BlockedContentProfile(videos = emptyList(), channels = emptyList(), keywords = emptyList())
     }
 }
 

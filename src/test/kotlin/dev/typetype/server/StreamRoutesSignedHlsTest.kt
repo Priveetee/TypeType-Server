@@ -49,7 +49,7 @@ class StreamRoutesSignedHlsTest {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(publicHlsStream())
         installApp()
 
-        val response = client.get("/streams/legacy?url=https://youtube.com/watch?v=test") {
+        val response = client.get("/streams/niconico?url=https://www.nicovideo.jp/watch/sm9") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         val body = response.bodyAsText()
@@ -93,7 +93,7 @@ class StreamRoutesSignedHlsTest {
         adminSettings.upsert(AdminSettingsItem(allowGuest = false))
         installApp()
 
-        val response = client.get("/streams?url=https://youtube.com/watch?v=test")
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }

@@ -96,11 +96,11 @@ class AccessControlledExtractionRoutesTest {
     }
 
     @Test
-    fun `streams blocks direct video from non allowed channel`() = testApplication {
+    fun `youtube sabr streams block video from non allowed channel`() = testApplication {
         enableAllowList()
         coEvery { streams.getStreamInfo(any()) } returns ExtractionResult.Success(testStreamResponse().copy(uploaderName = "Blocked", uploaderUrl = "https://youtube.com/@blocked"))
         application { install(ContentNegotiation) { json() }; routing { streamRoutes(streams, auth, accessControlService = access) } }
-        val response = client.get("/streams?url=https://youtube.com/watch?v=x") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=x") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
         assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 

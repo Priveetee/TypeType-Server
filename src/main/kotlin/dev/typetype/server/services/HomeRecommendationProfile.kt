@@ -4,6 +4,7 @@ data class HomeRecommendationProfile(
     val seenUrls: Set<String>,
     val blockedVideos: Set<String>,
     val blockedChannels: Set<String>,
+    val blockedKeywords: Set<String> = emptySet(),
     val feedbackBlockedVideos: Set<String>,
     val feedbackBlockedChannels: Set<String>,
     val subscriptionChannels: Set<String>,

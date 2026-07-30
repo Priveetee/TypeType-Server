@@ -31,7 +31,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -103,7 +102,7 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
-    fun `ready feed sorts live first and unknown dates last`() = withApp {
+    fun `ready feed promotes a newly observed live and keeps unknown dates last`() = withApp {
         val channelUrl = "https://www.youtube.com/channel/UC1"
         subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
         coEvery { channelService.getChannel(channelUrl, null) } returns channel(
@@ -183,7 +182,7 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
-    fun `partial refresh keeps the previous complete snapshot`() = withApp {
+    fun `partial refresh publishes videos from successful sources`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
         subscriptionsService.add(TEST_USER_ID, subscription(2))
         var rebuilding = false
@@ -197,10 +196,25 @@ class SubscriptionFeedRoutesTest {
         rebuilding = true
         feedService.invalidate(TEST_USER_ID)
         feedService.awaitRefresh(TEST_USER_ID)
+        val refreshed = Json.decodeFromString<SubscriptionFeedResponse>(requestFeed().bodyAsText())
+        assertTrue(refreshed.generation != original.generation)
+        assertEquals(listOf(9000L), refreshed.videos.map { it.uploaded })
+    }
+
+    @Test
+    fun `refresh keeps previous snapshot when every source fails`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        var rebuilding = false
+        coEvery { channelService.getChannel(any(), null) } coAnswers {
+            if (rebuilding) error("channel unavailable") else channel(video(1000L))
+        }
+        val original = buildAndRead()
+        rebuilding = true
+        feedService.invalidate(TEST_USER_ID)
+        feedService.awaitRefresh(TEST_USER_ID)
         val retained = Json.decodeFromString<SubscriptionFeedResponse>(requestFeed().bodyAsText())
         assertEquals(original.generation, retained.generation)
-        assertEquals(setOf(1000L, 2000L), retained.videos.map { it.uploaded }.toSet())
-        assertFalse(retained.videos.any { it.uploaded == 9000L })
+        assertEquals(listOf(1000L), retained.videos.map { it.uploaded })
     }
 
     @Test

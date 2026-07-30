@@ -4,6 +4,7 @@ import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.AllowedPlaylistsTable
 import dev.typetype.server.db.tables.BlockedChannelsTable
+import dev.typetype.server.db.tables.BlockedKeywordsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
@@ -105,6 +106,7 @@ object TestDatabase {
         AllowedChannelsTable.deleteAll()
         AllowedPlaylistsTable.deleteAll()
         BlockedChannelsTable.deleteAll()
+        BlockedKeywordsTable.deleteAll()
         BlockedVideosTable.deleteAll()
         YoutubeTakeoutImportJobsTable.deleteAll()
         YoutubeTakeoutPlaylistKeysTable.deleteAll()

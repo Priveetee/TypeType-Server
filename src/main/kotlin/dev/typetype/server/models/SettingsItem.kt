@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class SettingsItem(
     val defaultService: Int = 0,
     val defaultQuality: String = "1080p",
+    val defaultPlaybackSpeed: Double = 1.0,
     val defaultLandingPage: String = "home",
     val autoplay: Boolean = true,
     val skipPlaylistAutoplayScreen: Boolean = false,

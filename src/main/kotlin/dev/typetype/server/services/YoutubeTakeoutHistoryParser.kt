@@ -1,18 +1,9 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.HistoryItem
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 object YoutubeTakeoutHistoryParser {
-    private val dateFormatters = listOf(
-        DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm:ss z", Locale.ENGLISH),
-        DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm:ss z", Locale.FRENCH),
-        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm:ss z", Locale.FRENCH),
-        DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm:ss z", Locale.ENGLISH),
-    )
-    private val rowRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.watchedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>(?:<a href=\"([^\"]+)\">([\s\S]*?)</a><br>)?([\s\S]*?)<br>""", RegexOption.IGNORE_CASE)
+    private val rowRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.watchedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>\s*(?:<a href=\"([^\"]+)\">([\s\S]*?)</a><br>\s*)?([\s\S]*?)<br>""", RegexOption.IGNORE_CASE)
     private val urlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val tagRegex = Regex("<[^>]+>")
     private val spacesRegex = Regex("\\s+")
@@ -40,13 +31,7 @@ object YoutubeTakeoutHistoryParser {
     }
 
     private fun parseDate(value: String): Long {
-        val raw = value.replace("\u00a0", " ")
-        for (formatter in dateFormatters) {
-            runCatching { ZonedDateTime.parse(raw, formatter).toInstant().toEpochMilli() }
-                .getOrNull()
-                ?.let { return it }
-        }
-        return 0L
+        return YoutubeTakeoutDateParser.parseEpochMillis(value) ?: 0L
     }
 
     private fun extractUrl(value: String): String? {

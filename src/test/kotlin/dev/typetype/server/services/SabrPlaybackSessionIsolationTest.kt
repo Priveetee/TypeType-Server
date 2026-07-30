@@ -2,9 +2,11 @@ package dev.typetype.server.services
 
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
@@ -43,6 +45,7 @@ class SabrPlaybackSessionIsolationTest {
         )
 
         assertNotSame(first, second)
+        assertNotEquals(first.info.cpn, second.info.cpn)
         assertSame(first, store.lookupByToken(first.sessionToken))
         assertSame(second, store.lookupByToken(second.sessionToken))
         store.release()
@@ -51,8 +54,13 @@ class SabrPlaybackSessionIsolationTest {
     private fun info(): YoutubeSabrInfo {
         val info = mockk<YoutubeSabrInfo>()
         every { info.videoId } returns "video"
+        every { info.profile } returns YoutubeSabrClientProfile.WEB
+        every { info.clientVersion } returns "1.2.3"
+        every { info.cpn } returns "source-cpn"
         every { info.visitorData } returns "visitor"
         every { info.serverAbrStreamingUrl } returns "https://example.com/sabr"
+        every { info.videoPlaybackUstreamerConfig } returns "config"
+        every { info.formats } returns emptyList()
         return info
     }
 

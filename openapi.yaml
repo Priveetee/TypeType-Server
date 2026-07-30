@@ -15,26 +15,17 @@ tags:
   - name: playback
   - name: downloader
   - name: youtube-session
-  - name: android-playback
   - name: user-data
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
-  /streams: { $ref: ./openapi/paths/streams.yaml#/Streams }
-  /streams/legacy: { $ref: ./openapi/paths/streams.yaml#/LegacyStreams }
   /streams/youtube/sabr: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrStreams }
   /streams/youtube/sabr/bootstrap: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrBootstrap }
-  /streams/youtube/legacy: { $ref: ./openapi/paths/streams.yaml#/YoutubeLegacyStreams }
   /streams/niconico: { $ref: ./openapi/paths/streams.yaml#/NicoNicoStreams }
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }
   /streams/audio-only: { $ref: ./openapi/paths/streams.yaml#/AudioOnly }
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
-  /android/youtube/playback/{videoId}: { $ref: ./openapi/paths/android-playback.yaml#/Create }
-  /android/youtube/playback/{sessionId}/seek: { $ref: ./openapi/paths/android-playback.yaml#/Seek }
-  /android/youtube/playback/{sessionId}/manifest.mpd: { $ref: ./openapi/paths/android-playback.yaml#/Manifest }
-  /android/youtube/playback/{sessionId}/subtitles/{trackId}.vtt: { $ref: ./openapi/paths/android-playback.yaml#/Subtitle }
-  /android/youtube/playback/{sessionId}/{itag}/init: { $ref: ./openapi/paths/android-playback.yaml#/Initialization }
-  /android/youtube/playback/{sessionId}/{itag}/segment/{sequence}: { $ref: ./openapi/paths/android-playback.yaml#/Segment }
+  /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
   /sabr/playback/{sessionId}/prefetch: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPrefetch }
@@ -51,6 +42,10 @@ paths:
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
+  /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
+  /restore/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeRestore }
+  /blocked/keywords: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeywords }
+  /blocked/keywords/{keyword}: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeyword }
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
@@ -101,12 +96,6 @@ components:
       $ref: ./openapi/components/instance.yaml#/InstanceMinClientVersion
     InstanceResponse:
       $ref: ./openapi/components/instance.yaml#/InstanceResponse
-    AndroidPlaybackCreateRequest:
-      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackCreateRequest
-    AndroidPlaybackSeekRequest:
-      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackSeekRequest
-    AndroidPlaybackResponse:
-      $ref: ./openapi/components/android-playback.yaml#/AndroidPlaybackResponse
     StreamResponse:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     AudioOnlyStreamResponse:
@@ -144,6 +133,9 @@ components:
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
+    TypeTypeBackupItem: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeBackupItem }
+    TypeTypeRestoreSummary: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeRestoreSummary }
+    BlockedKeywordItem: { $ref: ./openapi/components/user-backup.yaml#/BlockedKeywordItem }
     AdminSettingsItem: { $ref: ./openapi/components/access-control.yaml#/AdminSettingsItem }
     AllowedChannelItem: { $ref: ./openapi/components/access-control.yaml#/AllowedChannelItem }
     CommentsPageResponse: { $ref: ./openapi/components/media.yaml#/CommentsPageResponse }

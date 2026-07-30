@@ -68,6 +68,27 @@ class YoutubeTakeoutSystemPlaylistImportTest {
         assertEquals(listOf(newer.addedAt, older.addedAt), imported.map { it.addedAt })
     }
 
+    @Test
+    fun `commit returns imported favorites newest first`() = runBlocking {
+        val parsed = YoutubeTakeoutParsedData(
+            subscriptions = emptyList(),
+            playlists = emptyList(),
+            playlistItems = emptyMap(),
+            favorites = listOf(
+                FavoriteItem(videoUrl = "https://www.youtube.com/watch?v=older", favoritedAt = 1_700_000_000_000L),
+                FavoriteItem(videoUrl = "https://www.youtube.com/watch?v=newer", favoritedAt = 1_700_000_100_000L),
+            ),
+            watchLater = emptyList(),
+            history = emptyList(),
+            warnings = emptyList(),
+            errors = emptyList(),
+        )
+
+        importer.commit(TEST_USER_ID, parsed, YoutubeTakeoutCommitPlan(false, false, false, true, false, false))
+
+        assertEquals(listOf("newer", "older"), favorites.getAll(TEST_USER_ID).map { it.videoUrl.substringAfter("v=") })
+    }
+
     private fun parsed(): YoutubeTakeoutParsedData = YoutubeTakeoutParsedData(
         subscriptions = emptyList(),
         playlists = listOf(PlaylistItem(id = "WL", name = "Watch later"), PlaylistItem(id = "LL", name = "Liked videos")),
