@@ -3,7 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.cache.CacheService
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import java.util.concurrent.ConcurrentHashMap
+import java.time.Duration
 
 internal class SabrInfoRepository(
     infoCache: SabrPreparedInfoCache,
@@ -11,7 +11,10 @@ internal class SabrInfoRepository(
 ) {
     private val preparedInfos = infoCache
     private val sharedInfos = SabrInfoSharedCache(sharedCache)
-    private val initializationInfos = ConcurrentHashMap<String, YoutubeSabrInfo>()
+    private val initializationInfos = BoundedExpiringCache<String, YoutubeSabrInfo>(
+        maxEntries = 256,
+        ttl = Duration.ofHours(6),
+    )
 
     fun local(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
         val cachedAtStart = preparedInfos.get(videoId, startTimeMs)
@@ -23,7 +26,7 @@ internal class SabrInfoRepository(
     }
 
     suspend fun shared(videoId: String, token: SabrTokenBundle): SabrPreparedInfo? {
-        sharedInfos.getInitialization(videoId)?.let { initializationInfos[videoId] = it }
+        sharedInfos.getInitialization(videoId)?.let { initializationInfos.put(videoId, it) }
         val info = sharedInfos.getPlayback(videoId) ?: return null
         if (info.visitorData != token.visitorData) return null
         return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(info, token), share = false)
@@ -31,7 +34,7 @@ internal class SabrInfoRepository(
 
     suspend fun rememberInitialization(videoId: String, info: YoutubeSabrInfo): Unit {
         if (!SabrPreparedInfo(info, null).hasAudioAndVideoFormats()) return
-        initializationInfos[videoId] = info
+        initializationInfos.put(videoId, info)
         sharedInfos.putInitialization(videoId, info)
     }
 
@@ -52,7 +55,12 @@ internal class SabrInfoRepository(
     }
 
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
-        initializationInfos[videoId]?.formats?.firstOrNull {
+        initializationInfos.get(videoId)?.formats?.firstOrNull {
             it.itag == target.itag && it.audioTrackId == target.audioTrackId && it.xtags == target.xtags
         }
+
+    fun evictExpired() {
+        preparedInfos.evictExpired()
+        initializationInfos.evictExpired()
+    }
 }

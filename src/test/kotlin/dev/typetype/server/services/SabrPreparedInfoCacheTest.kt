@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import java.time.Duration
 
 class SabrPreparedInfoCacheTest {
     @Test
@@ -53,6 +54,33 @@ class SabrPreparedInfoCacheTest {
 
         assertFalse(cache.get("video", 120_000L)?.hasAudioAndVideoFormats() == true)
         assertFalse(cache.get("video", 340_000L)?.hasAudioAndVideoFormats() == true)
+    }
+
+    @Test
+    fun `cache evicts expired entries without reading their keys`() {
+        var now = 0L
+        val cache = SabrPreparedInfoCache(
+            ttl = Duration.ofMillis(10),
+            clock = { now },
+        )
+        cache.put("video", 0L, preparedInfo(listOf(format(true), format(false))))
+        now = 10L
+
+        cache.evictExpired()
+
+        assertFalse(cache.get("video", 0L)?.hasAudioAndVideoFormats() == true)
+    }
+
+    @Test
+    fun `cache limits retained preparation windows`() {
+        val cache = SabrPreparedInfoCache(maxEntries = 1)
+        val prepared = preparedInfo(listOf(format(true), format(false)))
+        cache.put("first", 0L, prepared)
+
+        cache.put("second", 0L, prepared)
+
+        assertFalse(cache.get("first", 0L)?.hasAudioAndVideoFormats() == true)
+        assertSame(prepared, cache.get("second", 0L))
     }
 
     @Test
