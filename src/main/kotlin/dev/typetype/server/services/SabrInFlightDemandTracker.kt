@@ -48,6 +48,10 @@ internal object SabrInFlightDemandTracker {
         return demands.remove(holder.sessionToken, demand)
     }
 
+    fun clear(holder: SabrSessionHolder): Unit {
+        demands.remove(holder.sessionToken)
+    }
+
     fun clearAll(): Unit = demands.clear()
 }
 
@@ -62,3 +66,6 @@ internal fun SabrSessionHolder.inFlightSegmentDemand(): SabrInFlightDemand? =
 
 internal fun SabrSessionHolder.finishInFlightSegmentDemand(identity: String): Boolean =
     SabrInFlightDemandTracker.finish(this, identity)
+
+internal fun SabrSessionHolder.clearInFlightSegmentDemand(): Unit =
+    SabrInFlightDemandTracker.clear(this)

@@ -19,6 +19,10 @@ internal object SabrPlaybackDiagnostics {
         if (!segment.header.isInitSegment) blockers.remove(holder.sessionToken)
     }
 
+    fun clear(holder: SabrSessionHolder): Unit {
+        blockers.remove(holder.sessionToken)
+    }
+
     fun blocker(holder: SabrSessionHolder): String? = blockers[holder.sessionToken]
 
     private fun SabrSegmentRequest.trackName(): String = if (format.isAudio) "audio" else "video"

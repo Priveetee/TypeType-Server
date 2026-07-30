@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class SabrSessionRegistry {
     private val sessions = ConcurrentHashMap<SabrSessionKey, SabrSessionHolder>()
     private val sessionsByToken = ConcurrentHashMap<String, SabrSessionHolder>()
+    private val mutationLock = Any()
 
     fun get(key: SabrSessionKey): SabrSessionHolder? {
         val holder = sessions[key]
@@ -20,17 +21,26 @@ internal class SabrSessionRegistry {
         return null
     }
 
-    fun put(key: SabrSessionKey, holder: SabrSessionHolder) {
-        sessions[key] = holder
-        sessionsByToken[holder.sessionToken] = holder
+    fun put(key: SabrSessionKey, holder: SabrSessionHolder): SabrSessionHolder {
+        val active = synchronized(mutationLock) {
+            sessions[key]?.also { it.touch() } ?: holder.also {
+                sessions[key] = it
+                sessionsByToken[it.sessionToken] = it
+            }
+        }
+        if (active !== holder) holder.releaseResources()
+        return active
     }
 
-    fun contains(key: SabrSessionKey): Boolean = sessions.containsKey(key)
+    fun contains(holder: SabrSessionHolder): Boolean = sessions[holder.key] === holder
 
     fun remove(holder: SabrSessionHolder): Unit {
-        sessions.remove(holder.key, holder)
-        sessionsByToken.remove(holder.sessionToken, holder)
-        holder.clearSegmentDemands()
+        val removed = synchronized(mutationLock) {
+            if (!sessions.remove(holder.key, holder)) return@synchronized false
+            sessionsByToken.remove(holder.sessionToken, holder)
+            true
+        }
+        if (removed) holder.releaseResources()
     }
 
     fun lookupByItag(videoId: String, userId: String, itag: Int): SabrSessionHolder? {
@@ -75,6 +85,17 @@ internal class SabrSessionRegistry {
         }
     }
 
+    fun trimToCapacity(maxSessions: Int, protected: SabrSessionHolder) {
+        while (sessions.size > maxSessions) {
+            val oldest = sessions.entries
+                .asSequence()
+                .filterNot { it.value === protected }
+                .minByOrNull { it.value.lastRequestAt }
+                ?: return
+            remove(oldest.key)
+        }
+    }
+
     fun evictIdle(cutoff: Instant) {
         val stale = sessions.entries
             .filter { it.value.lastRequestAt.isBefore(cutoff) }
@@ -83,15 +104,22 @@ internal class SabrSessionRegistry {
     }
 
     fun clear() {
-        sessions.clear()
-        sessionsByToken.clear()
+        val holders = synchronized(mutationLock) {
+            sessions.values.toSet().also {
+                sessions.clear()
+                sessionsByToken.clear()
+            }
+        }
         SabrSegmentDemandTracker.clearAll()
+        holders.forEach(SabrSessionHolder::releaseResources)
     }
 
     private fun remove(key: SabrSessionKey) {
-        sessions.remove(key)?.let { holder ->
-            sessionsByToken.remove(holder.sessionToken, holder)
-            holder.clearSegmentDemands()
+        val holder = synchronized(mutationLock) {
+            sessions.remove(key)?.also {
+                sessionsByToken.remove(it.sessionToken, it)
+            }
         }
+        holder?.releaseResources()
     }
 }
