@@ -206,6 +206,8 @@ internal class SabrSessionStore(
         while (true) {
             delay(15_000)
             registry.evictIdle(Instant.now().minus(idleEviction))
+            infoFetcher.evictExpired()
+            SabrInitializationData.evictExpired()
         }
     }
 }

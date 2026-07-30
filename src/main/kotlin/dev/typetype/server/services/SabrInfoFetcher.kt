@@ -68,6 +68,8 @@ internal class SabrInfoFetcher(
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
         repository.initializationFormat(videoId, target)
 
+    fun evictExpired(): Unit = repository.evictExpired()
+
     private suspend fun fetchPlayable(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
         fetchInfoOnce(videoId, startTimeMs)?.let { repository.putPrepared(videoId, startTimeMs, it) }
 

@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
@@ -21,7 +22,8 @@ class SabrSegmentCacheTest {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
-        val segment = segment(itag = 140, sequence = 4, bytes = byteArrayOf(1, 2, 3))
+        val bytes = byteArrayOf(1, 2, 3)
+        val segment = segment(itag = 140, sequence = 4, bytes = bytes)
         val request = SabrSegmentRequest.media(audio, 4)
 
         segmentCache.put(holder, segment)
@@ -34,6 +36,7 @@ class SabrSegmentCacheTest {
         assertEquals(9985L, cached.durationMs)
         assertEquals("audio/mp4", cached.mimeType)
         assertArrayEquals(byteArrayOf(1, 2, 3), cached.bytes)
+        assertSame(bytes, cached.bytes)
         assertEquals(4, holder.observedMediaSegment(audio)?.header?.sequenceNumber)
     }
 
