@@ -35,7 +35,7 @@ class SabrPumpLauncherTest {
             every { holder.session.getCachedSegment(any()) } returns null
             every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } returns 0L
             every { holder.session.streamState.getBufferedEndMs(holder.videoFormat) } answers { companionBufferedEndMs }
-            every { registry.contains(holder.key) } returns true
+            every { registry.contains(holder) } returns true
             holder.requestSegmentDemand(request, registeredAtMs = 0L)
             coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
             val watchdog = SabrDemandWatchdog(
@@ -76,7 +76,7 @@ class SabrPumpLauncherTest {
             var targetBufferedEndMs = 0L
             every { holder.session.getCachedSegment(any()) } returns null
             every { holder.session.streamState.getBufferedEndMs(holder.audioFormat) } answers { targetBufferedEndMs }
-            every { registry.contains(holder.key) } returns true
+            every { registry.contains(holder) } returns true
             holder.requestSegmentDemand(request, registeredAtMs = 0L)
             coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
             val watchdog = SabrDemandWatchdog(
@@ -110,7 +110,7 @@ class SabrPumpLauncherTest {
             val first = SabrSegmentRequest.media(holder.audioFormat, 50)
             val second = SabrSegmentRequest.media(holder.audioFormat, 51)
             every { holder.session.getCachedSegment(any()) } returns null
-            every { registry.contains(holder.key) } returns true
+            every { registry.contains(holder) } returns true
             holder.requestSegmentDemand(first, registeredAtMs = 0L)
             coEvery { pump.pumpLoop(any(), holder, 100L) } coAnswers { awaitCancellation() }
             val watchdog = SabrDemandWatchdog(
@@ -194,7 +194,7 @@ class SabrPumpLauncherTest {
         val registry = mockk<SabrSessionRegistry>()
         val holder = holder()
         holder.recordNetworkFailure(null)
-        every { registry.contains(holder.key) } returns true
+        every { registry.contains(holder) } returns true
         coEvery { pump.pumpLoop(any(), holder, 100L) } returns Unit
 
         launchSabrPump(pump, registry, holder, 100L)
