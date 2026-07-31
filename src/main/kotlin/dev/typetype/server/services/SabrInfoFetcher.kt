@@ -17,6 +17,7 @@ internal class SabrInfoFetcher(
     private val playerInfoProbe: SabrPlayerInfoProbe = PipePipeSabrPlayerInfoProbe,
 ) {
     private val repository = SabrInfoRepository(infoCache, sharedCache)
+    private val protectedContextRecovery = SabrProtectedContextRecovery(tokenClient)
 
     suspend fun fetchInfo(
         videoId: String,
@@ -64,6 +65,12 @@ internal class SabrInfoFetcher(
     }
 
     suspend fun invalidatePlayback(videoId: String): Unit = repository.invalidatePlayback(videoId)
+
+    suspend fun recoverProtectedPlayback(videoId: String, rejectedVisitorData: String?): Unit =
+        withContext(Dispatchers.IO) {
+            protectedContextRecovery.refreshIfRejected(videoId, rejectedVisitorData)
+            repository.invalidatePlayback(videoId)
+        }
 
     fun initializationFormat(videoId: String, target: YoutubeSabrFormat): YoutubeSabrFormat? =
         repository.initializationFormat(videoId, target)
