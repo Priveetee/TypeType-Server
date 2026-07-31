@@ -150,6 +150,12 @@ internal class SabrSessionStore(
 
     internal suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
 
+    internal suspend fun recoverProtectedPlaybackInfo(holder: SabrSessionHolder): Unit =
+        infoFetcher.recoverProtectedPlayback(
+            holder.key.videoId,
+            holder.playerContextToken?.visitorData ?: holder.info.visitorData,
+        )
+
     internal fun refreshVideoPoToken(videoId: String): SabrTokenBundle? =
         tokenClient.fetch(videoId, refreshVideo = true)
 

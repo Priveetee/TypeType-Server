@@ -18,7 +18,7 @@ internal class SabrPlaybackRecovery(private val sessionStore: SabrSessionStore) 
             return RETRY_FRESH_SESSION
         }
         if (failure.contains("protected no-media")) {
-            sessionStore.invalidatePlaybackInfo(holder.key.videoId)
+            sessionStore.recoverProtectedPlaybackInfo(holder)
             return RETRY_FRESH_SESSION
         }
         if (failure.contains("SABR demand stalled")) {
