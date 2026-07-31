@@ -13,7 +13,6 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
 import java.time.Duration
 import java.time.Instant
 
@@ -33,6 +32,7 @@ internal class SabrSessionStore(
     }
     private val warmer = SabrPlaybackWarmer()
     private val infoFetcher = SabrInfoFetcher(tokenClient, sessionClient, sharedCache = initCache)
+    private val sessionFactory = SabrSessionFactory(tokenClient)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
 
@@ -69,27 +69,18 @@ internal class SabrSessionStore(
         )
         registry.getReusable(key)?.let { return it }
         registry.ensureCapacity(maxSessions)
-        val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
-        val sessionInfo = if (isolatedSourceId == null) info else SabrSessionIdentity.fresh(info)
-        val session = YoutubeSabrSession(sessionInfo, audioFormat, videoFormat, provider)
-        val normalizedStartTimeMs = startTimeMs.coerceAtLeast(0L)
-        session.streamState.setPlayerTimeMs(normalizedStartTimeMs)
-        runCatching { provider.getPoToken(sessionInfo, session.streamState) }
-            .getOrNull()
-            ?.let { session.streamState.setPoToken(it) }
-        val holder = SabrSessionHolder(
-            session,
-            sessionInfo,
+        val holder = sessionFactory.create(
+            key,
+            info,
             audioFormat,
             videoFormat,
             sessionToken,
-            key,
-            Instant.now(),
             initialToken,
-            initialGeneration = initialGeneration,
+            initialGeneration,
         )
-        holder.setPlayerTimeMs(normalizedStartTimeMs)
-        registry.put(key, holder)
+        val active = registry.put(key, holder)
+        if (active !== holder) return active
+        registry.trimToCapacity(maxSessions, holder)
         if (startPump) startPump(holder)
         return holder
     }
@@ -159,6 +150,12 @@ internal class SabrSessionStore(
 
     internal suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
 
+    internal suspend fun recoverProtectedPlaybackInfo(holder: SabrSessionHolder): Unit =
+        infoFetcher.recoverProtectedPlayback(
+            holder.key.videoId,
+            holder.playerContextToken?.visitorData ?: holder.info.visitorData,
+        )
+
     internal fun refreshVideoPoToken(videoId: String): SabrTokenBundle? =
         tokenClient.fetch(videoId, refreshVideo = true)
 
@@ -215,6 +212,8 @@ internal class SabrSessionStore(
         while (true) {
             delay(15_000)
             registry.evictIdle(Instant.now().minus(idleEviction))
+            infoFetcher.evictExpired()
+            SabrInitializationData.evictExpired()
         }
     }
 }

@@ -6,14 +6,19 @@ import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import java.security.MessageDigest
+import java.time.Duration
 import java.util.Base64
 import java.util.Collections
 import java.util.WeakHashMap
-import java.util.concurrent.ConcurrentHashMap
 
 internal object SabrInitializationData {
     private const val CACHE_TTL_SECONDS = 21_600L
-    private val memoryCache = ConcurrentHashMap<String, ByteArray>()
+    private val memoryCache = BoundedExpiringCache<String, ByteArray>(
+        maxEntries = 512,
+        maxWeight = 32L * 1024L * 1024L,
+        ttl = Duration.ofSeconds(CACHE_TTL_SECONDS),
+        weigher = { it.size.toLong() },
+    )
     private val formatCache = Collections.synchronizedMap(WeakHashMap<YoutubeSabrFormat, ByteArray>())
 
     suspend fun ingest(
@@ -28,12 +33,12 @@ internal object SabrInitializationData {
     suspend fun fetch(videoId: String, format: YoutubeSabrFormat, cache: CacheService? = null): ByteArray? {
         val key = cacheKey(videoId, format)
         formatCache[format]?.let { return it }
-        memoryCache[key]?.let {
+        memoryCache.get(key)?.let {
             formatCache[format] = it
             return it
         }
         cache?.getBytes(key)?.let { bytes ->
-            memoryCache[key] = bytes
+            memoryCache.put(key, bytes)
             formatCache[format] = bytes
             return bytes
         }
@@ -47,7 +52,7 @@ internal object SabrInitializationData {
         cache: CacheService? = null,
     ): Unit {
         val key = cacheKey(videoId, format)
-        memoryCache[key] = bytes
+        memoryCache.put(key, bytes)
         formatCache[format] = bytes
         cache?.setBytes(key, bytes, CACHE_TTL_SECONDS)
     }
@@ -56,6 +61,8 @@ internal object SabrInitializationData {
         val bytes = formatCache[format] ?: return false
         return holder.session.streamState.ingestInitializationData(format, bytes)
     }
+
+    fun evictExpired(): Unit = memoryCache.evictExpired()
 
     suspend fun bootstrap(
         holder: SabrSessionHolder,

@@ -90,12 +90,16 @@ class SabrPlaybackRecoveryTest {
     }
 
     @Test
-    fun `protected no-media keeps the selected format on a fresh session`() = runTest {
+    fun `protected no-media invalidates playback info and keeps the selected format`() = runTest {
         val holder = mockk<SabrSessionHolder>()
-        val recovery = SabrPlaybackRecovery(mockk())
+        val store = mockk<SabrSessionStore>()
         every { holder.terminalFailure() } returns "video:299:12 status=3 protected no-media"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 299, 0L)
+        coEvery { store.recoverProtectedPlaybackInfo(holder) } returns Unit
+        val recovery = SabrPlaybackRecovery(store)
 
         assertEquals("retry_fresh_session", recovery.action(holder))
         assertEquals(emptyList<Int>(), recovery.retryVideoItags())
+        coVerify(exactly = 1) { store.recoverProtectedPlaybackInfo(holder) }
     }
 }

@@ -21,10 +21,10 @@ internal fun CoroutineScope.launchSabrPump(
     launch {
         val owner = currentCoroutineContext().job
         val watchdogJob = launch {
-            if (watchdog.monitor({ registry.contains(holder.key) }, holder)) owner.cancel()
+            if (watchdog.monitor({ registry.contains(holder) }, holder)) owner.cancel()
         }
         try {
-            pump.pumpLoop({ registry.contains(holder.key) }, holder, intervalMs)
+            pump.pumpLoop({ registry.contains(holder) }, holder, intervalMs)
         } finally {
             watchdogJob.cancel()
             holder.markPumpStopped()

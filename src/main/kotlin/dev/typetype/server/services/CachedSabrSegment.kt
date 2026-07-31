@@ -1,25 +1,39 @@
 package dev.typetype.server.services
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import java.util.Base64
 
-@Serializable
-internal data class CachedSabrSegment(
+internal class CachedSabrSegment(
     val itag: Int,
     val sequence: Int,
     val init: Boolean,
     val startMs: Long,
     val durationMs: Long,
     val mimeType: String,
-    val bytesBase64: String,
-    val byteLength: Int = -1,
+    val bytes: ByteArray,
 ) {
-    @Transient
-    private var decodedBytes: ByteArray? = null
-    val bytes: ByteArray get() = decodedBytes ?: Base64.getDecoder().decode(bytesBase64).also { decodedBytes = it }
-    val length: Int get() = byteLength.takeIf { it >= 0 } ?: bytes.size
+    constructor(
+        itag: Int,
+        sequence: Int,
+        init: Boolean,
+        startMs: Long,
+        durationMs: Long,
+        mimeType: String,
+        bytesBase64: String,
+        byteLength: Int = -1,
+    ) : this(
+        itag,
+        sequence,
+        init,
+        startMs,
+        durationMs,
+        mimeType,
+        Base64.getDecoder().decode(bytesBase64).also {
+            require(byteLength < 0 || byteLength == it.size) { "byteLength does not match decoded bytes" }
+        },
+    )
+
+    val length: Int get() = bytes.size
 }
 
 internal fun SabrMediaSegment.toCachedSabrSegment(
@@ -32,6 +46,5 @@ internal fun SabrMediaSegment.toCachedSabrSegment(
     startMs = header.startMs,
     durationMs = header.durationMs,
     mimeType = mimeType,
-    bytesBase64 = Base64.getEncoder().encodeToString(bytes),
-    byteLength = bytes.size,
+    bytes = bytes,
 )
