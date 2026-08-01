@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class SearchFiltersResponse(
     val contentFilters: List<SearchFilterOption>,
     val sortFilters: List<SearchFilterOption>,
+    val filterGroups: List<SearchFilterGroup>,
 )

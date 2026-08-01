@@ -111,6 +111,8 @@ components:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
     SearchFilterOption:
       $ref: ./openapi/components/media.yaml#/SearchFilterOption
+    SearchFilterGroup:
+      $ref: ./openapi/components/media.yaml#/SearchFilterGroup
     SearchFiltersResponse:
       $ref: ./openapi/components/media.yaml#/SearchFiltersResponse
     ChannelResultItem:

@@ -10,16 +10,18 @@ class YoutubeScopedSearchService(private val delegate: SearchService) : SearchSe
         serviceId: Int,
         nextpage: String?,
         contentFilter: String?,
-        sortFilter: String?,
+        filters: List<String>,
     ): ExtractionResult<SearchPageResponse> =
         if (serviceId == YOUTUBE_SERVICE_ID) {
             YoutubeSessionTokenScope.withoutCredentials {
-                delegate.search(query, serviceId, nextpage, contentFilter, sortFilter)
+                delegate.search(query, serviceId, nextpage, contentFilter, filters)
             }
         } else {
-            delegate.search(query, serviceId, nextpage, contentFilter, sortFilter)
+            delegate.search(query, serviceId, nextpage, contentFilter, filters)
         }
 
-    override suspend fun filters(serviceId: Int): ExtractionResult<SearchFiltersResponse> =
-        delegate.filters(serviceId)
+    override suspend fun filters(
+        serviceId: Int,
+        contentFilter: String?,
+    ): ExtractionResult<SearchFiltersResponse> = delegate.filters(serviceId, contentFilter)
 }
