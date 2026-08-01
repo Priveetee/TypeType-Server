@@ -34,6 +34,10 @@ import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
 import dev.typetype.server.services.YouTubeSubtitleService
+import dev.typetype.server.services.YouTubeSubtitleCache
+import dev.typetype.server.services.YouTubeSubtitleDeliveryService
+import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
+import dev.typetype.server.services.PipePipeYouTubeSubtitleResolver
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
@@ -75,6 +79,11 @@ internal class ExtractionServiceRegistry(
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
     val youtubeSubtitleService = YouTubeSubtitleService(httpClient, subtitleServiceUrl)
+    val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
+        PipePipeYouTubeSubtitleResolver(),
+        OkHttpYouTubeSubtitleContentFetcher(httpClient),
+        YouTubeSubtitleCache(cache),
+    )
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,

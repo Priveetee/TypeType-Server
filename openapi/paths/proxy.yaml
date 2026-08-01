@@ -1,10 +1,11 @@
 Proxy:
   get:
     tags: [extraction]
-    summary: Retrieve proxied media or YouTube subtitle content
+    summary: Retrieve proxied media
     description: >-
-      YouTube timed-text URLs are refreshed through the Token service and returned as same-origin
-      WebVTT. Other supported URLs retain the generic streaming proxy behavior.
+      Streams supported remote content. Existing clients that submit a YouTube timed-text URL are
+      routed through the dedicated subtitle resolver for compatibility; new clients should use
+      /subtitles/youtube/{videoId}.
     parameters:
       - name: url
         in: query

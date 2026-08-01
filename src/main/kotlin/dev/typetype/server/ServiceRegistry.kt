@@ -69,7 +69,7 @@ internal class ServiceRegistry(
     val podcastService = extraction.podcastService
     val publicPlaylistService = extraction.publicPlaylistService
     val proxyService = extraction.proxyService
-    val youtubeSubtitleService = extraction.youtubeSubtitleService
+    val youtubeSubtitleDeliveryService = extraction.youtubeSubtitleDeliveryService
     val nicoVideoProxyService = extraction.nicoVideoProxyService
     val manifestService = extraction.manifestService
     val nativeManifestService = extraction.nativeManifestService

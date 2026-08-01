@@ -1,0 +1,62 @@
+YoutubeSubtitle:
+  get:
+    tags: [playback]
+    summary: Retrieve a YouTube subtitle track
+    description: >-
+      Resolves a fresh timed-text track through PipePipeExtractor and returns bounded subtitle
+      content through the configured YouTube egress. VOD responses are cached by selection and
+      simultaneous identical requests are coalesced. Active and post-live tracks use a separate
+      short-lived server cache and are not browser-cacheable.
+    parameters:
+      - name: videoId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{11}$'
+      - name: language
+        in: query
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+      - name: variant
+        in: query
+        required: true
+        schema: { type: string, enum: [manual, auto] }
+      - name: format
+        in: query
+        required: false
+        schema: { type: string, enum: [vtt, ttml], default: vtt }
+      - name: sourceLanguage
+        in: query
+        required: false
+        schema: { type: string, minLength: 1, maxLength: 64 }
+      - name: translation
+        in: query
+        required: false
+        schema: { type: string, minLength: 1, maxLength: 64 }
+      - name: name
+        in: query
+        required: false
+        description: Distinguishes multiple tracks with the same language and generation variant.
+        schema: { type: string, minLength: 1, maxLength: 128 }
+    responses:
+      '200':
+        description: Selected subtitle content.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+          Cache-Control:
+            schema: { type: string }
+        content:
+          text/vtt:
+            schema: { type: string }
+          application/ttml+xml:
+            schema: { type: string }
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/JsonError
+      '502':
+        $ref: ../components/common.yaml#/JsonError
