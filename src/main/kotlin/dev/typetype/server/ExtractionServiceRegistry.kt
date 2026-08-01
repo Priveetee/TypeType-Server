@@ -38,6 +38,7 @@ import dev.typetype.server.services.YouTubeSubtitleCache
 import dev.typetype.server.services.YouTubeSubtitleDeliveryService
 import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.StreamYouTubeSubtitleResolver
+import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
@@ -117,7 +118,11 @@ internal class ExtractionServiceRegistry(
     )
     val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
         StreamYouTubeSubtitleResolver(youtubeSabrStreamService, youtubeSubtitleService::fetchSubtitleInventory),
-        OkHttpYouTubeSubtitleContentFetcher(httpClient),
+        TokenYouTubeSubtitleContentFetcher(
+            httpClient,
+            subtitleServiceUrl,
+            OkHttpYouTubeSubtitleContentFetcher(httpClient),
+        ),
         YouTubeSubtitleCache(cache),
     )
     val youtubeSabrBootstrapStreamService = CachedStreamService(
