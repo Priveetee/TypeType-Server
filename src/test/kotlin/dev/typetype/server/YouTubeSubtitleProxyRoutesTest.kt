@@ -1,8 +1,13 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.proxyRoutes
+import dev.typetype.server.routes.youtubeSubtitleRoutes
 import dev.typetype.server.services.ProxyService
-import dev.typetype.server.services.YouTubeSubtitleService
+import dev.typetype.server.services.ResolvedYouTubeSubtitle
+import dev.typetype.server.services.YouTubeSubtitleCache
+import dev.typetype.server.services.YouTubeSubtitleDeliveryService
+import dev.typetype.server.services.YouTubeSubtitleFetchResult
+import dev.typetype.server.services.YouTubeSubtitleResolution
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -17,12 +22,6 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -31,71 +30,112 @@ class YouTubeSubtitleProxyRoutesTest {
     private val proxyService: ProxyService = mockk(relaxed = true)
 
     @Test
-    fun `YouTube subtitle proxy returns same-origin WebVTT`() = testApplication {
-        val service = subtitleService("WEBVTT\n\n00:00.000 --> 00:01.000\nHello", "text/vtt")
+    fun `dedicated YouTube subtitle route returns cacheable WebVTT`() = testApplication {
+        val service = subtitleService(YouTubeSubtitleFetchResult.Ready(VTT))
+        application {
+            install(ContentNegotiation) { json() }
+            routing { youtubeSubtitleRoutes(service) }
+        }
+
+        val response = client.get("/subtitles/youtube/abcdefghijk") {
+            parameter("language", "en")
+            parameter("variant", "manual")
+            parameter("format", "vtt")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("text/vtt") == true)
+        assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
+        assertTrue(response.bodyAsText().startsWith("WEBVTT"))
+    }
+
+    @Test
+    fun `live YouTube subtitle route disables response caching`() = testApplication {
+        val service = subtitleService(YouTubeSubtitleFetchResult.Ready(VTT), isLive = true)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { youtubeSubtitleRoutes(service) }
+        }
+
+        val response = client.get("/subtitles/youtube/abcdefghijk") {
+            parameter("language", "en")
+            parameter("variant", "auto")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
+    fun `legacy timed text proxy uses dedicated subtitle delivery`() = testApplication {
+        val service = subtitleService(YouTubeSubtitleFetchResult.Ready(VTT))
         application {
             install(ContentNegotiation) { json() }
             routing { proxyRoutes(proxyService, service) }
         }
 
         val response = client.get("/proxy") {
-            parameter("url", "https://www.youtube.com/api/timedtext?v=video&lang=en")
+            parameter("url", "https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en")
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.headers[HttpHeaders.ContentType]?.startsWith("text/vtt") == true)
-        assertEquals("private, max-age=300", response.headers[HttpHeaders.CacheControl])
         assertTrue(response.bodyAsText().startsWith("WEBVTT"))
         coVerify(exactly = 0) { proxyService.pipe(any(), any(), any()) }
     }
 
     @Test
     fun `YouTube subtitle throttle returns a typed request id error`() = testApplication {
-        var tokenRequest: Request? = null
-        val service = subtitleService(
-            """{"error":"throttled","code":"subtitle_upstream_throttled"}""",
-            code = 429,
-        ) { tokenRequest = it }
+        val service = subtitleService(YouTubeSubtitleFetchResult.Throttled)
         application {
             installRequestObservability()
             install(ContentNegotiation) { json(Json { encodeDefaults = true }) }
             configureStatusPages()
-            routing { proxyRoutes(proxyService, service) }
+            routing { youtubeSubtitleRoutes(service) }
         }
 
-        val response = client.get("/proxy") {
+        val response = client.get("/subtitles/youtube/abcdefghijk") {
             header(REQUEST_ID_HEADER, "subtitle-request-123")
-            parameter("url", "https://www.youtube.com/api/timedtext?v=video&lang=en")
+            parameter("language", "en")
+            parameter("variant", "manual")
         }
 
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals(null, response.headers[HttpHeaders.RetryAfter])
         assertEquals("subtitle-request-123", response.headers[REQUEST_ID_HEADER])
-        assertEquals("subtitle-request-123", tokenRequest?.header(REQUEST_ID_HEADER))
         val body = response.bodyAsText()
         assertTrue(body.contains("\"code\":\"subtitle_upstream_throttled\""))
         assertTrue(body.contains("\"requestId\":\"subtitle-request-123\""))
-        coVerify(exactly = 0) { proxyService.pipe(any(), any(), any()) }
+    }
+
+    @Test
+    fun `invalid dedicated subtitle selection returns typed bad request`() = testApplication {
+        val service = subtitleService(YouTubeSubtitleFetchResult.Ready(VTT))
+        application {
+            installRequestObservability()
+            install(ContentNegotiation) { json(Json { encodeDefaults = true }) }
+            configureStatusPages()
+            routing { youtubeSubtitleRoutes(service) }
+        }
+
+        val response = client.get("/subtitles/youtube/not-valid") {
+            parameter("language", "en")
+            parameter("variant", "manual")
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"subtitle_request_invalid\""))
     }
 
     private fun subtitleService(
-        body: String,
-        contentType: String = "application/json",
-        code: Int = 200,
-        observeRequest: (Request) -> Unit = {},
-    ): YouTubeSubtitleService {
-        val client = OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                observeRequest(chain.request())
-                Response.Builder()
-                    .request(chain.request())
-                    .protocol(Protocol.HTTP_1_1)
-                    .code(code)
-                    .message("test")
-                    .body(body.toResponseBody(contentType.toMediaType()))
-                    .build()
-            }
-            .build()
-        return YouTubeSubtitleService(client, "http://token")
+        fetchResult: YouTubeSubtitleFetchResult,
+        isLive: Boolean = false,
+    ) = YouTubeSubtitleDeliveryService(
+        resolver = { YouTubeSubtitleResolution.Ready(ResolvedYouTubeSubtitle(TIMED_TEXT_URL, true, isLive)) },
+        fetcher = { _, _ -> fetchResult },
+        cache = YouTubeSubtitleCache(null),
+    )
+
+    private companion object {
+        val VTT = "WEBVTT\n\n00:00.000 --> 00:01.000\nHello".encodeToByteArray()
+        const val TIMED_TEXT_URL = "https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en&fmt=vtt"
     }
 }

@@ -42,35 +42,6 @@ class YouTubeSubtitleServiceTest {
         )
     }
 
-    @Test
-    fun `subtitle content URL is encoded and returned as WebVTT`() = runTest {
-        val rawUrl = "https://www.youtube.com/api/timedtext?v=video&lang=en&tlang=fr"
-        var tokenRequest: Request? = null
-        val service = service("WEBVTT\n\n00:00.000 --> 00:01.000\nHello", "text/vtt") {
-            tokenRequest = it
-        }
-
-        val result = service.fetchSubtitleContent(rawUrl) as YouTubeSubtitleContentResult.Ready
-
-        assertTrue(result.content.decodeToString().startsWith("WEBVTT"))
-        assertEquals(rawUrl, tokenRequest?.url?.queryParameter("url"))
-    }
-
-    @Test
-    fun `Token throttle is preserved as a typed subtitle result`() = runTest {
-        var calls = 0
-        val service = service(
-            """{"error":"throttled","code":"subtitle_upstream_throttled"}""",
-            code = 429,
-        ) { calls++ }
-
-        assertEquals(
-            YouTubeSubtitleContentResult.Throttled,
-            service.fetchSubtitleContent("https://www.youtube.com/api/timedtext?v=video&lang=en"),
-        )
-        assertEquals(1, calls)
-    }
-
     private fun service(
         body: String,
         contentType: String = "application/json",
