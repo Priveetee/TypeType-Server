@@ -4,9 +4,11 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class YouTubeSubtitleServiceTest {
@@ -40,15 +42,50 @@ class YouTubeSubtitleServiceTest {
         )
     }
 
-    private fun service(body: String): YouTubeSubtitleService {
+    @Test
+    fun `subtitle content URL is encoded and returned as WebVTT`() = runTest {
+        val rawUrl = "https://www.youtube.com/api/timedtext?v=video&lang=en&tlang=fr"
+        var tokenRequest: Request? = null
+        val service = service("WEBVTT\n\n00:00.000 --> 00:01.000\nHello", "text/vtt") {
+            tokenRequest = it
+        }
+
+        val result = service.fetchSubtitleContent(rawUrl) as YouTubeSubtitleContentResult.Ready
+
+        assertTrue(result.content.decodeToString().startsWith("WEBVTT"))
+        assertEquals(rawUrl, tokenRequest?.url?.queryParameter("url"))
+    }
+
+    @Test
+    fun `Token throttle is preserved as a typed subtitle result`() = runTest {
+        var calls = 0
+        val service = service(
+            """{"error":"throttled","code":"subtitle_upstream_throttled"}""",
+            code = 429,
+        ) { calls++ }
+
+        assertEquals(
+            YouTubeSubtitleContentResult.Throttled,
+            service.fetchSubtitleContent("https://www.youtube.com/api/timedtext?v=video&lang=en"),
+        )
+        assertEquals(1, calls)
+    }
+
+    private fun service(
+        body: String,
+        contentType: String = "application/json",
+        code: Int = 200,
+        observeRequest: (Request) -> Unit = {},
+    ): YouTubeSubtitleService {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
+                observeRequest(chain.request())
                 Response.Builder()
                     .request(chain.request())
                     .protocol(Protocol.HTTP_1_1)
-                    .code(200)
+                    .code(code)
                     .message("test")
-                    .body(body.toResponseBody("application/json".toMediaType()))
+                    .body(body.toResponseBody(contentType.toMediaType()))
                     .build()
             }
             .build()
