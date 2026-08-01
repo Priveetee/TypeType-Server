@@ -1,15 +1,38 @@
 package dev.typetype.server.services
 
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 class PipePipeYouTubeSubtitleResolverTest {
+    @Test
+    fun `resolution uses the public mweb extraction context`() = runBlocking {
+        val youtube = ServiceList.YouTube
+        NewPipe.setYoutubePlayerClient(YoutubePlayerClient.WEB_SAFARI.value)
+        youtube.setTokens("SID=session-cookie")
+        youtube.setAdditionalTokens("session-pot")
+        var observed: Triple<String, String, String>? = null
+        val resolver = PipePipeYouTubeSubtitleResolver {
+            observed = Triple(
+                NewPipe.getYoutubePlayerClient(),
+                youtube.tokens.orEmpty(),
+                youtube.additionalTokens.orEmpty(),
+            )
+            YouTubeSubtitleResolution.NotFound
+        }
+
+        assertEquals(YouTubeSubtitleResolution.NotFound, resolver.resolve(selection(YouTubeSubtitleVariant.Manual)))
+        assertEquals(Triple(YoutubePlayerClient.MWEB.value, "", ""), observed)
+    }
+
     @Test
     fun `manual and automatic tracks remain distinct`() {
         val manual = track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en", false)

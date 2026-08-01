@@ -12,26 +12,16 @@ internal fun interface YouTubeSubtitleTrackResolver {
     suspend fun resolve(selection: YouTubeSubtitleSelection): YouTubeSubtitleResolution
 }
 
-internal class PipePipeYouTubeSubtitleResolver : YouTubeSubtitleTrackResolver {
+internal class PipePipeYouTubeSubtitleResolver(
+    private val extract: suspend (YouTubeSubtitleSelection) -> YouTubeSubtitleResolution =
+        ::extractYouTubeSubtitle,
+) : YouTubeSubtitleTrackResolver {
     override suspend fun resolve(selection: YouTubeSubtitleSelection): YouTubeSubtitleResolution = try {
         withTimeout(RESOLUTION_TIMEOUT_MS) {
-            runPipePipeCall {
-                val url = "https://www.youtube.com/watch?v=${selection.videoId}"
-                val service = NewPipe.getServiceByUrl(url)
-                val extractor = service.getStreamExtractor(service.streamLHFactory.fromUrl(url))
-                extractor.fetchPage()
-                val track = extractor.getSubtitles(selection.format.mediaFormat)
-                    .firstOrNull { it.matchesYouTubeSubtitle(selection) }
-                    ?: return@runPipePipeCall YouTubeSubtitleResolution.NotFound
-                val content = track.contentForYouTubeSubtitle(selection)
-                    ?: return@runPipePipeCall YouTubeSubtitleResolution.NotFound
-                YouTubeSubtitleResolution.Ready(
-                    ResolvedYouTubeSubtitle(
-                        content = content,
-                        isUrl = track.isUrl,
-                        isLive = extractor.streamType.toApiStreamType().isLiveContentType(),
-                    ),
-                )
+            YoutubeSessionTokenScope.withoutCredentials {
+                YoutubePlayerClientScope.withClient(YoutubePlayerClient.MWEB) {
+                    extract(selection)
+                }
             }
         }
     } catch (_: TimeoutCancellationException) {
@@ -52,6 +42,27 @@ internal class PipePipeYouTubeSubtitleResolver : YouTubeSubtitleTrackResolver {
     private companion object {
         const val RESOLUTION_TIMEOUT_MS = 30_000L
     }
+}
+
+private suspend fun extractYouTubeSubtitle(
+    selection: YouTubeSubtitleSelection,
+): YouTubeSubtitleResolution = runPipePipeCall {
+    val url = "https://www.youtube.com/watch?v=${selection.videoId}"
+    val service = NewPipe.getServiceByUrl(url)
+    val extractor = service.getStreamExtractor(service.streamLHFactory.fromUrl(url))
+    extractor.fetchPage()
+    val track = extractor.getSubtitles(selection.format.mediaFormat)
+        .firstOrNull { it.matchesYouTubeSubtitle(selection) }
+        ?: return@runPipePipeCall YouTubeSubtitleResolution.NotFound
+    val content = track.contentForYouTubeSubtitle(selection)
+        ?: return@runPipePipeCall YouTubeSubtitleResolution.NotFound
+    YouTubeSubtitleResolution.Ready(
+        ResolvedYouTubeSubtitle(
+            content = content,
+            isUrl = track.isUrl,
+            isLive = extractor.streamType.toApiStreamType().isLiveContentType(),
+        ),
+    )
 }
 
 internal fun SubtitlesStream.matchesYouTubeSubtitle(selection: YouTubeSubtitleSelection): Boolean {
