@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SearchFilterGroup
 import dev.typetype.server.models.SearchFilterOption
 import dev.typetype.server.models.SearchFiltersResponse
 import dev.typetype.server.models.SearchPageResponse
@@ -26,10 +27,18 @@ class SearchFiltersRoutesTest {
 
     @Test
     fun `GET search filters returns supported filters`() = withApp {
-        coEvery { searchService.filters(0) } returns ExtractionResult.Success(
+        coEvery { searchService.filters(0, null) } returns ExtractionResult.Success(
             SearchFiltersResponse(
                 contentFilters = listOf(SearchFilterOption(value = "type|1|Videos", label = "Type: Videos")),
                 sortFilters = listOf(SearchFilterOption(value = "sort|2|Upload date", label = "Sort: Upload date")),
+                filterGroups = listOf(
+                    SearchFilterGroup(
+                        key = "sort|2",
+                        label = "Sort",
+                        multiSelect = false,
+                        options = listOf(SearchFilterOption(value = "sort|2|Upload date", label = "Upload date")),
+                    )
+                ),
             )
         )
         val response = client.get("/search/filters?service=0")
@@ -37,6 +46,23 @@ class SearchFiltersRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(body.contains("contentFilters"))
         assertTrue(body.contains("Upload date"))
+        assertTrue(body.contains("filterGroups"))
+    }
+
+    @Test
+    fun `GET search filters passes selected content filter`() = withApp {
+        coEvery { searchService.filters(0, "content") } returns ExtractionResult.Success(
+            SearchFiltersResponse(
+                contentFilters = emptyList(),
+                sortFilters = emptyList(),
+                filterGroups = emptyList(),
+            )
+        )
+
+        val response = client.get("/search/filters?service=0&contentFilter=content")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { searchService.filters(0, "content") }
     }
 
     @Test
@@ -44,9 +70,11 @@ class SearchFiltersRoutesTest {
         coEvery { searchService.search(any(), any(), any(), any(), any()) } returns ExtractionResult.Success(
             SearchPageResponse(items = emptyList(), nextpage = null, searchSuggestion = null, isCorrectedSearch = false)
         )
-        val response = client.get("/search?q=test&service=0&contentFilter=content&sortFilter=sort")
+        val response = client.get(
+            "/search?q=test&service=0&contentFilter=content&filter=views&filter=short&sortFilter=legacy"
+        )
         assertEquals(HttpStatusCode.OK, response.status)
-        coVerify { searchService.search("test", 0, null, "content", "sort") }
+        coVerify { searchService.search("test", 0, null, "content", listOf("views", "short", "legacy")) }
     }
 
     private fun withApp(block: suspend io.ktor.server.testing.ApplicationTestBuilder.() -> Unit) = testApplication {
