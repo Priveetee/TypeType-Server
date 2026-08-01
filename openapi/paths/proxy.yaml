@@ -1,0 +1,49 @@
+Proxy:
+  get:
+    tags: [extraction]
+    summary: Retrieve proxied media or YouTube subtitle content
+    description: >-
+      YouTube timed-text URLs are refreshed through the Token service and returned as same-origin
+      WebVTT. Other supported URLs retain the generic streaming proxy behavior.
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string, format: uri }
+      - name: Range
+        in: header
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Complete proxied content.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          text/vtt:
+            schema: { type: string }
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '206':
+        description: Partial generic proxy response.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+          Content-Range:
+            schema: { type: string }
+          Accept-Ranges:
+            schema: { type: string }
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/JsonError
+      '502':
+        $ref: ../components/common.yaml#/JsonError
