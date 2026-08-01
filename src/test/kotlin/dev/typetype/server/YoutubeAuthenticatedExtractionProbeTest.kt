@@ -59,6 +59,8 @@ class YoutubeAuthenticatedExtractionProbeTest {
         val result = YoutubeSessionTokenScope.withCredentials(credentials) {
             val token = NewPipe.getYoutubeSessionPoTokenProvider()?.getSessionPoToken(
                 "TV",
+                "1.0",
+                "test-user-agent",
                 localization,
                 contentCountry,
                 true,

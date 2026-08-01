@@ -48,18 +48,18 @@ class TypetypeTokenSabrTokenClientTest {
     }
 
     @Test
-    fun providerForceRefreshUsesVideoRefreshOnly(): Unit {
+    fun providerFetchesVideoTokenWithoutRefresh(): Unit {
         val recorder = PotokenRequestRecorder()
         val client = TypetypeTokenSabrTokenClient("https://token.example", recorder.client)
         val provider = TypetypeTokenSabrPoTokenProvider(client)
-        val token = provider.getPoToken(info("visitor"), mockk(), true)
+        val token = provider.getPoToken(info("visitor"), mockk())
 
         assertNotNull(token)
         assertArrayEquals(byteArrayOf(2), token)
         val url = recorder.urls.single()
         assertEquals("video", url.queryParameter("videoId"))
         assertNull(url.queryParameter("refresh"))
-        assertEquals("true", url.queryParameter("refreshVideo"))
+        assertNull(url.queryParameter("refreshVideo"))
     }
 
     @Test
@@ -70,13 +70,13 @@ class TypetypeTokenSabrTokenClientTest {
         )
 
         val error = assertThrows(SabrRecoverableException::class.java) {
-            provider.getPoToken(info("visitor"), mockk(), true)
+            provider.getPoToken(info("visitor"), mockk())
         }
 
         assertEquals(SABR_TOKEN_BINDING_FAILURE, error.message)
         val url = recorder.urls.single()
         assertNull(url.queryParameter("refresh"))
-        assertEquals("true", url.queryParameter("refreshVideo"))
+        assertNull(url.queryParameter("refreshVideo"))
     }
 
     private fun info(expectedVisitorData: String): YoutubeSabrInfo = mockk {

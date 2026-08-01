@@ -57,6 +57,8 @@ class SabrSessionPlayerContextTest {
 
     private fun currentToken() = TypetypeYoutubeSessionPoTokenProvider.getSessionPoToken(
         "MWEB",
+        "2.20260801.00.00",
+        "test-user-agent",
         Localization("en", "US"),
         ContentCountry("US"),
         false,
