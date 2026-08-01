@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -59,6 +60,7 @@ class SabrSeekRepositionPumpTest {
             val request = SabrSegmentRequest.media(video, 24)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             every { session.streamState } returns mockk(relaxed = true)
+            every { session.requestNumber } returns 2
             every { session.getCachedSegment(any()) } returns null
             every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
             val holder = holder(session, audio, video)
@@ -73,6 +75,45 @@ class SabrSeekRepositionPumpTest {
             verify(exactly = 0) { session.prepareForForwardJump(request) }
             verify(exactly = 0) { session.pumpOnceStreaming(any()) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `cold playback bootstraps before applying saved position`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, true)
+            val video = format(137, false)
+            val request = SabrSegmentRequest.media(video, 180)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+            var requestNumber = 0
+            every { session.streamState } returns state
+            every { session.requestNumber } answers { requestNumber }
+            every { session.getCachedSegment(any()) } returns null
+            every { session.pumpOnceStreaming(any()) } answers {
+                requestNumber = 1
+                2
+            }
+            every { state.getMaxSegment(audio) } returns 1
+            every { state.getMaxSegment(video) } returns 1
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
+            val holder = holder(session, audio, video)
+            holder.setRequestedSeekTimeMs(900_000L)
+            holder.requestSegmentDemand(request)
+            holder.requestForwardSeek(request)
+            var rounds = 0
+
+            SabrSessionPumpLoop().run({ rounds++ < 2 }, holder, intervalMs = 0L)
+
+            verifyOrder {
+                state.setPlayerTimeMs(0L)
+                session.pumpOnceStreaming(any())
+                session.prepareForForwardJump(request, 900_000L)
+                session.pumpOnceStreamingForDemand(any(), request)
+            }
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

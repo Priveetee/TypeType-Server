@@ -69,6 +69,12 @@ internal class SabrSessionPumpLoop(
         runtime: SabrPumpRuntime,
     ): Boolean {
         preparePumpEviction(holder)
+        if (holder.prepareStartupBootstrapPump()) {
+            holder.setPlaybackState(SabrPlaybackState.REQUESTING)
+            pumpOnce(holder, localization, runtime)
+            holder.setPlaybackState(SabrPlaybackState.IDLE)
+            return true
+        }
         holder.consumeRefetch()?.let { request ->
             if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) {
                 holder.clearSegmentDemand(request)

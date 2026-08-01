@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 internal fun SabrSessionHolder.prepareStartupBootstrapPump(): Boolean {
+    if (expectsLive() || !hasPendingSeek()) return false
     if (session.requestNumber == 0) {
         session.streamState.setPlayerTimeMs(0L)
         return true
