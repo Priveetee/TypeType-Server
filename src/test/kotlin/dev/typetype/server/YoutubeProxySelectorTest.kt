@@ -22,11 +22,9 @@ class YoutubeProxySelectorTest {
             "https://i.ytimg.com/vi/id/hqdefault.jpg",
             "https://yt3.googleusercontent.com/avatar",
         ).forEach { url ->
-            val proxies = selector.select(URI(url))
-            val proxy = proxies.first()
+            val proxy = selector.select(URI(url)).single()
             assertEquals(Proxy.Type.HTTP, proxy.type())
             assertEquals(InetSocketAddress.createUnresolved("proxy.internal", 8080), proxy.address())
-            assertEquals(Proxy.NO_PROXY, proxies.last())
         }
     }
 
