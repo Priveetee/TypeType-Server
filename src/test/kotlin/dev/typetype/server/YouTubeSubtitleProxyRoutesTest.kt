@@ -89,18 +89,21 @@ class YouTubeSubtitleProxyRoutesTest {
         application {
             installRequestObservability()
             install(ContentNegotiation) { json(Json { encodeDefaults = true }) }
+            configureCompression()
             configureStatusPages()
             routing { youtubeSubtitleRoutes(service) }
         }
 
         val response = client.get("/subtitles/youtube/abcdefghijk") {
             header(REQUEST_ID_HEADER, "subtitle-request-123")
+            header(HttpHeaders.AcceptEncoding, "gzip")
             parameter("language", "en")
             parameter("variant", "manual")
         }
 
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
         assertEquals("subtitle-request-123", response.headers[REQUEST_ID_HEADER])
+        assertEquals(null, response.headers[HttpHeaders.ContentEncoding])
         val body = response.bodyAsText()
         assertTrue(body.contains("\"code\":\"subtitle_upstream_throttled\""))
         assertTrue(body.contains("\"requestId\":\"subtitle-request-123\""))
