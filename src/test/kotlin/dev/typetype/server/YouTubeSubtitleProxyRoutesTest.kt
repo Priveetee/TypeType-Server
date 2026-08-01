@@ -59,6 +59,7 @@ class YouTubeSubtitleProxyRoutesTest {
         application {
             installRequestObservability()
             install(ContentNegotiation) { json(Json { encodeDefaults = true }) }
+            configureStatusPages()
             routing { proxyRoutes(proxyService, service) }
         }
 
@@ -68,6 +69,7 @@ class YouTubeSubtitleProxyRoutesTest {
         }
 
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
+        assertEquals(null, response.headers[HttpHeaders.RetryAfter])
         assertEquals("subtitle-request-123", response.headers[REQUEST_ID_HEADER])
         assertEquals("subtitle-request-123", tokenRequest?.header(REQUEST_ID_HEADER))
         val body = response.bodyAsText()
