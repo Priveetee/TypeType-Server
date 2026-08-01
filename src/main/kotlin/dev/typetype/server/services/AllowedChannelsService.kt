@@ -86,3 +86,7 @@ internal fun normalizeChannelKey(value: String): String = value.trim()
     .substringBefore('?')
     .removeSuffix("/")
     .replace("http://", "https://")
+    .replace(
+        Regex("^https://(?:www\\.|m\\.|music\\.)youtube\\.com", RegexOption.IGNORE_CASE),
+        "https://youtube.com",
+    )

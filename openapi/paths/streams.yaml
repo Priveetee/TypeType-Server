@@ -19,6 +19,10 @@ YoutubeSabrStreams:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
         $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
 YoutubeSabrBootstrap:
@@ -42,6 +46,10 @@ YoutubeSabrBootstrap:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
         $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
 NicoNicoStreams:
@@ -62,6 +70,10 @@ NicoNicoStreams:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
         $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
 BiliBiliStreams:
@@ -81,6 +93,10 @@ BiliBiliStreams:
             schema:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError

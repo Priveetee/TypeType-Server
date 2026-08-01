@@ -27,6 +27,7 @@ internal fun Route.installStreamRoutes(
             authService = authService,
             accessControlService = svc.accessControlService,
             adminSettingsService = adminSettingsService,
+            blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
         )
