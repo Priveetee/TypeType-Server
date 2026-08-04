@@ -184,10 +184,7 @@ internal class SabrSessionStore(
         holder.liveInitialization(format)?.let { return it }
         val request = SabrSegmentRequest.initialization(format)
         holder.session.getCachedSegment(request)?.let { segmentCache.put(holder, it); return it.data }
-        SabrInitializationData.fetch(holder.key.videoId, format, initCache)?.let {
-            holder.session.streamState.ingestInitializationData(format, it)
-            return it
-        }
+        SabrAdaptiveInitialization.fetch(holder, format, initCache)?.let { return it }
         SabrInitializationData.bootstrap(holder, format, initCache)?.let { return it }
         val segment = pump.fetchSegment(holder, request) ?: return null
         segmentCache.put(holder, segment)
