@@ -60,7 +60,7 @@ class HomeRecommendationRoutesTest {
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { homeRecommendationRoutes(service, auth) }
+            routing { homeRecommendationRoutes(service, auth, resolverDeps.blockedService) }
         }
         block()
     }

@@ -1,7 +1,14 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.HomeRecommendationsResponse
 import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.models.StreamResponse
+
+internal fun HomeRecommendationsResponse.filterBlocked(profile: BlockedContentProfile): HomeRecommendationsResponse = copy(
+    items = items.filter {
+        profile.allowsVideo(it.url, it.title, it.uploaderUrl, it.uploaderName)
+    },
+)
 
 internal fun SearchPageResponse.filterBlocked(profile: BlockedContentProfile): SearchPageResponse = copy(
     items = items.filter { profile.allowsVideo(it.url, it.title, it.uploaderUrl, it.uploaderName) },
