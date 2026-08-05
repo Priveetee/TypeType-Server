@@ -1,7 +1,9 @@
 package dev.typetype.server
 
 import dev.typetype.server.db.tables.UsersTable
+import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AuthSessionConfig
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -74,6 +76,23 @@ class AuthServiceCoreTest {
         val refreshed = service.refreshSession(registered.refreshToken)
         assertNotNull(refreshed)
         assertEquals(expectedUser, refreshed?.let { service.verify(it.accessToken) })
+    }
+
+    @Test
+    fun `configured refresh lifetime is stored for new sessions`() {
+        val before = System.currentTimeMillis()
+        val service = AuthService(
+            "test-secret",
+            sessionConfig = AuthSessionConfig(refreshTtlDays = 3),
+        )
+
+        service.register("ttl@test.local", "secret-1", "TTL")
+        val expiresAt = transaction {
+            SessionsTable.selectAll().single()[SessionsTable.expiresAt]
+        }
+
+        val expected = before + 3L * 24L * 60L * 60L * 1000L
+        assertTrue(expiresAt in expected..(expected + 5_000L))
     }
 
     @Test
