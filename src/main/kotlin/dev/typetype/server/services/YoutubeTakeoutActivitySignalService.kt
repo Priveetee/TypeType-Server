@@ -38,7 +38,7 @@ object YoutubeTakeoutActivitySignalService {
     private fun parseFavorites(html: String): List<FavoriteItem> {
         return likedRegex.findAll(html).mapNotNull { match ->
             val title = decode(match.groupValues[2])
-            if (isUnavailable(title)) return@mapNotNull null
+            if (YoutubeTakeoutUnavailableItem.matches(title)) return@mapNotNull null
             val source = decode(match.groupValues[1]) + " " + title
             val videoUrl = watchUrlRegex.find(source)?.value?.replace("http://", "https://")
                 ?: return@mapNotNull null
@@ -52,9 +52,6 @@ object YoutubeTakeoutActivitySignalService {
         }.toList()
     }
 
-    private fun isUnavailable(title: String): Boolean =
-        YoutubeTakeoutTextNormalizer.normalize(title) in unavailableTitles
-
     private fun decode(value: String): String {
         return value
             .replace("&nbsp;", " ")
@@ -66,14 +63,4 @@ object YoutubeTakeoutActivitySignalService {
             .replace(spacesRegex, " ")
             .trim()
     }
-
-    private val unavailableTitles = setOf(
-        "deleted video",
-        "private video",
-        "video unavailable",
-        "video deleted",
-        "video indisponible",
-        "video privee",
-        "video supprimee",
-    )
 }

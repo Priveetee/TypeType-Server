@@ -33,6 +33,7 @@ object YoutubeTakeoutRowParser {
 
     fun parsePlaylistItem(header: List<String>, row: List<String>): Pair<String, PlaylistVideoItem>? {
         val values = header.zip(row).toMap()
+        if (isUnavailablePlaylistItem(values)) return null
         val playlistKey = values.pickExact("playlist source key")
             ?: values.pickHeader(YoutubeTakeoutSchemaHints::isPlaylistIdHeader)
             ?: values.pickHeader(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
@@ -62,6 +63,14 @@ object YoutubeTakeoutRowParser {
             addedAt = addedAt,
         )
     }
+
+    fun isUnavailablePlaylistItem(header: List<String>, row: List<String>): Boolean =
+        isUnavailablePlaylistItem(header.zip(row).toMap())
+
+    private fun isUnavailablePlaylistItem(values: Map<String, String>): Boolean =
+        values.pickHeader(YoutubeTakeoutSchemaHints::isVideoTitleHeader)
+            ?.let(YoutubeTakeoutUnavailableItem::matches)
+            ?: false
 
     private fun Map<String, String>.pickExact(vararg keys: String): String? {
         val normalized = entries.associate { YoutubeTakeoutSchemaHints.normalize(it.key) to it.value.trim() }
