@@ -12,10 +12,14 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 import java.util.Date
 
-open class AuthService(private val jwtSecret: String, private val hasUsersProbe: (() -> Boolean)? = null) {
+open class AuthService(
+    private val jwtSecret: String,
+    private val hasUsersProbe: (() -> Boolean)? = null,
+    sessionConfig: AuthSessionConfig = AuthSessionConfig(),
+) {
     private val accessCodec = AuthAccessTokenCodec(jwtSecret)
     private val sessionStore = AuthSessionStore()
-    private val tokenIssuer = AuthTokenIssuer(accessCodec, sessionStore)
+    private val tokenIssuer = AuthTokenIssuer(accessCodec, sessionStore, sessionConfig)
     private val sessionRefresher = AuthSessionRefresher(sessionStore, tokenIssuer)
     private val sessionVerifier = AuthSessionVerifier(accessCodec, sessionStore)
     private val sessionRevoker = AuthSessionRevoker(sessionStore)

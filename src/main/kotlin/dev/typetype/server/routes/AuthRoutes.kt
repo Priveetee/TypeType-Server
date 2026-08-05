@@ -5,6 +5,7 @@ import dev.typetype.server.models.UserProfileItem
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthCookieHelpers
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.HomeRecommendationWarmup
 import dev.typetype.server.services.NoopHomeRecommendationWarmup
 import dev.typetype.server.services.PasswordResetService
@@ -17,8 +18,15 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordResetService, profileService: ProfileService, adminSettingsService: AdminSettingsService, warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup) {
-    registerRoutes(authService, adminSettingsService, warmupService)
+fun Route.authRoutes(
+    authService: AuthService,
+    passwordResetService: PasswordResetService,
+    profileService: ProfileService,
+    adminSettingsService: AdminSettingsService,
+    warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup,
+    sessionConfig: AuthSessionConfig = AuthSessionConfig(),
+) {
+    registerRoutes(authService, adminSettingsService, warmupService, sessionConfig)
 
     post("/auth/login") {
         if (!adminSettingsService.get().localLoginEnabled) {
@@ -32,7 +40,7 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
             return@post
         }
-        AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken)
+        AuthCookieHelpers.setRefreshCookie(call.response, token.refreshToken, sessionConfig)
         token.accessToken.warm(authService, warmupService)
         call.respond(SessionResponse(token.accessToken))
     }
@@ -44,14 +52,14 @@ fun Route.authRoutes(authService: AuthService, passwordResetService: PasswordRes
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
             return@post
         }
-        AuthCookieHelpers.setRefreshCookie(call.response, newToken.refreshToken)
+        AuthCookieHelpers.setRefreshCookie(call.response, newToken.refreshToken, sessionConfig)
         newToken.accessToken.warm(authService, warmupService)
         call.respond(SessionResponse(newToken.accessToken))
     }
     post("/auth/logout") {
         val refreshToken = AuthCookieHelpers.extractRefreshToken(call)
         authService.logout(refreshToken)
-        AuthCookieHelpers.clearRefreshCookie(call.response)
+        AuthCookieHelpers.clearRefreshCookie(call.response, sessionConfig)
         call.respond(HttpStatusCode.NoContent)
     }
 

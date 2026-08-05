@@ -27,6 +27,7 @@ import dev.typetype.server.routes.youtubeRemoteBrowserRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.DownloaderGatewayService
 import dev.typetype.server.services.GitHubIssueService
@@ -46,6 +47,7 @@ import io.ktor.server.routing.routing
 internal fun Application.installApplicationRoutes(
     svc: ServiceRegistry,
     authService: AuthService,
+    authSessionConfig: AuthSessionConfig,
     adminSettingsService: AdminSettingsService,
     activeSessionService: ActiveSessionService,
     downloaderGatewayService: DownloaderGatewayService,
@@ -90,8 +92,15 @@ internal fun Application.installApplicationRoutes(
             )
         }
         downloaderGatewayRoutes(downloaderGatewayService)
-        oidcAuthRoutes(oidcAuthService, adminSettingsService)
-        authRoutes(authService, passwordResetService, profileService, adminSettingsService, svc.homeRecommendationWarmupService)
+        oidcAuthRoutes(oidcAuthService, adminSettingsService, authSessionConfig)
+        authRoutes(
+            authService,
+            passwordResetService,
+            profileService,
+            adminSettingsService,
+            svc.homeRecommendationWarmupService,
+            authSessionConfig,
+        )
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminIdentityRoutes(svc.accountIdentityService, authService)
         adminAllowListRoutes(authService, userAdminService, svc.adminManagedAccessService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
