@@ -93,11 +93,11 @@ internal class ExtractionServiceRegistry(
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
-        YoutubePlayerClient.WEB_SAFARI,
+        YoutubePlayerClient.VISIONOS,
     )
     private val authenticatedStreamService = YoutubePlayerClientFallbackStreamService(
         directPipePipeStreamService,
-        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.WEB_SAFARI),
+        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,

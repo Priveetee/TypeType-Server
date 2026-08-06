@@ -18,15 +18,15 @@ import org.schabi.newpipe.extractor.NewPipe
 
 class YoutubePlayerClientStreamServiceTest {
     @Test
-    fun `classic extraction selects web safari and restores mweb`() = runBlocking {
+    fun `classic extraction selects visionOS and restores mweb`() = runBlocking {
         NewPipe.setYoutubePlayerClient(YoutubePlayerClient.MWEB.value)
         val observed = mutableListOf<String>()
         val delegate = recordingService(observed)
-        val service = YoutubePlayerClientStreamService(delegate, YoutubePlayerClient.WEB_SAFARI)
+        val service = YoutubePlayerClientStreamService(delegate, YoutubePlayerClient.VISIONOS)
 
         service.getStreamInfo(YOUTUBE_URL)
 
-        assertEquals(listOf(YoutubePlayerClient.WEB_SAFARI.value), observed)
+        assertEquals(listOf(YoutubePlayerClient.VISIONOS.value), observed)
         assertEquals(YoutubePlayerClient.MWEB.value, NewPipe.getYoutubePlayerClient())
     }
 
@@ -52,7 +52,7 @@ class YoutubePlayerClientStreamServiceTest {
             }
         }
         val sabr = YoutubePlayerClientStreamService(delegate, YoutubePlayerClient.MWEB)
-        val classic = YoutubePlayerClientStreamService(delegate, YoutubePlayerClient.WEB_SAFARI)
+        val classic = YoutubePlayerClientStreamService(delegate, YoutubePlayerClient.VISIONOS)
         val sabrJobs = List(2) { launch { sabr.getStreamInfo(YOUTUBE_URL) } }
         repeat(2) { sabrEntered.receive() }
 
@@ -65,7 +65,7 @@ class YoutubePlayerClientStreamServiceTest {
 
         assertTrue(classicEntered.get())
         assertEquals(4, observations.count { it == YoutubePlayerClient.MWEB.value })
-        assertEquals(2, observations.count { it == YoutubePlayerClient.WEB_SAFARI.value })
+        assertEquals(2, observations.count { it == YoutubePlayerClient.VISIONOS.value })
         assertEquals(YoutubePlayerClient.MWEB.value, NewPipe.getYoutubePlayerClient())
     }
 
