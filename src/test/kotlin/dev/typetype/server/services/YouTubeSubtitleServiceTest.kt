@@ -4,9 +4,11 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class YouTubeSubtitleServiceTest {
@@ -40,15 +42,21 @@ class YouTubeSubtitleServiceTest {
         )
     }
 
-    private fun service(body: String): YouTubeSubtitleService {
+    private fun service(
+        body: String,
+        contentType: String = "application/json",
+        code: Int = 200,
+        observeRequest: (Request) -> Unit = {},
+    ): YouTubeSubtitleService {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
+                observeRequest(chain.request())
                 Response.Builder()
                     .request(chain.request())
                     .protocol(Protocol.HTTP_1_1)
-                    .code(200)
+                    .code(code)
                     .message("test")
-                    .body(body.toResponseBody("application/json".toMediaType()))
+                    .body(body.toResponseBody(contentType.toMediaType()))
                     .build()
             }
             .build()

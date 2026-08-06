@@ -60,7 +60,7 @@ class HomeRecommendationShortsDebugRoutesTest {
     fun `shorts endpoint returns source debug payload when enabled`() = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { homeRecommendationShortsRoutes(service, auth) }
+            routing { homeRecommendationShortsRoutes(service, auth, resolverDeps.blockedService) }
         }
         val response = client.get("/recommendations/shorts?limit=5&debug=true") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")

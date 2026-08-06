@@ -29,7 +29,8 @@ fun Route.searchRoutes(
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing or invalid 'service' parameter"))
         if (serviceId !in VALID_SERVICE_IDS)
             return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid 'service' parameter"))
-        when (val result = searchService.filters(serviceId = serviceId)) {
+        val contentFilter = call.request.queryParameters["contentFilter"]
+        when (val result = searchService.filters(serviceId = serviceId, contentFilter = contentFilter)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
@@ -44,11 +45,14 @@ fun Route.searchRoutes(
             return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid 'service' parameter"))
         val nextpage = call.request.queryParameters["nextpage"]
         val contentFilter = call.request.queryParameters["contentFilter"]
-        val sortFilter = call.request.queryParameters["sortFilter"]
+        val filters = buildList {
+            addAll(call.request.queryParameters.getAll("filter").orEmpty().filter(String::isNotBlank))
+            call.request.queryParameters["sortFilter"]?.takeIf(String::isNotBlank)?.let(::add)
+        }.distinct()
 
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
         val blocked = access.userId?.let { blockedService?.profileFor(it) } ?: BlockedContentProfile.empty
-        when (val result = searchService.search(query = query, serviceId = serviceId, nextpage = nextpage, contentFilter = contentFilter, sortFilter = sortFilter)) {
+        when (val result = searchService.search(query, serviceId, nextpage, contentFilter, filters)) {
             is ExtractionResult.Success -> call.respond(result.data.filterAllowed(access.profile).filterBlocked(blocked))
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))

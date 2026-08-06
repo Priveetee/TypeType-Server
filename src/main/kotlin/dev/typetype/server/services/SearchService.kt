@@ -5,6 +5,16 @@ import dev.typetype.server.models.SearchFiltersResponse
 import dev.typetype.server.models.SearchPageResponse
 
 interface SearchService {
-    suspend fun search(query: String, serviceId: Int, nextpage: String? = null, contentFilter: String? = null, sortFilter: String? = null): ExtractionResult<SearchPageResponse>
-    suspend fun filters(serviceId: Int): ExtractionResult<SearchFiltersResponse>
+    suspend fun search(
+        query: String,
+        serviceId: Int,
+        nextpage: String? = null,
+        contentFilter: String? = null,
+        filters: List<String> = emptyList(),
+    ): ExtractionResult<SearchPageResponse>
+
+    suspend fun filters(
+        serviceId: Int,
+        contentFilter: String? = null,
+    ): ExtractionResult<SearchFiltersResponse>
 }

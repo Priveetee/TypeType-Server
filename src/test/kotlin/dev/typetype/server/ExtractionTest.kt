@@ -27,7 +27,7 @@ private object NoOpCache : CacheService {
 class ExtractionTest {
 
     private val service = PipePipeStreamService(NoOpCache, YouTubeSubtitleService(OkHttpClient(), "http://localhost:8081"), BilibiliRelatedService())
-    private val safariClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.WEB_SAFARI)
+    private val visionOsClassicService = YoutubePlayerClientStreamService(service, YoutubePlayerClient.VISIONOS)
 
     @BeforeAll
     fun setup() {
@@ -35,8 +35,8 @@ class ExtractionTest {
     }
 
     @Test
-    fun `YouTube classic Safari path has playable streams without SABR`() = kotlinx.coroutines.runBlocking {
-        val result = safariClassicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    fun `YouTube classic visionOS path has playable streams without SABR`() = kotlinx.coroutines.runBlocking {
+        val result = visionOsClassicService.getStreamInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         assertTrue(result is ExtractionResult.Success)
         val data = (result as ExtractionResult.Success).data
         val streams = data.videoStreams + data.videoOnlyStreams

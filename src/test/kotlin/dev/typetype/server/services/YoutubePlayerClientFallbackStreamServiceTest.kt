@@ -24,14 +24,14 @@ class YoutubePlayerClientFallbackStreamServiceTest {
         }
         val service = YoutubePlayerClientFallbackStreamService(
             delegate,
-            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_DOWNGRADED),
+            listOf(YoutubePlayerClient.VISIONOS, YoutubePlayerClient.TV_DOWNGRADED),
         )
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
         assertSame(success, result)
         assertEquals(
-            listOf(YoutubePlayerClient.WEB_SAFARI.value, YoutubePlayerClient.TV_DOWNGRADED.value),
+            listOf(YoutubePlayerClient.VISIONOS.value, YoutubePlayerClient.TV_DOWNGRADED.value),
             observed,
         )
         assertEquals(YoutubePlayerClient.MWEB.value, NewPipe.getYoutubePlayerClient())
@@ -49,13 +49,13 @@ class YoutubePlayerClientFallbackStreamServiceTest {
         }
         val service = YoutubePlayerClientFallbackStreamService(
             delegate,
-            listOf(YoutubePlayerClient.WEB_SAFARI, YoutubePlayerClient.TV_DOWNGRADED),
+            listOf(YoutubePlayerClient.VISIONOS, YoutubePlayerClient.TV_DOWNGRADED),
         )
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
         assertSame(success, result)
-        assertEquals(listOf(YoutubePlayerClient.WEB_SAFARI.value), observed)
+        assertEquals(listOf(YoutubePlayerClient.VISIONOS.value), observed)
     }
 
     private companion object {

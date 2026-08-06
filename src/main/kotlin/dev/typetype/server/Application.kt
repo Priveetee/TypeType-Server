@@ -4,6 +4,7 @@ import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.YoutubeProxySelector
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.DownloaderGatewayService
@@ -36,7 +37,8 @@ fun Application.module() {
     val dbPassword = System.getenv("DATABASE_PASSWORD") ?: "typetype"
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
     val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
-    val authService = AuthService(jwtSecret)
+    val authSessionConfig = AuthSessionConfig.fromEnvironment()
+    val authService = AuthService(jwtSecret, sessionConfig = authSessionConfig)
     val oidcAuthService = OidcAuthService(OidcConfigLoader.fromEnvironment(), jwtSecret, authService)
     val userAdminService = UserAdminService()
     val passwordResetService = PasswordResetService()
@@ -85,6 +87,7 @@ fun Application.module() {
     installApplicationRoutes(
         svc = svc,
         authService = authService,
+        authSessionConfig = authSessionConfig,
         adminSettingsService = adminSettingsService,
         activeSessionService = activeSessionService,
         downloaderGatewayService = downloaderGatewayService,

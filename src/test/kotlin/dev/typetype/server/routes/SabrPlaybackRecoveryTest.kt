@@ -102,4 +102,17 @@ class SabrPlaybackRecoveryTest {
         assertEquals(emptyList<Int>(), recovery.retryVideoItags())
         coVerify(exactly = 1) { store.recoverProtectedPlaybackInfo(holder) }
     }
+
+    @Test
+    fun `attestation rejection refreshes context and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns
+            "SABR error: SABR attestation required: status=3, policy=true"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 900_000L)
+        coEvery { store.recoverProtectedPlaybackInfo(holder) } returns Unit
+
+        assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
+        coVerify(exactly = 1) { store.recoverProtectedPlaybackInfo(holder) }
+    }
 }

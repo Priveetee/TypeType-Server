@@ -53,12 +53,14 @@ class YoutubeAuthenticatedExtractionProbeTest {
         )
         val service = YoutubePlayerClientFallbackStreamService(
             pipePipe,
-            listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.WEB_SAFARI),
+            listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
         )
 
         val result = YoutubeSessionTokenScope.withCredentials(credentials) {
             val token = NewPipe.getYoutubeSessionPoTokenProvider()?.getSessionPoToken(
                 "TV",
+                "1.0",
+                "test-user-agent",
                 localization,
                 contentCountry,
                 true,

@@ -32,6 +32,7 @@ class YoutubeTakeoutParserService {
         }.toMap()
         val rawPlaylistItems = mutableMapOf<String, MutableList<PlaylistVideoItem>>()
         scan.playlistItemsRows.forEach { row ->
+            if (YoutubeTakeoutRowParser.isUnavailablePlaylistItem(scan.playlistItemsHeader, row)) return@forEach
             val parsed = runCatching { YoutubeTakeoutRowParser.parsePlaylistItem(scan.playlistItemsHeader, row) }.getOrNull()
             if (parsed == null) {
                 errors += "Invalid playlist item row"

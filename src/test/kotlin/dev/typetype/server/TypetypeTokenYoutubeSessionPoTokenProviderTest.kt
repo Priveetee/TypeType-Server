@@ -24,7 +24,7 @@ class TypetypeTokenYoutubeSessionPoTokenProviderTest {
             visitorDataFetcher = { _, _ -> calls += 1; "unused" },
         )
 
-        val result = provider.getSessionPoToken("WEB", localization, country, false)
+        val result = provider.getSessionPoToken("WEB", "1.0", "test-user-agent", localization, country, false)
 
         assertNull(result)
         assertEquals(0, calls)
@@ -40,8 +40,8 @@ class TypetypeTokenYoutubeSessionPoTokenProviderTest {
             visitorDataFetcher = { _, _ -> visitorCalls += 1; "visitor-one" },
         )
 
-        val first = provider.getSessionPoToken("TV", localization, country, true)
-        val second = provider.getSessionPoToken("WEB", localization, country, true)
+        val first = provider.getSessionPoToken("TV", "1.0", "test-user-agent", localization, country, true)
+        val second = provider.getSessionPoToken("WEB", "2.0", "test-user-agent", localization, country, true)
 
         assertEquals("visitor-one", first?.visitorData)
         assertEquals("token-for-visitor-one", first?.poToken)
@@ -58,10 +58,10 @@ class TypetypeTokenYoutubeSessionPoTokenProviderTest {
             visitorDataFetcher = { _, _ -> "visitor-${++index}" },
         )
         ServiceList.YouTube.setTokens("SID=one; SAPISID=one")
-        val first = provider.getSessionPoToken("WEB", localization, country, true)
+        val first = provider.getSessionPoToken("WEB", "1.0", "test-user-agent", localization, country, true)
         ServiceList.YouTube.setTokens("SID=two; SAPISID=two")
 
-        val second = provider.getSessionPoToken("WEB", localization, country, true)
+        val second = provider.getSessionPoToken("WEB", "1.0", "test-user-agent", localization, country, true)
 
         assertEquals("visitor-1", first?.visitorData)
         assertEquals("visitor-2", second?.visitorData)

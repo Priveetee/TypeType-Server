@@ -38,6 +38,6 @@ internal fun Route.userDataRoutes(
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
     typeTypeBackupRoutes(svc.typeTypeBackupService, authService)
-    homeRecommendationRoutes(svc.homeRecommendationService, authService, svc.accessControlService)
-    homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.accessControlService)
+    homeRecommendationRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
+    homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
 }

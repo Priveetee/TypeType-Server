@@ -21,6 +21,8 @@ internal object TypetypeYoutubeSessionPoTokenProvider : YoutubeSessionPoTokenPro
 
     override fun getSessionPoToken(
         clientName: String,
+        clientVersion: String,
+        userAgent: String?,
         localization: Localization,
         contentCountry: ContentCountry,
         loggedIn: Boolean,

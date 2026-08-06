@@ -11,7 +11,7 @@ internal class YoutubeProxySelector private constructor(
     private val proxy: Proxy,
 ) : ProxySelector() {
     override fun select(uri: URI): List<Proxy> =
-        if (isYoutubeHost(uri.host)) listOf(proxy, Proxy.NO_PROXY) else DIRECT
+        if (isYoutubeHost(uri.host)) listOf(proxy) else DIRECT
 
     override fun connectFailed(uri: URI, socketAddress: SocketAddress, exception: IOException) = Unit
 

@@ -8,6 +8,7 @@ import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.withPlayableSabrStreams
+import dev.typetype.server.routes.youtubeSubtitleRoutes
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import io.ktor.server.plugins.ratelimit.rateLimit
@@ -27,6 +28,7 @@ internal fun Route.installStreamRoutes(
             authService = authService,
             accessControlService = svc.accessControlService,
             adminSettingsService = adminSettingsService,
+            blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
         )
@@ -56,7 +58,8 @@ internal fun Route.installStreamRoutes(
 
 internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
     rateLimit(PROXY_ZONE) {
-        proxyRoutes(svc.proxyService)
+        proxyRoutes(svc.proxyService, svc.youtubeSubtitleDeliveryService)
+        youtubeSubtitleRoutes(svc.youtubeSubtitleDeliveryService)
         audioOnlySourceRoutes(
             streamService = svc.streamService,
             proxyService = svc.proxyService,

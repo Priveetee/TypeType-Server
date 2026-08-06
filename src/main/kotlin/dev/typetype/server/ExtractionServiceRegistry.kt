@@ -34,6 +34,11 @@ import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
 import dev.typetype.server.services.YouTubeSubtitleService
+import dev.typetype.server.services.YouTubeSubtitleCache
+import dev.typetype.server.services.YouTubeSubtitleDeliveryService
+import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
+import dev.typetype.server.services.StreamYouTubeSubtitleResolver
+import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
@@ -88,11 +93,11 @@ internal class ExtractionServiceRegistry(
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
-        YoutubePlayerClient.WEB_SAFARI,
+        YoutubePlayerClient.VISIONOS,
     )
     private val authenticatedStreamService = YoutubePlayerClientFallbackStreamService(
         directPipePipeStreamService,
-        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.WEB_SAFARI),
+        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,
@@ -110,6 +115,15 @@ internal class ExtractionServiceRegistry(
         ),
         cache,
         "stream-youtube-sabr:v1",
+    )
+    val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
+        StreamYouTubeSubtitleResolver(youtubeSabrStreamService, youtubeSubtitleService::fetchSubtitleInventory),
+        TokenYouTubeSubtitleContentFetcher(
+            httpClient,
+            subtitleServiceUrl,
+            OkHttpYouTubeSubtitleContentFetcher(httpClient),
+        ),
+        YouTubeSubtitleCache(cache),
     )
     val youtubeSabrBootstrapStreamService = CachedStreamService(
         YoutubeScopedStreamService(SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient)),

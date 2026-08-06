@@ -15,14 +15,24 @@ class CachedSearchService(
         serviceId: Int,
         nextpage: String?,
         contentFilter: String?,
-        sortFilter: String?,
+        filters: List<String>,
     ): ExtractionResult<SearchPageResponse> = PublicExtractionCache.getOrLoad(
         cache = cache,
         area = "search",
-        key = PublicCacheKey.of("search-v2", serviceId.toString(), query, nextpage, contentFilter, sortFilter),
+        key = PublicCacheKey.of(
+            "search-v3",
+            serviceId.toString(),
+            query,
+            nextpage,
+            contentFilter,
+            *filters.sorted().toTypedArray(),
+        ),
         serializer = SearchPageResponse.serializer(),
         ttlSeconds = { PublicCachePolicy.searchTtl(serviceId, nextpage) },
-    ) { delegate.search(query, serviceId, nextpage, contentFilter, sortFilter) }
+    ) { delegate.search(query, serviceId, nextpage, contentFilter, filters) }
 
-    override suspend fun filters(serviceId: Int): ExtractionResult<SearchFiltersResponse> = delegate.filters(serviceId)
+    override suspend fun filters(
+        serviceId: Int,
+        contentFilter: String?,
+    ): ExtractionResult<SearchFiltersResponse> = delegate.filters(serviceId, contentFilter)
 }

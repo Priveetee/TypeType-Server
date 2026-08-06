@@ -137,6 +137,47 @@ class YoutubeTakeoutParserServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse omits unavailable videos from takeout collections and activity`() {
+        val zip = Files.createTempFile("yt-takeout-unavailable-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.writeEntry(
+                "Takeout/YouTube/playlists/playlists.csv",
+                "Playlist ID,Playlist Title\nPL123456,Imported\n",
+            )
+            out.writeEntry(
+                "Takeout/YouTube/playlists/Imported.csv",
+                "Video ID,Video Title\nkeep000001,Available title\ngone000001,Deleted video\n",
+            )
+            out.writeEntry(
+                "Takeout/YouTube/playlists/Watch later.csv",
+                "Video ID,Video Title\nkeep000002,Another title\ngone000002,Vidéo privée\n",
+            )
+            out.writeEntry(
+                "Takeout/YouTube/playlists/Liked videos.csv",
+                "Video ID,Video Title\nkeep000003,Liked title\ngone000003,Video no disponible\n",
+            )
+            out.writeEntry(
+                "Takeout/My Activity/YouTube/watch-history.html",
+                """
+                You watched <a href="https://www.youtube.com/watch?v=keep000004">Watched title</a><br>
+                1 Jan 2026, 12:00:00 CET<br>
+                You watched <a href="https://www.youtube.com/watch?v=gone000004">Video unavailable</a><br>
+                1 Jan 2026, 13:00:00 CET<br>
+                """.trimIndent(),
+            )
+        }
+
+        val parsed = YoutubeTakeoutParserService().parse(zip)
+
+        assertEquals(listOf("keep000001"), parsed.playlistItems["Imported"]?.map { it.url.substringAfter("v=") })
+        assertEquals(listOf("keep000002"), parsed.watchLater.map { it.url.substringAfter("v=") })
+        assertEquals(listOf("keep000003"), parsed.favorites.map { it.videoUrl.substringAfter("v=") })
+        assertEquals(listOf("keep000004"), parsed.history.map { it.url.substringAfter("v=") })
+        assertTrue(parsed.errors.isEmpty())
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(): Path {
         val zip = Files.createTempFile("yt-takeout-parser-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->
@@ -157,5 +198,11 @@ class YoutubeTakeoutParserServiceTest {
             out.closeEntry()
         }
         return zip
+    }
+
+    private fun ZipOutputStream.writeEntry(path: String, content: String) {
+        putNextEntry(ZipEntry(path))
+        write(content.toByteArray())
+        closeEntry()
     }
 }

@@ -5,13 +5,14 @@ import java.util.UUID
 class AuthTokenIssuer(
     private val accessCodec: AuthAccessTokenCodec,
     private val sessionStore: AuthSessionStore,
+    private val sessionConfig: AuthSessionConfig,
 ) {
     fun issue(userId: String, sessionId: String = UUID.randomUUID().toString()): AuthSessionTokens? {
         val now = System.currentTimeMillis()
         val refreshToken = UUID.randomUUID().toString() + UUID.randomUUID().toString()
         val refreshHash = AuthRefreshTokenHasher.hash(refreshToken)
         val accessToken = accessCodec.issue(userId = userId, sessionId = sessionId)
-        val expiresAt = now + REFRESH_TTL_MS
+        val expiresAt = now + sessionConfig.refreshTtlMs
         val ok = sessionStore.upsert(
             sessionId = sessionId,
             userId = userId,
@@ -21,9 +22,5 @@ class AuthTokenIssuer(
             expiresAt = expiresAt,
         )
         return if (ok) AuthSessionTokens(accessToken = accessToken, refreshToken = refreshToken) else null
-    }
-
-    companion object {
-        private const val REFRESH_TTL_MS = 30L * 24L * 60L * 60L * 1000L
     }
 }

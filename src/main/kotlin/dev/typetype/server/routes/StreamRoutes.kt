@@ -6,8 +6,11 @@ import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.BlockedContentProfile
+import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.filterBlocked
 import dev.typetype.server.services.filterAllowed
 import dev.typetype.server.services.withSabrManifestUrls
 import io.ktor.http.HttpHeaders
@@ -24,6 +27,7 @@ fun Route.streamRoutes(
     authService: AuthService? = null,
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
+    blockedService: BlockedService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     nicoNicoStreamService: StreamService = streamService,
     bilibiliStreamService: StreamService = streamService,
@@ -34,6 +38,7 @@ fun Route.streamRoutes(
         authService = authService,
         accessControlService = accessControlService,
         adminSettingsService = adminSettingsService,
+        blockedService = blockedService,
         publicHlsManifestTokenService = publicHlsManifestTokenService,
         sabrStreamContractFilter = sabrStreamContractFilter,
     )
@@ -69,10 +74,25 @@ private fun Route.streamRoute(
             dependencies.adminSettingsService,
         ) ?: return@get
         val accessProfile = access.profile
+        val blockedProfile = access.userId
+            ?.let { dependencies.blockedService?.profileFor(it) }
+            ?: BlockedContentProfile.empty
+        if (blockedProfile.blocksVideo(url)) {
+            return@get call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse("Video is blocked", "content_blocked"),
+            )
+        }
         when (val result = streamService.getStreamInfo(url)) {
             is ExtractionResult.Success -> {
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                }
+                if (!blockedProfile.allowsRequestedVideo(url, result.data.uploaderUrl, result.data.uploaderName)) {
+                    return@get call.respond(
+                        HttpStatusCode.Forbidden,
+                        ErrorResponse("Channel is blocked", "content_blocked"),
+                    )
                 }
                 val selected = if (deliveryMode.isSabr()) {
                     result.data.withSabrManifestUrls().onlySabrStreams()
@@ -81,6 +101,7 @@ private fun Route.streamRoute(
                 }
                 val filtered = selected
                     .filterAllowed(accessProfile)
+                    .filterBlocked(blockedProfile)
                     .withSignedPublicHlsUrl(
                         deliveryMode.isSabr() && selected.isLive || access.userId != null && !access.allowGuest,
                         dependencies.publicHlsManifestTokenService,
@@ -98,7 +119,7 @@ private fun Route.streamRoute(
                 }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
-                    if (accessProfile.enabled) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
+                    if (access.userId != null) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
                 )
                 call.respond(data)
             }

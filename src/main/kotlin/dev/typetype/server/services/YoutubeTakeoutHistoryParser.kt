@@ -13,6 +13,7 @@ object YoutubeTakeoutHistoryParser {
         return rowRegex.findAll(resolvedHtml).mapNotNull { match ->
             val url = extractUrl(match.groupValues[1]) ?: return@mapNotNull null
             val title = decode(match.groupValues[2])
+            if (YoutubeTakeoutUnavailableItem.matches(title)) return@mapNotNull null
             val channelUrl = match.groupValues[3].takeIf { it.isNotBlank() }.orEmpty()
             val channelName = decode(match.groupValues[4]).ifBlank { "Unknown channel" }
             val watchedAt = parseDate(decode(match.groupValues[5]))

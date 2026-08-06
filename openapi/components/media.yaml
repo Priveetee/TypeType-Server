@@ -49,12 +49,22 @@ SearchFilterOption:
   properties:
     value: { type: string }
     label: { type: string }
+    isDefault: { type: boolean, default: false }
+SearchFilterGroup:
+  type: object
+  required: [key, label, multiSelect, options]
+  properties:
+    key: { type: string }
+    label: { type: string }
+    multiSelect: { type: boolean }
+    options: { type: array, items: { $ref: '#/SearchFilterOption' } }
 SearchFiltersResponse:
   type: object
-  required: [contentFilters, sortFilters]
+  required: [contentFilters, sortFilters, filterGroups]
   properties:
     contentFilters: { type: array, items: { $ref: '#/SearchFilterOption' } }
     sortFilters: { type: array, items: { $ref: '#/SearchFilterOption' } }
+    filterGroups: { type: array, items: { $ref: '#/SearchFilterGroup' }, default: [] }
 ChannelResponse:
   type: object
   required: [name, description, avatarUrl, bannerUrl, subscriberCount, isVerified, videos, nextpage]

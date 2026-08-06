@@ -25,6 +25,8 @@ paths:
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }
   /streams/audio-only: { $ref: ./openapi/paths/streams.yaml#/AudioOnly }
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
+  /subtitles/youtube/{videoId}: { $ref: ./openapi/paths/subtitles.yaml#/YoutubeSubtitle }
+  /proxy: { $ref: ./openapi/paths/proxy.yaml#/Proxy }
   /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
@@ -100,6 +102,8 @@ components:
       $ref: ./openapi/components/streams.yaml#/StreamResponse
     AudioOnlyStreamResponse:
       $ref: ./openapi/components/streams.yaml#/AudioOnlyStreamResponse
+    SubtitleItem:
+      $ref: ./openapi/components/streams.yaml#/SubtitleItem
     SabrPlaybackPositionRequest:
       $ref: ./openapi/components/sabr-playback.yaml#/SabrPlaybackPositionRequest
     SabrPlaybackWindowRequest:
@@ -108,6 +112,8 @@ components:
       $ref: ./openapi/components/media.yaml#/SearchPageResponse
     SearchFilterOption:
       $ref: ./openapi/components/media.yaml#/SearchFilterOption
+    SearchFilterGroup:
+      $ref: ./openapi/components/media.yaml#/SearchFilterGroup
     SearchFiltersResponse:
       $ref: ./openapi/components/media.yaml#/SearchFiltersResponse
     ChannelResultItem:

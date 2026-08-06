@@ -22,7 +22,18 @@ Search:
       - name: sortFilter
         in: query
         required: false
+        deprecated: true
+        description: Legacy single-filter parameter. Use `filter` for grouped selections.
         schema: { type: string }
+      - name: filter
+        in: query
+        required: false
+        description: Repeat for each selected search filter.
+        style: form
+        explode: true
+        schema:
+          type: array
+          items: { type: string }
     responses:
       '200':
         description: Search page.
@@ -46,6 +57,11 @@ SearchFilters:
         in: query
         required: true
         schema: { type: integer, enum: [0, 3, 4, 5, 6] }
+      - name: contentFilter
+        in: query
+        required: false
+        description: Return filter groups applicable to this content type.
+        schema: { type: string }
     responses:
       '200':
         description: Search filter capabilities.

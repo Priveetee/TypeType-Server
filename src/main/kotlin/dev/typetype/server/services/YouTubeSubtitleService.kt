@@ -52,6 +52,7 @@ internal class YouTubeSubtitleService(private val httpClient: OkHttpClient, priv
             })
         }
     }
+
 }
 
 internal sealed interface YouTubeSubtitleInventoryResult {
