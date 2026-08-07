@@ -7,6 +7,7 @@ import dev.typetype.server.services.HlsManifestService
 import dev.typetype.server.services.StreamService
 import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
+import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -15,12 +16,13 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.net.InetAddress
 
 class HlsManifestServiceCacheTest {
     @Test
     fun `hls manifests are cached briefly by manifest url`() = runTest {
         var calls = 0
-        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+        val client = proxyTestClient(Interceptor { chain ->
             calls += 1
             Response.Builder()
                 .request(chain.request())
@@ -29,9 +31,9 @@ class HlsManifestServiceCacheTest {
                 .message("OK")
                 .body("#EXTM3U\nsegment.ts".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
                 .build()
-        }).build()
+        })
         val service = HlsManifestService(NoopStreamService, client, InMemoryCache())
-        val url = "https://example.com/master.m3u8"
+        val url = "https://manifest.googlevideo.com/master.m3u8"
 
         service.hlsManifest(url)
         service.hlsManifest(url)
@@ -43,7 +45,7 @@ class HlsManifestServiceCacheTest {
     fun `attested manifest is scoped to youtube live`() = runTest {
         val requestedUrls = mutableListOf<String>()
         val attestedVideoIds = mutableListOf<String>()
-        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+        val client = proxyTestClient(Interceptor { chain ->
             requestedUrls += chain.request().url.toString()
             Response.Builder()
                 .request(chain.request())
@@ -52,13 +54,13 @@ class HlsManifestServiceCacheTest {
                 .message("OK")
                 .body("#EXTM3U".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
                 .build()
-        }).build()
+        })
         val streams = FixedStreamService(
-            testStreamResponse(hlsUrl = "https://example.com/legacy.m3u8").copy(isLive = true),
+            testStreamResponse(hlsUrl = "https://upos-hz-mirrorakam.akamaized.net/legacy.m3u8").copy(isLive = true),
         )
         val service = HlsManifestService(streams, client, attestedYoutubeHls = { videoId ->
             attestedVideoIds += videoId
-            "https://example.com/attested.m3u8"
+            "https://manifest.googlevideo.com/attested.m3u8"
         })
 
         val publicResult = service.hlsManifest("https://youtube.com/watch?v=test-id")
@@ -73,9 +75,9 @@ class HlsManifestServiceCacheTest {
         assertEquals(listOf("test-id", "session-id"), attestedVideoIds)
         assertEquals(
             listOf(
-                "https://example.com/attested.m3u8",
-                "https://example.com/attested.m3u8",
-                "https://example.com/legacy.m3u8",
+                "https://manifest.googlevideo.com/attested.m3u8",
+                "https://manifest.googlevideo.com/attested.m3u8",
+                "https://upos-hz-mirrorakam.akamaized.net/legacy.m3u8",
             ),
             requestedUrls,
         )
@@ -84,7 +86,7 @@ class HlsManifestServiceCacheTest {
     @Test
     fun `NicoNico manifests use signed cookie and proxy segments`() = runTest {
         val requests = mutableListOf<Pair<String, String?>>()
-        val client = OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
+        val client = proxyTestClient(Interceptor { chain ->
             requests += chain.request().url.toString() to chain.request().header("Cookie")
             Response.Builder()
                 .request(chain.request())
@@ -93,7 +95,7 @@ class HlsManifestServiceCacheTest {
                 .message("OK")
                 .body("#EXTM3U\nsegment.cmfa".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
                 .build()
-        }).build()
+        })
         val service = HlsManifestService(NoopStreamService, client)
 
         val result = service.hlsManifest(
@@ -109,6 +111,11 @@ class HlsManifestServiceCacheTest {
         assertTrue(result.data.contains("domand_bid=bid-value"))
     }
 }
+
+private fun proxyTestClient(interceptor: Interceptor): OkHttpClient = OkHttpClient.Builder()
+    .dns(Dns { listOf(InetAddress.getByName("1.1.1.1")) })
+    .addInterceptor(interceptor)
+    .build()
 
 private object NoopStreamService : StreamService {
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
