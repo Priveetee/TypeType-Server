@@ -13,11 +13,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 class HlsManifestService(
     private val streamService: StreamService,
-    private val httpClient: OkHttpClient,
+    httpClient: OkHttpClient,
     cache: CacheService? = null,
     private val signManifestUrl: ((String) -> String)? = null,
     private val attestedYoutubeHls: suspend (String) -> String? = { null },
 ) {
+    private val proxyHttp = ProxyHttpExecutor(httpClient)
     private val manifestCache = cache?.let(::HlsManifestCache)
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<String>>>()
 
@@ -101,7 +102,7 @@ class HlsManifestService(
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
                     .apply { if (domandBid != null) header("Cookie", "domand_bid=$domandBid") }
                     .build()
-                httpClient.newCall(request).execute()
+                proxyHttp.execute(request)
             }.fold(
                 onSuccess = { response ->
                     val body = response.body

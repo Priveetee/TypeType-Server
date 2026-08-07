@@ -2,7 +2,6 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ProxyResponse
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.ByteArrayInputStream
@@ -10,10 +9,13 @@ import java.io.IOException
 
 private const val BILIBILI_RANGE_ATTEMPTS = 3
 
-internal fun readBilibiliRangeWithRetry(client: OkHttpClient, request: Request): ExtractionResult<ProxyResponse> {
+internal fun readBilibiliRangeWithRetry(
+    execute: (Request) -> Response,
+    request: Request,
+): ExtractionResult<ProxyResponse> {
     var lastMessage = "Proxy fetch failed"
     for (attempt in 1..BILIBILI_RANGE_ATTEMPTS) {
-        runCatching { client.newCall(request).execute() }
+        runCatching { execute(request) }
             .onSuccess { response ->
                 response.use {
                     val result = it.readBilibiliRangeBytes()

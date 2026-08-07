@@ -40,13 +40,15 @@ internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: S
     }
 }
 
-class NicoVideoProxyService {
+class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
+    private val executor = ProxyHttpExecutor(client)
 
-    private val client = OkHttpClient.Builder()
+    companion object {
+        private fun defaultNicoProxyClient() = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
         .build()
+    }
 
     suspend fun fetchManifest(rawUrl: String, domandBid: String? = null): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
@@ -60,7 +62,7 @@ class NicoVideoProxyService {
                     .url(manifestUrl)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
                 if (resolvedBid != null) builder.header("Cookie", "domand_bid=$resolvedBid")
-                client.newCall(builder.build()).execute()
+                executor.execute(builder.build())
             }.fold(
                 onSuccess = { response ->
                     val body = response.body
@@ -95,7 +97,7 @@ class NicoVideoProxyService {
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 if (domandBid != null) builder.header("Cookie", "domand_bid=$domandBid")
-                client.newCall(builder.build()).execute()
+                executor.execute(builder.build())
             }.fold(
                 onSuccess = { response ->
                     val body = response.body
