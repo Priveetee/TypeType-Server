@@ -44,7 +44,7 @@ InstanceResponse:
       description: True only when the admin setting is enabled and remote login is ready.
     youtubeRemoteLoginReady:
       type: boolean
-      description: Non-secret readiness state for YouTube remote login.
+      description: True when Token accepts the shared secret and callback and its browser runtime is available.
     youtubeRemoteLoginUnavailableReason:
       type: string
       nullable: true

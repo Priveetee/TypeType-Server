@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -34,17 +35,22 @@ class YoutubeRemoteLoginReadinessServiceTest {
     }
 
     @Test
-    fun `token health failure returns token unreachable`() = runBlocking {
-        val service = service(config("secret"), sessionConfigured = true, client = client(500))
+    fun `token without capability endpoint returns token unreachable`() = runBlocking {
+        val service = service(config("secret"), sessionConfigured = true, client = client(404))
 
         assertEquals(YoutubeRemoteLoginStatus.TokenUnreachable, service.status(adminEnabled = true))
     }
 
     @Test
-    fun `token health success returns ready`() = runBlocking {
-        val service = service(config("secret"), sessionConfigured = true, client = client(200))
+    fun `token capability success returns ready`() = runBlocking {
+        val recorder = RequestRecorder()
+        val service = service(config("secret"), sessionConfigured = true, client = client(204, recorder = recorder))
 
         assertEquals(YoutubeRemoteLoginStatus.Ready, service.status(adminEnabled = true))
+        assertEquals("POST", recorder.method)
+        assertEquals("/youtube-remote-login/readiness", recorder.path)
+        assertEquals("secret", recorder.internalToken)
+        assertEquals("{\"callbackUrl\":\"http://server/internal/youtube-remote-login/callback\"}", recorder.body)
     }
 
     private fun service(
@@ -61,9 +67,14 @@ class YoutubeRemoteLoginReadinessServiceTest {
     private fun config(internalToken: String?): YoutubeRemoteBrowserConfig =
         YoutubeRemoteBrowserConfig("http://token", "http://server", internalToken, 480_000, 2, 524_288, 4096, 2)
 
-    private fun client(code: Int, calls: Counter = Counter()): OkHttpClient =
+    private fun client(
+        code: Int,
+        calls: Counter = Counter(),
+        recorder: RequestRecorder? = null,
+    ): OkHttpClient =
         OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
             calls.value += 1
+            recorder?.record(chain.request())
             Response.Builder()
                 .request(chain.request())
                 .protocol(Protocol.HTTP_1_1)
@@ -75,5 +86,19 @@ class YoutubeRemoteLoginReadinessServiceTest {
 
     private class Counter {
         var value: Int = 0
+    }
+
+    private class RequestRecorder {
+        var method: String? = null
+        var path: String? = null
+        var internalToken: String? = null
+        var body: String? = null
+
+        fun record(request: okhttp3.Request) {
+            method = request.method
+            path = request.url.encodedPath
+            internalToken = request.header("X-Internal-Token")
+            body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+        }
     }
 }
