@@ -27,6 +27,11 @@ repositories {
 dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
     implementation(platform("io.netty:netty-bom:4.2.16.Final"))
+    constraints {
+        implementation("org.jsoup:jsoup:1.23.1") {
+            because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
+        }
+    }
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
