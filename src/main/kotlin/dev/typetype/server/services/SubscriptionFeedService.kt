@@ -80,6 +80,9 @@ class SubscriptionFeedService(
         return snapshot.page(page * limit, limit, isRefreshing(userId))
     }
 
+    internal suspend fun getCachedAll(userId: String): List<VideoItem>? =
+        store.current(userId)?.videos
+
     suspend fun invalidate(userId: String) {
         runCatching { store.invalidate(userId, UUID.randomUUID().toString()) }
             .onFailure { logger.warn("subscription_feed event=invalidate_failed user={} error={}", userKey(userId), it.message) }
