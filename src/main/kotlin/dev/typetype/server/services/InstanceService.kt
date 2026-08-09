@@ -7,6 +7,7 @@ import dev.typetype.server.models.InstanceMinClientVersion
 import dev.typetype.server.models.InstanceResponse
 import dev.typetype.server.models.OidcPublicConfig
 import dev.typetype.server.models.YoutubeRemoteLoginStatus
+import dev.typetype.server.models.RssInstanceCapability
 
 class InstanceService(
     private val authService: AuthService,
@@ -47,6 +48,13 @@ class InstanceService(
             youtubeRemoteLoginEnabled = youtubeRemoteLoginStatus.ready,
             youtubeRemoteLoginReady = youtubeRemoteLoginStatus.ready,
             youtubeRemoteLoginUnavailableReason = youtubeRemoteLoginStatus.unavailableReason,
+            rss = RssInstanceCapability(
+                enabled = settings.rssEnabled && settings.rssPublicBaseUrl != null,
+                maxFeedsPerUser = settings.rssMaxFeedsPerUser,
+                maxItems = settings.rssMaxItems,
+                minimumPollMinutes = settings.rssMinimumPollMinutes,
+                rateLimitPerMinute = settings.rssRateLimitPerMinute,
+            ),
         )
     }
 
