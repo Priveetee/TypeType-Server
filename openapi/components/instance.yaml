@@ -20,6 +20,7 @@ InstanceResponse:
     - oidcAutoRedirect
     - youtubeRemoteLoginEnabled
     - youtubeRemoteLoginReady
+    - rss
   properties:
     name: { type: string, example: TypeType }
     tagline: { type: string, nullable: true }
@@ -49,3 +50,14 @@ InstanceResponse:
       type: string
       nullable: true
       enum: [disabled, not_configured, token_unreachable]
+    rss:
+      $ref: '#/RssInstanceCapability'
+RssInstanceCapability:
+  type: object
+  required: [enabled, maxFeedsPerUser, maxItems, minimumPollMinutes, rateLimitPerMinute]
+  properties:
+    enabled: { type: boolean }
+    maxFeedsPerUser: { type: integer }
+    maxItems: { type: integer }
+    minimumPollMinutes: { type: integer }
+    rateLimitPerMinute: { type: integer }

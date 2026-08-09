@@ -16,6 +16,7 @@ tags:
   - name: downloader
   - name: youtube-session
   - name: user-data
+  - name: rss
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
@@ -43,6 +44,11 @@ paths:
   /saved-playlists: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists }
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
+  /rss/feeds: { $ref: ./openapi/paths/rss.yaml#/RssFeeds }
+  /rss/feeds/{id}: { $ref: ./openapi/paths/rss.yaml#/RssFeed }
+  /rss/feeds/{id}/enabled: { $ref: ./openapi/paths/rss.yaml#/RssFeedEnabled }
+  /rss/feeds/{id}/regenerate: { $ref: ./openapi/paths/rss.yaml#/RssFeedRegenerate }
+  /rss/feeds/{id}.xml: { $ref: ./openapi/paths/rss.yaml#/RssFeedDocument }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
   /restore/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeRestore }
@@ -51,6 +57,10 @@ paths:
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
+  /admin/rss/feeds: { $ref: ./openapi/paths/rss-admin.yaml#/AdminRssFeeds }
+  /admin/rss/feeds/{id}/enabled: { $ref: ./openapi/paths/rss-admin.yaml#/AdminRssFeedEnabled }
+  /admin/rss/feeds/{id}: { $ref: ./openapi/paths/rss-admin.yaml#/AdminRssFeed }
+  /admin/rss/users/{id}/enabled: { $ref: ./openapi/paths/rss-admin.yaml#/AdminRssUserEnabled }
   /admin/users: { $ref: ./openapi/paths/admin-users.yaml#/AdminUsers }
   /admin/users/{id}/access-mode: { $ref: ./openapi/paths/admin-users.yaml#/AdminUserAccessMode }
   /admin/users/managed-access: { $ref: ./openapi/paths/admin-managed-access.yaml#/AdminManagedAccessUsers }
@@ -138,6 +148,10 @@ components:
     SavedPlaylistRequest: { $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest }
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
+    RssFeedRequest: { $ref: ./openapi/components/rss.yaml#/RssFeedRequest }
+    RssFeedItem: { $ref: ./openapi/components/rss.yaml#/RssFeedItem }
+    RssFeedSecretItem: { $ref: ./openapi/components/rss.yaml#/RssFeedSecretItem }
+    AdminRssFeedsPage: { $ref: ./openapi/components/rss.yaml#/AdminRssFeedsPage }
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
     TypeTypeBackupItem: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeBackupItem }
     TypeTypeRestoreSummary: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeRestoreSummary }

@@ -1,0 +1,121 @@
+RssFeeds:
+  get:
+    tags: [rss]
+    summary: List private RSS feeds for the current account
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: RSS feeds without their secrets
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: ../components/rss.yaml#/RssFeedItem } }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+  post:
+    tags: [rss]
+    summary: Create a private RSS feed
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/rss.yaml#/RssFeedRequest }
+    responses:
+      '201':
+        description: Created feed and its one-time private URL
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/RssFeedSecretItem }
+      '400': { description: Invalid scope or filters }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+      '409': { description: Account feed limit reached }
+RssFeed:
+  parameters:
+    - { name: id, in: path, required: true, schema: { type: string } }
+  put:
+    tags: [rss]
+    summary: Replace a private RSS feed configuration
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/rss.yaml#/RssFeedRequest }
+    responses:
+      '200':
+        description: Updated feed
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/RssFeedItem }
+      '400': { description: Invalid scope or filters }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+      '404': { description: Feed not found for this account }
+  delete:
+    tags: [rss]
+    summary: Delete a private RSS feed
+    security: [{ bearerAuth: [] }]
+    responses:
+      '204': { description: Deleted }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+      '404': { description: Feed not found for this account }
+RssFeedEnabled:
+  put:
+    tags: [rss]
+    summary: Enable or disable a private RSS feed
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/rss.yaml#/RssFeedEnabledRequest }
+    responses:
+      '200':
+        description: Updated feed
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/RssFeedItem }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+      '404': { description: Feed not found for this account }
+RssFeedRegenerate:
+  post:
+    tags: [rss]
+    summary: Revoke the current secret and issue a new private URL
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    responses:
+      '200':
+        description: Feed and its replacement one-time private URL
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/RssFeedSecretItem }
+      '401': { description: Missing or invalid token }
+      '403': { description: RSS is disabled globally or for this account }
+      '404': { description: Feed not found for this account }
+RssFeedDocument:
+  get:
+    tags: [rss]
+    summary: Read a private RSS 2.0 document
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: token, in: query, required: true, schema: { type: string } }
+    responses:
+      '200':
+        description: RSS document
+        headers:
+          ETag: { schema: { type: string } }
+          Last-Modified: { schema: { type: string } }
+          Cache-Control: { schema: { type: string } }
+        content:
+          application/rss+xml:
+            schema: { type: string }
+      '304': { description: Document unchanged }
+      '404': { description: Invalid, disabled, or revoked feed }
+      '429': { description: Feed request limit exceeded }

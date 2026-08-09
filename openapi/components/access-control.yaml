@@ -37,6 +37,12 @@ SettingsItem:
       type: string
       enum: [unrestricted, allow_list]
       default: unrestricted
+    rssEnabled: { type: boolean, default: false }
+    rssPublicBaseUrl: { type: string, format: uri, nullable: true }
+    rssMaxFeedsPerUser: { type: integer, minimum: 1, maximum: 100, default: 10 }
+    rssMaxItems: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    rssMinimumPollMinutes: { type: integer, minimum: 1, maximum: 1440, default: 5 }
+    rssRateLimitPerMinute: { type: integer, minimum: 1, maximum: 600, default: 30 }
 AllowedChannelItem:
   type: object
   required: [url]
