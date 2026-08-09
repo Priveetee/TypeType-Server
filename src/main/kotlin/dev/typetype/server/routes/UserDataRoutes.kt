@@ -20,6 +20,7 @@ internal fun Route.userDataRoutes(
     subscriptionsRoutes(svc.subscriptionsService, authService, svc.homeRecommendationWarmupService)
     subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
+    rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)
     savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
     watchLaterRoutes(svc.watchLaterService, authService, svc.videoMetadataRepairService)

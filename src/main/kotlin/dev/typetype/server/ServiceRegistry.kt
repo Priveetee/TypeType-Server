@@ -18,6 +18,8 @@ import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
+import dev.typetype.server.services.RssFeedManagementService
+import dev.typetype.server.services.RssFeedReaderService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.SavedPlaylistService
 import dev.typetype.server.services.SearchHistoryService
@@ -107,6 +109,15 @@ internal class ServiceRegistry(
     val adminUserLookupService = AdminUserLookupService()
     val accessControlService = AccessControlService(settingsService, allowedChannelsService, allowedPlaylistsService, adminSettingsService)
     val blockedService = BlockedService()
+    val rssFeedManagementService = RssFeedManagementService(
+        adminSettingsService,
+        subscriptionsService,
+    )
+    val rssFeedReaderService = RssFeedReaderService(
+        adminSettingsService,
+        subscriptionFeedService,
+        blockedService,
+    )
     val typeTypeBackupService = TypeTypeBackupService(
         subscriptionsService,
         historyService,
