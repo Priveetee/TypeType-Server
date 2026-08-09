@@ -63,6 +63,7 @@ class SettingsPrivacyControlsRoutesTest {
                 "\"hideRelatedVideos\":false",
                 "\"hideComments\":false",
                 "\"hideShorts\":false",
+                "\"hideSubscriptionLiveStreams\":false",
             ),
         )
     }
@@ -87,6 +88,7 @@ class SettingsPrivacyControlsRoutesTest {
                 "\"hideRelatedVideos\":true",
                 "\"hideComments\":true",
                 "\"hideShorts\":true",
+                "\"hideSubscriptionLiveStreams\":true",
             ),
         )
     }
@@ -106,6 +108,6 @@ class SettingsPrivacyControlsRoutesTest {
         values.forEach { assertTrue(body.contains(it)) }
 
     private fun settingsBody(sponsorBlockMode: String = "mark_only"): String = """
-        {"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"sponsorBlockMode":"$sponsorBlockMode","hideHomeRecommendations":true,"hideRelatedVideos":true,"hideComments":true,"hideShorts":true}
+        {"defaultService":0,"defaultQuality":"1080p","autoplay":true,"volume":1.0,"muted":false,"sponsorBlockMode":"$sponsorBlockMode","hideHomeRecommendations":true,"hideRelatedVideos":true,"hideComments":true,"hideShorts":true,"hideSubscriptionLiveStreams":true}
     """.trimIndent()
 }

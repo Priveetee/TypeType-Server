@@ -45,6 +45,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
+    hideSubscriptionLiveStreams = this[SettingsTable.hideSubscriptionLiveStreams],
     disableWatchHistory = this[SettingsTable.disableWatchHistory],
     deArrowEnabled = this[SettingsTable.deArrowEnabled],
     deArrowTitleMode = this[SettingsTable.deArrowTitleMode],
@@ -82,6 +83,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
+    this[SettingsTable.hideSubscriptionLiveStreams] = settings.hideSubscriptionLiveStreams
     this[SettingsTable.disableWatchHistory] = settings.disableWatchHistory
     this[SettingsTable.deArrowEnabled] = settings.deArrowEnabled
     this[SettingsTable.deArrowTitleMode] = settings.deArrowTitleMode

@@ -32,6 +32,7 @@ object SettingsTable : Table("settings") {
     val hideRelatedVideos = bool("hide_related_videos").default(false)
     val hideComments = bool("hide_comments").default(false)
     val hideShorts = bool("hide_shorts").default(false)
+    val hideSubscriptionLiveStreams = bool("hide_subscription_live_streams").default(false)
     val disableWatchHistory = bool("disable_watch_history").default(false)
     val deArrowEnabled = bool("dearrow_enabled").default(false)
     val deArrowTitleMode = text("dearrow_title_mode").default("dearrow")

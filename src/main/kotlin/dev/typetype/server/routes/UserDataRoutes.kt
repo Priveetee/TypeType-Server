@@ -18,7 +18,7 @@ internal fun Route.userDataRoutes(
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionsRoutes(svc.subscriptionsService, authService, svc.homeRecommendationWarmupService)
-    subscriptionFeedRoutes(svc.subscriptionFeedService, authService)
+    subscriptionFeedRoutes(svc.subscriptionFeedService, authService, svc.settingsService)
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)

@@ -33,6 +33,7 @@ SettingsItem:
     hideRelatedVideos: { type: boolean, default: false }
     hideComments: { type: boolean, default: false }
     hideShorts: { type: boolean, default: false }
+    hideSubscriptionLiveStreams: { type: boolean, default: false }
     accessMode:
       type: string
       enum: [unrestricted, allow_list]
