@@ -21,7 +21,8 @@ internal fun rewriteHlsManifest(manifest: String): String =
         "/proxy?url=" + URLEncoder.encode(match.value, StandardCharsets.UTF_8)
     }
 
-class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
+class OkHttpProxyService(client: OkHttpClient) : ProxyService {
+    private val executor = ProxyHttpExecutor(client)
 
     override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> =
         withContext(Dispatchers.IO) {
@@ -44,8 +45,10 @@ class OkHttpProxyService(private val client: OkHttpClient) : ProxyService {
                 if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", "domand_bid=$resolvedDomandBid")
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 val request = builder.build()
-                if (bilibili && rangeHeader != null) return@withContext readBilibiliRangeWithRetry(client, request)
-                client.newCall(request).execute()
+                if (bilibili && rangeHeader != null) {
+                    return@withContext readBilibiliRangeWithRetry(executor::execute, request)
+                }
+                executor.execute(request)
             }.fold(
                 onSuccess = { response ->
                     val body = response.body

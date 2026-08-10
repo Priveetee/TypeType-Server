@@ -20,6 +20,7 @@ InstanceResponse:
     - oidcAutoRedirect
     - youtubeRemoteLoginEnabled
     - youtubeRemoteLoginReady
+    - rss
   properties:
     name: { type: string, example: TypeType }
     tagline: { type: string, nullable: true }
@@ -44,8 +45,19 @@ InstanceResponse:
       description: True only when the admin setting is enabled and remote login is ready.
     youtubeRemoteLoginReady:
       type: boolean
-      description: Non-secret readiness state for YouTube remote login.
+      description: True when Token accepts the shared secret and callback and its browser runtime is available.
     youtubeRemoteLoginUnavailableReason:
       type: string
       nullable: true
       enum: [disabled, not_configured, token_unreachable]
+    rss:
+      $ref: '#/RssInstanceCapability'
+RssInstanceCapability:
+  type: object
+  required: [enabled, maxFeedsPerUser, maxItems, minimumPollMinutes, rateLimitPerMinute]
+  properties:
+    enabled: { type: boolean }
+    maxFeedsPerUser: { type: integer }
+    maxItems: { type: integer }
+    minimumPollMinutes: { type: integer }
+    rateLimitPerMinute: { type: integer }

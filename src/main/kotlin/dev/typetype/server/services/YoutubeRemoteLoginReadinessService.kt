@@ -3,8 +3,13 @@ package dev.typetype.server.services
 import dev.typetype.server.models.YoutubeRemoteLoginStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 class YoutubeRemoteLoginReadinessService(
@@ -13,6 +18,7 @@ class YoutubeRemoteLoginReadinessService(
     private val client: OkHttpClient = defaultClient(),
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
+    private val json = Json { encodeDefaults = true }
     private var cachedStatus: YoutubeRemoteLoginStatus? = null
     private var cachedUntilMs: Long = 0
     private val lock = Any()
@@ -40,9 +46,14 @@ class YoutubeRemoteLoginReadinessService(
     }
 
     private fun probeToken(): YoutubeRemoteLoginStatus {
+        val internalToken = config.internalToken ?: return YoutubeRemoteLoginStatus.NotConfigured
         val request = Request.Builder()
-            .url("${config.serviceUrl.trimEnd('/')}/health")
-            .get()
+            .url("${config.serviceUrl.trimEnd('/')}/youtube-remote-login/readiness")
+            .header(INTERNAL_HEADER, internalToken)
+            .post(
+                json.encodeToString(YoutubeRemoteLoginReadinessRequest(config.callbackUrl))
+                    .toRequestBody(JSON_MEDIA_TYPE)
+            )
             .build()
         return runCatching {
             client.newCall(request).execute().use {
@@ -53,6 +64,8 @@ class YoutubeRemoteLoginReadinessService(
 
     private companion object {
         const val CACHE_TTL_MS = 30_000L
+        const val INTERNAL_HEADER = "X-Internal-Token"
+        val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
         fun defaultClient(): OkHttpClient =
             OkHttpClient.Builder()
@@ -62,3 +75,6 @@ class YoutubeRemoteLoginReadinessService(
                 .build()
     }
 }
+
+@Serializable
+private data class YoutubeRemoteLoginReadinessRequest(val callbackUrl: String)

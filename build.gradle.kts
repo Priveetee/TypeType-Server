@@ -3,7 +3,7 @@ import java.time.Instant
 plugins {
     kotlin("jvm") version "2.4.10"
     kotlin("plugin.serialization") version "2.4.10"
-    id("io.ktor.plugin") version "3.5.1"
+    id("io.ktor.plugin") version "3.5.2"
     id("jacoco")
 }
 
@@ -27,6 +27,11 @@ repositories {
 dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
     implementation(platform("io.netty:netty-bom:4.2.16.Final"))
+    constraints {
+        implementation("org.jsoup:jsoup:1.23.1") {
+            because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
+        }
+    }
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
@@ -43,14 +48,14 @@ dependencies {
     implementation("org.json:json:20260719")
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
     implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
-    implementation("org.jetbrains.exposed:exposed-core:1.3.1")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.3.1")
+    implementation("org.jetbrains.exposed:exposed-core:1.4.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.4.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
     implementation("org.xerial:sqlite-jdbc:3.53.2.1")
     implementation("com.password4j:password4j:1.8.4")
     implementation("com.auth0:java-jwt:4.6.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("io.ktor:ktor-server-test-host-jvm")

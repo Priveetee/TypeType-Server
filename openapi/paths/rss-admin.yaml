@@ -1,0 +1,69 @@
+AdminRssFeeds:
+  get:
+    tags: [rss]
+    summary: List private RSS feeds across the instance
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    responses:
+      '200':
+        description: Paginated RSS feeds and owners
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/AdminRssFeedsPage }
+      '400': { description: Invalid pagination }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+AdminRssFeedEnabled:
+  put:
+    tags: [rss]
+    summary: Enable or disable one RSS feed as an admin
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/rss.yaml#/RssFeedEnabledRequest }
+    responses:
+      '200':
+        description: Updated feed
+        content:
+          application/json:
+            schema: { $ref: ../components/rss.yaml#/RssFeedItem }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: Feed not found }
+AdminRssFeed:
+  delete:
+    tags: [rss]
+    summary: Revoke and delete one RSS feed as an admin
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    responses:
+      '204': { description: Deleted }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: Feed not found }
+AdminRssUserEnabled:
+  put:
+    tags: [rss]
+    summary: Enable or disable RSS for one account
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/rss.yaml#/RssUserPolicyRequest }
+    responses:
+      '204': { description: Account RSS policy updated }
+      '400': { description: Invalid request body }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+      '404': { description: Account not found }

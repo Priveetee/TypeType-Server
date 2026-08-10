@@ -1,7 +1,13 @@
 rootProject.name = "typetype-server"
 
-val localPipePipeExtractor = file("../PipePipeExtractor")
-if (localPipePipeExtractor.isDirectory) {
+val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
+    .orNull
+    ?.let { file(it) }
+
+if (localPipePipeExtractor != null) {
+    require(localPipePipeExtractor.isDirectory) {
+        "pipePipeExtractorPath must point to a PipePipeExtractor checkout"
+    }
     includeBuild(localPipePipeExtractor) {
         dependencySubstitution {
             substitute(module("com.github.InfinityLoop1308.PipePipeExtractor:extractor"))

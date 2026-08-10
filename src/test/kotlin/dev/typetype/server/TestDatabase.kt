@@ -14,6 +14,10 @@ import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
+import dev.typetype.server.db.tables.RssFeedChannelsTable
+import dev.typetype.server.db.tables.RssFeedServicesTable
+import dev.typetype.server.db.tables.RssFeedsTable
+import dev.typetype.server.db.tables.RssUserPoliciesTable
 import dev.typetype.server.db.tables.SavedPlaylistsTable
 import dev.typetype.server.db.tables.NotificationStatesTable
 import dev.typetype.server.db.tables.SearchHistoryTable
@@ -88,6 +92,10 @@ object TestDatabase {
         value?.takeIf { it.isNotBlank() } ?: fallback
 
     fun truncateAll() = transaction {
+        RssFeedChannelsTable.deleteAll()
+        RssFeedServicesTable.deleteAll()
+        RssFeedsTable.deleteAll()
+        RssUserPoliciesTable.deleteAll()
         PlaylistVideosTable.deleteAll()
         PlaylistsTable.deleteAll()
         SavedPlaylistsTable.deleteAll()

@@ -32,6 +32,7 @@ class BlockedContentProfileTest {
         )
 
         assertTrue(profile.blocksChannel("https://m.youtube.com/@Example/", "Other"))
+        assertTrue(profile.blocksChannel("https://youtube.com/@Example/streams", "Other"))
         assertTrue(profile.blocksChannel("", "test channel"))
     }
 

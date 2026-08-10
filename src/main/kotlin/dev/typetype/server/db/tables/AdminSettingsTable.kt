@@ -18,5 +18,11 @@ object AdminSettingsTable : Table("admin_settings") {
     val oidcAutoRedirect = bool("oidc_auto_redirect").default(false)
     val youtubeRemoteLoginEnabled = bool("youtube_remote_login_enabled").default(false)
     val accessMode = text("access_mode").default("unrestricted")
+    val rssEnabled = bool("rss_enabled").default(false)
+    val rssPublicBaseUrl = text("rss_public_base_url").nullable()
+    val rssMaxFeedsPerUser = integer("rss_max_feeds_per_user").default(10)
+    val rssMaxItems = integer("rss_max_items").default(50)
+    val rssMinimumPollMinutes = integer("rss_minimum_poll_minutes").default(5)
+    val rssRateLimitPerMinute = integer("rss_rate_limit_per_minute").default(30)
     override val primaryKey = PrimaryKey(id)
 }

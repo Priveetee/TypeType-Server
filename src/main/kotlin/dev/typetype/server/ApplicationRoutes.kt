@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRoutes
+import dev.typetype.server.routes.adminRssRoutes
 import dev.typetype.server.routes.adminIdentityRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
@@ -17,6 +18,7 @@ import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
+import dev.typetype.server.routes.rssPublicRoutes
 import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
@@ -66,6 +68,7 @@ internal fun Application.installApplicationRoutes(
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         publicMetadataRoutes(instanceService::getInstance)
+        rssPublicRoutes(svc.rssFeedReaderService)
         installStreamRoutes(svc, authService, adminSettingsService)
         rateLimit(DEARROW_ZONE) { deArrowRoutes(svc.deArrowService) }
         rateLimit(EXTRACTION_ZONE) {
@@ -102,6 +105,7 @@ internal fun Application.installApplicationRoutes(
             authSessionConfig,
         )
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
+        adminRssRoutes(svc.rssFeedManagementService, authService)
         adminIdentityRoutes(svc.accountIdentityService, authService)
         adminAllowListRoutes(authService, userAdminService, svc.adminManagedAccessService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
         adminSessionRoutes(authService, activeSessionService)

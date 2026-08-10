@@ -3,8 +3,10 @@ Proxy:
     tags: [extraction]
     summary: Retrieve proxied media
     description: >-
-      Streams supported remote content. Existing clients that submit a YouTube timed-text URL are
-      routed through the dedicated subtitle resolver for compatibility; new clients should use
+      Streams media from the supported YouTube, NicoNico, and BiliBili delivery hosts. Other
+      destinations, non-public addresses, cross-provider redirects, and non-HTTPS URLs are
+      rejected. Existing clients that submit a YouTube timed-text URL are routed through the
+      dedicated subtitle resolver for compatibility; new clients should use
       /subtitles/youtube/{videoId}.
     parameters:
       - name: url

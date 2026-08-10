@@ -23,6 +23,10 @@ import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.RssFeedChannelsTable
+import dev.typetype.server.db.tables.RssFeedServicesTable
+import dev.typetype.server.db.tables.RssFeedsTable
+import dev.typetype.server.db.tables.RssUserPoliciesTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
@@ -73,6 +77,10 @@ object DatabaseFactory {
                 YoutubeSessionPairingsTable,
                 BugReportsTable,
                 NotificationStatesTable,
+                RssFeedsTable,
+                RssFeedChannelsTable,
+                RssFeedServicesTable,
+                RssUserPoliciesTable,
             )
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS name TEXT")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
@@ -95,6 +103,12 @@ object DatabaseFactory {
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS caption_styles TEXT NOT NULL DEFAULT '{}'")
             exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_enabled BOOLEAN NOT NULL DEFAULT FALSE")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_public_base_url TEXT")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_max_feeds_per_user INTEGER NOT NULL DEFAULT 10")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_max_items INTEGER NOT NULL DEFAULT 50")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_minimum_poll_minutes INTEGER NOT NULL DEFAULT 5")
+            exec("ALTER TABLE admin_settings ADD COLUMN IF NOT EXISTS rss_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")
             exec("ALTER TABLE blocked_channels ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'user'")
             exec("ALTER TABLE blocked_videos ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT ''")

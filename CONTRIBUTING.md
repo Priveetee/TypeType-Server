@@ -44,6 +44,12 @@ PipePipe Client and PipePipeExtractor are the behavioral references for extracti
 
 When a defect is general to PipePipeExtractor, prefer contributing the correction upstream. Keep TypeType-specific behavior in this repository only when it belongs to the TypeType API or when the upstream API cannot express the required backend behavior cleanly.
 
+Builds use the PipePipeExtractor revision pinned in `build.gradle.kts`. To deliberately test a local checkout instead, pass its path explicitly:
+
+```sh
+./gradlew -PpipePipeExtractorPath=../PipePipeExtractor test
+```
+
 ## Programming preferences
 
 - Prefer clear names and structure over explanatory comments, but comments are welcome whenever a contributor finds them useful.

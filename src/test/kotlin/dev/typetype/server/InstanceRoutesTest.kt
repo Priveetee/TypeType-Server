@@ -73,6 +73,9 @@ class InstanceRoutesTest {
         assertEquals(false, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["youtubeRemoteLoginReady"]?.jsonPrimitive?.boolean)
         assertEquals("disabled", root["youtubeRemoteLoginUnavailableReason"]?.jsonPrimitive?.contentOrNull)
+        val rss = root["rss"]?.jsonObject
+        assertEquals(false, rss?.get("enabled")?.jsonPrimitive?.boolean)
+        assertEquals(10, rss?.get("maxFeedsPerUser")?.jsonPrimitive?.int)
         assertEquals(listOf(0, 3, 4, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
         assertEquals(null, root["androidPlayback"])
     }
@@ -90,6 +93,12 @@ class InstanceRoutesTest {
             localLoginEnabled = false,
             oidcAutoRedirect = true,
             youtubeRemoteLoginEnabled = true,
+            rssEnabled = true,
+            rssPublicBaseUrl = "https://video.example/",
+            rssMaxFeedsPerUser = 4,
+            rssMaxItems = 80,
+            rssMinimumPollMinutes = 15,
+            rssRateLimitPerMinute = 12,
         )
         )
         val auth = AuthService.fixed(TEST_USER_ID, hasUsers = true)
@@ -115,6 +124,12 @@ class InstanceRoutesTest {
         assertEquals(true, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["youtubeRemoteLoginReady"]?.jsonPrimitive?.boolean)
         assertEquals(null, root["youtubeRemoteLoginUnavailableReason"]?.jsonPrimitive?.contentOrNull)
+        val rss = root["rss"]!!.jsonObject
+        assertEquals(true, rss["enabled"]?.jsonPrimitive?.boolean)
+        assertEquals(4, rss["maxFeedsPerUser"]?.jsonPrimitive?.int)
+        assertEquals(80, rss["maxItems"]?.jsonPrimitive?.int)
+        assertEquals(15, rss["minimumPollMinutes"]?.jsonPrimitive?.int)
+        assertEquals(12, rss["rateLimitPerMinute"]?.jsonPrimitive?.int)
         val register = client.post("/auth/register") {
             contentType(ContentType.Application.Json)
             setBody("""{"email":"new@test.local","password":"secret","name":"New"}""")

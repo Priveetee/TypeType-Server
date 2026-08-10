@@ -36,6 +36,7 @@ class SubscriptionFeedService(
         page: Int,
         limit: Int,
         cursor: String?,
+        hideLiveStreams: Boolean = false,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
         val current = store.current(userId)
@@ -49,6 +50,9 @@ class SubscriptionFeedService(
         val cursorState = cursor?.let(SubscriptionFeedCursorCodec::decode)
         if (cursor != null && cursorState == null) return SubscriptionFeedPageResult.InvalidCursor
         if (cursorState != null && cursorState.limit != limit) return SubscriptionFeedPageResult.InvalidCursor
+        if (cursorState != null && cursorState.hideLiveStreams != hideLiveStreams) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
         val snapshot = when {
             cursorState == null -> current
             cursorState.generation == current.generation -> current
@@ -56,7 +60,9 @@ class SubscriptionFeedService(
                 ?: return SubscriptionFeedPageResult.StaleGeneration
         }
         val offset = cursorState?.offset ?: page * limit
-        return SubscriptionFeedPageResult.Ready(snapshot.page(offset, limit, isRefreshing(userId)))
+        return SubscriptionFeedPageResult.Ready(
+            snapshot.page(offset, limit, isRefreshing(userId), hideLiveStreams),
+        )
     }
 
     suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse =
@@ -79,6 +85,9 @@ class SubscriptionFeedService(
         val snapshot = store.current(userId) ?: return null
         return snapshot.page(page * limit, limit, isRefreshing(userId))
     }
+
+    internal suspend fun getCachedAll(userId: String): List<VideoItem>? =
+        store.current(userId)?.videos
 
     suspend fun invalidate(userId: String) {
         runCatching { store.invalidate(userId, UUID.randomUUID().toString()) }

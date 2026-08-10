@@ -20,13 +20,14 @@ private data class SubscriptionFeedCursor(
     val generation: Long,
     val offset: Int,
     val limit: Int,
+    val hideLiveStreams: Boolean = false,
 )
 
 internal object SubscriptionFeedCursorCodec {
-    fun encode(generation: Long, offset: Int, limit: Int): String {
+    fun encode(generation: Long, offset: Int, limit: Int, hideLiveStreams: Boolean): String {
         val payload = CacheJson.encodeToString(
             SubscriptionFeedCursor.serializer(),
-            SubscriptionFeedCursor(generation, offset, limit),
+            SubscriptionFeedCursor(generation, offset, limit, hideLiveStreams),
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray())
     }
@@ -35,7 +36,7 @@ internal object SubscriptionFeedCursorCodec {
         val payload = String(Base64.getUrlDecoder().decode(value))
         val cursor = CacheJson.decodeFromString(SubscriptionFeedCursor.serializer(), payload)
         cursor.takeIf { it.generation > 0L && it.offset >= 0 && it.limit in 1..100 }
-            ?.let { SubscriptionFeedCursorState(it.generation, it.offset, it.limit) }
+            ?.let { SubscriptionFeedCursorState(it.generation, it.offset, it.limit, it.hideLiveStreams) }
     }.getOrNull()
 }
 
@@ -43,22 +44,29 @@ internal data class SubscriptionFeedCursorState(
     val generation: Long,
     val offset: Int,
     val limit: Int,
+    val hideLiveStreams: Boolean,
 )
 
 internal fun SubscriptionFeedSnapshot.page(
     offset: Int,
     limit: Int,
     refreshing: Boolean,
+    hideLiveStreams: Boolean = false,
 ): SubscriptionFeedResponse {
-    val from = offset.coerceAtMost(videos.size)
-    val to = minOf(from + limit, videos.size)
-    val nextpage = if (to < videos.size) {
-        SubscriptionFeedCursorCodec.encode(generation, to, limit)
+    val visibleVideos = if (hideLiveStreams) {
+        videos.filterNot { it.isLiveOrUpcomingAt(generatedAt) }
+    } else {
+        videos
+    }
+    val from = offset.coerceAtMost(visibleVideos.size)
+    val to = minOf(from + limit, visibleVideos.size)
+    val nextpage = if (to < visibleVideos.size) {
+        SubscriptionFeedCursorCodec.encode(generation, to, limit, hideLiveStreams)
     } else {
         null
     }
     return SubscriptionFeedResponse(
-        videos = videos.subList(from, to),
+        videos = visibleVideos.subList(from, to),
         nextpage = nextpage,
         generation = generation,
         generatedAt = generatedAt,

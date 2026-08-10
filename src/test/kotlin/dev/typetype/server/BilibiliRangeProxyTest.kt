@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.OkHttpProxyService
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import okhttp3.Dns
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.io.IOException
+import java.net.InetAddress
 
 class BilibiliRangeProxyTest {
 
@@ -18,7 +20,9 @@ class BilibiliRangeProxyTest {
     fun `BiliBili range proxy retries transport failures`() = runBlocking {
         var calls = 0
         val bytes = byteArrayOf(1, 2, 3, 4)
-        val client = OkHttpClient.Builder().addInterceptor { chain ->
+        val client = OkHttpClient.Builder()
+            .dns(Dns { listOf(InetAddress.getByName("1.1.1.1")) })
+            .addInterceptor { chain ->
             calls += 1
             val request = chain.request()
             assertEquals(OkHttpProxyService.BILIBILI_USER_AGENT, request.header("User-Agent"))
@@ -36,7 +40,7 @@ class BilibiliRangeProxyTest {
                 .header("Content-Range", "bytes 0-3/4")
                 .body(bytes.toResponseBody())
                 .build()
-        }.build()
+            }.build()
 
         val service = OkHttpProxyService(client)
         val result = service.pipe(

@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import java.net.URI
 
 private const val SETTINGS_ROW_ID = 1
 
@@ -33,6 +34,12 @@ class AdminSettingsService(
                     oidcAutoRedirect = it[AdminSettingsTable.oidcAutoRedirect],
                     youtubeRemoteLoginEnabled = it[AdminSettingsTable.youtubeRemoteLoginEnabled],
                     accessMode = it[AdminSettingsTable.accessMode].toAccessMode(),
+                    rssEnabled = it[AdminSettingsTable.rssEnabled],
+                    rssPublicBaseUrl = it[AdminSettingsTable.rssPublicBaseUrl],
+                    rssMaxFeedsPerUser = it[AdminSettingsTable.rssMaxFeedsPerUser],
+                    rssMaxItems = it[AdminSettingsTable.rssMaxItems],
+                    rssMinimumPollMinutes = it[AdminSettingsTable.rssMinimumPollMinutes],
+                    rssRateLimitPerMinute = it[AdminSettingsTable.rssRateLimitPerMinute],
                 ).normalized()
             } ?: defaultSettings().normalized()
         }
@@ -59,6 +66,12 @@ class AdminSettingsService(
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
+                    it[rssEnabled] = settings.rssEnabled
+                    it[rssPublicBaseUrl] = settings.rssPublicBaseUrl
+                    it[rssMaxFeedsPerUser] = settings.rssMaxFeedsPerUser
+                    it[rssMaxItems] = settings.rssMaxItems
+                    it[rssMinimumPollMinutes] = settings.rssMinimumPollMinutes
+                    it[rssRateLimitPerMinute] = settings.rssRateLimitPerMinute
                 }
             } else {
                 AdminSettingsTable.insert {
@@ -76,6 +89,12 @@ class AdminSettingsService(
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
+                    it[rssEnabled] = settings.rssEnabled
+                    it[rssPublicBaseUrl] = settings.rssPublicBaseUrl
+                    it[rssMaxFeedsPerUser] = settings.rssMaxFeedsPerUser
+                    it[rssMaxItems] = settings.rssMaxItems
+                    it[rssMinimumPollMinutes] = settings.rssMinimumPollMinutes
+                    it[rssRateLimitPerMinute] = settings.rssRateLimitPerMinute
                 }
             }
         }
@@ -83,16 +102,43 @@ class AdminSettingsService(
         return settings
     }
 
-    private fun AdminSettingsItem.normalized(): AdminSettingsItem = copy(
-        name = name.trim().takeIf { it.isNotEmpty() } ?: DEFAULT_INSTANCE_NAME,
-        tagline = tagline.normalizeOptionalText(),
-        logoUrl = logoUrl.normalizeOptionalText(),
-        bannerUrl = bannerUrl.normalizeOptionalText(),
-        minAndroidClientVersion = minAndroidClientVersion.normalizeOptionalText(),
-        accessMode = accessMode.toAccessMode(),
-    )
+    private fun AdminSettingsItem.normalized(): AdminSettingsItem {
+        val publicBaseUrl = rssPublicBaseUrl.normalizePublicBaseUrl()
+        require(!rssEnabled || publicBaseUrl != null) {
+            "RSS public base URL is required when RSS is enabled"
+        }
+        return copy(
+            name = name.trim().takeIf { it.isNotEmpty() } ?: DEFAULT_INSTANCE_NAME,
+            tagline = tagline.normalizeOptionalText(),
+            logoUrl = logoUrl.normalizeOptionalText(),
+            bannerUrl = bannerUrl.normalizeOptionalText(),
+            minAndroidClientVersion = minAndroidClientVersion.normalizeOptionalText(),
+            accessMode = accessMode.toAccessMode(),
+            rssPublicBaseUrl = publicBaseUrl,
+            rssMaxFeedsPerUser = rssMaxFeedsPerUser.coerceIn(1, 100),
+            rssMaxItems = rssMaxItems.coerceIn(1, 200),
+            rssMinimumPollMinutes = rssMinimumPollMinutes.coerceIn(1, 1_440),
+            rssRateLimitPerMinute = rssRateLimitPerMinute.coerceIn(1, 600),
+        )
+    }
 
     private fun String?.normalizeOptionalText(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun String?.normalizePublicBaseUrl(): String? {
+        val value = normalizeOptionalText() ?: return null
+        val uri = runCatching { URI(value) }.getOrNull()
+            ?: throw IllegalArgumentException("RSS public base URL must be an absolute HTTP or HTTPS URL")
+        require(uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank()) {
+            "RSS public base URL must be an absolute HTTP or HTTPS URL"
+        }
+        require(uri.rawQuery == null && uri.rawFragment == null) {
+            "RSS public base URL cannot contain a query or fragment"
+        }
+        require(uri.rawUserInfo == null) {
+            "RSS public base URL cannot contain credentials"
+        }
+        return value.trimEnd('/')
+    }
 
     companion object {
         @Volatile
