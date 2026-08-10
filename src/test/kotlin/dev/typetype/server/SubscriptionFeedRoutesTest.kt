@@ -122,6 +122,22 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
+    fun `stale live from channel page is absent when streams tab no longer lists it`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC1"
+        val staleLiveUrl = "https://www.youtube.com/watch?v=private"
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(
+            video(-1L, url = staleLiveUrl, live = true),
+            video(3000L, url = "https://www.youtube.com/watch?v=normal"),
+        )
+        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns channel()
+
+        val feed = buildAndRead()
+
+        assertEquals(listOf("https://www.youtube.com/watch?v=normal"), feed.videos.map { it.url })
+    }
+
+    @Test
     fun `cursor keeps pagination on one generation after refresh`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
         var newest = 5_000L

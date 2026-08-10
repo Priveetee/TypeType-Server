@@ -56,7 +56,9 @@ class HomeRecommendationPoolBuilder {
             if (video.url in profile.feedbackBlockedVideos || video.url in profile.implicitBlockedVideos) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.blockedChannels) return@forEach
             if (video.uploaderUrl.isNotBlank() && video.uploaderUrl in profile.feedbackBlockedChannels) return@forEach
-            if (!allowLive && HomeRecommendationLiveTitleDetector.isLiveLike(video.title)) return@forEach
+            if (!allowLive && (video.isLive || HomeRecommendationLiveTitleDetector.isLiveLike(video.title))) {
+                return@forEach
+            }
             val score = scorer(video, profile)
             val scored = HomeRecommendationScoredVideo(video = video, score = score, source = tagged.source)
             val current = byUrl[video.url]

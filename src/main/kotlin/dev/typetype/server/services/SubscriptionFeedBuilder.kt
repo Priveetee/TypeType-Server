@@ -37,9 +37,16 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
     private suspend fun fetchSubscription(channelUrl: String): SubscriptionSourceResult = coroutineScope {
         val channel = async { fetchVideos(channelUrl) }
         val live = if (isYoutubeUrl(channelUrl)) async { fetchVideos(channelUrl.toLivestreamsTabUrl()) } else null
-        val results = listOfNotNull(channel.await(), live?.await())
+        val channelResult = channel.await()
+        val liveResult = live?.await()
+        val videos = if (liveResult == null) {
+            channelResult.videos
+        } else {
+            channelResult.videos.filterNot(VideoItem::isLive) + liveResult.videos
+        }
+        val results = listOfNotNull(channelResult, liveResult)
         SubscriptionSourceResult(
-            videos = mergeVideos(results.flatMap { it.videos }),
+            videos = mergeVideos(videos),
             successfulSources = results.count { it.success },
             failedSources = results.count { !it.success },
         )

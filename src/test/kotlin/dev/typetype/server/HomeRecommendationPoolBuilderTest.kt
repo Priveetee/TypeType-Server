@@ -52,6 +52,22 @@ class HomeRecommendationPoolBuilderTest {
     }
 
     @Test
+    fun `pool builder drops candidates marked live without relying on their title`() {
+        val profile = profile()
+        val discovery = listOf(
+            tagged(
+                video("live", "a", title = "Weekly tech roundup").copy(isLive = true),
+                HomeRecommendationSourceTag.DISCOVERY_THEME,
+            ),
+            tagged(video("normal", "b", title = "Weekly tech roundup"), HomeRecommendationSourceTag.DISCOVERY_THEME),
+        )
+
+        val pool = HomeRecommendationPoolBuilder().build(profile, emptyList(), discovery, context)
+
+        assertEquals(listOf("https://yt.com/v/normal"), pool.discovery.map { it.url })
+    }
+
+    @Test
     fun `pool builder excludes titles containing a blocked keyword`() {
         val profile = profile(blockedKeywords = setOf("ＳＰＯＮＳＯＲＥＤ"))
         val discovery = listOf(
