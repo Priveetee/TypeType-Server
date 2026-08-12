@@ -102,13 +102,16 @@ private fun shouldProxyArtifact(path: String, response: dev.typetype.server.serv
     if (!path.endsWith("/artifact")) return false
     if (response.status != 302 && response.status != 307) return false
     val location = headerValue(response, "Location") ?: return false
-    return isInternalHost(location)
+    val markedInternal = headerValue(response, INTERNAL_ARTIFACT_PROXY_HEADER) == "1"
+    return markedInternal || isLegacyInternalHost(location)
 }
 
 private fun headerValue(response: dev.typetype.server.services.DownloaderGatewayResponse, name: String): String? =
     response.headers.firstOrNull { it.first.equals(name, ignoreCase = true) }?.second
 
-private fun isInternalHost(location: String): Boolean {
+private fun isLegacyInternalHost(location: String): Boolean {
     val host = runCatching { URI(location).host }.getOrNull() ?: return false
     return host.equals("garage", ignoreCase = true)
 }
+
+private const val INTERNAL_ARTIFACT_PROXY_HEADER = "X-TypeType-Artifact-Proxy"
