@@ -49,7 +49,7 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
         coEvery { channelService.getChannel(any(), null) } returns channel(
             video(4_000L, url = "https://youtube.com/watch?v=live", live = true),
             video(3_500L, url = "https://youtube.com/watch?v=scheduled").copy(
-                duration = -1L,
+                duration = 0L,
                 publishedAt = System.currentTimeMillis() + 86_400_000L,
             ),
             video(3_000L, url = "https://youtube.com/watch?v=normal-1"),
