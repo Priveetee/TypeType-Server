@@ -33,6 +33,7 @@ data class SettingsItem(
     val hideComments: Boolean = false,
     val hideShorts: Boolean = false,
     val hideSubscriptionLiveStreams: Boolean = false,
+    val hideMembersOnlyContent: Boolean = false,
     val disableWatchHistory: Boolean = false,
     val deArrowEnabled: Boolean = false,
     val deArrowTitleMode: String = "dearrow",

@@ -107,6 +107,40 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
         assertEquals(listOf("replay"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
     }
 
+    @Test
+    fun `account setting hides members only videos before pagination`() = withApp {
+        val channelService = mockk<ChannelService>()
+        coEvery { channelService.getChannel(any(), null) } returns channel(
+            video(4_000L, url = "https://youtube.com/watch?v=members").copy(requiresMembership = true),
+            video(3_000L, url = "https://youtube.com/watch?v=public-1"),
+            video(2_000L, url = "https://youtube.com/watch?v=public-2"),
+        )
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        settingsService.upsert(TEST_USER_ID, SettingsItem(hideMembersOnlyContent = true))
+
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 1).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+        val first = readPage(requestFeed(limit = 1))
+        val second = readPage(requestFeed(limit = 1, cursor = requireNotNull(first.nextpage)))
+
+        assertEquals(listOf("public-1"), first.videos.map { it.url.substringAfter("v=") })
+        assertEquals(listOf("public-2"), second.videos.map { it.url.substringAfter("v=") })
+        assertTrue(second.nextpage == null)
+    }
+
+    @Test
+    fun `cursor is rejected after members only visibility changes`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 1).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+        val cursor = requireNotNull(readPage(requestFeed(limit = 1)).nextpage)
+
+        settingsService.upsert(TEST_USER_ID, SettingsItem(hideMembersOnlyContent = true))
+
+        assertEquals(HttpStatusCode.BadRequest, requestFeed(limit = 1, cursor = cursor).status)
+    }
+
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }

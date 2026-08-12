@@ -21,13 +21,20 @@ private data class SubscriptionFeedCursor(
     val offset: Int,
     val limit: Int,
     val hideLiveStreams: Boolean = false,
+    val hideMembersOnlyContent: Boolean = false,
 )
 
 internal object SubscriptionFeedCursorCodec {
-    fun encode(generation: Long, offset: Int, limit: Int, hideLiveStreams: Boolean): String {
+    fun encode(
+        generation: Long,
+        offset: Int,
+        limit: Int,
+        hideLiveStreams: Boolean,
+        hideMembersOnlyContent: Boolean,
+    ): String {
         val payload = CacheJson.encodeToString(
             SubscriptionFeedCursor.serializer(),
-            SubscriptionFeedCursor(generation, offset, limit, hideLiveStreams),
+            SubscriptionFeedCursor(generation, offset, limit, hideLiveStreams, hideMembersOnlyContent),
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray())
     }
@@ -36,7 +43,15 @@ internal object SubscriptionFeedCursorCodec {
         val payload = String(Base64.getUrlDecoder().decode(value))
         val cursor = CacheJson.decodeFromString(SubscriptionFeedCursor.serializer(), payload)
         cursor.takeIf { it.generation > 0L && it.offset >= 0 && it.limit in 1..100 }
-            ?.let { SubscriptionFeedCursorState(it.generation, it.offset, it.limit, it.hideLiveStreams) }
+            ?.let {
+                SubscriptionFeedCursorState(
+                    it.generation,
+                    it.offset,
+                    it.limit,
+                    it.hideLiveStreams,
+                    it.hideMembersOnlyContent,
+                )
+            }
     }.getOrNull()
 }
 
@@ -45,6 +60,7 @@ internal data class SubscriptionFeedCursorState(
     val offset: Int,
     val limit: Int,
     val hideLiveStreams: Boolean,
+    val hideMembersOnlyContent: Boolean,
 )
 
 internal fun SubscriptionFeedSnapshot.page(
@@ -52,16 +68,22 @@ internal fun SubscriptionFeedSnapshot.page(
     limit: Int,
     refreshing: Boolean,
     hideLiveStreams: Boolean = false,
+    hideMembersOnlyContent: Boolean = false,
 ): SubscriptionFeedResponse {
-    val visibleVideos = if (hideLiveStreams) {
-        videos.filterNot { it.isLiveOrUpcomingAt(generatedAt) }
-    } else {
-        videos
+    val visibleVideos = videos.filterNot { video ->
+        (hideLiveStreams && video.isLiveOrUpcomingAt(generatedAt)) ||
+            (hideMembersOnlyContent && video.requiresMembership)
     }
     val from = offset.coerceAtMost(visibleVideos.size)
     val to = minOf(from + limit, visibleVideos.size)
     val nextpage = if (to < visibleVideos.size) {
-        SubscriptionFeedCursorCodec.encode(generation, to, limit, hideLiveStreams)
+        SubscriptionFeedCursorCodec.encode(
+            generation,
+            to,
+            limit,
+            hideLiveStreams,
+            hideMembersOnlyContent,
+        )
     } else {
         null
     }

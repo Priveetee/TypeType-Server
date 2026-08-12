@@ -37,6 +37,7 @@ class SubscriptionFeedService(
         limit: Int,
         cursor: String?,
         hideLiveStreams: Boolean = false,
+        hideMembersOnlyContent: Boolean = false,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
         val current = store.current(userId)
@@ -53,6 +54,9 @@ class SubscriptionFeedService(
         if (cursorState != null && cursorState.hideLiveStreams != hideLiveStreams) {
             return SubscriptionFeedPageResult.InvalidCursor
         }
+        if (cursorState != null && cursorState.hideMembersOnlyContent != hideMembersOnlyContent) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
         val snapshot = when {
             cursorState == null -> current
             cursorState.generation == current.generation -> current
@@ -61,7 +65,7 @@ class SubscriptionFeedService(
         }
         val offset = cursorState?.offset ?: page * limit
         return SubscriptionFeedPageResult.Ready(
-            snapshot.page(offset, limit, isRefreshing(userId), hideLiveStreams),
+            snapshot.page(offset, limit, isRefreshing(userId), hideLiveStreams, hideMembersOnlyContent),
         )
     }
 
