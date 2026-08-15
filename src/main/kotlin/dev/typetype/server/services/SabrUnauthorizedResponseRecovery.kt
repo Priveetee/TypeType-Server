@@ -3,12 +3,12 @@ package dev.typetype.server.services
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
 
 internal class SabrUnauthorizedResponseRecovery(
-    private val refreshPoToken: (String) -> SabrTokenBundle?,
+    private val refreshPoToken: (SabrSessionHolder) -> SabrTokenBundle?,
 ) {
     fun verify(holder: SabrSessionHolder): Unit {
         val status = latestUnauthorizedStatus(holder.session.diagnosticTrace) ?: return
         if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized(status)
-        val refreshed = refreshPoToken(holder.key.videoId) ?: throw unauthorized(status)
+        val refreshed = refreshPoToken(holder) ?: throw unauthorized(status)
         val token = refreshed.streamingPoTokenBytesFor(holder.info)
             ?.takeUnless { holder.session.streamState.poToken?.contentEquals(it) == true }
             ?: throw unauthorized(status)

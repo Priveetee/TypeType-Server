@@ -4,10 +4,12 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrPlaybackSegmentResult
 import dev.typetype.server.services.SabrPlaybackSessionService
+import dev.typetype.server.services.SabrPlaybackInfoResolver
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -23,15 +25,17 @@ internal class SabrPlaybackHandler(
     private val authService: AuthService?,
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
+    authenticatedSabrInfoService: AuthenticatedSabrInfoService? = null,
 ) {
     private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
+    private val infoResolver = SabrPlaybackInfoResolver(sabrSessionStore, authenticatedSabrInfoService)
 
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         if (!validateAccess(call, videoId, access)) return
         val request = call.playbackRequest()
         val startTimeMs = request.effectiveStartTimeMs()
-        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
+        val prepared = infoResolver.initial(access.userId, videoId, startTimeMs)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = selectAudio(call, prepared, request) ?: return
         val video = selectVideo(call, prepared, request) ?: return
@@ -58,7 +62,7 @@ internal class SabrPlaybackHandler(
             val preparation = playbackService.seekExisting(holder, playerTimeMs, request.audioOnly)
             return respondPrepared(call, holder, holder.key.videoId, preparation.startTimeMs, preparation.ready)
         }
-        val prepared = sabrSessionStore.fetchInfo(holder.key.videoId, playerTimeMs, cachedFirst = true)
+        val prepared = infoResolver.replacement(holder, playerTimeMs)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = SabrFormatSelector.audio(
             prepared.info,

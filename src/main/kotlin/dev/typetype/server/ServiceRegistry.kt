@@ -57,6 +57,7 @@ internal class ServiceRegistry(
         youtubeProxySelector,
     )
     val youtubeSessionService = extraction.youtubeSessionService
+    val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSabrStreamService = extraction.youtubeSabrStreamService
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService

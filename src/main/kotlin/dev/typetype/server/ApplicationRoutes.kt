@@ -92,6 +92,7 @@ internal fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.audioOnlyMediaTokenService,
+                svc.authenticatedSabrInfoService,
             )
         }
         downloaderGatewayRoutes(downloaderGatewayService)

@@ -29,6 +29,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             purpose = SabrSessionPurpose.PLAYBACK,
             audioOnly = audioOnly,
             initialGeneration = initialGeneration,
+            source = prepared.source,
         )
         if (isLive || prepared.isLive) holder.markExpectedLive()
         if (holder.expectsLive()) {

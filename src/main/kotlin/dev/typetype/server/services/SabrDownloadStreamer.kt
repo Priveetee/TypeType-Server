@@ -17,7 +17,9 @@ internal class SabrDownloadStreamer(
     private val pumpTimeoutMs: Long = PUMP_TIMEOUT_MS,
 ) {
     private val localization = Localization("en", "US")
-    private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery(store::refreshVideoPoToken)
+    private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery { holder ->
+        store.refreshVideoPoToken(holder.key.videoId)
+    }
 
     suspend fun stream(
         holder: SabrSessionHolder,

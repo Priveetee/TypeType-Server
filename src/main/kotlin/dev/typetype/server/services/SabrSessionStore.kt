@@ -27,8 +27,10 @@ internal class SabrSessionStore(
 ) {
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache()
-    private val pump = SabrSessionPump(segmentCache) { videoId ->
-        tokenClient.fetch(videoId, refreshVideo = true)
+    private val pump = SabrSessionPump(segmentCache) { holder ->
+        val binding = holder.playerContextToken?.sessionBinding
+        if (binding == null) tokenClient.fetch(holder.key.videoId, refreshVideo = true)
+        else tokenClient.fetchSession(holder.key.videoId, binding, refreshVideo = true)
     }
     private val warmer = SabrPlaybackWarmer()
     private val infoFetcher = SabrInfoFetcher(tokenClient, sessionClient, sharedCache = initCache)
@@ -51,6 +53,7 @@ internal class SabrSessionStore(
         purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
         audioOnly: Boolean = false,
         initialGeneration: Long = 0L,
+        source: SabrPreparedSource = SabrPreparedSource.PUBLIC,
     ): SabrSessionHolder {
         val sessionToken = SabrSessionTokenGenerator.newToken()
         val isolatedSourceId = sessionToken.takeIf {
@@ -77,6 +80,7 @@ internal class SabrSessionStore(
             sessionToken,
             initialToken,
             initialGeneration,
+            source,
         )
         val active = registry.put(key, holder)
         if (active !== holder) return active

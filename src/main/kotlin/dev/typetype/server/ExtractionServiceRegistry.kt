@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
+import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
@@ -33,6 +34,7 @@ import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
+import dev.typetype.server.services.TypetypeTokenSabrTokenClient
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YouTubeSubtitleCache
 import dev.typetype.server.services.YouTubeSubtitleDeliveryService
@@ -104,6 +106,10 @@ internal class ExtractionServiceRegistry(
         YoutubePlayerClient.MWEB,
     )
     val youtubeSessionService = YoutubeSessionService(youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret))
+    val authenticatedSabrInfoService = AuthenticatedSabrInfoService(
+        youtubeSessionService,
+        TypetypeTokenSabrTokenClient(subtitleServiceUrl, httpClient),
+    )
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     val youtubeSessionStreamService = hlsTokenService?.let {
