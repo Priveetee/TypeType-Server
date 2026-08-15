@@ -12,6 +12,7 @@ data class SettingsItem(
     val skipPlaylistAutoplayScreen: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
+    val notificationPopupsEnabled: Boolean = true,
     val subtitlesEnabled: Boolean = false,
     val defaultSubtitleLanguage: String = "",
     val defaultAudioLanguage: String = "",

@@ -12,6 +12,7 @@ object SettingsTable : Table("settings") {
     val skipPlaylistAutoplayScreen = bool("skip_playlist_autoplay_screen").default(false)
     val volume = double("volume").default(1.0)
     val muted = bool("muted").default(false)
+    val notificationPopupsEnabled = bool("notification_popups_enabled").default(true)
     val subtitlesEnabled = bool("subtitles_enabled").default(false)
     val defaultSubtitleLanguage = text("default_subtitle_language").default("")
     val defaultAudioLanguage = text("default_audio_language").default("")
