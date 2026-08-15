@@ -72,6 +72,46 @@ class StreamRoutesTest {
     }
 
     @Test
+    fun `GET restricted YouTube streams asks guests to connect YouTube`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.BadRequest("Sign in to confirm your age", "age_restricted")
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                streamRoutes(
+                    streamService = streamService,
+                    youtubeSessionSabrStreamInfo = { _, _ -> null },
+                )
+            }
+        }
+
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=restricted")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"youtube_session_required\""))
+    }
+
+    @Test
+    fun `GET members-only metadata asks guests to connect YouTube`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.Success(sabrResponse().copy(requiresMembership = true))
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                streamRoutes(
+                    streamService = streamService,
+                    youtubeSessionSabrStreamInfo = { _, _ -> null },
+                )
+            }
+        }
+
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=members")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"youtube_session_required\""))
+    }
+
+    @Test
     fun `GET sabr streams returns 422 when final response has no playable source`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns
             ExtractionResult.Success(testStreamResponse())
