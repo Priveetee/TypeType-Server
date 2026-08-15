@@ -11,6 +11,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -79,6 +80,7 @@ class RegistrationSettingsTest {
         }
         val response = client.get("/auth/register/status")
         assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-store, no-cache, must-revalidate, max-age=0", response.headers[HttpHeaders.CacheControl])
         assertEquals("""{"allowRegistration":false,"bootstrapAvailable":true,"localLoginEnabled":true}""", response.bodyAsText())
     }
 
