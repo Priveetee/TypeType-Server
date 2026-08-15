@@ -42,7 +42,6 @@ import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.StreamYouTubeSubtitleResolver
 import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
-import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
@@ -98,9 +97,9 @@ internal class ExtractionServiceRegistry(
         directPipePipeStreamService,
         YoutubePlayerClient.VISIONOS,
     )
-    private val authenticatedStreamService = YoutubePlayerClientFallbackStreamService(
+    private val authenticatedStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
-        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
+        YoutubePlayerClient.MWEB,
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,

@@ -69,7 +69,7 @@ InternalBrowserComplete:
         application/json:
           schema:
             type: object
-            required: [sessionId, tokenSessionId, status, cookies, poToken, capturedAt]
+            required: [sessionId, tokenSessionId, status, cookies, poToken, authUser, capturedAt]
             properties:
               sessionId: { type: string }
               tokenSessionId: { type: string }
@@ -78,6 +78,7 @@ InternalBrowserComplete:
                 enum: [completed]
               cookies: { type: string }
               poToken: { type: string }
+              authUser: { type: integer, minimum: 0, maximum: 99 }
               capturedAt: { type: integer, format: int64 }
     responses:
       '204': { description: YouTube credentials stored. }

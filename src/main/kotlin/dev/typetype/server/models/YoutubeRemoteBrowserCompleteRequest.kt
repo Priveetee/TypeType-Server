@@ -9,5 +9,6 @@ data class YoutubeRemoteBrowserCompleteRequest(
     val status: String,
     val cookies: String,
     val poToken: String,
+    val authUser: Int = 0,
     val capturedAt: Long,
 )

@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.downloader.YoutubeAuthUserContext
 import org.schabi.newpipe.extractor.ServiceList
 import java.util.concurrent.Semaphore
 import kotlinx.coroutines.Dispatchers
@@ -13,18 +14,21 @@ object YoutubeSessionTokenScope {
         withPermits(PUBLIC_PERMITS) {
             val youtube = ServiceList.YouTube
             try {
+                YoutubeAuthUserContext.set(credentials.authUser)
                 youtube.setTokens(credentials.cookies)
                 youtube.setAdditionalTokens(credentials.poToken)
                 block()
             } finally {
                 youtube.setTokens("")
                 youtube.setAdditionalTokens("")
+                YoutubeAuthUserContext.set(null)
             }
         }
 
     suspend fun <T> withoutCredentials(block: suspend () -> T): T =
         withPermits(1) {
             val youtube = ServiceList.YouTube
+            YoutubeAuthUserContext.set(null)
             youtube.setTokens("")
             youtube.setAdditionalTokens("")
             block()

@@ -14,7 +14,7 @@ YoutubeRemoteBrowserStartResponse:
     expiresAt: { type: integer, format: int64 }
 YoutubeRemoteBrowserCompleteRequest:
   type: object
-  required: [sessionId, tokenSessionId, status, cookies, poToken, capturedAt]
+  required: [sessionId, tokenSessionId, status, cookies, poToken, authUser, capturedAt]
   properties:
     sessionId: { type: string }
     tokenSessionId: { type: string }
@@ -23,4 +23,5 @@ YoutubeRemoteBrowserCompleteRequest:
       enum: [completed]
     cookies: { type: string }
     poToken: { type: string }
+    authUser: { type: integer, minimum: 0, maximum: 99 }
     capturedAt: { type: integer, format: int64 }

@@ -119,6 +119,7 @@ object DatabaseFactory {
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS public_username TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
+            exec("ALTER TABLE youtube_sessions ADD COLUMN IF NOT EXISTS auth_user INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             DatabaseSessionAuthMigration.apply()
             DatabaseOidcMigration.apply()
