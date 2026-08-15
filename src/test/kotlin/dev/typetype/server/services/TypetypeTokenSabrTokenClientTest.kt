@@ -5,8 +5,10 @@ import io.mockk.mockk
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.json.JSONObject
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -79,16 +81,36 @@ class TypetypeTokenSabrTokenClientTest {
         assertNull(url.queryParameter("refreshVideo"))
     }
 
+    @Test
+    fun sessionFetchPostsOneExplicitlyBoundTokenPair(): Unit {
+        val recorder = PotokenRequestRecorder(SESSION_TOKEN_JSON)
+        val client = TypetypeTokenSabrTokenClient("https://token.example", recorder.client)
+
+        val token = client.fetchSession("video", "connected-visitor", refreshVideo = true)
+
+        assertNotNull(token)
+        val request = recorder.requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/potoken/session", request.url.encodedPath)
+        val body = JSONObject(request.body!!.let { body -> okio.Buffer().also(body::writeTo).readUtf8() })
+        assertEquals("video", body.getString("videoId"))
+        assertEquals("connected-visitor", body.getString("sessionBinding"))
+        assertEquals(true, body.getBoolean("refreshVideo"))
+        assertArrayEquals(byteArrayOf(2), token!!.streamingPoTokenBytesFor(info("connected-visitor")))
+        assertNull(token.streamingPoTokenBytesFor(info("different-visitor")))
+    }
+
     private fun info(expectedVisitorData: String): YoutubeSabrInfo = mockk {
         every { videoId } returns "video"
         every { visitorData } returns expectedVisitorData
     }
 
     private class PotokenRequestRecorder(tokenJson: String = TOKEN_JSON) {
-        val urls = mutableListOf<okhttp3.HttpUrl>()
+        val requests = mutableListOf<Request>()
+        val urls: List<okhttp3.HttpUrl> get() = requests.map { it.url }
         val client: OkHttpClient = OkHttpClient.Builder()
             .addInterceptor(Interceptor { chain ->
-                urls += chain.request().url
+                requests += chain.request()
                 Response.Builder()
                     .request(chain.request())
                     .protocol(Protocol.HTTP_1_1)
@@ -105,5 +127,7 @@ class TypetypeTokenSabrTokenClientTest {
             """{"visitorBoundPoToken":"AQ","visitorData":"visitor","videoBoundPoToken":"Ag"}"""
         const val MISMATCHED_TOKEN_JSON =
             """{"visitorBoundPoToken":"AQ","visitorData":"other-visitor","videoBoundPoToken":"Ag"}"""
+        const val SESSION_TOKEN_JSON =
+            """{"visitorBoundPoToken":"AQ","visitorData":"public","videoBoundPoToken":"Ag","sessionBoundPoToken":"Aw"}"""
     }
 }

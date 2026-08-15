@@ -9,9 +9,12 @@ internal object TypetypeYoutubeSessionPoTokenProvider : YoutubeSessionPoTokenPro
     private val scopedToken = ThreadLocal<YoutubeSessionPoToken>()
 
     fun <T> withToken(token: SabrTokenBundle, block: () -> T): T {
+        return withToken(token.youtubeSessionPoToken(), block)
+    }
+
+    fun <T> withToken(token: YoutubeSessionPoToken, block: () -> T): T {
         val previous = scopedToken.get()
-        val sessionToken = YoutubeSessionPoToken(token.visitorData, token.visitorBoundPoToken)
-        scopedToken.set(sessionToken)
+        scopedToken.set(token)
         return try {
             block()
         } finally {

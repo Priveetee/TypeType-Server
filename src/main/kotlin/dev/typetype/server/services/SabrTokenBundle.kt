@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import org.json.JSONObject
+import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 import java.util.Base64
 
@@ -11,6 +12,8 @@ internal class SabrTokenBundle(
     val visitorData: String,
     val videoBoundPoToken: String,
     val videoBoundPoTokenBytes: ByteArray,
+    val sessionBinding: String? = null,
+    val sessionBoundPoToken: String? = null,
 ) {
     val visitorPoToken: String = visitorBoundPoToken
     val visitorPoTokenBytes: ByteArray = visitorBoundPoTokenBytes
@@ -33,6 +36,26 @@ internal class SabrTokenBundle(
             )
         }.getOrNull()
 
+        fun fromSessionResponse(
+            videoId: String,
+            sessionBinding: String,
+            json: JSONObject,
+        ): SabrTokenBundle? {
+            val base = fromResponse(videoId, json) ?: return null
+            val sessionBoundPoToken = json.optString("sessionBoundPoToken").takeIf(String::isNotBlank)
+                ?: return null
+            return SabrTokenBundle(
+                videoId = base.videoId,
+                visitorBoundPoToken = base.visitorBoundPoToken,
+                visitorBoundPoTokenBytes = base.visitorBoundPoTokenBytes,
+                visitorData = base.visitorData,
+                videoBoundPoToken = base.videoBoundPoToken,
+                videoBoundPoTokenBytes = base.videoBoundPoTokenBytes,
+                sessionBinding = sessionBinding,
+                sessionBoundPoToken = sessionBoundPoToken,
+            )
+        }
+
         private fun decodeBase64Url(value: String): ByteArray {
             val padded = value + "=".repeat((4 - value.length % 4) % 4)
             return Base64.getUrlDecoder().decode(padded)
@@ -40,8 +63,14 @@ internal class SabrTokenBundle(
     }
 }
 
+internal fun SabrTokenBundle.youtubeSessionPoToken(): YoutubeSessionPoToken =
+    YoutubeSessionPoToken(sessionBinding ?: visitorData, sessionBoundPoToken ?: visitorBoundPoToken)
+
 internal fun SabrTokenBundle.streamingPoTokenBytesFor(info: YoutubeSabrInfo): ByteArray? =
-    takeIf { it.videoId == info.videoId && it.visitorData == info.visitorData }
+    takeIf {
+        it.videoId == info.videoId &&
+            (it.visitorData == info.visitorData || it.sessionBinding == info.visitorData)
+    }
         ?.streamingPoTokenBytes
         ?.takeIf { it.isNotEmpty() }
 
