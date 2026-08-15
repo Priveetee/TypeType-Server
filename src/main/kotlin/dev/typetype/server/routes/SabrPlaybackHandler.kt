@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
@@ -26,9 +27,11 @@ internal class SabrPlaybackHandler(
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
     authenticatedSabrInfoService: AuthenticatedSabrInfoService? = null,
+    youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
 ) {
     private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
     private val infoResolver = SabrPlaybackInfoResolver(sabrSessionStore, authenticatedSabrInfoService)
+    private val accessValidator = SabrPlaybackAccessValidator(streamService, youtubeSessionStreamInfo)
 
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
@@ -125,20 +128,21 @@ internal class SabrPlaybackHandler(
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
-        if (!access.profile.enabled) return true
-        return when (val result = streamService.getStreamInfo("https://www.youtube.com/watch?v=$videoId")) {
+        return when (val result = accessValidator.resolve(access.userId, videoId)) {
             is ExtractionResult.Success -> {
-                if (access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) true else {
+                val allowed = !access.profile.enabled ||
+                    access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)
+                if (allowed) true else {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                     false
                 }
             }
             is ExtractionResult.Failure -> {
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
                 false
             }
             is ExtractionResult.BadRequest -> {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
                 false
             }
         }

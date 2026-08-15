@@ -10,8 +10,11 @@ import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.StreamService
-import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_CODE
+import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_ERROR
 import dev.typetype.server.services.filterAllowed
+import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.requiresYoutubeSession
 import dev.typetype.server.services.withSabrManifestUrls
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -32,6 +35,7 @@ fun Route.streamRoutes(
     nicoNicoStreamService: StreamService = streamService,
     bilibiliStreamService: StreamService = streamService,
     sabrBootstrapStreamService: StreamService = streamService,
+    youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 ) {
     val dependencies = StreamRouteDependencies(
@@ -41,6 +45,7 @@ fun Route.streamRoutes(
         blockedService = blockedService,
         publicHlsManifestTokenService = publicHlsManifestTokenService,
         sabrStreamContractFilter = sabrStreamContractFilter,
+        youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
     )
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
     streamRoute(
@@ -83,7 +88,9 @@ private fun Route.streamRoute(
                 ErrorResponse("Video is blocked", "content_blocked"),
             )
         }
-        when (val result = streamService.getStreamInfo(url)) {
+        val publicResult = streamService.getStreamInfo(url)
+        val resolution = resolveStreamInfo(url, deliveryMode, access.userId, publicResult, dependencies)
+        when (val result = resolution.result) {
             is ExtractionResult.Success -> {
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
@@ -106,7 +113,11 @@ private fun Route.streamRoute(
                         deliveryMode.isSabr() && selected.isLive || access.userId != null && !access.allowGuest,
                         dependencies.publicHlsManifestTokenService,
                     )
-                val data = if (!deliveryMode.isSabr() || dependencies.sabrStreamContractFilter == null) {
+                val data = if (
+                    !deliveryMode.isSabr() ||
+                    resolution.authenticated ||
+                    dependencies.sabrStreamContractFilter == null
+                ) {
                     filtered
                 } else {
                     dependencies.sabrStreamContractFilter.invoke(url, filtered)
@@ -128,6 +139,33 @@ private fun Route.streamRoute(
             is ExtractionResult.Failure ->
                 call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
         }
+    }
+}
+
+private data class StreamResolution(
+    val result: ExtractionResult<StreamResponse>,
+    val authenticated: Boolean = false,
+)
+
+private suspend fun resolveStreamInfo(
+    url: String,
+    deliveryMode: StreamDeliveryMode,
+    userId: String?,
+    publicResult: ExtractionResult<StreamResponse>,
+    dependencies: StreamRouteDependencies,
+): StreamResolution {
+    val authenticatedInfo = dependencies.youtubeSessionSabrStreamInfo
+    if (!deliveryMode.isSabr() || authenticatedInfo == null) {
+        return StreamResolution(publicResult)
+    }
+    val authenticatedResult = userId?.let { authenticatedInfo(it, url) }
+    if (authenticatedResult != null) return StreamResolution(authenticatedResult, authenticated = true)
+    return if (publicResult.requiresYoutubeSession()) {
+        StreamResolution(
+            ExtractionResult.BadRequest(YOUTUBE_SESSION_REQUIRED_ERROR, YOUTUBE_SESSION_REQUIRED_CODE),
+        )
+    } else {
+        StreamResolution(publicResult)
     }
 }
 

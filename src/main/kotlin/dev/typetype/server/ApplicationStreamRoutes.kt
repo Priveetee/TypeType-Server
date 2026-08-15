@@ -31,6 +31,9 @@ internal fun Route.installStreamRoutes(
             blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
+            youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
+                { userId, url -> service.getStreamInfo(userId, url) }
+            },
         )
         audioOnlyContractRoutes(
             streamService = svc.streamService,

@@ -31,8 +31,11 @@ internal object StreamExtractionErrorMapper {
             sanitize(error.message) ?: "This premiere has not started yet",
             "scheduled_premiere",
         )
+        is AgeRestrictedContentException -> ExtractionResult.BadRequest(
+            sanitize(error.message) ?: "This video is age-restricted",
+            "age_restricted",
+        )
         is GeographicRestrictionException,
-        is AgeRestrictedContentException,
         is PrivateContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: "Content not available")
         else -> ExtractionResult.Failure(
             sanitize(error.message) ?: fallback,

@@ -55,6 +55,7 @@ import dev.typetype.server.services.YoutubeSessionCrypto
 import dev.typetype.server.services.YoutubeSessionHlsManifestService
 import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStreamService
+import dev.typetype.server.services.YoutubeSessionSabrStreamService
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
@@ -114,6 +115,9 @@ internal class ExtractionServiceRegistry(
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
+    }
+    val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
+        YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService)
     }
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(

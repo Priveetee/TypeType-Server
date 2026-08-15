@@ -59,6 +59,7 @@ internal class ServiceRegistry(
     val youtubeSessionService = extraction.youtubeSessionService
     val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
+    val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
     val youtubeSabrStreamService = extraction.youtubeSabrStreamService
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
     val nicoNicoStreamService = extraction.nicoNicoStreamService
