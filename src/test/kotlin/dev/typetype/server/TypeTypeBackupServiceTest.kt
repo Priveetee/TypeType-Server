@@ -153,6 +153,31 @@ class TypeTypeBackupServiceTest {
     }
 
     @Test
+    fun `legacy subscription backup without groups preserves compatible memberships`() = runTest {
+        subscriptions.add(TARGET, SubscriptionItem("https://youtube.com/channel/keep", "Keep", ""))
+        subscriptions.add(TARGET, SubscriptionItem("https://youtube.com/channel/drop", "Drop", ""))
+        val group = (subscriptionGroups.create(TARGET, "Existing") as SubscriptionGroupWriteResult.Success).group
+        subscriptionGroups.addSubscription(TARGET, group.id, "https://youtube.com/channel/keep")
+        subscriptionGroups.addSubscription(TARGET, group.id, "https://youtube.com/channel/drop")
+        val legacyBackup = TypeTypeBackupItem(
+            exportedAt = 1,
+            categories = listOf(TypeTypeBackupCategory.SUBSCRIPTIONS.wireName),
+            subscriptions = listOf(
+                SubscriptionItem("https://youtube.com/channel/keep", "Keep", "", subscribedAt = 1),
+            ),
+        )
+
+        service.restore(TARGET, legacyBackup)
+
+        val preservedGroup = subscriptionGroups.getAll(TARGET).single()
+        assertEquals(group.id, preservedGroup.id)
+        assertEquals(
+            listOf("https://youtube.com/channel/keep"),
+            subscriptionGroups.getChannelUrls(TARGET, preservedGroup.id),
+        )
+    }
+
+    @Test
     fun `restore rejects empty normalized blocked keywords`() = runTest {
         val backup = TypeTypeBackupItem(
             exportedAt = 1,

@@ -51,7 +51,8 @@ internal object SubscriptionFeedCursorCodec {
         val cursor = CacheJson.decodeFromString(SubscriptionFeedCursor.serializer(), payload)
         cursor.takeIf {
             it.generation > 0L && it.offset >= 0 && it.limit in 1..100 &&
-                ((it.filterKey == SubscriptionSelection.All.cursorKey) == (it.selectionToken == null))
+                ((it.filterKey == SubscriptionSelection.All.cursorKey) == (it.selectionToken == null)) &&
+                (it.selectionToken == null || SELECTION_TOKEN.matches(it.selectionToken))
         }
             ?.let {
                 SubscriptionFeedCursorState(
@@ -65,6 +66,8 @@ internal object SubscriptionFeedCursorCodec {
                 )
             }
     }.getOrNull()
+
+    private val SELECTION_TOKEN = Regex("[0-9a-f]{64}")
 }
 
 internal data class SubscriptionFeedCursorState(
@@ -137,4 +140,5 @@ internal sealed interface SubscriptionFeedPageResult {
     data class Preparing(val retryAfterMs: Long) : SubscriptionFeedPageResult
     data object InvalidCursor : SubscriptionFeedPageResult
     data object StaleGeneration : SubscriptionFeedPageResult
+    data object CursorCapacityReached : SubscriptionFeedPageResult
 }

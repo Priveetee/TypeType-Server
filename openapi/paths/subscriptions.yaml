@@ -209,3 +209,12 @@ SubscriptionFeed:
           application/json:
             schema:
               $ref: ../components/common.yaml#/ErrorResponse
+      '429':
+        description: The account already has the maximum number of active filtered cursor sessions.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse

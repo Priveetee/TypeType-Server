@@ -71,18 +71,20 @@ class SubscriptionFeedService(
         val offset = cursorState?.offset ?: page * limit
         val selected = selections.resolve(userId, selection, cursorState?.selectionToken)
             ?: return SubscriptionFeedPageResult.StaleGeneration
-        return SubscriptionFeedPageResult.Ready(
-            snapshot.page(
-                offset,
-                limit,
-                isRefreshing(userId),
-                hideLiveStreams,
-                hideMembersOnlyContent,
-                selection,
-                selected.channelUrls,
-                selected.token,
-            ),
+        val response = snapshot.page(
+            offset,
+            limit,
+            isRefreshing(userId),
+            hideLiveStreams,
+            hideMembersOnlyContent,
+            selection,
+            selected.channelUrls,
+            selected.token,
         )
+        if (cursorState == null && response.nextpage != null && !selections.persist(userId, selection, selected)) {
+            return SubscriptionFeedPageResult.CursorCapacityReached
+        }
+        return SubscriptionFeedPageResult.Ready(response)
     }
 
     suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse =

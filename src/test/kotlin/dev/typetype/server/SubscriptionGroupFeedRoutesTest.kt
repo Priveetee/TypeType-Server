@@ -26,6 +26,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -35,6 +36,7 @@ class SubscriptionGroupFeedRoutesTest {
     private val subscriptions = SubscriptionsService()
     private val groups = SubscriptionGroupsService()
     private lateinit var feed: SubscriptionFeedService
+    private lateinit var cache: FakeCacheService
     private val auth = AuthService.fixed(TEST_USER_ID)
 
     companion object {
@@ -46,7 +48,8 @@ class SubscriptionGroupFeedRoutesTest {
     @BeforeEach
     fun clean() {
         TestDatabase.truncateAll()
-        feed = SubscriptionFeedService(subscriptions, FakeChannelService(), FakeCacheService())
+        cache = FakeCacheService()
+        feed = SubscriptionFeedService(subscriptions, FakeChannelService(), cache)
     }
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -87,7 +90,7 @@ class SubscriptionGroupFeedRoutesTest {
         coEvery { channelService.getChannel(channel("three"), null) } returns SubscriptionFeedTestFixtures.channel(
             SubscriptionFeedTestFixtures.video(1_000L, channel = "three", url = "video-three"),
         )
-        feed = SubscriptionFeedService(subscriptions, channelService, FakeCacheService())
+        feed = SubscriptionFeedService(subscriptions, channelService, cache)
         listOf("one", "two", "three").forEach { subscriptions.add(TEST_USER_ID, subscription(it)) }
         val group = (groups.create(TEST_USER_ID, "Work") as SubscriptionGroupWriteResult.Success).group
         groups.addSubscription(TEST_USER_ID, group.id, channel("one"))
@@ -96,13 +99,32 @@ class SubscriptionGroupFeedRoutesTest {
         feed.awaitRefresh(TEST_USER_ID)
         val firstPage = requestReadyFeed(limit = 1, groupId = group.id)
         assertEquals(listOf("video-one"), firstPage.videos.map { it.url })
+        val repeatedFirstPage = requestReadyFeed(limit = 1, groupId = group.id)
+        assertEquals(firstPage.nextpage, repeatedFirstPage.nextpage)
+        assertEquals(1, cache.keys().count { it.startsWith("feed:selection") })
 
         groups.removeSubscription(TEST_USER_ID, group.id, channel("two"))
         groups.addSubscription(TEST_USER_ID, group.id, channel("three"))
+        val changedFirstPage = requestReadyFeed(limit = 1, groupId = group.id)
+        assertNotEquals(firstPage.nextpage, changedFirstPage.nextpage)
+        assertEquals(2, cache.keys().count { it.startsWith("feed:selection") })
         val secondPage = requestFeed(limit = 1, cursor = requireNotNull(firstPage.nextpage), groupId = group.id)
 
         assertEquals(HttpStatusCode.OK, secondPage.status)
         assertEquals(listOf("video-two"), Json.decodeFromString<SubscriptionFeedResponse>(secondPage.bodyAsText()).videos.map { it.url })
+    }
+
+    @Test
+    fun `terminal filtered page does not retain a membership snapshot`() = withApp {
+        subscriptions.add(TEST_USER_ID, subscription("one"))
+        val group = (groups.create(TEST_USER_ID, "Work") as SubscriptionGroupWriteResult.Success).group
+        groups.addSubscription(TEST_USER_ID, group.id, channel("one"))
+        assertEquals(HttpStatusCode.Accepted, requestFeed(groupId = group.id).status)
+        feed.awaitRefresh(TEST_USER_ID)
+
+        assertEquals(1, requestReadyFeed(groupId = group.id).videos.size)
+
+        assertTrue(cache.keys().none { it.startsWith("feed:selection") })
     }
 
     @Test

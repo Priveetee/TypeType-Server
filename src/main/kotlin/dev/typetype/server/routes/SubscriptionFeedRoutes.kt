@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.SubscriptionFeedPreparingResponse
+import dev.typetype.server.preserveTooManyRequestsBody
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionFeedPageResult
 import dev.typetype.server.services.SubscriptionFeedService
@@ -68,6 +69,13 @@ fun Route.subscriptionFeedRoutes(
                     HttpStatusCode.Conflict,
                     ErrorResponse("Subscription feed generation is no longer available", "subscription_feed_stale_generation"),
                 )
+                SubscriptionFeedPageResult.CursorCapacityReached -> {
+                    call.preserveTooManyRequestsBody()
+                    call.respond(
+                        HttpStatusCode.TooManyRequests,
+                        ErrorResponse("Too many active subscription feed cursors", "subscription_feed_cursor_capacity"),
+                    )
+                }
             }
         }
     }

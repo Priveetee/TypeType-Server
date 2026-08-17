@@ -9,7 +9,7 @@ object SubscriptionFeedCacheKeys {
 
     fun invalidation(userId: String): String = "feed:invalidation:${hash(userId)}"
 
-    fun selection(userId: String, token: String): String = "feed:selection:${hash(userId)}:$token"
+    fun selection(userId: String, slot: Int): String = "feed:selection:${hash(userId)}:$slot"
 
     fun shorts(userId: String): String = "feed:shorts:${hash(userId)}"
 

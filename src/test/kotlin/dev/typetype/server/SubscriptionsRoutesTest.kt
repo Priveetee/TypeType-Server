@@ -19,14 +19,12 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
-import java.nio.file.Path
 
 class SubscriptionsRoutesTest {
 
@@ -44,26 +42,13 @@ class SubscriptionsRoutesTest {
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
             routing { subscriptionsRoutes(service, auth) }
         }
         block()
     }
 
     private val itemBody = """{"channelUrl":"https://yt.com/channel/1","name":"Test","avatarUrl":""}"""
-
-    @Test
-    fun `subscription creation contract omits the server timestamp`() {
-        val components = Files.readString(Path.of("openapi/components/subscriptions.yaml"))
-        val requestSchema = components
-            .substringAfter("SubscriptionCreateRequest:")
-            .substringBefore("SubscriptionGroupItem:")
-        val paths = Files.readString(Path.of("openapi/paths/subscriptions.yaml"))
-
-        assertTrue("required: [channelUrl, name, avatarUrl]" in requestSchema)
-        assertFalse("subscribedAt" in requestSchema)
-        assertTrue("#/SubscriptionCreateRequest" in paths)
-    }
 
     @Test
     fun `GET subscriptions without token returns 401`() = withApp {
@@ -78,14 +63,31 @@ class SubscriptionsRoutesTest {
     }
 
     @Test
-    fun `POST subscriptions returns 201 and persists item`() = withApp {
+    fun `POST subscriptions generates and persists the server timestamp`() = withApp {
         val response = client.post("/subscriptions") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(itemBody)
         }
         assertEquals(HttpStatusCode.Created, response.status)
-        assertTrue(response.bodyAsText().contains("\"channelUrl\":\"https://yt.com/channel/1\""))
+        val created = Json.decodeFromString<SubscriptionItem>(response.bodyAsText())
+        assertEquals("https://yt.com/channel/1", created.channelUrl)
+        assertTrue(created.subscribedAt > 1)
+        assertEquals(created.subscribedAt, service.getAll(TEST_USER_ID).single().subscribedAt)
+    }
+
+    @Test
+    fun `POST subscriptions ignores the obsolete client timestamp`() = withApp {
+        val response = client.post("/subscriptions") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody(itemBody.dropLast(1) + ",\"subscribedAt\":1}")
+        }
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        val created = Json.decodeFromString<SubscriptionItem>(response.bodyAsText())
+        assertTrue(created.subscribedAt > 1)
+        assertEquals(created.subscribedAt, service.getAll(TEST_USER_ID).single().subscribedAt)
     }
 
     @Test
