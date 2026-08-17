@@ -26,6 +26,7 @@ class SubscriptionFeedService(
     private val refreshScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
+    private val selections = SubscriptionFeedSelectionStore(cache, subscriptionsService)
     private val builder = SubscriptionFeedBuilder(channelService)
     private val orderer = SubscriptionFeedOrderer()
     private val refreshJobs = ConcurrentHashMap<String, Job>()
@@ -38,6 +39,7 @@ class SubscriptionFeedService(
         cursor: String?,
         hideLiveStreams: Boolean = false,
         hideMembersOnlyContent: Boolean = false,
+        selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
         val current = store.current(userId)
@@ -57,6 +59,9 @@ class SubscriptionFeedService(
         if (cursorState != null && cursorState.hideMembersOnlyContent != hideMembersOnlyContent) {
             return SubscriptionFeedPageResult.InvalidCursor
         }
+        if (cursorState != null && cursorState.filterKey != selection.cursorKey) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
         val snapshot = when {
             cursorState == null -> current
             cursorState.generation == current.generation -> current
@@ -64,8 +69,19 @@ class SubscriptionFeedService(
                 ?: return SubscriptionFeedPageResult.StaleGeneration
         }
         val offset = cursorState?.offset ?: page * limit
+        val selected = selections.resolve(userId, selection, cursorState?.selectionToken)
+            ?: return SubscriptionFeedPageResult.StaleGeneration
         return SubscriptionFeedPageResult.Ready(
-            snapshot.page(offset, limit, isRefreshing(userId), hideLiveStreams, hideMembersOnlyContent),
+            snapshot.page(
+                offset,
+                limit,
+                isRefreshing(userId),
+                hideLiveStreams,
+                hideMembersOnlyContent,
+                selection,
+                selected.channelUrls,
+                selected.token,
+            ),
         )
     }
 
@@ -152,6 +168,7 @@ class SubscriptionFeedService(
             stale = false,
             videos = ordering.videos,
             livePromotedAt = ordering.livePromotedAt,
+            sourceChannelUrls = result.sourceChannelUrls,
         )
         runCatching { store.publish(userId, snapshot) }.onFailure {
             logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)
