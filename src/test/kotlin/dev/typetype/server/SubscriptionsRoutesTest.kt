@@ -20,10 +20,13 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
 
 class SubscriptionsRoutesTest {
 
@@ -48,6 +51,19 @@ class SubscriptionsRoutesTest {
     }
 
     private val itemBody = """{"channelUrl":"https://yt.com/channel/1","name":"Test","avatarUrl":""}"""
+
+    @Test
+    fun `subscription creation contract omits the server timestamp`() {
+        val components = Files.readString(Path.of("openapi/components/subscriptions.yaml"))
+        val requestSchema = components
+            .substringAfter("SubscriptionCreateRequest:")
+            .substringBefore("SubscriptionGroupItem:")
+        val paths = Files.readString(Path.of("openapi/paths/subscriptions.yaml"))
+
+        assertTrue("required: [channelUrl, name, avatarUrl]" in requestSchema)
+        assertFalse("subscribedAt" in requestSchema)
+        assertTrue("#/SubscriptionCreateRequest" in paths)
+    }
 
     @Test
     fun `GET subscriptions without token returns 401`() = withApp {
