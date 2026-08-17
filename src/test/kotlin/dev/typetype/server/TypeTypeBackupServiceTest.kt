@@ -23,6 +23,9 @@ import dev.typetype.server.services.ProgressService
 import dev.typetype.server.services.SavedPlaylistService
 import dev.typetype.server.services.SearchHistoryService
 import dev.typetype.server.services.SettingsService
+import dev.typetype.server.services.SubscriptionGroupMembershipResult
+import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.SubscriptionGroupWriteResult
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.TypeTypeBackupCategory
 import dev.typetype.server.services.TypeTypeBackupService
@@ -37,6 +40,7 @@ import org.junit.jupiter.api.Test
 
 class TypeTypeBackupServiceTest {
     private val subscriptions = SubscriptionsService()
+    private val subscriptionGroups = SubscriptionGroupsService()
     private val history = HistoryService()
     private val playlists = PlaylistService()
     private val watchLater = WatchLaterService()
@@ -78,6 +82,13 @@ class TypeTypeBackupServiceTest {
     @Test
     fun `full backup restores every user data category`() = runTest {
         subscriptions.add(SOURCE, SubscriptionItem("https://youtube.com/channel/source", "Source", "avatar"))
+        val subscriptionGroup = (
+            subscriptionGroups.create(SOURCE, "Favorites") as SubscriptionGroupWriteResult.Success
+        ).group
+        assertEquals(
+            SubscriptionGroupMembershipResult.Success,
+            subscriptionGroups.addSubscription(SOURCE, subscriptionGroup.id, "https://youtube.com/channel/source"),
+        )
         history.addImported(SOURCE, videoHistory())
         val playlist = playlists.create(SOURCE, PlaylistItem(name = "Saved videos"))
         playlists.addVideo(SOURCE, playlist.id, playlistVideo())
@@ -107,6 +118,14 @@ class TypeTypeBackupServiceTest {
         val result = service.restore(TARGET, backup)
 
         assertEquals(1, result.restored["subscriptions"])
+        assertEquals(1, result.restored["subscriptionGroups"])
+        assertEquals(1, result.restored["subscriptionGroupMemberships"])
+        val restoredGroup = subscriptionGroups.getAll(TARGET).single()
+        assertEquals("Favorites", restoredGroup.name)
+        assertEquals(
+            listOf("https://youtube.com/channel/source"),
+            subscriptionGroups.getChannelUrls(TARGET, restoredGroup.id),
+        )
         assertEquals(1, result.restored["history"])
         assertEquals(1, result.restored["playlists"])
         assertEquals(1, result.restored["playlistVideos"])

@@ -16,6 +16,11 @@ internal object TypeTypeBackupRestoreWriter {
                 userId,
                 requireNotNull(backup.subscriptions),
             )
+            backup.subscriptionGroups?.let { groups ->
+                val counts = SubscriptionGroupBackupRepository.restore(userId, groups)
+                restored["subscriptionGroups"] = counts.first
+                restored["subscriptionGroupMemberships"] = counts.second
+            }
         }
         if (TypeTypeBackupCategory.HISTORY in categories) {
             restored["history"] = TypeTypeBackupCoreRestore.history(

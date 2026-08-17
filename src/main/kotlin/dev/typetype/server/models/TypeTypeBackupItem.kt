@@ -9,6 +9,7 @@ data class TypeTypeBackupItem(
     val exportedAt: Long,
     val categories: List<String>,
     val subscriptions: List<SubscriptionItem>? = null,
+    val subscriptionGroups: List<SubscriptionGroupBackupItem>? = null,
     val history: List<HistoryItem>? = null,
     val playlists: List<PlaylistItem>? = null,
     val watchLater: List<WatchLaterItem>? = null,

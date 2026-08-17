@@ -5,6 +5,7 @@ import dev.typetype.server.models.TYPE_TYPE_BACKUP_VERSION
 import dev.typetype.server.models.TypeTypeBackupItem
 import dev.typetype.server.models.TypeTypeContentFiltersBackup
 import dev.typetype.server.models.TypeTypeRestoreSummary
+import java.util.Locale
 
 class TypeTypeBackupService(
     private val subscriptions: SubscriptionsService,
@@ -34,6 +35,11 @@ class TypeTypeBackupService(
             exportedAt = System.currentTimeMillis(),
             categories = categories.map(TypeTypeBackupCategory::wireName).sorted(),
             subscriptions = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) subscriptions.getAll(userId) else null,
+            subscriptionGroups = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) {
+                SubscriptionGroupBackupRepository.export(userId)
+            } else {
+                null
+            },
             history = if (includes(TypeTypeBackupCategory.HISTORY)) history.getAll(userId) else null,
             playlists = fullPlaylists,
             watchLater = if (includes(TypeTypeBackupCategory.WATCH_LATER)) watchLater.getAll(userId) else null,
@@ -53,6 +59,7 @@ class TypeTypeBackupService(
         val categories = TypeTypeBackupCategory.parse(backup.categories.joinToString(","))
             ?: throw IllegalArgumentException("Invalid backup categories")
         validateSections(backup, categories)
+        validateSubscriptionGroups(backup, categories)
         validateContentFilters(backup, categories)
         return TypeTypeBackupRestoreWriter.restore(userId, backup, categories)
     }
@@ -85,6 +92,36 @@ private fun validateSections(
         }
     }
     require(missing.isEmpty()) { "Backup is missing selected data" }
+}
+
+private fun validateSubscriptionGroups(
+    backup: TypeTypeBackupItem,
+    categories: Set<TypeTypeBackupCategory>,
+) {
+    val groups = backup.subscriptionGroups ?: return
+    require(TypeTypeBackupCategory.SUBSCRIPTIONS in categories) {
+        "Subscription groups require the subscriptions category"
+    }
+    val normalizedNames = groups.map { group ->
+        require(group.name == group.name.trim() && group.name.length in 1..SubscriptionGroupsService.MAX_GROUP_NAME_LENGTH) {
+            "Subscription group names must contain 1 to 100 characters"
+        }
+        group.name.lowercase(Locale.ROOT)
+    }
+    require(normalizedNames.distinct().size == normalizedNames.size) {
+        "Backup contains duplicate subscription group names"
+    }
+    val subscriptions = requireNotNull(backup.subscriptions)
+        .mapTo(mutableSetOf()) { ChannelUrlCanonicalizer.canonicalize(it.channelUrl) }
+    groups.forEach { group ->
+        val channels = group.channelUrls.map(ChannelUrlCanonicalizer::canonicalize)
+        require(channels.distinct().size == channels.size) {
+            "Backup contains duplicate subscription group memberships"
+        }
+        require(channels.all { it in subscriptions }) {
+            "Subscription group membership references an unknown subscription"
+        }
+    }
 }
 
 private fun validateContentFilters(
