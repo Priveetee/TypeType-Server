@@ -13,10 +13,16 @@ import java.util.Locale
 import java.util.UUID
 
 internal object SubscriptionGroupBackupRepository {
-    suspend fun export(userId: String): List<SubscriptionGroupBackupItem> = DatabaseFactory.query {
+    suspend fun export(
+        userId: String,
+        subscriptionUrls: Set<String>,
+    ): List<SubscriptionGroupBackupItem> = DatabaseFactory.query {
         val channelsByGroup = SubscriptionGroupMembershipsTable.selectAll()
             .where { SubscriptionGroupMembershipsTable.userId eq userId }
             .orderBy(SubscriptionGroupMembershipsTable.addedAt to SortOrder.ASC)
+            .filter {
+                ChannelUrlCanonicalizer.canonicalize(it[SubscriptionGroupMembershipsTable.channelUrl]) in subscriptionUrls
+            }
             .groupBy(
                 keySelector = { it[SubscriptionGroupMembershipsTable.groupId] },
                 valueTransform = { it[SubscriptionGroupMembershipsTable.channelUrl] },

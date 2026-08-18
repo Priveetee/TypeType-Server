@@ -31,14 +31,20 @@ class TypeTypeBackupService(
         } else {
             null
         }
+        val subscriptionItems = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) {
+            subscriptions.getAll(userId)
+        } else {
+            null
+        }
         return TypeTypeBackupItem(
             exportedAt = System.currentTimeMillis(),
             categories = categories.map(TypeTypeBackupCategory::wireName).sorted(),
-            subscriptions = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) subscriptions.getAll(userId) else null,
-            subscriptionGroups = if (includes(TypeTypeBackupCategory.SUBSCRIPTIONS)) {
-                SubscriptionGroupBackupRepository.export(userId)
-            } else {
-                null
+            subscriptions = subscriptionItems,
+            subscriptionGroups = subscriptionItems?.let { items ->
+                val channelUrls = items.mapTo(hashSetOf()) {
+                    ChannelUrlCanonicalizer.canonicalize(it.channelUrl)
+                }
+                SubscriptionGroupBackupRepository.export(userId, channelUrls)
             },
             history = if (includes(TypeTypeBackupCategory.HISTORY)) history.getAll(userId) else null,
             playlists = fullPlaylists,
