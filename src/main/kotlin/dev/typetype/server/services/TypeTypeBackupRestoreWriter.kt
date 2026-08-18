@@ -10,6 +10,7 @@ internal object TypeTypeBackupRestoreWriter {
         backup: TypeTypeBackupItem,
         categories: Set<TypeTypeBackupCategory>,
     ): TypeTypeRestoreSummary = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         val restored = linkedMapOf<String, Int>()
         if (TypeTypeBackupCategory.SUBSCRIPTIONS in categories) {
             restored["subscriptions"] = TypeTypeBackupCoreRestore.subscriptions(

@@ -101,6 +101,7 @@ class SubscriptionGroupsService {
         groupId: String,
         rawChannelUrl: String,
     ): SubscriptionGroupMembershipResult = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         if (!groupExists(userId, groupId)) return@query SubscriptionGroupMembershipResult.GroupNotFound
         val channelUrl = ChannelUrlCanonicalizer.canonicalize(rawChannelUrl)
         val subscriptionExists = SubscriptionsTable.selectAll().where {

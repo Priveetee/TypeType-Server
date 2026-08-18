@@ -46,6 +46,7 @@ class SubscriptionsService {
     }
 
     suspend fun delete(userId: String, channelUrl: String): Boolean = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(channelUrl)
         SubscriptionGroupMembershipsTable.deleteWhere {
             (SubscriptionGroupMembershipsTable.userId eq userId) and

@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.models.TypeTypeBackupItem
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.services.SubscriptionGroupMembershipCleaner
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
@@ -8,13 +9,23 @@ import dev.typetype.server.services.SubscriptionGroupWriteResult
 import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionSelection
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.TypeTypeBackupCategory
+import dev.typetype.server.services.TypeTypeBackupRestoreWriter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class SubscriptionGroupsServiceTest {
     private val groups = SubscriptionGroupsService()
@@ -99,6 +110,61 @@ class SubscriptionGroupsServiceTest {
     }
 
     @Test
+    fun `membership assignment deletion and replacement share a user lock`() = runTest {
+        val userId = "concurrent-user"
+        val group = groups.create(userId, "Group").createdGroup()
+        subscriptions.add(userId, subscription("one"))
+        val lockHeld = CountDownLatch(1)
+        val releaseLock = CountDownLatch(1)
+        val holder = async(Dispatchers.IO) {
+            DatabaseFactory.query {
+                TransactionManager.current().exec(subscriptionLockSql(userId))
+                lockHeld.countDown()
+                check(releaseLock.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertTrue(lockHeld.await(5, TimeUnit.SECONDS))
+
+        val assignment = async(Dispatchers.IO) {
+            groups.addSubscription(userId, group.id, channel("one"))
+        }
+        val deletion = async(Dispatchers.IO) { subscriptions.delete(userId, channel("one")) }
+        val replacement = async(Dispatchers.IO) {
+            TypeTypeBackupRestoreWriter.restore(
+                userId = userId,
+                backup = TypeTypeBackupItem(
+                    exportedAt = 1,
+                    categories = listOf(TypeTypeBackupCategory.SUBSCRIPTIONS.wireName),
+                    subscriptions = listOf(subscription("one").copy(subscribedAt = 1)),
+                ),
+                categories = setOf(TypeTypeBackupCategory.SUBSCRIPTIONS),
+            )
+        }
+        val allWaited = try {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(2_000L) {
+                    var waiting = false
+                    while (!waiting && !(assignment.isCompleted && deletion.isCompleted && replacement.isCompleted)) {
+                        waiting = waitingSubscriptionLocks(userId) >= 3
+                        if (!waiting) yield()
+                    }
+                    waiting
+                } ?: false
+            }
+        } finally {
+            releaseLock.countDown()
+        }
+
+        holder.await()
+        assignment.await()
+        assertTrue(deletion.await())
+        replacement.await()
+        assertTrue(allWaited, "all mutations must wait for the same account-scoped lock")
+        val subscriptionUrls = subscriptions.getAll(userId).mapTo(hashSetOf(), SubscriptionItem::channelUrl)
+        assertTrue(groups.getChannelUrls(userId, group.id).all { it in subscriptionUrls })
+    }
+
+    @Test
     fun `replacement imports retain only memberships for subscriptions still present`() = runTest {
         val group = groups.create("user", "Group").createdGroup()
         subscriptions.add("user", subscription("one"))
@@ -117,4 +183,27 @@ class SubscriptionGroupsServiceTest {
     private fun subscription(id: String) = SubscriptionItem(channel(id), id, "")
 
     private fun channel(id: String) = "https://yt.com/channel/$id"
+
+    private fun subscriptionLockSql(userId: String): String =
+        "SELECT pg_advisory_xact_lock($SUBSCRIPTION_LOCK_NAMESPACE, ${subscriptionLockKey(userId)})"
+
+    private suspend fun waitingSubscriptionLocks(userId: String): Int = DatabaseFactory.query {
+        TransactionManager.current().exec(
+            """
+            SELECT count(*)
+            FROM pg_locks
+            WHERE locktype = 'advisory'
+              AND classid = $SUBSCRIPTION_LOCK_NAMESPACE
+              AND objid = ${subscriptionLockKey(userId)}
+              AND NOT granted
+            """.trimIndent(),
+        ) { result ->
+            result.next()
+            result.getInt(1)
+        } ?: 0
+    }
+
+    private fun subscriptionLockKey(userId: String): Int = userId.hashCode() and Int.MAX_VALUE
 }
+
+private const val SUBSCRIPTION_LOCK_NAMESPACE = 1_414_814_032
