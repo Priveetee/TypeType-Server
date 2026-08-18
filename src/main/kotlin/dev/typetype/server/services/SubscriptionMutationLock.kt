@@ -10,5 +10,6 @@ internal object SubscriptionMutationLock {
         )
     }
 
-    private const val LOCK_NAMESPACE = 1_414_814_032
+    // Precomputed PostgreSQL hashtext('subscriptions').
+    private const val LOCK_NAMESPACE = 720_815_616
 }

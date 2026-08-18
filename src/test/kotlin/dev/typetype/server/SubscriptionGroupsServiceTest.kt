@@ -206,4 +206,5 @@ class SubscriptionGroupsServiceTest {
     private fun subscriptionLockKey(userId: String): Int = userId.hashCode() and Int.MAX_VALUE
 }
 
-private const val SUBSCRIPTION_LOCK_NAMESPACE = 1_414_814_032
+// Precomputed PostgreSQL hashtext('subscriptions'); must match SubscriptionMutationLock.
+private const val SUBSCRIPTION_LOCK_NAMESPACE = 720_815_616
