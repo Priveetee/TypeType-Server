@@ -81,6 +81,10 @@ internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest):
         live.headSequence > 0L &&
         request.sequenceNumber.toLong() < live.headSequence
     ) return false
+    if (observedMediaSegment(request.format) != null &&
+        playbackSegmentEndMs(request.format, request.sequenceNumber) <
+        live.headTimeMs - LIVE_HISTORICAL_REQUEST_TOLERANCE_MS
+    ) return false
     if (session.getReadableSegment(request) != null && !isHistoricalLiveRequest(request)) return true
     val state = session.streamState
     observedMediaSegment(request.format)?.let { observed ->
