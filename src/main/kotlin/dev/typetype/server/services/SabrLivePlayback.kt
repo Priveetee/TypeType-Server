@@ -75,8 +75,12 @@ private fun SabrSessionHolder.availableLiveMediaStartMs(): Long? {
 
 internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
-    livePlaybackSnapshot()?.takeIf { it.active } ?: return false
+    val live = livePlaybackSnapshot()?.takeIf { it.active } ?: return false
     if (session.getCachedSegment(request) != null) return false
+    if (request.format.itag == videoFormat.itag &&
+        live.headSequence > 0L &&
+        request.sequenceNumber.toLong() < live.headSequence
+    ) return false
     if (session.getReadableSegment(request) != null && !isHistoricalLiveRequest(request)) return true
     val state = session.streamState
     observedMediaSegment(request.format)?.let { observed ->
