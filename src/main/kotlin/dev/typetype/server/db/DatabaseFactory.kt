@@ -38,6 +38,9 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 object DatabaseFactory {
+    private const val POOL_SIZE = 10
+    private val queryDispatcher = Dispatchers.IO.limitedParallelism(POOL_SIZE, "database")
+
     fun init(url: String, user: String, password: String) {
         val dbPassword = password
         val config = HikariConfig().apply {
@@ -45,7 +48,7 @@ object DatabaseFactory {
             username = user
             this.password = dbPassword
             driverClassName = "org.postgresql.Driver"
-            maximumPoolSize = 10
+            maximumPoolSize = POOL_SIZE
             minimumIdle = 2
         }
         Database.connect(HikariDataSource(config))
@@ -132,7 +135,10 @@ object DatabaseFactory {
             DatabaseCollectionMetadataMigration.apply()
         }
     }
-    suspend fun <T> query(block: () -> T): T = withContext(Dispatchers.IO) { transaction { block() } }
+    suspend fun <T> query(block: () -> T): T = blocking { transaction { block() } }
+
+    suspend fun <T> blocking(block: () -> T): T = withContext(queryDispatcher) { block() }
+
     fun healthCheck(): Boolean = runCatching {
         transaction { exec("SELECT 1") { it.next() } == true }
     }.getOrDefault(false)
