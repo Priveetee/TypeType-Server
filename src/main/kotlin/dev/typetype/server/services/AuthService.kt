@@ -4,6 +4,8 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.password4j.Password
 import dev.typetype.server.db.tables.UsersTable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -24,12 +26,12 @@ open class AuthService(
     private val sessionVerifier = AuthSessionVerifier(accessCodec, sessionStore)
     private val sessionRevoker = AuthSessionRevoker(sessionStore)
 
-    fun register(email: String, password: String, name: String): AuthSessionTokens {
+    suspend fun register(email: String, password: String, name: String): AuthSessionTokens = withContext(Dispatchers.IO) {
         val hashed = Password.hash(password).withArgon2().result
         val userId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
 
-        val needsAdmin = !hasAdmin()
+        val needsAdmin = !hasAdminBlocking()
         val role = if (needsAdmin) "admin" else "user"
         val publicUsername = name.trim().takeIf(ProfileService::isValidPublicUsername)
 
@@ -45,12 +47,12 @@ open class AuthService(
                 it[UsersTable.updatedAt] = now
             }
         }
-        return tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
+        tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
     }
 
-    fun login(identifier: String, password: String): AuthSessionTokens? {
+    suspend fun login(identifier: String, password: String): AuthSessionTokens? = withContext(Dispatchers.IO) {
         val normalizedIdentifier = identifier.trim().lowercase()
-        if (normalizedIdentifier.isBlank()) return null
+        if (normalizedIdentifier.isBlank()) return@withContext null
         val user = transaction {
             val query = UsersTable.selectAll().where {
                 if (normalizedIdentifier.contains("@")) {
@@ -60,25 +62,29 @@ open class AuthService(
                 }
             }
             query.singleOrNull()
-        } ?: return null
+        } ?: return@withContext null
 
         val hashed = user[UsersTable.passwordHash]
         val verified = Password.check(password, hashed).withArgon2()
-        if (!verified) return null
+        if (!verified) return@withContext null
 
-        return tokenIssuer.issue(user[UsersTable.id])
+        tokenIssuer.issue(user[UsersTable.id])
     }
 
-    fun refreshSession(refreshToken: String): AuthSessionTokens? = sessionRefresher.refresh(refreshToken)
+    suspend fun refreshSession(refreshToken: String): AuthSessionTokens? = withContext(Dispatchers.IO) {
+        sessionRefresher.refresh(refreshToken)
+    }
 
-    fun issueSession(userId: String): AuthSessionTokens? = tokenIssuer.issue(userId)
+    suspend fun issueSession(userId: String): AuthSessionTokens? = withContext(Dispatchers.IO) {
+        tokenIssuer.issue(userId)
+    }
 
-    fun logout(refreshToken: String?) {
+    suspend fun logout(refreshToken: String?): Unit = withContext(Dispatchers.IO) {
         sessionRevoker.revokeByRefreshToken(refreshToken)
     }
 
-    open fun verify(token: String): String? {
-        return sessionVerifier.verifyUserId(token)
+    open suspend fun verify(token: String): String? = withContext(Dispatchers.IO) {
+        sessionVerifier.verifyUserId(token)
     }
 
     fun guestLogin(): String {
@@ -91,16 +97,20 @@ open class AuthService(
             .sign(Algorithm.HMAC256(jwtSecret))
     }
 
-    fun getUserRole(userId: String): String? {
-        if (userId.startsWith("guest:")) return "user"
-        return transaction {
+    suspend fun getUserRole(userId: String): String? = withContext(Dispatchers.IO) {
+        if (userId.startsWith("guest:")) return@withContext "user"
+        transaction {
             UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()
         }?.get(UsersTable.role)
     }
 
-    fun hasUsers(): Boolean = hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+    suspend fun hasUsers(): Boolean = withContext(Dispatchers.IO) {
+        hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+    }
 
-    fun hasAdmin(): Boolean = hasUsersProbe?.invoke() ?: transaction {
+    suspend fun hasAdmin(): Boolean = withContext(Dispatchers.IO) { hasAdminBlocking() }
+
+    private fun hasAdminBlocking(): Boolean = hasUsersProbe?.invoke() ?: transaction {
         UsersTable.selectAll().where { UsersTable.role eq "admin" }.empty().not()
     }
 
@@ -108,11 +118,11 @@ open class AuthService(
         private const val GUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000L
 
         fun fixed(userId: String): AuthService = object : AuthService("test") {
-            override fun verify(token: String): String? = if (token == "test-jwt") userId else null
+            override suspend fun verify(token: String): String? = if (token == "test-jwt") userId else null
         }
 
         fun fixed(userId: String, hasUsers: Boolean): AuthService = object : AuthService("test", { hasUsers }) {
-            override fun verify(token: String): String? = if (token == "test-jwt") userId else null
+            override suspend fun verify(token: String): String? = if (token == "test-jwt") userId else null
         }
     }
 }
