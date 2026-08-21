@@ -22,7 +22,7 @@ internal class SabrSessionPump(
         var liveWarmupTarget: SabrLiveWarmupTarget? = null
         holder.setPlaybackState(SabrPlaybackState.PREPARING)
         while (pumps < maxPumps &&
-            !isWarmEnough(holder) &&
+            !isWarmEnough(holder, liveWarmupTarget) &&
             (!holder.session.isComplete || holder.expectsLive())
         ) {
             val currentLiveTarget = liveWarmupTarget
@@ -56,10 +56,19 @@ internal class SabrSessionPump(
         holder.setPlaybackState(SabrPlaybackState.IDLE)
     }
 
-    private fun isWarmEnough(holder: SabrSessionHolder): Boolean {
+    private fun isWarmEnough(holder: SabrSessionHolder, liveTarget: SabrLiveWarmupTarget?): Boolean {
         val audioObserved = holder.observedMediaSegment(holder.audioFormat) != null
         val videoObserved = !holder.isVideoActive() || holder.observedMediaSegment(holder.videoFormat) != null
-        if (holder.expectsLive()) return audioObserved && videoObserved
+        if (holder.expectsLive()) {
+            val target = liveTarget ?: return false
+            val audioStartMs = holder.earliestObservedMediaStartMs(holder.audioFormat) ?: return false
+            val videoStartMs = if (holder.isVideoActive()) {
+                holder.earliestObservedMediaStartMs(holder.videoFormat) ?: return false
+            } else {
+                audioStartMs
+            }
+            return maxOf(audioStartMs, videoStartMs) <= target.timeMs + target.segmentDurationMs
+        }
         return bothFormatsKnown(holder) ||
             holder.session.streamState.getMaxSegment(holder.audioFormat) > 0 &&
             holder.session.streamState.getMaxSegment(holder.videoFormat) > 0

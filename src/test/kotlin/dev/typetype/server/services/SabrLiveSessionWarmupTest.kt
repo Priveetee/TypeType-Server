@@ -18,6 +18,44 @@ import java.time.Instant
 
 class SabrLiveSessionWarmupTest {
     @Test
+    fun `warmup continues when the first media pair is too close to the live head`() = runTest {
+        val audio = format(140, audio = true, "audio/mp4")
+        val video = format(299, audio = false, "video/mp4")
+        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+        val session = mockk<YoutubeSabrSession>()
+        var pumps = 0
+        every { session.streamState } returns streamState
+        every { session.isComplete } returns false
+        every { session.isLive } returns true
+        every { session.liveHeadSequenceNumber } returns 1_000L
+        every { streamState.isLive } returns true
+        every { streamState.isPostLiveDvr } returns false
+        every { streamState.liveHeadSequenceNumber } returns 1_000L
+        every { streamState.liveHeadTimeMs } returns 2_000_000L
+        val audioInit = mp4Box("ftyp", byteArrayOf(1)) + mp4Box("moov", byteArrayOf(2))
+        val videoInit = mp4Box("ftyp", byteArrayOf(3)) + mp4Box("moov", byteArrayOf(4))
+        every { session.pumpOnce(any()) } answers {
+            pumps++
+            val atTarget = pumps > 1
+            val sequence = if (atTarget) 990 else 1_000
+            val startMs = if (atTarget) 1_980_000L else 2_000_000L
+            listOf(
+                segment(140, sequence, startMs, 2_000L, audioInit + mediaFragment(5)),
+                segment(299, sequence, startMs, 2_000L, videoInit + mediaFragment(6)),
+            )
+        }
+        val holder = holder(session, audio, video)
+        holder.markExpectedLive()
+
+        SabrSessionPump(SabrSegmentCache()).ensureWarmed(holder, maxPumps = 8)
+
+        assertEquals(2, pumps)
+        assertEquals(1_980_000L, holder.earliestObservedMediaStartMs(audio))
+        assertEquals(1_980_000L, holder.earliestObservedMediaStartMs(video))
+        assertEquals(1_980_000L, holder.resolvePlaybackStartMs(0L))
+    }
+
+    @Test
     fun `warmup keeps bootstrap initialization and requests real live media`() = runTest {
         val audio = format(140, audio = true, "audio/mp4")
         val video = format(299, audio = false, "video/mp4")
