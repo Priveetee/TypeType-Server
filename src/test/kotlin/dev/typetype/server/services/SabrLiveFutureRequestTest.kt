@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
@@ -63,8 +64,11 @@ class SabrLiveFutureRequestTest {
             lastRequestAt = Instant.EPOCH,
         )
         holder.observeMediaSegment(segment(audio.itag, 3_889, 7_776_000L))
+        holder.setLastServedSequence(audio.itag, 3_889)
+        val request = SabrSegmentRequest.media(audio, 3_890)
 
-        assertFalse(holder.isFutureLiveRequest(SabrSegmentRequest.media(audio, 3_890)))
+        assertFalse(holder.isFutureLiveRequest(request))
+        assertTrue(holder.isHistoricalLiveRequest(request))
     }
 
     private fun format(itag: Int): YoutubeSabrFormat = mockk {
