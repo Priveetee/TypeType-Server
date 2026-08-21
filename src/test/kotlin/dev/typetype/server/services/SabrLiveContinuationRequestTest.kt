@@ -17,10 +17,12 @@ import java.time.Instant
 
 class SabrLiveContinuationRequestTest {
     @Test
-    fun `continuation advertises the exact observed live range`() {
+    fun `continuation advertises only media served to the player`() {
         val fixture = fixture()
         fixture.holder.observeMediaSegment(segment(fixture.audio.itag, 10_396, 10_395_000L, -1L))
         fixture.holder.observeMediaSegment(segment(fixture.video.itag, 10_396, 10_395_000L, -1L))
+        fixture.holder.setLastServedSequence(fixture.audio.itag, 10_392)
+        fixture.holder.setLastServedSequence(fixture.video.itag, 10_392)
         fixture.holder.setPlayerTimeMs(10_390_500L)
 
         val result = withLiveContinuationRequestShape(fixture.holder) { "pumped" }
@@ -28,13 +30,31 @@ class SabrLiveContinuationRequestTest {
         assertEquals("pumped", result)
         assertEquals(
             listOf(
-                "itag=140:seq=1-10396:time=0+10396000:timescale=1000",
-                "itag=299:seq=1-10396:time=0+10396000:timescale=1000",
+                "itag=140:seq=1-10392:time=0+10392000:timescale=1000",
+                "itag=299:seq=1-10392:time=0+10392000:timescale=1000",
             ),
             requireNotNull(fixture.rangeOverrides.first()).map(SabrBufferedRange::summarize),
         )
         assertNull(fixture.rangeOverrides.last())
         verify { fixture.state.setPlayerTimeMs(10_390_500L) }
+    }
+
+    @Test
+    fun `continuation does not advertise an unserved live edge`() {
+        val fixture = fixture()
+        fixture.holder.observeMediaSegment(segment(fixture.audio.itag, 10_396, 10_395_000L, -1L))
+        fixture.holder.observeMediaSegment(segment(fixture.video.itag, 10_396, 10_395_000L, -1L))
+        fixture.holder.setPlayerTimeMs(10_390_500L)
+
+        withLiveContinuationRequestShape(fixture.holder) { Unit }
+
+        assertEquals(
+            listOf(
+                "itag=140:seq=1-10390:time=0+10390000:timescale=1000",
+                "itag=299:seq=1-10390:time=0+10390000:timescale=1000",
+            ),
+            requireNotNull(fixture.rangeOverrides.first()).map(SabrBufferedRange::summarize),
+        )
     }
 
     @Test
