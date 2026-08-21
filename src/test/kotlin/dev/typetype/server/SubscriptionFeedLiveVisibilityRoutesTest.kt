@@ -108,6 +108,28 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
     }
 
     @Test
+    fun `account setting hides unclassified videos from streams tab`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC1"
+        val channelService = mockk<ChannelService>()
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(
+            video(3_000L, url = "https://youtube.com/watch?v=normal"),
+            video(2_000L, url = "https://youtube.com/watch?v=replay"),
+        )
+        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns channel(
+            video(2_000L, url = "https://youtube.com/watch?v=replay"),
+            video(1_000L, url = "https://youtube.com/watch?v=scheduled"),
+        )
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
+        settingsService.upsert(TEST_USER_ID, SettingsItem(hideSubscriptionLiveStreams = true))
+
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+
+        assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+    }
+
+    @Test
     fun `account setting hides members only videos before pagination`() = withApp {
         val channelService = mockk<ChannelService>()
         coEvery { channelService.getChannel(any(), null) } returns channel(

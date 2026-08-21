@@ -42,7 +42,7 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
         val videos = if (liveResult == null) {
             channelResult.videos
         } else {
-            channelResult.videos.filterNot(VideoItem::isLive) + liveResult.videos
+            channelResult.videos.filterNot(VideoItem::isLive) + liveResult.videos.map { it.asLiveContent() }
         }
         val results = listOfNotNull(channelResult, liveResult)
         SubscriptionSourceResult(
@@ -73,9 +73,11 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
         this@deduplicated.forEach { video ->
             val key = video.subscriptionFeedKey()
             val current = get(key)
-            if (current == null || video.isLive && !current.isLive) put(key, video)
+            if (current == null || video.isLiveContent && !current.isLiveContent) put(key, video)
         }
     }.values.toList()
+
+    private fun VideoItem.asLiveContent(): VideoItem = if (isLiveContent) this else copy(isLiveContent = true)
 
     private fun String.toLivestreamsTabUrl(): String {
         val uri = URI(this)
