@@ -87,15 +87,15 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
     }
 
     @Test
-    fun `hidden live streams do not remove finished recordings`() = withApp {
+    fun `account setting hides finished live recordings`() = withApp {
         val channelService = mockk<ChannelService>()
         coEvery { channelService.getChannel(any(), null) } returns channel(
-            video(4_000L, url = "https://youtube.com/watch?v=live", live = true),
             video(3_000L, url = "https://youtube.com/watch?v=replay").copy(
                 streamType = "post_live_stream",
                 isPostLive = true,
-                isLiveContent = true,
             ),
+            video(2_500L, url = "https://youtube.com/watch?v=live-content").copy(isLiveContent = true),
+            video(2_000L, url = "https://youtube.com/watch?v=normal"),
         )
         feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
         subscriptionsService.add(TEST_USER_ID, subscription(1))
@@ -104,7 +104,7 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
         assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
         feedService.awaitRefresh(TEST_USER_ID)
 
-        assertEquals(listOf("replay"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+        assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
     }
 
     @Test

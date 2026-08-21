@@ -71,7 +71,7 @@ internal fun SubscriptionFeedSnapshot.page(
     hideMembersOnlyContent: Boolean = false,
 ): SubscriptionFeedResponse {
     val visibleVideos = videos.filterNot { video ->
-        (hideLiveStreams && video.isLiveOrUpcomingAt(generatedAt)) ||
+        (hideLiveStreams && video.isLiveContentOrUpcomingAt(generatedAt)) ||
             (hideMembersOnlyContent && video.requiresMembership)
     }
     val from = offset.coerceAtMost(visibleVideos.size)
