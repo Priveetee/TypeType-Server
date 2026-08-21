@@ -48,6 +48,31 @@ class AuthenticatedSabrInfoServiceTest {
     }
 
     @Test
+    fun `reuses authenticated info for the following playback request`() = runTest {
+        val sessions = mockk<YoutubeSessionService>()
+        val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
+        val probe = mockk<AuthenticatedSabrProbe>()
+        coEvery { sessions.connectedCredentials(USER_ID) } returns credentials(USER_ID)
+        coEvery { sessions.markUsed(USER_ID) } returns Unit
+        every { tokenClient.fetchSession(VIDEO_ID, SESSION_BINDING, false) } returns sessionToken()
+        every { probe.fetch(VIDEO_ID, any()) } returns playableInfo()
+        val service = AuthenticatedSabrInfoService(
+            sessions,
+            tokenClient,
+            visitorDataFetcher = { SESSION_BINDING },
+            probe = probe,
+        )
+
+        val metadata = service.fetch(USER_ID, VIDEO_ID)
+        val playback = service.fetch(USER_ID, VIDEO_ID)
+
+        assertSame((metadata as AuthenticatedSabrInfoResult.Ready).prepared, (playback as AuthenticatedSabrInfoResult.Ready).prepared)
+        verify(exactly = 1) { tokenClient.fetchSession(VIDEO_ID, SESSION_BINDING, false) }
+        verify(exactly = 1) { probe.fetch(VIDEO_ID, any()) }
+        coVerify(exactly = 1) { sessions.markUsed(USER_ID) }
+    }
+
+    @Test
     fun `guest playback does not inspect connected credentials`() = runTest {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
