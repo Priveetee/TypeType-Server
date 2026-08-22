@@ -22,13 +22,28 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Throwable) {
-                    SubscriptionSourceResult(emptyList(), successfulSources = 0, failedSources = 1)
+                    SubscriptionSourceResult(
+                        channelUrl = subscription.channelUrl,
+                        videos = emptyList(),
+                        successfulSources = 0,
+                        failedSources = 1,
+                    )
                 }
             }
         }.map { it.await() }
-        val videos = outcomes.flatMap { it.videos }.deduplicated()
+        val videosByKey = linkedMapOf<String, VideoItem>()
+        val sourceChannelUrls = linkedMapOf<String, MutableSet<String>>()
+        outcomes.forEach { outcome ->
+            outcome.videos.forEach { video ->
+                val key = video.subscriptionFeedKey()
+                val current = videosByKey[key]
+                if (current == null || video.isLiveContent && !current.isLiveContent) videosByKey[key] = video
+                sourceChannelUrls.getOrPut(key, ::linkedSetOf).add(outcome.channelUrl)
+            }
+        }
         SubscriptionFeedBuildResult(
-            videos = videos,
+            videos = videosByKey.values.toList(),
+            sourceChannelUrls = sourceChannelUrls.mapValues { it.value.toList() },
             successfulSources = outcomes.sumOf { it.successfulSources },
             failedSources = outcomes.sumOf { it.failedSources },
         )
@@ -46,6 +61,7 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
         }
         val results = listOfNotNull(channelResult, liveResult)
         SubscriptionSourceResult(
+            channelUrl = channelUrl,
             videos = mergeVideos(videos),
             successfulSources = results.count { it.success },
             failedSources = results.count { !it.success },
@@ -93,6 +109,7 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
 
     private data class SourceFetchResult(val videos: List<VideoItem>, val success: Boolean)
     private data class SubscriptionSourceResult(
+        val channelUrl: String,
         val videos: List<VideoItem>,
         val successfulSources: Int,
         val failedSources: Int,
@@ -107,6 +124,7 @@ internal class SubscriptionFeedBuilder(private val channelService: ChannelServic
 
 internal data class SubscriptionFeedBuildResult(
     val videos: List<VideoItem>,
+    val sourceChannelUrls: Map<String, List<String>>,
     val successfulSources: Int,
     val failedSources: Int,
 )

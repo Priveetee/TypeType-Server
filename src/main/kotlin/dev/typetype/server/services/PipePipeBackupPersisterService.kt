@@ -16,12 +16,14 @@ import java.util.UUID
 class PipePipeBackupPersisterService {
 
     suspend fun persist(userId: String, snapshot: PipePipeBackupSnapshotItem): PipePipeBackupRestoreResult = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         clearUserData(userId)
         val avatarsByChannel = snapshot.subscriptions
             .mapNotNull { item -> item.url.takeIf { it.isNotBlank() }?.let { url -> url to item.avatarUrl } }
             .toMap()
         val history = insertHistory(userId, snapshot.history, avatarsByChannel)
         val subscriptions = insertSubscriptions(userId, snapshot.subscriptions)
+        SubscriptionGroupMembershipCleaner.retain(userId, snapshot.subscriptions.map { it.url })
         val (playlists, playlistVideos) = insertPlaylists(userId, snapshot.playlists)
         val progress = insertProgress(userId, snapshot.progress)
         val searchHistory = insertSearchHistory(userId, snapshot.searchHistory)

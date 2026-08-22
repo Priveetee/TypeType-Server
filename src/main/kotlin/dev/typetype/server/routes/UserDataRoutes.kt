@@ -17,8 +17,19 @@ internal fun Route.userDataRoutes(
     restoreService: PipePipeBackupImporterService,
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
-    subscriptionsRoutes(svc.subscriptionsService, authService, svc.homeRecommendationWarmupService)
-    subscriptionFeedRoutes(svc.subscriptionFeedService, authService, svc.settingsService)
+    subscriptionGroupsRoutes(svc.subscriptionGroupsService, authService)
+    subscriptionsRoutes(
+        svc.subscriptionsService,
+        authService,
+        svc.homeRecommendationWarmupService,
+        svc.subscriptionGroupsService,
+    )
+    subscriptionFeedRoutes(
+        svc.subscriptionFeedService,
+        authService,
+        svc.settingsService,
+        svc.subscriptionGroupsService,
+    )
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)

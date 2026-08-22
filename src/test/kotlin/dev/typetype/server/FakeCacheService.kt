@@ -12,6 +12,18 @@ class FakeCacheService : CacheService {
         values[key] = value
     }
 
+    override suspend fun setIfAbsent(key: String, value: String, ttlSeconds: Long): Boolean =
+        values.putIfAbsent(key, value) == null
+
+    override suspend fun refreshIfValueMatches(key: String, value: String, ttlSeconds: Long): Boolean {
+        var matched = false
+        values.computeIfPresent(key) { _, current ->
+            matched = current == value
+            current
+        }
+        return matched
+    }
+
     override suspend fun delete(key: String) {
         values.remove(key)
     }
@@ -19,4 +31,6 @@ class FakeCacheService : CacheService {
     fun clear() {
         values.clear()
     }
+
+    fun keys(): Set<String> = values.keys.toSet()
 }
