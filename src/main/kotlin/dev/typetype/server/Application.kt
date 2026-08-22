@@ -24,8 +24,14 @@ import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserConfig
 import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.services.YoutubeRemoteLoginReadinessService
+import dev.typetype.server.portability.PortabilityEngineFactory
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.netty.EngineMain
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import java.nio.file.Files
 import java.util.UUID
 
 fun main(args: Array<String>) = EngineMain.main(args)
@@ -83,6 +89,11 @@ fun Application.module() {
     val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
     val internalHealthService = InternalHealthService(cache, downloaderGatewayService, subtitleServiceUrl)
+    val portabilityEngine = PortabilityEngineFactory.create(
+        Files.createTempDirectory("typetype-portability-"),
+        CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    )
+    monitor.subscribe(ApplicationStopped) { portabilityEngine.close() }
     configurePlugins(authService)
     installApplicationRoutes(
         svc = svc,
@@ -102,5 +113,6 @@ fun Application.module() {
         internalHealthService = internalHealthService,
         restoreService = restoreService,
         youtubeRemoteBrowserService = youtubeRemoteBrowserService,
+        portabilityEngine = portabilityEngine,
     )
 }

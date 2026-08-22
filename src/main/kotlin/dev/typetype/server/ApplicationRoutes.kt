@@ -42,6 +42,7 @@ import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserService
+import dev.typetype.server.portability.PortabilityEngine
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.routing
@@ -64,6 +65,7 @@ internal fun Application.installApplicationRoutes(
     internalHealthService: InternalHealthService,
     restoreService: PipePipeBackupImporterService,
     youtubeRemoteBrowserService: YoutubeRemoteBrowserService,
+    portabilityEngine: PortabilityEngine,
 ) {
     routing {
         internalObservabilityRoutes(internalHealthService::check)
@@ -117,6 +119,16 @@ internal fun Application.installApplicationRoutes(
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         rateLimit(USER_DATA_ZONE) { youtubeRemoteBrowserRoutes(youtubeRemoteBrowserService, authService) }
-        rateLimit(USER_DATA_ZONE) { userDataRoutes(svc, authService, profileService, avatarService, svc.bugReportService, restoreService) }
+        rateLimit(USER_DATA_ZONE) {
+            userDataRoutes(
+                svc,
+                authService,
+                profileService,
+                avatarService,
+                svc.bugReportService,
+                restoreService,
+                portabilityEngine,
+            )
+        }
     }
 }
