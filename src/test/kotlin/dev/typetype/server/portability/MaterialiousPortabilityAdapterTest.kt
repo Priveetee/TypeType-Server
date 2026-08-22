@@ -46,4 +46,17 @@ class MaterialiousPortabilityAdapterTest {
         assertEquals(1L, spool.counts()[PortabilityCategory.SUBSCRIPTIONS])
         spool.delete()
     }
+
+    @Test
+    fun `generic opml auto detection is not ambiguous with materialious`() {
+        val file = directory.resolve("subscriptions.opml")
+        Files.writeString(
+            file,
+            """<opml version="2.0"><body><outline xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UC1"/></body></opml>""",
+        )
+        val input = PortabilityInputFactory.create(file, file.fileName.toString(), "application/xml")
+        val registry = PortabilityRegistry(listOf(OpmlPortabilityAdapter(), MaterialiousPortabilityAdapter()))
+
+        assertEquals(PortabilityFormat.OPML, registry.detect(input).second.format)
+    }
 }

@@ -15,6 +15,24 @@ class TypeTypePortabilityAdapterTest {
     lateinit var directory: Path
 
     @Test
+    fun `detects formatted TypeType backups`() {
+        val file = directory.resolve("formatted-typetype.json")
+        Files.writeString(
+            file,
+            """
+                {
+                  "format": "typetype-backup",
+                  "version": 1,
+                  "subscriptions": []
+                }
+            """.trimIndent(),
+        )
+        val input = PortabilityInputFactory.create(file, file.fileName.toString(), "application/json")
+
+        assertEquals(PortabilityFormat.TYPE_TYPE, TypeTypePortabilityAdapter().detect(input)?.format)
+    }
+
+    @Test
     fun `legacy TypeType backup round trips through canonical records`() {
         val source = PortabilitySpool.create(directory)
         source.write(PortabilitySubscription("https://youtube.com/channel/UC1", "Channel", subscribedAt = 10))

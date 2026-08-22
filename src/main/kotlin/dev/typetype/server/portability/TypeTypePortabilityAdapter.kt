@@ -23,7 +23,8 @@ class TypeTypePortabilityAdapter : PortabilityAdapter {
     override fun detect(input: PortabilityInput): PortabilityDetection? {
         if (input.archive != null) return null
         val probe = input.probe.decodeToString()
-        if (!probe.contains("\"format\":\"$TYPE_TYPE_BACKUP_FORMAT\"")) return null
+        val formatMarker = Regex("\"format\"\\s*:\\s*\"${Regex.escape(TYPE_TYPE_BACKUP_FORMAT)}\"")
+        if (!formatMarker.containsMatchIn(probe)) return null
         val version = Regex("\"version\"\\s*:\\s*(\\d+)").find(probe)?.groupValues?.get(1)
         return PortabilityDetection(PortabilityFormat.TYPE_TYPE, version, 100, "TypeType backup marker")
     }

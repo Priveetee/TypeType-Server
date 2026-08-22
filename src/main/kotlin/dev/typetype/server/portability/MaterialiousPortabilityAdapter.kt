@@ -23,7 +23,7 @@ class MaterialiousPortabilityAdapter : PortabilityAdapter {
     override fun detect(input: PortabilityInput): PortabilityDetection? {
         if (input.archive != null) return null
         if (opml.detect(input) != null) {
-            return PortabilityDetection(PortabilityFormat.MATERIALIOUS, "opml", 85, "Materialious-compatible OPML")
+            return PortabilityDetection(PortabilityFormat.MATERIALIOUS, "opml", 82, "Materialious-compatible OPML")
         }
         val probe = input.probe.decodeToString()
         if (!probe.trimStart().startsWith("{") || !probe.contains("\"subscriptions\"")) return null
