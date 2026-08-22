@@ -68,6 +68,11 @@ class SubscriptionFeedService(
             else -> store.previous(userId)?.takeIf { it.generation == cursorState.generation }
                 ?: return SubscriptionFeedPageResult.StaleGeneration
         }
+        if (selection != SubscriptionSelection.All && !snapshot.hasCompleteSourceAttribution()) {
+            if (cursorState != null) return SubscriptionFeedPageResult.StaleGeneration
+            scheduleRefresh(userId, requestId)
+            return SubscriptionFeedPageResult.Preparing(PREPARING_RETRY_AFTER_MS)
+        }
         val offset = cursorState?.offset ?: page * limit
         val selected = selections.resolve(userId, selection, cursorState?.selectionToken)
             ?: return SubscriptionFeedPageResult.StaleGeneration

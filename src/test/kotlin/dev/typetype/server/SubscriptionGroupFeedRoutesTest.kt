@@ -1,10 +1,13 @@
 package dev.typetype.server
 
+import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.SubscriptionFeedCacheKeys
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionFeedSnapshot
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
 import dev.typetype.server.services.SubscriptionGroupWriteResult
 import dev.typetype.server.services.SubscriptionGroupsService
@@ -154,6 +157,31 @@ class SubscriptionGroupFeedRoutesTest {
             SubscriptionFeedTestFixtures.video(1_000L, channel = "different-canonical-uploader"),
         )
         feed = SubscriptionFeedService(subscriptions, channelService, FakeCacheService())
+
+        assertEquals(HttpStatusCode.Accepted, requestFeed(groupId = group.id).status)
+        feed.awaitRefresh(TEST_USER_ID)
+
+        assertEquals(1, requestReadyFeed(groupId = group.id).videos.size)
+    }
+
+    @Test
+    fun `group feed refreshes snapshots without source attribution`() = withApp {
+        val sourceUrl = channel("one")
+        val video = SubscriptionFeedTestFixtures.video(1_000L, channel = "different-canonical-uploader")
+        subscriptions.add(TEST_USER_ID, subscription("one"))
+        val group = (groups.create(TEST_USER_ID, "Work") as SubscriptionGroupWriteResult.Success).group
+        groups.addSubscription(TEST_USER_ID, group.id, sourceUrl)
+        cache.set(
+            SubscriptionFeedCacheKeys.feed(TEST_USER_ID),
+            CacheJson.encodeToString(
+                SubscriptionFeedSnapshot.serializer(),
+                SubscriptionFeedSnapshot(1L, System.currentTimeMillis(), stale = false, videos = listOf(video)),
+            ),
+            60,
+        )
+        val channelService = mockk<dev.typetype.server.services.ChannelService>()
+        coEvery { channelService.getChannel(sourceUrl, null) } returns SubscriptionFeedTestFixtures.channel(video)
+        feed = SubscriptionFeedService(subscriptions, channelService, cache)
 
         assertEquals(HttpStatusCode.Accepted, requestFeed(groupId = group.id).status)
         feed.awaitRefresh(TEST_USER_ID)

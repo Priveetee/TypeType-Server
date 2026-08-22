@@ -80,6 +80,9 @@ internal data class SubscriptionFeedCursorState(
     val selectionToken: String?,
 )
 
+internal fun SubscriptionFeedSnapshot.hasCompleteSourceAttribution(): Boolean =
+    videos.all { sourceChannelUrls.containsKey(it.subscriptionFeedKey()) }
+
 internal fun SubscriptionFeedSnapshot.page(
     offset: Int,
     limit: Int,
