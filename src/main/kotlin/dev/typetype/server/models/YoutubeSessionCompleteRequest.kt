@@ -7,4 +7,5 @@ data class YoutubeSessionCompleteRequest(
     val code: String,
     val cookies: String,
     val poToken: String,
+    val authUser: Int = 0,
 )

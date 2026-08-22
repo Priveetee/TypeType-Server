@@ -16,6 +16,8 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
+import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
+import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
 import dev.typetype.server.db.tables.WatchLaterTable
@@ -38,6 +40,9 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 object DatabaseFactory {
+    private const val POOL_SIZE = 10
+    private val queryDispatcher = Dispatchers.IO.limitedParallelism(POOL_SIZE, "database")
+
     fun init(url: String, user: String, password: String) {
         val dbPassword = password
         val config = HikariConfig().apply {
@@ -45,7 +50,7 @@ object DatabaseFactory {
             username = user
             this.password = dbPassword
             driverClassName = "org.postgresql.Driver"
-            maximumPoolSize = 10
+            maximumPoolSize = POOL_SIZE
             minimumIdle = 2
         }
         Database.connect(HikariDataSource(config))
@@ -57,6 +62,8 @@ object DatabaseFactory {
                 AdminSettingsTable,
                 HistoryTable,
                 SubscriptionsTable,
+                SubscriptionGroupsTable,
+                SubscriptionGroupMembershipsTable,
                 PlaylistsTable,
                 PlaylistVideosTable,
                 WatchLaterTable,
@@ -119,6 +126,7 @@ object DatabaseFactory {
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS public_username TEXT")
             exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
+            exec("ALTER TABLE youtube_sessions ADD COLUMN IF NOT EXISTS auth_user INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             DatabaseSessionAuthMigration.apply()
             DatabaseOidcMigration.apply()
@@ -131,7 +139,10 @@ object DatabaseFactory {
             DatabaseCollectionMetadataMigration.apply()
         }
     }
-    suspend fun <T> query(block: () -> T): T = withContext(Dispatchers.IO) { transaction { block() } }
+    suspend fun <T> query(block: () -> T): T = blocking { transaction { block() } }
+
+    suspend fun <T> blocking(block: () -> T): T = withContext(queryDispatcher) { block() }
+
     fun healthCheck(): Boolean = runCatching {
         transaction { exec("SELECT 1") { it.next() } == true }
     }.getOrDefault(false)

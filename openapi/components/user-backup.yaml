@@ -23,6 +23,17 @@ TypeTypeContentFiltersBackup:
     allowedPlaylists:
       type: array
       items: { $ref: ./access-control.yaml#/AllowedPlaylistItem }
+SubscriptionGroupBackupItem:
+  type: object
+  required: [name, channelUrls, createdAt, updatedAt]
+  properties:
+    name: { type: string, minLength: 1, maxLength: 100 }
+    channelUrls:
+      type: array
+      uniqueItems: true
+      items: { type: string, minLength: 1 }
+    createdAt: { type: integer, format: int64 }
+    updatedAt: { type: integer, format: int64 }
 TypeTypeBackupItem:
   type: object
   required: [format, version, exportedAt, categories]
@@ -47,6 +58,7 @@ TypeTypeBackupItem:
           - settings
           - contentFilters
     subscriptions: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+    subscriptionGroups: { type: array, nullable: true, items: { $ref: '#/SubscriptionGroupBackupItem' } }
     history: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
     playlists: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
     watchLater: { type: array, nullable: true, items: { type: object, additionalProperties: true } }

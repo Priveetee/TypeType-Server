@@ -1,11 +1,14 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.SubscriptionCreateRequest
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.HomeRecommendationWarmup
 import dev.typetype.server.services.NoopHomeRecommendationWarmup
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.SubscriptionSelection
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -18,16 +21,37 @@ import io.ktor.server.routing.post
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-fun Route.subscriptionsRoutes(subscriptionsService: SubscriptionsService, authService: AuthService, warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup) {
+fun Route.subscriptionsRoutes(
+    subscriptionsService: SubscriptionsService,
+    authService: AuthService,
+    warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup,
+    groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
+) {
     get("/subscriptions") {
-        call.withJwtAuth(authService) { userId -> call.respond(subscriptionsService.getAll(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            val parsed = call.parseSubscriptionSelection()
+            if (parsed !is SubscriptionSelectionParseResult.Valid) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid subscription filter"))
+            }
+            val selection = parsed.selection
+            if (selection is SubscriptionSelection.Group && !groupsService.exists(userId, selection.id)) {
+                return@withJwtAuth call.respond(
+                    HttpStatusCode.NotFound,
+                    ErrorResponse("Subscription group not found", "subscription_group_not_found"),
+                )
+            }
+            call.respond(subscriptionsService.getAll(userId, selection))
+        }
     }
     post("/subscriptions") {
         call.withJwtAuth(authService) { userId ->
-            val item = runCatching { call.receive<SubscriptionItem>() }.getOrElse {
+            val request = runCatching { call.receive<SubscriptionCreateRequest>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            val subscription = subscriptionsService.add(userId, item)
+            val subscription = subscriptionsService.add(
+                userId,
+                SubscriptionItem(request.channelUrl, request.name, request.avatarUrl),
+            )
             warmupService.invalidateAndWarm(userId)
             call.respond(HttpStatusCode.Created, subscription)
         }

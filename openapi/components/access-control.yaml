@@ -13,6 +13,7 @@ SettingsItem:
     autoplay: { type: boolean, default: true }
     volume: { type: number, format: double, default: 1.0 }
     muted: { type: boolean, default: false }
+    notificationPopupsEnabled: { type: boolean, default: true }
     subtitlesEnabled: { type: boolean, default: false }
     defaultSubtitleLanguage: { type: string, default: "" }
     defaultAudioLanguage: { type: string, default: "" }
@@ -34,6 +35,7 @@ SettingsItem:
     hideComments: { type: boolean, default: false }
     hideShorts: { type: boolean, default: false }
     hideSubscriptionLiveStreams: { type: boolean, default: false }
+    hideMembersOnlyContent: { type: boolean, default: false }
     accessMode:
       type: string
       enum: [unrestricted, allow_list]

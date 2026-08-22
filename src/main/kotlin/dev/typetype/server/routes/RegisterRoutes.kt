@@ -23,7 +23,7 @@ fun Route.registerRoutes(
     get("/auth/register/status") {
         val bootstrapAvailable = !authService.hasAdmin()
         val settings = adminSettingsService.get()
-        call.respond(
+        call.respondNoStore(
             RegisterStatusResponse(
                 allowRegistration = settings.allowRegistration,
                 bootstrapAvailable = bootstrapAvailable,

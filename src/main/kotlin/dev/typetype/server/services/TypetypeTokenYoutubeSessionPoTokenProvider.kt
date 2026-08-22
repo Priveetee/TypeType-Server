@@ -3,8 +3,6 @@ package dev.typetype.server.services
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo
-import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoTokenProvider
 import java.security.MessageDigest
@@ -20,7 +18,7 @@ internal class TypetypeTokenYoutubeSessionPoTokenProvider(
         TypetypeTokenSabrTokenClient(tokenServiceUrl).let { client ->
             { binding -> client.fetchBoundToken(binding) }
         },
-        ::fetchAuthenticatedVisitorData,
+        AuthenticatedYoutubeVisitorData::fetch,
     )
 
     @Volatile private var cached: CachedToken? = null
@@ -76,23 +74,5 @@ internal class TypetypeTokenYoutubeSessionPoTokenProvider(
     private companion object {
         const val TOKEN_TTL_MS = 6L * 60L * 60L * 1000L
 
-        fun fetchAuthenticatedVisitorData(
-            localization: Localization,
-            contentCountry: ContentCountry,
-        ): String {
-            val headers = HashMap<String, List<String>>()
-            YoutubeParsingHelper.addYoutubeHeaders(headers)
-            headers["Content-Type"] = listOf("application/json")
-            YoutubeParsingHelper.addLoggedInHeaders(headers)
-            return YoutubeParsingHelper.getVisitorDataFromInnertube(
-                InnertubeClientRequestInfo.ofWebClient(),
-                localization,
-                contentCountry,
-                headers,
-                YoutubeParsingHelper.YOUTUBEI_V1_URL,
-                null,
-                false,
-            )
-        }
     }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
@@ -68,6 +69,15 @@ class StreamExtractionErrorMapperTest {
     fun `maps content restrictions to bad request with extractor message`() {
         val result = StreamExtractionErrorMapper.map<Any>(PrivateContentException("private video"))
         assertEquals(ExtractionResult.BadRequest("private video"), result)
+    }
+
+    @Test
+    fun `maps age restrictions to a stable access code`() {
+        val result = StreamExtractionErrorMapper.map<Any>(AgeRestrictedContentException("Sign in to confirm your age"))
+        assertEquals(
+            ExtractionResult.BadRequest("Sign in is required to verify access to this video", "age_restricted"),
+            result,
+        )
     }
 
     @Test

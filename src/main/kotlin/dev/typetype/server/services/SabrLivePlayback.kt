@@ -75,8 +75,16 @@ private fun SabrSessionHolder.availableLiveMediaStartMs(): Long? {
 
 internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
-    livePlaybackSnapshot()?.takeIf { it.active } ?: return false
+    val live = livePlaybackSnapshot()?.takeIf { it.active } ?: return false
     if (session.getCachedSegment(request) != null) return false
+    if (request.format.itag == videoFormat.itag &&
+        live.headSequence > 0L &&
+        request.sequenceNumber.toLong() < live.headSequence
+    ) return false
+    if (observedMediaSegment(request.format) != null &&
+        playbackSegmentEndMs(request.format, request.sequenceNumber) <
+        live.headTimeMs - LIVE_HISTORICAL_REQUEST_TOLERANCE_MS
+    ) return false
     if (session.getReadableSegment(request) != null && !isHistoricalLiveRequest(request)) return true
     val state = session.streamState
     observedMediaSegment(request.format)?.let { observed ->
@@ -100,13 +108,13 @@ internal fun SabrSessionHolder.isFutureLiveRequest(request: SabrSegmentRequest):
 internal fun SabrSessionHolder.isHistoricalLiveRequest(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false
     val live = livePlaybackSnapshot()?.takeIf { it.active } ?: return false
+    val observed = observedMediaSegment(request.format) ?: return false
+    val requestEndMs = playbackSegmentEndMs(request.format, request.sequenceNumber)
+    if (requestEndMs < live.headTimeMs - LIVE_HISTORICAL_REQUEST_TOLERANCE_MS) return true
     lastServedSequence(request.format)?.let { lastServed ->
         if (request.sequenceNumber in lastServed..lastServed + LIVE_FUTURE_SEGMENT_TOLERANCE) return false
     }
-    val observed = observedMediaSegment(request.format) ?: return false
-    if (request.sequenceNumber < observed.header.sequenceNumber) return true
-    val requestEndMs = playbackSegmentEndMs(request.format, request.sequenceNumber)
-    return requestEndMs < live.headTimeMs - LIVE_HISTORICAL_REQUEST_TOLERANCE_MS
+    return request.sequenceNumber < observed.header.sequenceNumber
 }
 
 internal fun SabrSessionHolder.liveRetryAfterMs(blockedRequests: List<SabrSegmentRequest> = emptyList()): Long =

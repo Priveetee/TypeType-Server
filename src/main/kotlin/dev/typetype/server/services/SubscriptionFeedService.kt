@@ -26,6 +26,7 @@ class SubscriptionFeedService(
     private val refreshScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
+    private val selections = SubscriptionFeedSelectionStore(cache, subscriptionsService)
     private val builder = SubscriptionFeedBuilder(channelService)
     private val orderer = SubscriptionFeedOrderer()
     private val refreshJobs = ConcurrentHashMap<String, Job>()
@@ -37,6 +38,8 @@ class SubscriptionFeedService(
         limit: Int,
         cursor: String?,
         hideLiveStreams: Boolean = false,
+        hideMembersOnlyContent: Boolean = false,
+        selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
         val current = store.current(userId)
@@ -53,16 +56,40 @@ class SubscriptionFeedService(
         if (cursorState != null && cursorState.hideLiveStreams != hideLiveStreams) {
             return SubscriptionFeedPageResult.InvalidCursor
         }
+        if (cursorState != null && cursorState.hideMembersOnlyContent != hideMembersOnlyContent) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
+        if (cursorState != null && cursorState.filterKey != selection.cursorKey) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
         val snapshot = when {
             cursorState == null -> current
             cursorState.generation == current.generation -> current
             else -> store.previous(userId)?.takeIf { it.generation == cursorState.generation }
                 ?: return SubscriptionFeedPageResult.StaleGeneration
         }
+        if (selection != SubscriptionSelection.All && !snapshot.hasCompleteSourceAttribution()) {
+            if (cursorState != null) return SubscriptionFeedPageResult.StaleGeneration
+            scheduleRefresh(userId, requestId)
+            return SubscriptionFeedPageResult.Preparing(PREPARING_RETRY_AFTER_MS)
+        }
         val offset = cursorState?.offset ?: page * limit
-        return SubscriptionFeedPageResult.Ready(
-            snapshot.page(offset, limit, isRefreshing(userId), hideLiveStreams),
+        val selected = selections.resolve(userId, selection, cursorState?.selectionToken)
+            ?: return SubscriptionFeedPageResult.StaleGeneration
+        val response = snapshot.page(
+            offset,
+            limit,
+            isRefreshing(userId),
+            hideLiveStreams,
+            hideMembersOnlyContent,
+            selection,
+            selected.channelUrls,
+            selected.token,
         )
+        if (cursorState == null && response.nextpage != null && !selections.persist(userId, selection, selected)) {
+            return SubscriptionFeedPageResult.CursorCapacityReached
+        }
+        return SubscriptionFeedPageResult.Ready(response)
     }
 
     suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse =
@@ -148,6 +175,7 @@ class SubscriptionFeedService(
             stale = false,
             videos = ordering.videos,
             livePromotedAt = ordering.livePromotedAt,
+            sourceChannelUrls = result.sourceChannelUrls,
         )
         runCatching { store.publish(userId, snapshot) }.onFailure {
             logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)

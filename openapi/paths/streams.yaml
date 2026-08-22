@@ -18,7 +18,11 @@ YoutubeSabrStreams:
             schema:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
-        $ref: ../components/common.yaml#/JsonError
+        description: Invalid request or YouTube account connection required (`youtube_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
       '401':
         $ref: ../components/common.yaml#/JsonError
       '403':
@@ -45,7 +49,11 @@ YoutubeSabrBootstrap:
             schema:
               $ref: ../components/streams.yaml#/StreamResponse
       '400':
-        $ref: ../components/common.yaml#/JsonError
+        description: Invalid request or YouTube account connection required (`youtube_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
       '401':
         $ref: ../components/common.yaml#/JsonError
       '403':

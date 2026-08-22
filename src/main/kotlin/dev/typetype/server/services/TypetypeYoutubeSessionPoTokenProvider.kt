@@ -7,11 +7,19 @@ import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoTokenProvid
 
 internal object TypetypeYoutubeSessionPoTokenProvider : YoutubeSessionPoTokenProvider {
     private val scopedToken = ThreadLocal<YoutubeSessionPoToken>()
+    @Volatile private var authenticatedProvider: YoutubeSessionPoTokenProvider? = null
+
+    fun configureAuthenticatedProvider(provider: YoutubeSessionPoTokenProvider?): Unit {
+        authenticatedProvider = provider
+    }
 
     fun <T> withToken(token: SabrTokenBundle, block: () -> T): T {
+        return withToken(token.youtubeSessionPoToken(), block)
+    }
+
+    fun <T> withToken(token: YoutubeSessionPoToken, block: () -> T): T {
         val previous = scopedToken.get()
-        val sessionToken = YoutubeSessionPoToken(token.visitorData, token.visitorBoundPoToken)
-        scopedToken.set(sessionToken)
+        scopedToken.set(token)
         return try {
             block()
         } finally {
@@ -27,4 +35,12 @@ internal object TypetypeYoutubeSessionPoTokenProvider : YoutubeSessionPoTokenPro
         contentCountry: ContentCountry,
         loggedIn: Boolean,
     ): YoutubeSessionPoToken? = scopedToken.get()
+        ?: authenticatedProvider?.getSessionPoToken(
+            clientName,
+            clientVersion,
+            userAgent,
+            localization,
+            contentCountry,
+            loggedIn,
+        )
 }

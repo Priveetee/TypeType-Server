@@ -13,7 +13,12 @@ import org.jetbrains.exposed.v1.jdbc.update
 class YoutubeSessionStore(
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun complete(code: String, encryptedCookies: String, encryptedPoToken: String): YoutubeSessionCompleteResult {
+    suspend fun complete(
+        code: String,
+        encryptedCookies: String,
+        encryptedPoToken: String,
+        authUser: Int,
+    ): YoutubeSessionCompleteResult {
         val now = nowMillis()
         return DatabaseFactory.query {
             val pairing = YoutubeSessionPairingsTable.selectAll()
@@ -23,7 +28,7 @@ class YoutubeSessionStore(
                 YoutubeSessionPairingsTable.deleteWhere { YoutubeSessionPairingsTable.code eq code }
                 return@query YoutubeSessionCompleteResult.ExpiredCode
             }
-            upsertSession(pairing[YoutubeSessionPairingsTable.userId], encryptedCookies, encryptedPoToken, now)
+            upsertSession(pairing[YoutubeSessionPairingsTable.userId], encryptedCookies, encryptedPoToken, authUser, now)
             YoutubeSessionPairingsTable.deleteWhere { YoutubeSessionPairingsTable.code eq code }
             YoutubeSessionCompleteResult.Completed
         }
@@ -45,17 +50,28 @@ class YoutubeSessionStore(
         YoutubeSessionsTable.deleteWhere { YoutubeSessionsTable.userId eq userId } > 0
     }
 
-    suspend fun completeForUser(userId: String, encryptedCookies: String, encryptedPoToken: String): Unit =
+    suspend fun completeForUser(
+        userId: String,
+        encryptedCookies: String,
+        encryptedPoToken: String,
+        authUser: Int,
+    ): Unit =
         DatabaseFactory.query {
-            upsertSession(userId, encryptedCookies, encryptedPoToken, nowMillis())
+            upsertSession(userId, encryptedCookies, encryptedPoToken, authUser, nowMillis())
         }
 
-    suspend fun connectedEncrypted(userId: String): Pair<String, String>? = DatabaseFactory.query {
+    suspend fun connectedEncrypted(userId: String): EncryptedYoutubeSessionCredentials? = DatabaseFactory.query {
         YoutubeSessionsTable.selectAll()
             .where { YoutubeSessionsTable.userId eq userId }
             .singleOrNull()
             ?.takeIf { YoutubeSessionStatus.from(it[YoutubeSessionsTable.status]) == YoutubeSessionStatus.Connected }
-            ?.let { it[YoutubeSessionsTable.encryptedCookies] to it[YoutubeSessionsTable.encryptedPoToken] }
+            ?.let {
+                EncryptedYoutubeSessionCredentials(
+                    cookies = it[YoutubeSessionsTable.encryptedCookies],
+                    poToken = it[YoutubeSessionsTable.encryptedPoToken],
+                    authUser = it[YoutubeSessionsTable.authUser],
+                )
+            }
     }
 
     suspend fun markUsed(userId: String): Unit = DatabaseFactory.query {
@@ -71,22 +87,36 @@ class YoutubeSessionStore(
         }
     }
 
-    private fun upsertSession(userId: String, encryptedCookies: String, encryptedPoToken: String, now: Long) {
+    private fun upsertSession(
+        userId: String,
+        encryptedCookies: String,
+        encryptedPoToken: String,
+        authUser: Int,
+        now: Long,
+    ) {
         val updated = YoutubeSessionsTable.update({ YoutubeSessionsTable.userId eq userId }) {
             it[YoutubeSessionsTable.encryptedCookies] = encryptedCookies
             it[YoutubeSessionsTable.encryptedPoToken] = encryptedPoToken
+            it[YoutubeSessionsTable.authUser] = authUser
             it[status] = YoutubeSessionStatus.Connected.value
             it[updatedAt] = now
             it[lastUsedAt] = 0
         }
-        if (updated == 0) insertSession(userId, encryptedCookies, encryptedPoToken, now)
+        if (updated == 0) insertSession(userId, encryptedCookies, encryptedPoToken, authUser, now)
     }
 
-    private fun insertSession(userId: String, encryptedCookies: String, encryptedPoToken: String, now: Long) {
+    private fun insertSession(
+        userId: String,
+        encryptedCookies: String,
+        encryptedPoToken: String,
+        authUser: Int,
+        now: Long,
+    ) {
         YoutubeSessionsTable.insert {
             it[YoutubeSessionsTable.userId] = userId
             it[YoutubeSessionsTable.encryptedCookies] = encryptedCookies
             it[YoutubeSessionsTable.encryptedPoToken] = encryptedPoToken
+            it[YoutubeSessionsTable.authUser] = authUser
             it[status] = YoutubeSessionStatus.Connected.value
             it[createdAt] = now
             it[updatedAt] = now
@@ -94,3 +124,9 @@ class YoutubeSessionStore(
         }
     }
 }
+
+data class EncryptedYoutubeSessionCredentials(
+    val cookies: String,
+    val poToken: String,
+    val authUser: Int,
+)

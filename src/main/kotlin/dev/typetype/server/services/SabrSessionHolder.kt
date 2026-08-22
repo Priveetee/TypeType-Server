@@ -23,6 +23,7 @@ internal class SabrSessionHolder(
     @Volatile var playerContextToken: SabrTokenBundle? = null,
     val pumpMutex: Mutex = Mutex(),
     initialGeneration: Long = 0L,
+    val source: SabrPreparedSource = SabrPreparedSource.PUBLIC,
 ) {
     private val readerPositions = ConcurrentHashMap<SabrReaderTrackKey, Long>()
     private val lastServedSequences = ConcurrentHashMap<SabrReaderTrackKey, Int>()

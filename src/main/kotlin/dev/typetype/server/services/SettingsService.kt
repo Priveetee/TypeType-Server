@@ -35,9 +35,13 @@ class SettingsService {
             ?.get(SettingsTable.disableWatchHistory) ?: false
     }
 
-    suspend fun hidesSubscriptionLiveStreams(userId: String): Boolean = DatabaseFactory.query {
-        SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()
-            ?.get(SettingsTable.hideSubscriptionLiveStreams) ?: false
+    internal suspend fun subscriptionFeedVisibility(userId: String): SubscriptionFeedVisibility = DatabaseFactory.query {
+        SettingsTable.selectAll().where { SettingsTable.userId eq userId }.singleOrNull()?.let {
+            SubscriptionFeedVisibility(
+                hideLiveStreams = it[SettingsTable.hideSubscriptionLiveStreams],
+                hideMembersOnlyContent = it[SettingsTable.hideMembersOnlyContent],
+            )
+        } ?: SubscriptionFeedVisibility()
     }
 
     suspend fun getAccessModePolicy(userId: String): AccessModePolicy = DatabaseFactory.query {
@@ -49,5 +53,10 @@ class SettingsService {
         } ?: AccessModePolicy(ACCESS_MODE_UNRESTRICTED, adminManaged = false)
     }
 }
+
+internal data class SubscriptionFeedVisibility(
+    val hideLiveStreams: Boolean = false,
+    val hideMembersOnlyContent: Boolean = false,
+)
 
 data class AccessModePolicy(val accessMode: String, val adminManaged: Boolean)

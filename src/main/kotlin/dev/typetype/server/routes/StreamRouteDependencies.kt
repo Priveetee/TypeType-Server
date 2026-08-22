@@ -1,5 +1,6 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
@@ -14,4 +15,5 @@ internal data class StreamRouteDependencies(
     val blockedService: BlockedService?,
     val publicHlsManifestTokenService: PublicHlsManifestTokenService?,
     val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)?,
+    val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
 )

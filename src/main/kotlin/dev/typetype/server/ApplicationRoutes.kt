@@ -92,6 +92,10 @@ internal fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.audioOnlyMediaTokenService,
+                svc.authenticatedSabrInfoService,
+                svc.youtubeSessionSabrStreamService?.let { service ->
+                    { userId, url -> service.getStreamInfo(userId, url) }
+                },
             )
         }
         downloaderGatewayRoutes(downloaderGatewayService)

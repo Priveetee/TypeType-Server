@@ -17,10 +17,12 @@ object NewPipeInitializer {
         val normalizedUrl = tokenServiceUrl?.trim()?.takeIf { it.isNotBlank() }
         if (normalizedUrl != null && normalizedUrl != decoderServiceUrl) {
             YoutubeApiDecoder.setLocalDecoder(TypetypeTokenYoutubeJavaScriptDecoder(normalizedUrl))
-            NewPipe.setYoutubeSessionPoTokenProvider(
+            TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(
                 TypetypeTokenYoutubeSessionPoTokenProvider(normalizedUrl),
             )
             decoderServiceUrl = normalizedUrl
+        } else if (normalizedUrl == null) {
+            TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(null)
         }
         if (!initialized) {
             NewPipe.init(OkHttpDownloader.instance(youtubeProxySelector))

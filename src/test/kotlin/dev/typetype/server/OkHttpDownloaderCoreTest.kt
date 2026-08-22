@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import com.sun.net.httpserver.HttpServer
 import dev.typetype.server.downloader.OkHttpDownloader
+import dev.typetype.server.downloader.YoutubeAuthUserContext
 import dev.typetype.server.downloader.normalizeExtractorUrl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,6 +17,18 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class OkHttpDownloaderCoreTest {
+    @Test
+    fun `YouTube auth user is limited to InnerTube requests`() {
+        YoutubeAuthUserContext.set(3)
+        try {
+            assertEquals("3", YoutubeAuthUserContext.headerFor("https://www.youtube.com/youtubei/v1/player"))
+            assertEquals(null, YoutubeAuthUserContext.headerFor("https://www.youtube.com/watch?v=test"))
+            assertEquals(null, YoutubeAuthUserContext.headerFor("https://example.com/youtubei/v1/player"))
+        } finally {
+            YoutubeAuthUserContext.set(null)
+        }
+    }
+
     @Test
     fun `execute maps http response payload`() {
         val server = server(status = 200, body = "ok")

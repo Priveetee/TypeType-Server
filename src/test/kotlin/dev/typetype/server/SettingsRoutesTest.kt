@@ -59,6 +59,7 @@ class SettingsRoutesTest {
         val body = response.bodyAsText()
         assertTrue(body.contains("\"volume\":1.0"))
         assertTrue(body.contains("\"muted\":false"))
+        assertTrue(body.contains("\"notificationPopupsEnabled\":true"))
         assertTrue(body.contains("\"defaultLandingPage\":\"home\""))
         assertTrue(body.contains("\"defaultPlaybackSpeed\":1.0"))
     }
@@ -81,11 +82,12 @@ class SettingsRoutesTest {
         client.put("/settings") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-            setBody("""{"defaultService":0,"defaultQuality":"720p","defaultLandingPage":"subscriptions","autoplay":false,"volume":0.5,"muted":true}""")
+            setBody("""{"defaultService":0,"defaultQuality":"720p","defaultLandingPage":"subscriptions","autoplay":false,"volume":0.5,"muted":true,"notificationPopupsEnabled":false}""")
         }
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertTrue(body.contains("\"volume\":0.5"))
         assertTrue(body.contains("\"muted\":true"))
+        assertTrue(body.contains("\"notificationPopupsEnabled\":false"))
         assertTrue(body.contains("\"defaultQuality\":\"720p\""))
         assertTrue(body.contains("\"defaultLandingPage\":\"subscriptions\""))
     }

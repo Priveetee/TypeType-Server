@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 
 class OidcUserService(private val authService: AuthService) {
-    fun login(identity: OidcIdentity): AuthSessionTokens {
+    suspend fun login(identity: OidcIdentity): AuthSessionTokens {
         val userId = transaction { resolveUserId(identity) }
         return authService.issueSession(userId) ?: throw IllegalStateException("Failed to create session")
     }

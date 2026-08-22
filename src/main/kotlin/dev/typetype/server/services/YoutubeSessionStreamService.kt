@@ -36,7 +36,10 @@ class YoutubeSessionStreamService(
         }
         if (requiresReconnect(result)) {
             youtubeSessionService.markNeedsReconnect(credentials.userId)
-            return ExtractionResult.BadRequest(YOUTUBE_SESSION_RECONNECT_ERROR)
+            return ExtractionResult.BadRequest(
+                YOUTUBE_SESSION_RECONNECT_ERROR,
+                YOUTUBE_SESSION_RECONNECT_CODE,
+            )
         }
         youtubeSessionService.markUsed(credentials.userId)
         return result
@@ -75,3 +78,5 @@ class YoutubeSessionStreamService(
         const val AUTHENTICATED_STREAM_MAX_TTL_SECONDS = 900L
     }
 }
+
+internal const val YOUTUBE_SESSION_RECONNECT_CODE = "youtube_session_needs_reconnect"

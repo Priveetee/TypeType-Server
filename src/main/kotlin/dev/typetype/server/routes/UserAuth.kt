@@ -21,7 +21,7 @@ suspend fun ApplicationCall.withJwtAuth(authService: AuthService, block: suspend
     block(userId)
 }
 
-fun ApplicationCall.optionalJwtUserId(authService: AuthService): String? {
+suspend fun ApplicationCall.optionalJwtUserId(authService: AuthService): String? {
     val authHeader = request.headers["Authorization"]
     if (authHeader == null || !authHeader.startsWith("Bearer ")) return null
     val token = authHeader.substringAfter("Bearer ")

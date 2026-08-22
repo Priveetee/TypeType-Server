@@ -11,6 +11,7 @@ import dev.typetype.server.services.YoutubeSessionCompleteResult
 import dev.typetype.server.services.YoutubeSessionCrypto
 import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStreamService
+import dev.typetype.server.services.YOUTUBE_SESSION_RECONNECT_CODE
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -70,6 +71,7 @@ class YoutubeSessionStreamServiceTest {
         val result = service.getStreamInfo(TEST_USER_ID, "https://youtube.com/watch?v=test")
 
         assertTrue(result is ExtractionResult.BadRequest)
+        assertEquals(YOUTUBE_SESSION_RECONNECT_CODE, (result as ExtractionResult.BadRequest).code)
         assertEquals("needs_reconnect", youtubeSessionService.status(TEST_USER_ID).status)
     }
 

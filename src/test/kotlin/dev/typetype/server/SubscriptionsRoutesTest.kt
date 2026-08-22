@@ -19,6 +19,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -41,7 +42,7 @@ class SubscriptionsRoutesTest {
 
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
             routing { subscriptionsRoutes(service, auth) }
         }
         block()
@@ -62,14 +63,31 @@ class SubscriptionsRoutesTest {
     }
 
     @Test
-    fun `POST subscriptions returns 201 and persists item`() = withApp {
+    fun `POST subscriptions generates and persists the server timestamp`() = withApp {
         val response = client.post("/subscriptions") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(itemBody)
         }
         assertEquals(HttpStatusCode.Created, response.status)
-        assertTrue(response.bodyAsText().contains("\"channelUrl\":\"https://yt.com/channel/1\""))
+        val created = Json.decodeFromString<SubscriptionItem>(response.bodyAsText())
+        assertEquals("https://yt.com/channel/1", created.channelUrl)
+        assertTrue(created.subscribedAt > 1)
+        assertEquals(created.subscribedAt, service.getAll(TEST_USER_ID).single().subscribedAt)
+    }
+
+    @Test
+    fun `POST subscriptions ignores the obsolete client timestamp`() = withApp {
+        val response = client.post("/subscriptions") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody(itemBody.dropLast(1) + ",\"subscribedAt\":1}")
+        }
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        val created = Json.decodeFromString<SubscriptionItem>(response.bodyAsText())
+        assertTrue(created.subscribedAt > 1)
+        assertEquals(created.subscribedAt, service.getAll(TEST_USER_ID).single().subscribedAt)
     }
 
     @Test

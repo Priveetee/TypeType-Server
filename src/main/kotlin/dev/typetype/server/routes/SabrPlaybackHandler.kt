@@ -2,12 +2,15 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrPlaybackSegmentResult
 import dev.typetype.server.services.SabrPlaybackSessionService
+import dev.typetype.server.services.SabrPlaybackInfoResolver
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
@@ -23,15 +26,19 @@ internal class SabrPlaybackHandler(
     private val authService: AuthService?,
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
+    authenticatedSabrInfoService: AuthenticatedSabrInfoService? = null,
+    youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
 ) {
     private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
+    private val infoResolver = SabrPlaybackInfoResolver(sabrSessionStore, authenticatedSabrInfoService)
+    private val accessValidator = SabrPlaybackAccessValidator(streamService, youtubeSessionStreamInfo)
 
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         if (!validateAccess(call, videoId, access)) return
         val request = call.playbackRequest()
         val startTimeMs = request.effectiveStartTimeMs()
-        val prepared = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
+        val prepared = infoResolver.initial(access.userId, videoId, startTimeMs)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = selectAudio(call, prepared, request) ?: return
         val video = selectVideo(call, prepared, request) ?: return
@@ -58,7 +65,7 @@ internal class SabrPlaybackHandler(
             val preparation = playbackService.seekExisting(holder, playerTimeMs, request.audioOnly)
             return respondPrepared(call, holder, holder.key.videoId, preparation.startTimeMs, preparation.ready)
         }
-        val prepared = sabrSessionStore.fetchInfo(holder.key.videoId, playerTimeMs, cachedFirst = true)
+        val prepared = infoResolver.replacement(holder, playerTimeMs)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = SabrFormatSelector.audio(
             prepared.info,
@@ -121,20 +128,21 @@ internal class SabrPlaybackHandler(
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
-        if (!access.profile.enabled) return true
-        return when (val result = streamService.getStreamInfo("https://www.youtube.com/watch?v=$videoId")) {
+        return when (val result = accessValidator.resolve(access.userId, videoId)) {
             is ExtractionResult.Success -> {
-                if (access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) true else {
+                val allowed = !access.profile.enabled ||
+                    access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)
+                if (allowed) true else {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                     false
                 }
             }
             is ExtractionResult.Failure -> {
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
                 false
             }
             is ExtractionResult.BadRequest -> {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
                 false
             }
         }

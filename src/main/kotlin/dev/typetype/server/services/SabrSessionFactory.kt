@@ -16,6 +16,7 @@ internal class SabrSessionFactory(
         sessionToken: String,
         initialToken: SabrTokenBundle?,
         initialGeneration: Long,
+        source: SabrPreparedSource,
     ): SabrSessionHolder {
         val provider = TypetypeTokenSabrPoTokenProvider(tokenClient, initialToken)
         val sessionInfo = if (key.sourceId == null) info else SabrSessionIdentity.fresh(info)
@@ -34,6 +35,7 @@ internal class SabrSessionFactory(
             Instant.now(),
             initialToken,
             initialGeneration = initialGeneration,
+            source = source,
         ).also { it.setPlayerTimeMs(key.startTimeMs) }
     }
 }

@@ -102,14 +102,21 @@ class YoutubeRemoteBrowserCompleteRoutesTest {
     }
 
     private fun completeBody(sessionId: String): String =
-        """{"sessionId":"$sessionId","tokenSessionId":"token-session","status":"completed","cookies":"SID=secret-cookie; SAPISID=secret-sapisid","poToken":"secret-pot-value","capturedAt":123}"""
+        """{"sessionId":"$sessionId","tokenSessionId":"token-session","status":"completed","cookies":"SID=secret-cookie; SAPISID=secret-sapisid","poToken":"secret-pot-value","authUser":2,"capturedAt":123}"""
 
     private suspend fun assertCredentialsAreEncrypted() {
         val encrypted = DatabaseFactory.query {
             YoutubeSessionsTable.selectAll().where { YoutubeSessionsTable.userId eq TEST_USER_ID }.single()
-                .let { it[YoutubeSessionsTable.encryptedCookies] to it[YoutubeSessionsTable.encryptedPoToken] }
+                .let {
+                    Triple(
+                        it[YoutubeSessionsTable.encryptedCookies],
+                        it[YoutubeSessionsTable.encryptedPoToken],
+                        it[YoutubeSessionsTable.authUser],
+                    )
+                }
         }
         assertFalse(encrypted.first.contains("secret-cookie"))
         assertFalse(encrypted.second.contains("secret-pot"))
+        assertEquals(2, encrypted.third)
     }
 }

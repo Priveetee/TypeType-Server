@@ -10,13 +10,13 @@ internal class SubscriptionFeedOrderer {
     ): SubscriptionFeedOrdering {
         val previousByKey = previous?.videos.orEmpty().associateBy(VideoItem::subscriptionFeedKey)
         val promotedAt = buildMap {
-            videos.filter(VideoItem::isLive).forEach { video ->
+            videos.filter { it.isLiveOrUpcomingAt(refreshedAt) }.forEach { video ->
                 val key = video.subscriptionFeedKey()
                 val previousVideo = previousByKey[key]
                 val promotion = when {
-                    previousVideo?.isLive == true -> previous?.livePromotedAt?.get(key)
-                        ?: previous?.generatedAt
-                        ?: refreshedAt
+                    previous == null || previousVideo == null -> refreshedAt
+                    samePromotionPhase(video, previousVideo, previous) ->
+                        previous.livePromotedAt[key] ?: previous.generatedAt
                     else -> refreshedAt
                 }
                 put(key, promotion)
@@ -28,6 +28,15 @@ internal class SubscriptionFeedOrderer {
             }.thenBy(VideoItem::subscriptionFeedKey),
         )
         return SubscriptionFeedOrdering(ordered, promotedAt)
+    }
+
+    private fun samePromotionPhase(
+        video: VideoItem,
+        previousVideo: VideoItem,
+        previous: SubscriptionFeedSnapshot,
+    ): Boolean = when {
+        video.isLive -> previousVideo.isLive
+        else -> previousVideo.isUpcomingAt(previous.generatedAt)
     }
 
     private fun VideoItem.feedTimestamp(): Long = when {

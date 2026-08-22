@@ -40,6 +40,7 @@ class OkHttpDownloader private constructor(
         }
 
         private const val STREAMING_READ_TIMEOUT_MS = 30_000L
+        private const val YOUTUBE_AUTH_USER_HEADER = "X-Goog-AuthUser"
     }
 
     override fun execute(request: ExtractorRequest): Response {
@@ -102,14 +103,18 @@ class OkHttpDownloader private constructor(
     private fun buildOkHttpRequest(request: ExtractorRequest): Request {
         val method = request.httpMethod()
         val dataToSend = request.dataToSend()
+        val normalizedUrl = normalizeExtractorUrl(request.url())
         val body = dataToSend?.toRequestBody()
             ?: if (method == "POST" || method == "PUT" || method == "PATCH") ByteArray(0).toRequestBody() else null
         val builder = Request.Builder()
-            .url(normalizeExtractorUrl(request.url()))
+            .url(normalizedUrl)
             .method(method, body)
 
         request.headers().forEach { (name, values) ->
             values.forEach { value -> builder.addHeader(name, value) }
+        }
+        YoutubeAuthUserContext.headerFor(normalizedUrl)?.let {
+            builder.header(YOUTUBE_AUTH_USER_HEADER, it)
         }
 
         return builder.build()

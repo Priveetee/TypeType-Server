@@ -25,7 +25,8 @@ class DownloaderGatewayArtifactProxyTest {
         val requestedRange = AtomicReference<String>()
         val upstream = HttpServer.create(InetSocketAddress(0), 0)
         upstream.createContext("/jobs/test/artifact") { exchange ->
-            exchange.responseHeaders.add(HttpHeaders.Location, "http://garage:${upstream.address.port}/object")
+            exchange.responseHeaders.add(HttpHeaders.Location, "http://typetype-garage:${upstream.address.port}/object")
+            exchange.responseHeaders.add("X-TypeType-Artifact-Proxy", "1")
             exchange.sendResponseHeaders(302, -1)
             exchange.close()
         }
@@ -68,7 +69,29 @@ class DownloaderGatewayArtifactProxyTest {
         }
     }
 
+    @Test
+    fun `public artifact redirect remains external`() = testApplication {
+        val upstream = HttpServer.create(InetSocketAddress(0), 0)
+        upstream.createContext("/jobs/test/artifact") { exchange ->
+            exchange.responseHeaders.add(HttpHeaders.Location, "https://downloads.example.com/object")
+            exchange.sendResponseHeaders(302, -1)
+            exchange.close()
+        }
+        upstream.start()
+        val gateway = DownloaderGatewayService("http://127.0.0.1:${upstream.address.port}")
+        application { routing { downloaderGatewayRoutes(gateway) } }
+        val noRedirectClient = createClient { followRedirects = false }
+
+        try {
+            val response = noRedirectClient.get("/downloader/jobs/test/artifact")
+            assertEquals(HttpStatusCode.Found, response.status)
+            assertEquals("https://downloads.example.com/object", response.headers[HttpHeaders.Location])
+        } finally {
+            upstream.stop(0)
+        }
+    }
+
     private fun testDns(): Dns = Dns { hostname ->
-        if (hostname == "garage") listOf(InetAddress.getByName("127.0.0.1")) else Dns.SYSTEM.lookup(hostname)
+        if (hostname == "typetype-garage") listOf(InetAddress.getByName("127.0.0.1")) else Dns.SYSTEM.lookup(hostname)
     }
 }

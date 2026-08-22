@@ -11,7 +11,7 @@ import dev.typetype.server.services.TypetypeTokenSabrTokenClient
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YoutubePlayerClient
-import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
+import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeSessionCookieNormalizer
 import dev.typetype.server.services.YoutubeSessionCredentials
 import dev.typetype.server.services.YoutubeSessionTokenScope
@@ -45,15 +45,15 @@ class YoutubeAuthenticatedExtractionProbeTest {
     fun `authenticated classic extraction receives a session bound player token`() = runBlocking {
         NewPipeInitializer.init(tokenServiceUrl)
         val cookies = readCookies()
-        val credentials = YoutubeSessionCredentials("probe", "probe", cookies, "probe-token")
+        val credentials = YoutubeSessionCredentials("probe", "probe", cookies, "probe-token", authUser = 1)
         val pipePipe = PipePipeStreamService(
             ProbeCache,
             YouTubeSubtitleService(OkHttpClient(), tokenServiceUrl),
             BilibiliRelatedService(),
         )
-        val service = YoutubePlayerClientFallbackStreamService(
+        val service = YoutubePlayerClientStreamService(
             pipePipe,
-            listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
+            YoutubePlayerClient.MWEB,
         )
 
         val result = YoutubeSessionTokenScope.withCredentials(credentials) {

@@ -45,7 +45,14 @@ class YoutubeRemoteBrowserService(
         if (!youtubeSessionService.isConfigured) return YoutubeRemoteBrowserCompleteResult.Unavailable
         val session = sessions.complete(request.sessionId, request.tokenSessionId)
             ?: return YoutubeRemoteBrowserCompleteResult.NotFound
-        return when (youtubeSessionService.completeRemote(session.userId, request.cookies, request.poToken)) {
+        return when (
+            youtubeSessionService.completeRemote(
+                session.userId,
+                request.cookies,
+                request.poToken,
+                request.authUser,
+            )
+        ) {
             YoutubeSessionCompleteResult.Completed -> YoutubeRemoteBrowserCompleteResult.Completed
             YoutubeSessionCompleteResult.InvalidCode,
             YoutubeSessionCompleteResult.ExpiredCode,

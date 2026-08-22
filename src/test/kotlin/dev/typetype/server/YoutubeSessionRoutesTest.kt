@@ -67,10 +67,10 @@ class YoutubeSessionRoutesTest {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()).code
 
-    private suspend fun ApplicationTestBuilder.completeSession(code: String) = client.post("/youtube-session/complete") {
+    private suspend fun ApplicationTestBuilder.completeSession(code: String, authUser: Int = 2) = client.post("/youtube-session/complete") {
         headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
         setBody(
-            """{"code":"$code","cookies":"SID=secret-cookie; SAPISID=secret-sapisid","poToken":"secret-pot-value"}""",
+            """{"code":"$code","cookies":"SID=secret-cookie; SAPISID=secret-sapisid","poToken":"secret-pot-value","authUser":$authUser}""",
         )
     }
 
@@ -110,12 +110,22 @@ class YoutubeSessionRoutesTest {
         assertEquals(HttpStatusCode.Gone, completeSession(code).status)
     }
 
+    @Test
+    fun `complete rejects an invalid Google account index`() = withApp {
+        assertEquals(HttpStatusCode.BadRequest, completeSession(pairingCode(), authUser = 100).status)
+    }
+
     private suspend fun assertCredentialsAreEncrypted() {
         val encrypted = DatabaseFactory.query {
             val row = YoutubeSessionsTable.selectAll().where { YoutubeSessionsTable.userId eq TEST_USER_ID }.single()
-            row[YoutubeSessionsTable.encryptedCookies] to row[YoutubeSessionsTable.encryptedPoToken]
+            Triple(
+                row[YoutubeSessionsTable.encryptedCookies],
+                row[YoutubeSessionsTable.encryptedPoToken],
+                row[YoutubeSessionsTable.authUser],
+            )
         }
         assertFalse(encrypted.first.contains("secret-cookie"))
         assertFalse(encrypted.second.contains("secret-pot"))
+        assertEquals(2, encrypted.third)
     }
 }

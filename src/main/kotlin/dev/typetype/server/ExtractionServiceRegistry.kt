@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
+import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
@@ -33,6 +34,7 @@ import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
 import dev.typetype.server.services.TypetypeTokenYoutubeSessionClient
+import dev.typetype.server.services.TypetypeTokenSabrTokenClient
 import dev.typetype.server.services.YouTubeSubtitleService
 import dev.typetype.server.services.YouTubeSubtitleCache
 import dev.typetype.server.services.YouTubeSubtitleDeliveryService
@@ -40,7 +42,6 @@ import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.StreamYouTubeSubtitleResolver
 import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
-import dev.typetype.server.services.YoutubePlayerClientFallbackStreamService
 import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
@@ -53,6 +54,7 @@ import dev.typetype.server.services.YoutubeSessionCrypto
 import dev.typetype.server.services.YoutubeSessionHlsManifestService
 import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStreamService
+import dev.typetype.server.services.YoutubeSessionSabrStreamService
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
@@ -95,19 +97,26 @@ internal class ExtractionServiceRegistry(
         directPipePipeStreamService,
         YoutubePlayerClient.VISIONOS,
     )
-    private val authenticatedStreamService = YoutubePlayerClientFallbackStreamService(
+    private val authenticatedStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
-        listOf(YoutubePlayerClient.TV_DOWNGRADED, YoutubePlayerClient.VISIONOS),
+        YoutubePlayerClient.MWEB,
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,
         YoutubePlayerClient.MWEB,
     )
     val youtubeSessionService = YoutubeSessionService(youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret))
+    val authenticatedSabrInfoService = AuthenticatedSabrInfoService(
+        youtubeSessionService,
+        TypetypeTokenSabrTokenClient(subtitleServiceUrl, httpClient),
+    )
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
+    }
+    val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
+        YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService)
     }
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
