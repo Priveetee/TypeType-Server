@@ -26,6 +26,7 @@ repositories {
 
 dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
+    implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.16.Final"))
     constraints {
         implementation("org.jsoup:jsoup:1.23.1") {
