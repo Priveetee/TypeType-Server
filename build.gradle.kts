@@ -25,9 +25,9 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
     implementation("com.fasterxml.jackson.core:jackson-core")
-    implementation(platform("io.netty:netty-bom:4.2.16.Final"))
+    implementation(platform("io.netty:netty-bom:4.2.17.Final"))
     constraints {
         implementation("org.jsoup:jsoup:1.23.1") {
             because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
@@ -43,12 +43,12 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
-    implementation("ch.qos.logback:logback-classic:1.6.1")
+    implementation("ch.qos.logback:logback-classic:1.6.3")
     implementation("com.github.Priveetee.PipePipeExtractor:extractor:f156813dd4bbebf3b4dffe541fee6c27ae1dd294")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
-    implementation("org.json:json:20260719")
-    implementation("com.squareup.okhttp3:okhttp:5.4.0")
-    implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
+    implementation("org.json:json:20260814")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("io.lettuce:lettuce-core:7.7.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.4.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.4.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
