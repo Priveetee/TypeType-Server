@@ -64,8 +64,8 @@ class DownloaderGatewayService(
         return httpClient.newCall(requestBuilder.build()).execute()
     }
 
-    fun openFetchAbsolute(url: String, headers: Map<String, String>): Response {
-        val requestBuilder = Request.Builder().url(url).method("GET", null)
+    fun openFetchAbsolute(url: String, method: String, headers: Map<String, String>): Response {
+        val requestBuilder = Request.Builder().url(url).method(method, null)
         headerValue(headers, "Range")?.takeIf { it.isNotBlank() }?.let { requestBuilder.addHeader("Range", it) }
         return client.newCall(requestBuilder.build()).execute()
     }

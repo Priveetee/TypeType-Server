@@ -20,7 +20,6 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
-import java.net.URI
 
 fun Route.downloaderGatewayRoutes(gateway: DownloaderGatewayService) {
     route("/downloader") {
@@ -45,7 +44,7 @@ fun Route.downloaderGatewayRoutes(gateway: DownloaderGatewayService) {
 
 private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: DownloaderGatewayService) {
     val requestMethod = call.request.httpMethod.value
-    val method = if (requestMethod == "HEAD") "GET" else requestMethod
+    val method = requestMethod
     val path = call.request.path().removePrefix("/downloader").ifBlank { "/" }
     val query = call.request.queryString().takeIf { it.isNotBlank() }
     val requestHeaders = call.request.headers.names().associateWith { call.request.headers[it].orEmpty() }
@@ -56,20 +55,20 @@ private suspend fun forwardDownloaderRequest(call: ApplicationCall, gateway: Dow
         return
     }
 
+    val forceDownload = shouldForceArtifactDownload(path, query)
+    if (path.endsWith("/artifact")) {
+        forwardDownloaderArtifactRequest(call, gateway, method, path, query, requestHeaders, forceDownload)
+        return
+    }
+
     val response = runCatching { gateway.forward(method, path, query, requestHeaders, body) }
         .getOrElse {
             call.respond(HttpStatusCode.BadGateway, ErrorResponse("downloader unavailable"))
             return
         }
 
-    val forceDownload = shouldForceArtifactDownload(path, query)
     if (isDownloaderStorageFailure(response)) {
         call.respondDownloaderStorageFailure(response)
-        return
-    }
-
-    if (shouldProxyArtifact(path, response)) {
-        forwardDownloaderArtifactRequest(call, gateway, response, requestHeaders, forceDownload)
         return
     }
 
@@ -97,21 +96,3 @@ private fun isSseRequest(path: String, headers: Map<String, String>): Boolean {
     val accept = headers.entries.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value.orEmpty()
     return accept.contains("text/event-stream", ignoreCase = true)
 }
-
-private fun shouldProxyArtifact(path: String, response: dev.typetype.server.services.DownloaderGatewayResponse): Boolean {
-    if (!path.endsWith("/artifact")) return false
-    if (response.status != 302 && response.status != 307) return false
-    val location = headerValue(response, "Location") ?: return false
-    val markedInternal = headerValue(response, INTERNAL_ARTIFACT_PROXY_HEADER) == "1"
-    return markedInternal || isLegacyInternalHost(location)
-}
-
-private fun headerValue(response: dev.typetype.server.services.DownloaderGatewayResponse, name: String): String? =
-    response.headers.firstOrNull { it.first.equals(name, ignoreCase = true) }?.second
-
-private fun isLegacyInternalHost(location: String): Boolean {
-    val host = runCatching { URI(location).host }.getOrNull() ?: return false
-    return host.equals("garage", ignoreCase = true)
-}
-
-private const val INTERNAL_ARTIFACT_PROXY_HEADER = "X-TypeType-Artifact-Proxy"
