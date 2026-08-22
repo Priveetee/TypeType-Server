@@ -6,6 +6,7 @@ import java.io.Closeable
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
+import java.util.EnumSet
 
 class PortabilitySpool private constructor(
     val path: Path,
@@ -29,12 +30,14 @@ class PortabilitySpool private constructor(
     private val getLookup = connection.prepareStatement(
         "SELECT value FROM lookups WHERE namespace = ? AND lookup_key = ?",
     )
+    private val markedCategories = EnumSet.noneOf(PortabilityCategory::class.java)
     private var pendingWrites = 0
     private var attemptedRecords = 0L
     private var closed = false
 
     override fun markCategory(category: PortabilityCategory) {
         checkOpen()
+        if (!markedCategories.add(category)) return
         markCategory.setString(1, category.wireName)
         markCategory.executeUpdate()
         pendingWrites += 1
