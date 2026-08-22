@@ -17,6 +17,7 @@ tags:
   - name: youtube-session
   - name: user-data
   - name: rss
+  - name: portability
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
@@ -56,6 +57,14 @@ paths:
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
   /restore/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeRestore }
+  /portability/formats: { $ref: ./openapi/paths/portability.yaml#/PortabilityFormats }
+  /portability/imports: { $ref: ./openapi/paths/portability.yaml#/PortabilityImports }
+  /portability/exports: { $ref: ./openapi/paths/portability.yaml#/PortabilityExports }
+  /portability/jobs/{id}: { $ref: ./openapi/paths/portability.yaml#/PortabilityJob }
+  /portability/jobs/{id}/apply: { $ref: ./openapi/paths/portability.yaml#/PortabilityApply }
+  /portability/jobs/{id}/cancel: { $ref: ./openapi/paths/portability.yaml#/PortabilityCancel }
+  /portability/jobs/{id}/report: { $ref: ./openapi/paths/portability.yaml#/PortabilityReport }
+  /portability/jobs/{id}/artifact: { $ref: ./openapi/paths/portability.yaml#/PortabilityArtifact }
   /blocked/keywords: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeywords }
   /blocked/keywords/{keyword}: { $ref: ./openapi/paths/user-backup.yaml#/BlockedKeyword }
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
@@ -163,6 +172,11 @@ components:
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }
     TypeTypeBackupItem: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeBackupItem }
     TypeTypeRestoreSummary: { $ref: ./openapi/components/user-backup.yaml#/TypeTypeRestoreSummary }
+    PortabilityAdapterDescriptor: { $ref: ./openapi/components/portability.yaml#/PortabilityAdapterDescriptor }
+    PortabilityJobSnapshot: { $ref: ./openapi/components/portability.yaml#/PortabilityJobSnapshot }
+    PortabilityJobReport: { $ref: ./openapi/components/portability.yaml#/PortabilityJobReport }
+    PortabilityImportRequest: { $ref: ./openapi/components/portability.yaml#/PortabilityImportRequest }
+    PortabilityExportRequest: { $ref: ./openapi/components/portability.yaml#/PortabilityExportRequest }
     BlockedKeywordItem: { $ref: ./openapi/components/user-backup.yaml#/BlockedKeywordItem }
     AdminSettingsItem: { $ref: ./openapi/components/access-control.yaml#/AdminSettingsItem }
     AllowedChannelItem: { $ref: ./openapi/components/access-control.yaml#/AllowedChannelItem }
