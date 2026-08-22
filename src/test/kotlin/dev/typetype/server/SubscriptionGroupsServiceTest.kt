@@ -165,6 +165,54 @@ class SubscriptionGroupsServiceTest {
     }
 
     @Test
+    fun `group mutations share the account subscription lock`() = runTest {
+        val userId = "concurrent-group-user"
+        subscriptions.add(userId, subscription("one"))
+        val renamedGroup = groups.create(userId, "Rename").createdGroup()
+        val deletedGroup = groups.create(userId, "Delete").createdGroup()
+        val membershipGroup = groups.create(userId, "Membership").createdGroup()
+        groups.addSubscription(userId, membershipGroup.id, channel("one"))
+        val lockHeld = CountDownLatch(1)
+        val releaseLock = CountDownLatch(1)
+        val holder = async(Dispatchers.IO) {
+            DatabaseFactory.query {
+                TransactionManager.current().exec(subscriptionLockSql(userId))
+                lockHeld.countDown()
+                check(releaseLock.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertTrue(lockHeld.await(5, TimeUnit.SECONDS))
+
+        val creation = async(Dispatchers.IO) { groups.create(userId, "Created") }
+        val rename = async(Dispatchers.IO) { groups.rename(userId, renamedGroup.id, "Renamed") }
+        val deletion = async(Dispatchers.IO) { groups.delete(userId, deletedGroup.id) }
+        val removal = async(Dispatchers.IO) {
+            groups.removeSubscription(userId, membershipGroup.id, channel("one"))
+        }
+        val allWaited = try {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(2_000L) {
+                    var waiting = false
+                    while (!waiting && !(creation.isCompleted && rename.isCompleted && deletion.isCompleted && removal.isCompleted)) {
+                        waiting = waitingSubscriptionLocks(userId) >= 4
+                        if (!waiting) yield()
+                    }
+                    waiting
+                } ?: false
+            }
+        } finally {
+            releaseLock.countDown()
+        }
+
+        holder.await()
+        assertTrue(creation.await() is SubscriptionGroupWriteResult.Success)
+        assertTrue(rename.await() is SubscriptionGroupWriteResult.Success)
+        assertTrue(deletion.await())
+        assertEquals(SubscriptionGroupMembershipResult.Success, removal.await())
+        assertTrue(allWaited, "all group mutations must wait for the account-scoped lock")
+    }
+
+    @Test
     fun `replacement imports retain only memberships for subscriptions still present`() = runTest {
         val group = groups.create("user", "Group").createdGroup()
         subscriptions.add("user", subscription("one"))

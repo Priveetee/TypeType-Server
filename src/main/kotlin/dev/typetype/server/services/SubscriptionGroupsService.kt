@@ -37,6 +37,7 @@ class SubscriptionGroupsService {
         val name = normalizeDisplayName(rawName) ?: return SubscriptionGroupWriteResult.InvalidName
         val normalizedName = normalizeUniqueName(name)
         return DatabaseFactory.query {
+            SubscriptionMutationLock.acquire(userId)
             if (nameExists(userId, normalizedName)) return@query SubscriptionGroupWriteResult.DuplicateName
             val id = UUID.randomUUID().toString()
             val now = System.currentTimeMillis()
@@ -59,6 +60,7 @@ class SubscriptionGroupsService {
         val normalizedName = normalizeUniqueName(name)
         return try {
             DatabaseFactory.query {
+                SubscriptionMutationLock.acquire(userId)
                 val current = SubscriptionGroupsTable.selectAll().where {
                     (SubscriptionGroupsTable.id eq groupId) and (SubscriptionGroupsTable.userId eq userId)
                 }.singleOrNull() ?: return@query SubscriptionGroupWriteResult.NotFound
@@ -86,6 +88,7 @@ class SubscriptionGroupsService {
     }
 
     suspend fun delete(userId: String, groupId: String): Boolean = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         if (!groupExists(userId, groupId)) return@query false
         SubscriptionGroupMembershipsTable.deleteWhere {
             (SubscriptionGroupMembershipsTable.groupId eq groupId) and
@@ -122,6 +125,7 @@ class SubscriptionGroupsService {
         groupId: String,
         rawChannelUrl: String,
     ): SubscriptionGroupMembershipResult = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
         if (!groupExists(userId, groupId)) return@query SubscriptionGroupMembershipResult.GroupNotFound
         val channelUrl = ChannelUrlCanonicalizer.canonicalize(rawChannelUrl)
         val deleted = SubscriptionGroupMembershipsTable.deleteWhere {
