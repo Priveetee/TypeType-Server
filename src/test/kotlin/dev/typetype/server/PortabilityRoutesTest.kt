@@ -53,6 +53,7 @@ class PortabilityRoutesTest {
     fun `authenticated account can preview apply export and delete`() = testApplication {
         val engine = engine()
         application {
+            installRequestObservability()
             install(ContentNegotiation) { json(CacheJson) }
             routing { portabilityRoutes(engine, AuthService.fixed("owner")) }
         }
@@ -62,6 +63,7 @@ class PortabilityRoutesTest {
 
         val upload = client.post("/portability/imports") {
             authorize()
+            header(REQUEST_ID_HEADER, "portability-route-request")
             setBody(
                 MultiPartFormDataContent(
                     formData {
@@ -78,7 +80,9 @@ class PortabilityRoutesTest {
             )
         }
         assertEquals(HttpStatusCode.Accepted, upload.status)
-        val importId = upload.snapshot().id
+        val uploaded = upload.snapshot()
+        assertEquals("portability-route-request", uploaded.requestId)
+        val importId = uploaded.id
         val preview = awaitState(importId, PortabilityJobState.READY)
         assertEquals(0L, preview.preview?.counts?.get("subscriptions"))
         assertEquals(0L, preview.progress?.processed)

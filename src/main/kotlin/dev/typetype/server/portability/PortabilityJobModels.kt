@@ -85,19 +85,23 @@ data class PortabilityJobSnapshot(
     val state: PortabilityJobState,
     val createdAt: Long,
     val updatedAt: Long,
+    val requestId: String? = null,
     val preview: PortabilityPreview? = null,
     val result: Map<String, Long>? = null,
     val progress: PortabilityJobProgress? = null,
     val errorCode: String? = null,
+    val errorMessage: String? = null,
 )
 
 @Serializable
 data class PortabilityJobReport(
     val id: String,
     val state: PortabilityJobState,
+    val requestId: String? = null,
     val preview: PortabilityPreview? = null,
     val result: Map<String, Long>? = null,
     val errorCode: String? = null,
+    val errorMessage: String? = null,
 )
 
 @Serializable

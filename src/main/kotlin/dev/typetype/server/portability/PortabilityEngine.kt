@@ -24,8 +24,9 @@ class PortabilityEngine internal constructor(
         filename: String,
         contentType: String?,
         formatHint: PortabilityFormat? = null,
+        requestId: String? = null,
     ): PortabilityJobSnapshot {
-        val job = store.create(userId, PortabilityJobKind.IMPORT)
+        val job = store.create(userId, PortabilityJobKind.IMPORT, requestId)
         val saved = job.directory.resolve("upload")
         try {
             Files.move(upload, saved)
@@ -41,9 +42,10 @@ class PortabilityEngine internal constructor(
         userId: String,
         format: PortabilityFormat,
         categories: Set<PortabilityCategory>,
+        requestId: String? = null,
     ): PortabilityJobSnapshot {
         require(categories.isNotEmpty()) { "At least one category is required" }
-        val job = store.create(userId, PortabilityJobKind.EXPORT)
+        val job = store.create(userId, PortabilityJobKind.EXPORT, requestId)
         job.task = scope.launch { export(job, format, categories) }
         return job.snapshot()
     }
@@ -184,7 +186,7 @@ class PortabilityEngine internal constructor(
             job.tryTransition(ACTIVE_STATES, PortabilityJobState.CANCELLED)
             throw error
         } catch (error: Exception) {
-            job.tryTransition(ACTIVE_STATES, PortabilityJobState.FAILED, errorCode = portabilityErrorCode(error))
+            job.fail(error)
         }
     }
 

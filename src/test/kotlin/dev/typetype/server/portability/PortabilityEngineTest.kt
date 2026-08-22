@@ -56,6 +56,28 @@ class PortabilityEngineTest {
     }
 
     @Test
+    fun `failed job keeps safe diagnostics for support`() = runBlocking {
+        val engine = engine(FakeDataPort(), FailingAdapter())
+        val upload = directory.resolve("invalid.json")
+        Files.writeString(upload, "fixture")
+
+        val started = engine.startImportPreview(
+            "owner",
+            upload,
+            "invalid.json",
+            "application/json",
+            requestId = "request-portability-test",
+        )
+        val failed = awaitState(engine, "owner", started.id, PortabilityJobState.FAILED)
+
+        assertEquals("request-portability-test", failed.requestId)
+        assertEquals("portability_invalid_input", failed.errorCode)
+        assertEquals("Unsupported backup version", failed.errorMessage)
+        assertEquals(failed.requestId, engine.report("owner", started.id).requestId)
+        engine.close()
+    }
+
+    @Test
     fun `cancelled analysis stops before its files can be deleted`() = runBlocking {
         val engine = engine(FakeDataPort(), SlowAdapter())
         val upload = directory.resolve("slow.json")
@@ -114,6 +136,12 @@ private class SlowAdapter : PortabilityAdapter by FakeAdapter() {
             Thread.sleep(1)
             sink.write(PortabilitySubscription("https://youtube.com/channel/UC$index"))
         }
+    }
+}
+
+private class FailingAdapter : PortabilityAdapter by FakeAdapter() {
+    override fun decode(input: PortabilityInput, sink: PortabilityRecordSink) {
+        throw IllegalArgumentException("Unsupported backup version")
     }
 }
 

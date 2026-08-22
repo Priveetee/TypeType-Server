@@ -66,6 +66,7 @@ PortabilityJobSnapshot:
     state: { type: string, enum: [queued, analyzing, ready, applying, encoding, completed, failed, cancelled] }
     createdAt: { type: integer, format: int64 }
     updatedAt: { type: integer, format: int64 }
+    requestId: { type: string, nullable: true }
     preview:
       allOf: [{ $ref: '#/PortabilityPreview' }]
       nullable: true
@@ -77,6 +78,7 @@ PortabilityJobSnapshot:
       allOf: [{ $ref: '#/PortabilityJobProgress' }]
       nullable: true
     errorCode: { type: string, nullable: true }
+    errorMessage: { type: string, nullable: true }
 PortabilityJobProgress:
   type: object
   required: [phase, unit, processed, total]
@@ -91,6 +93,7 @@ PortabilityJobReport:
   properties:
     id: { type: string, format: uuid }
     state: { type: string, enum: [queued, analyzing, ready, applying, encoding, completed, failed, cancelled] }
+    requestId: { type: string, nullable: true }
     preview:
       allOf: [{ $ref: '#/PortabilityPreview' }]
       nullable: true
@@ -99,6 +102,7 @@ PortabilityJobReport:
       nullable: true
       additionalProperties: { type: integer, format: int64, minimum: 0 }
     errorCode: { type: string, nullable: true }
+    errorMessage: { type: string, nullable: true }
 PortabilityImportRequest:
   type: object
   required: [categories]

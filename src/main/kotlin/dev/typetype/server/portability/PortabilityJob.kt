@@ -1,6 +1,7 @@
 package dev.typetype.server.portability
 
 import kotlinx.coroutines.Job
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicReference
@@ -10,11 +11,12 @@ internal class PortabilityJob(
     val ownerId: String,
     val kind: PortabilityJobKind,
     val directory: Path,
+    val requestId: String?,
     private val clock: () -> Long,
 ) {
     val createdAt = clock()
     private val value = AtomicReference(
-        PortabilityJobSnapshot(id, kind, PortabilityJobState.QUEUED, createdAt, createdAt),
+        PortabilityJobSnapshot(id, kind, PortabilityJobState.QUEUED, createdAt, createdAt, requestId),
     )
     @Volatile
     var task: Job? = null
@@ -26,7 +28,7 @@ internal class PortabilityJob(
     fun snapshot(): PortabilityJobSnapshot = value.get()
 
     fun report(): PortabilityJobReport = value.get().let {
-        PortabilityJobReport(it.id, it.state, it.preview, it.result, it.errorCode)
+        PortabilityJobReport(it.id, it.state, it.requestId, it.preview, it.result, it.errorCode, it.errorMessage)
     }
 
     fun isTerminal(): Boolean = value.get().state in TERMINAL_STATES
@@ -50,6 +52,7 @@ internal class PortabilityJob(
         preview: PortabilityPreview? = value.get().preview,
         result: Map<String, Long>? = value.get().result,
         errorCode: String? = null,
+        errorMessage: String? = null,
     ) {
         while (true) {
             val current = value.get()
@@ -61,6 +64,7 @@ internal class PortabilityJob(
                 result = result,
                 progress = current.progress,
                 errorCode = errorCode,
+                errorMessage = errorMessage,
             )
             if (value.compareAndSet(current, next)) return
         }
@@ -70,13 +74,30 @@ internal class PortabilityJob(
         expected: Set<PortabilityJobState>,
         state: PortabilityJobState,
         errorCode: String? = null,
+        errorMessage: String? = null,
     ): Boolean {
         while (true) {
             val current = value.get()
             if (current.state !in expected) return false
-            val next = current.copy(state = state, updatedAt = clock(), errorCode = errorCode)
+            val next = current.copy(
+                state = state,
+                updatedAt = clock(),
+                errorCode = errorCode,
+                errorMessage = errorMessage,
+            )
             if (value.compareAndSet(current, next)) return true
         }
+    }
+
+    fun fail(error: Exception) {
+        val code = portabilityErrorCode(error)
+        logger.error("Portability job failed jobId={} requestId={} code={}", id, requestId ?: "none", code, error)
+        tryTransition(
+            PortabilityJobState.entries.toSet() - TERMINAL_STATES,
+            PortabilityJobState.FAILED,
+            errorCode = code,
+            errorMessage = portabilityErrorMessage(error),
+        )
     }
 
     fun delete() {
@@ -89,6 +110,7 @@ internal class PortabilityJob(
     }
 
     private companion object {
+        val logger = LoggerFactory.getLogger(PortabilityJob::class.java)
         val TERMINAL_STATES = setOf(
             PortabilityJobState.COMPLETED,
             PortabilityJobState.FAILED,

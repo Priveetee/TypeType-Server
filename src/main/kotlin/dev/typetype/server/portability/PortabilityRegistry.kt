@@ -70,3 +70,9 @@ internal fun portabilityErrorCode(error: Exception): String = when (error) {
     is IllegalArgumentException -> "portability_invalid_input"
     else -> "portability_failed"
 }
+
+internal fun portabilityErrorMessage(error: Exception): String = when (error) {
+    is PortabilityContractException, is IllegalArgumentException ->
+        error.message ?: "Invalid portability data"
+    else -> "Portability operation failed"
+}

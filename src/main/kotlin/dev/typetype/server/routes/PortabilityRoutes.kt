@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.portability.PortabilityEngine
 import dev.typetype.server.portability.PortabilityExportRequest
 import dev.typetype.server.portability.PortabilityUploadWriter
+import dev.typetype.server.requestId
 import dev.typetype.server.services.AuthService
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -31,7 +32,7 @@ fun Route.portabilityRoutes(engine: PortabilityEngine, authService: AuthService)
             call.withPortabilityAccount(userId = userId) { owner ->
                 runCatching {
                     val request = call.receive<PortabilityExportRequest>()
-                    engine.startExport(owner, request.format, request.categories)
+                    engine.startExport(owner, request.format, request.categories, call.requestId())
                 }
                     .onSuccess { call.respond(HttpStatusCode.Accepted, it) }
                     .onFailure { call.respondPortabilityError(it.asException()) }
@@ -62,7 +63,10 @@ private suspend fun io.ktor.server.application.ApplicationCall.uploadImport(engi
         }
         require(files == 1) { "Exactly one backup file is required" }
         val hint = parsePortabilityFormat(request.queryParameters["format"])
-        respond(HttpStatusCode.Accepted, engine.startImportPreview(owner, tmp, requireNotNull(filename), contentType, hint))
+        respond(
+            HttpStatusCode.Accepted,
+            engine.startImportPreview(owner, tmp, requireNotNull(filename), contentType, hint, requestId()),
+        )
     } catch (error: Exception) {
         respondPortabilityError(error)
     } finally {

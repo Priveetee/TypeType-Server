@@ -16,11 +16,11 @@ internal class PortabilityJobStore(
         Files.createDirectories(root)
     }
 
-    fun create(ownerId: String, kind: PortabilityJobKind): PortabilityJob {
+    fun create(ownerId: String, kind: PortabilityJobKind, requestId: String? = null): PortabilityJob {
         cleanup()
         val id = UUID.randomUUID().toString()
         val directory = Files.createDirectory(root.resolve(id))
-        return PortabilityJob(id, ownerId, kind, directory, clock).also { jobs[id] = it }
+        return PortabilityJob(id, ownerId, kind, directory, requestId, clock).also { jobs[id] = it }
     }
 
     fun get(ownerId: String, id: String): PortabilityJob = jobs[id]
