@@ -26,6 +26,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -52,10 +53,25 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
                 duration = 0L,
                 publishedAt = System.currentTimeMillis() + 86_400_000L,
             ),
+            video(3_250L, url = "https://youtube.com/watch?v=replay").copy(
+                streamType = "post_live_stream",
+                isPostLive = true,
+            ),
             video(3_000L, url = "https://youtube.com/watch?v=normal-1"),
             video(2_000L, url = "https://youtube.com/watch?v=normal-2"),
         )
         feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
+    }
+
+    @Test
+    fun `disabled setting keeps every live state and normal videos`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+
+        val videoIds = readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") }.toSet()
+        assertEquals(setOf("live", "scheduled", "replay", "normal-1", "normal-2"), videoIds)
     }
 
     @Test
@@ -87,15 +103,15 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
     }
 
     @Test
-    fun `hidden live streams do not remove finished recordings`() = withApp {
+    fun `account setting hides finished live recordings`() = withApp {
         val channelService = mockk<ChannelService>()
         coEvery { channelService.getChannel(any(), null) } returns channel(
-            video(4_000L, url = "https://youtube.com/watch?v=live", live = true),
             video(3_000L, url = "https://youtube.com/watch?v=replay").copy(
                 streamType = "post_live_stream",
                 isPostLive = true,
-                isLiveContent = true,
             ),
+            video(2_500L, url = "https://youtube.com/watch?v=live-content").copy(isLiveContent = true),
+            video(2_000L, url = "https://youtube.com/watch?v=normal"),
         )
         feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
         subscriptionsService.add(TEST_USER_ID, subscription(1))
@@ -104,7 +120,61 @@ class SubscriptionFeedLiveVisibilityRoutesTest {
         assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
         feedService.awaitRefresh(TEST_USER_ID)
 
-        assertEquals(listOf("replay"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+        assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+    }
+
+    @Test
+    fun `account setting hides unclassified videos from streams tab`() = withApp {
+        val channelUrl = "https://www.youtube.com/channel/UC1"
+        val channelService = mockk<ChannelService>()
+        coEvery { channelService.getChannel(channelUrl, null) } returns channel(
+            video(3_000L, url = "https://youtube.com/watch?v=normal"),
+            video(2_000L, url = "https://youtube.com/watch?v=replay"),
+        )
+        coEvery { channelService.getChannel("$channelUrl/streams", null) } returns channel(
+            video(2_000L, url = "https://youtube.com/watch?v=replay"),
+            video(1_000L, url = "https://youtube.com/watch?v=scheduled"),
+        )
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, FakeCacheService())
+        subscriptionsService.add(TEST_USER_ID, subscription(channelUrl, "Live channel"))
+        settingsService.upsert(TEST_USER_ID, SettingsItem(hideSubscriptionLiveStreams = true))
+
+        assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
+        feedService.awaitRefresh(TEST_USER_ID)
+
+        assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+    }
+
+    @Test
+    fun `cached snapshot keeps live filtering after service reconstruction`() = runBlocking {
+        val cache = FakeCacheService()
+        val channelService = mockk<ChannelService>()
+        coEvery { channelService.getChannel(any(), null) } returns channel(
+            video(4_000L, url = "https://youtube.com/watch?v=live", live = true),
+            video(3_500L, url = "https://youtube.com/watch?v=scheduled").copy(
+                duration = 0L,
+                publishedAt = System.currentTimeMillis() + 86_400_000L,
+            ),
+            video(3_000L, url = "https://youtube.com/watch?v=replay").copy(
+                streamType = "post_live_stream",
+                isPostLive = true,
+            ),
+            video(2_000L, url = "https://youtube.com/watch?v=normal"),
+        )
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        settingsService.upsert(TEST_USER_ID, SettingsItem(hideSubscriptionLiveStreams = true))
+
+        withApp {
+            assertEquals(HttpStatusCode.Accepted, requestFeed(limit = 30).status)
+            feedService.awaitRefresh(TEST_USER_ID)
+            assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+        }
+
+        feedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
+        withApp {
+            assertEquals(listOf("normal"), readPage(requestFeed(limit = 30)).videos.map { it.url.substringAfter("v=") })
+        }
     }
 
     @Test

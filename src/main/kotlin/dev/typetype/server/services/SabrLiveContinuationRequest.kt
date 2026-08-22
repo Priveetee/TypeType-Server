@@ -8,8 +8,8 @@ internal inline fun <T> withLiveContinuationRequestShape(
     block: () -> T,
 ): T {
     val ranges = buildList {
-        holder.observedRange(holder.audioFormat)?.takeIf { holder.isAudioActive() }?.let(::add)
-        holder.observedRange(holder.videoFormat)?.takeIf { holder.isVideoActive() }?.let(::add)
+        holder.continuationRange(holder.audioFormat)?.takeIf { holder.isAudioActive() }?.let(::add)
+        holder.continuationRange(holder.videoFormat)?.takeIf { holder.isVideoActive() }?.let(::add)
     }
     if (ranges.isEmpty()) return block()
     val state = holder.session.streamState
@@ -24,20 +24,18 @@ internal inline fun <T> withLiveContinuationRequestShape(
     }
 }
 
-private fun SabrSessionHolder.observedRange(format: YoutubeSabrFormat): SabrBufferedRange? {
-    val header = observedMediaSegment(format)?.header ?: return null
-    val sequence = header.sequenceNumber.takeIf { it > 0 } ?: return null
-    val startMs = header.startMs.takeIf { it >= 0L } ?: return null
-    val durationMs = header.durationMs.takeIf { it > 0L }
-        ?: playbackSegmentDurationMs(format, sequence)
-    val bufferedEndMs = startMs + durationMs
+private fun SabrSessionHolder.continuationRange(format: YoutubeSabrFormat): SabrBufferedRange? {
+    observedMediaSegment(format) ?: return null
+    val sequence = lastServedSequence(format)
+        ?: (playbackStartSequence(format, requestedSeekTimeMs() ?: playerTimeMs()) - 1).coerceAtLeast(0)
+    val bufferedEndMs = playbackSegmentEndMs(format, sequence).coerceAtLeast(1L)
     return SabrBufferedRange(
         format.itag,
         format.lastModified,
         format.xtags,
         0L,
         bufferedEndMs,
-        1,
+        if (sequence > 0) 1 else 0,
         sequence,
         TIMESCALE,
     )

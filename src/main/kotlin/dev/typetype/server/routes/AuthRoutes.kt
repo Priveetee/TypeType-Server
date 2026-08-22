@@ -114,5 +114,5 @@ fun Route.authRoutes(
     }
 }
 
-private fun String.warm(authService: AuthService, warmupService: HomeRecommendationWarmup): Unit =
+private suspend fun String.warm(authService: AuthService, warmupService: HomeRecommendationWarmup): Unit =
     authService.verify(this)?.let(warmupService::markActive) ?: Unit

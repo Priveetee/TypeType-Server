@@ -16,11 +16,19 @@ internal class AuthenticatedSabrInfoService(
     private val tokenClient: TypetypeTokenSabrTokenClient,
     private val visitorDataFetcher: () -> String = AuthenticatedYoutubeVisitorData::fetch,
     private val probe: AuthenticatedSabrProbe = PipePipeAuthenticatedSabrProbe,
+    private val cache: AuthenticatedSabrInfoCache = AuthenticatedSabrInfoCache(),
 ) {
     suspend fun fetch(userId: String?, videoId: String): AuthenticatedSabrInfoResult {
         if (userId == null || userId.startsWith("guest:")) return AuthenticatedSabrInfoResult.NotConnected
         val credentials = youtubeSessionService.connectedCredentials(userId)
             ?: return AuthenticatedSabrInfoResult.NotConnected
+        return cache.getOrLoad(credentials, videoId) { fetchUncached(credentials, videoId) }
+    }
+
+    private suspend fun fetchUncached(
+        credentials: YoutubeSessionCredentials,
+        videoId: String,
+    ): AuthenticatedSabrInfoResult {
         return try {
             val prepared = YoutubeSessionTokenScope.withCredentials(credentials) {
                 withContext(Dispatchers.IO) {
@@ -36,7 +44,7 @@ internal class AuthenticatedSabrInfoService(
                         ?: error("Authenticated SABR response has no audio and video formats")
                 }
             }
-            youtubeSessionService.markUsed(userId)
+            youtubeSessionService.markUsed(credentials.userId)
             AuthenticatedSabrInfoResult.Ready(prepared)
         } catch (error: CancellationException) {
             throw error

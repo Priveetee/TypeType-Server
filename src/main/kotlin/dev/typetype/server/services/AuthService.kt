@@ -3,7 +3,10 @@ package dev.typetype.server.services
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.password4j.Password
+import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.UsersTable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -24,8 +27,8 @@ open class AuthService(
     private val sessionVerifier = AuthSessionVerifier(accessCodec, sessionStore)
     private val sessionRevoker = AuthSessionRevoker(sessionStore)
 
-    fun register(email: String, password: String, name: String): AuthSessionTokens {
-        val hashed = Password.hash(password).withArgon2().result
+    suspend fun register(email: String, password: String, name: String): AuthSessionTokens {
+        val hashed = withContext(passwordDispatcher) { Password.hash(password).withArgon2().result }
         val userId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
 
@@ -33,7 +36,7 @@ open class AuthService(
         val role = if (needsAdmin) "admin" else "user"
         val publicUsername = name.trim().takeIf(ProfileService::isValidPublicUsername)
 
-        transaction {
+        DatabaseFactory.query {
             UsersTable.insert {
                 it[UsersTable.id] = userId
                 it[UsersTable.email] = email
@@ -45,13 +48,15 @@ open class AuthService(
                 it[UsersTable.updatedAt] = now
             }
         }
-        return tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
+        return DatabaseFactory.blocking {
+            tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
+        }
     }
 
-    fun login(identifier: String, password: String): AuthSessionTokens? {
+    suspend fun login(identifier: String, password: String): AuthSessionTokens? {
         val normalizedIdentifier = identifier.trim().lowercase()
         if (normalizedIdentifier.isBlank()) return null
-        val user = transaction {
+        val user = DatabaseFactory.query {
             val query = UsersTable.selectAll().where {
                 if (normalizedIdentifier.contains("@")) {
                     UsersTable.email.lowerCase() eq normalizedIdentifier
@@ -63,22 +68,26 @@ open class AuthService(
         } ?: return null
 
         val hashed = user[UsersTable.passwordHash]
-        val verified = Password.check(password, hashed).withArgon2()
+        val verified = withContext(passwordDispatcher) { Password.check(password, hashed).withArgon2() }
         if (!verified) return null
 
-        return tokenIssuer.issue(user[UsersTable.id])
+        return DatabaseFactory.blocking { tokenIssuer.issue(user[UsersTable.id]) }
     }
 
-    fun refreshSession(refreshToken: String): AuthSessionTokens? = sessionRefresher.refresh(refreshToken)
+    suspend fun refreshSession(refreshToken: String): AuthSessionTokens? = DatabaseFactory.blocking {
+        sessionRefresher.refresh(refreshToken)
+    }
 
-    fun issueSession(userId: String): AuthSessionTokens? = tokenIssuer.issue(userId)
+    suspend fun issueSession(userId: String): AuthSessionTokens? = DatabaseFactory.blocking {
+        tokenIssuer.issue(userId)
+    }
 
-    fun logout(refreshToken: String?) {
+    suspend fun logout(refreshToken: String?): Unit = DatabaseFactory.blocking {
         sessionRevoker.revokeByRefreshToken(refreshToken)
     }
 
-    open fun verify(token: String): String? {
-        return sessionVerifier.verifyUserId(token)
+    open suspend fun verify(token: String): String? = DatabaseFactory.blocking {
+        sessionVerifier.verifyUserId(token)
     }
 
     fun guestLogin(): String {
@@ -91,28 +100,33 @@ open class AuthService(
             .sign(Algorithm.HMAC256(jwtSecret))
     }
 
-    fun getUserRole(userId: String): String? {
+    suspend fun getUserRole(userId: String): String? {
         if (userId.startsWith("guest:")) return "user"
-        return transaction {
+        return DatabaseFactory.query {
             UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()
         }?.get(UsersTable.role)
     }
 
-    fun hasUsers(): Boolean = hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+    suspend fun hasUsers(): Boolean = DatabaseFactory.blocking {
+        hasUsersProbe?.invoke() ?: transaction { UsersTable.selectAll().empty().not() }
+    }
 
-    fun hasAdmin(): Boolean = hasUsersProbe?.invoke() ?: transaction {
+    suspend fun hasAdmin(): Boolean = DatabaseFactory.blocking { hasAdminBlocking() }
+
+    private fun hasAdminBlocking(): Boolean = hasUsersProbe?.invoke() ?: transaction {
         UsersTable.selectAll().where { UsersTable.role eq "admin" }.empty().not()
     }
 
     companion object {
         private const val GUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000L
+        private val passwordDispatcher = Dispatchers.Default.limitedParallelism(2, "password-hashing")
 
         fun fixed(userId: String): AuthService = object : AuthService("test") {
-            override fun verify(token: String): String? = if (token == "test-jwt") userId else null
+            override suspend fun verify(token: String): String? = if (token == "test-jwt") userId else null
         }
 
         fun fixed(userId: String, hasUsers: Boolean): AuthService = object : AuthService("test", { hasUsers }) {
-            override fun verify(token: String): String? = if (token == "test-jwt") userId else null
+            override suspend fun verify(token: String): String? = if (token == "test-jwt") userId else null
         }
     }
 }

@@ -4,6 +4,7 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthSessionConfig
+import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -30,7 +31,7 @@ class AuthServiceCoreTest {
     }
 
     @Test
-    fun `register sets first admin and second user`() {
+    fun `register sets first admin and second user`() = runTest {
         val service = AuthService("test-secret")
         assertFalse(service.hasUsers())
         assertFalse(service.hasAdmin())
@@ -63,7 +64,7 @@ class AuthServiceCoreTest {
     }
 
     @Test
-    fun `login and refresh token keep same user`() {
+    fun `login and refresh token keep same user`() = runTest {
         val service = AuthService("test-secret")
         val registered = service.register("login@test.local", "secret-1", "Login")
         val expectedUser = service.verify(registered.accessToken)
@@ -79,7 +80,7 @@ class AuthServiceCoreTest {
     }
 
     @Test
-    fun `configured refresh lifetime is stored for new sessions`() {
+    fun `configured refresh lifetime is stored for new sessions`() = runTest {
         val before = System.currentTimeMillis()
         val service = AuthService(
             "test-secret",
@@ -96,7 +97,7 @@ class AuthServiceCoreTest {
     }
 
     @Test
-    fun `login supports public username identifier`() {
+    fun `login supports public username identifier`() = runTest {
         val service = AuthService("test-secret")
         val session = service.register("username@test.local", "secret-1", "User")
         val userId = service.verify(session.accessToken) ?: error("missing user id")
@@ -111,7 +112,7 @@ class AuthServiceCoreTest {
     }
 
     @Test
-    fun `guest token verifies and has user role`() {
+    fun `guest token verifies and has user role`() = runTest {
         val service = AuthService("test-secret")
         val guestToken = service.guestLogin()
         val guestId = service.verify(guestToken)

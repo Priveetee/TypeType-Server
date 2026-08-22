@@ -33,13 +33,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         )
         if (isLive || prepared.isLive) holder.markExpectedLive()
         if (holder.expectsLive()) {
-            holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
-            holder.session.streamState.setSelectVideoFormatBeforeAudio(!audioOnly)
-            if (startTimeMs == 0L) {
-                holder.session.streamState.setPlayerTimeMs(OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS)
-                holder.session.streamState.setWriteTopLevelPlayerTimeMs(false)
-            }
-            sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
+            prepareLive(holder, startTimeMs, audioOnly)
         } else {
             val initialization = SabrPlaybackInitializationPreloader.preload(
                 sessionStore,
@@ -48,11 +42,16 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
                 INITIALIZATION_PRELOAD_TIMEOUT_MS,
             )
             if (!initialization.isComplete(audioOnly)) {
-                val missing = initialization.missingTracks(audioOnly, video.itag, audio.itag)
-                holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
-                holder.setPlayerTimeMs(startTimeMs)
-                holder.failTerminal(sabrRecoverableFailureMessage("SABR initialization unavailable for $missing"))
-                return SabrPlaybackPreparation(holder, startTimeMs, ready = false)
+                if (holder.livePlaybackSnapshot()?.active == true) {
+                    holder.markExpectedLive()
+                    prepareLive(holder, startTimeMs, audioOnly)
+                } else {
+                    val missing = initialization.missingTracks(audioOnly, video.itag, audio.itag)
+                    holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
+                    holder.setPlayerTimeMs(startTimeMs)
+                    holder.failTerminal(sabrRecoverableFailureMessage("SABR initialization unavailable for $missing"))
+                    return SabrPlaybackPreparation(holder, startTimeMs, ready = false)
+                }
             }
         }
         return SabrPlaybackStarter.start(
@@ -62,6 +61,16 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
             audioOnly,
             startPump = true,
         )
+    }
+
+    private suspend fun prepareLive(holder: SabrSessionHolder, startTimeMs: Long, audioOnly: Boolean) {
+        holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
+        holder.session.streamState.setSelectVideoFormatBeforeAudio(!audioOnly)
+        if (startTimeMs == 0L) {
+            holder.session.streamState.setPlayerTimeMs(OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS)
+            holder.session.streamState.setWriteTopLevelPlayerTimeMs(false)
+        }
+        sessionStore.ensureWarmed(holder, LIVE_INITIAL_PUMPS)
     }
 
     suspend fun seek(

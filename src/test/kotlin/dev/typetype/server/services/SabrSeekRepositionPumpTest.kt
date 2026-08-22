@@ -196,6 +196,7 @@ class SabrSeekRepositionPumpTest {
             every { session.pumpOnceStreamingForDemand(any(), request) } returns mockk(relaxed = true)
             val holder = holder(session, audio, video)
             holder.observeMediaSegment(mediaSegment(video.itag, sequence = 3_076))
+            holder.setLastServedSequence(video.itag, 3_076)
             holder.requestSegmentDemand(request)
             assertFalse(holder.isFutureLiveRequest(request))
             assertEquals(DEFAULT_PLAYBACK_RETRY_MS, holder.liveRetryAfterMs(listOf(request)))

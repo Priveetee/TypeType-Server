@@ -3,6 +3,7 @@ package dev.typetype.server
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PasswordResetService
+import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -27,7 +28,7 @@ class PasswordResetServiceCoreTest {
     }
 
     @Test
-    fun `reset password updates credentials and token cannot be reused`() {
+    fun `reset password updates credentials and token cannot be reused`() = runTest {
         val auth = AuthService("test-secret")
         val reset = PasswordResetService()
         val oldPassword = "secret-1"
@@ -43,7 +44,7 @@ class PasswordResetServiceCoreTest {
     }
 
     @Test
-    fun `expired token is rejected`() {
+    fun `expired token is rejected`() = runTest {
         val auth = AuthService("test-secret")
         val reset = PasswordResetService()
         val userId = auth.verify(auth.register("expired@test.local", "secret-1", "Expired").accessToken)

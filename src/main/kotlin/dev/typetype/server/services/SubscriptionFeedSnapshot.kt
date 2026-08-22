@@ -91,7 +91,7 @@ internal fun SubscriptionFeedSnapshot.page(
     selectionToken: String? = null,
 ): SubscriptionFeedResponse {
     val projectedVideos = projectedVideos(selection, selectedChannelUrls).filterNot { video ->
-        (hideLiveStreams && video.isLiveOrUpcomingAt(generatedAt)) ||
+        (hideLiveStreams && video.isLiveContentOrUpcomingAt(generatedAt)) ||
             (hideMembersOnlyContent && video.requiresMembership)
     }
     val from = offset.coerceAtMost(projectedVideos.size)
