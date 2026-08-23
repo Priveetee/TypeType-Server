@@ -10,7 +10,7 @@ internal class SabrPlaybackInfoResolver(
         startTimeMs: Long,
     ): SabrPreparedInfo? = when (val authenticated = authenticatedInfoService?.fetch(userId, videoId)) {
         is AuthenticatedSabrInfoResult.Ready -> authenticated.prepared
-        AuthenticatedSabrInfoResult.Failed -> null
+        AuthenticatedSabrInfoResult.Failed, AuthenticatedSabrInfoResult.TimedOut -> null
         AuthenticatedSabrInfoResult.NotConnected, null ->
             sessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
     }
@@ -22,6 +22,7 @@ internal class SabrPlaybackInfoResolver(
         return when (val authenticated = authenticatedInfoService?.fetch(holder.key.userId, holder.key.videoId)) {
             is AuthenticatedSabrInfoResult.Ready -> authenticated.prepared
             AuthenticatedSabrInfoResult.Failed,
+            AuthenticatedSabrInfoResult.TimedOut,
             AuthenticatedSabrInfoResult.NotConnected,
             null,
             -> null

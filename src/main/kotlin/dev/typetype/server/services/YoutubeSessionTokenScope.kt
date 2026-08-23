@@ -5,6 +5,8 @@ import org.schabi.newpipe.extractor.ServiceList
 import java.util.concurrent.Semaphore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 object YoutubeSessionTokenScope {
     private const val PUBLIC_PERMITS = 64
@@ -35,11 +37,18 @@ object YoutubeSessionTokenScope {
         }
 
     private suspend fun <T> withPermits(count: Int, block: suspend () -> T): T {
-        withContext(Dispatchers.IO) { permits.acquire(count) }
+        val acquired = AtomicBoolean(false)
         return try {
+            withContext(Dispatchers.IO) {
+                if (!permits.tryAcquire(count, PERMIT_ACQUIRE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    error("Timed out waiting for YouTube extraction permits")
+                }
+                acquired.set(true)
+            }
             block()
         } finally {
-            permits.release(count)
+            if (acquired.get()) permits.release(count)
         }
     }
+    private const val PERMIT_ACQUIRE_TIMEOUT_MS = 15_000L
 }
