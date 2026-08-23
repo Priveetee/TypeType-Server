@@ -6,7 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -17,7 +17,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
 
 class AuthenticatedSabrInfoServiceTest {
     @Test
-    fun `connected account uses one authenticated token pair`() = runTest {
+    fun `connected account uses one authenticated token pair`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
         val probe = mockk<AuthenticatedSabrProbe>()
@@ -48,7 +48,7 @@ class AuthenticatedSabrInfoServiceTest {
     }
 
     @Test
-    fun `reuses authenticated info for the following playback request`() = runTest {
+    fun `reuses authenticated info for the following playback request`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
         val probe = mockk<AuthenticatedSabrProbe>()
@@ -73,7 +73,7 @@ class AuthenticatedSabrInfoServiceTest {
     }
 
     @Test
-    fun `guest playback does not inspect connected credentials`() = runTest {
+    fun `guest playback does not inspect connected credentials`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
         val service = AuthenticatedSabrInfoService(sessions, tokenClient)
@@ -86,7 +86,7 @@ class AuthenticatedSabrInfoServiceTest {
     }
 
     @Test
-    fun `authenticated probe failure is typed and does not mark session used`() = runTest {
+    fun `authenticated probe failure is typed and does not mark session used`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
         coEvery { sessions.connectedCredentials(USER_ID) } returns credentials(USER_ID)
@@ -119,7 +119,7 @@ class AuthenticatedSabrInfoServiceTest {
         )
 
         assertThrows(CancellationException::class.java) {
-            runTest { service.fetch(USER_ID, VIDEO_ID) }
+            runBlocking { service.fetch(USER_ID, VIDEO_ID) }
         }
     }
 
