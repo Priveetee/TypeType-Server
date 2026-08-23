@@ -88,7 +88,7 @@ class SabrDemandWatchdogBackoffTest {
             }
             runCurrent()
 
-            advanceTimeBy(45_900L)
+            advanceTimeBy(44_900L)
             runCurrent()
             assertFalse(job.isCompleted)
 

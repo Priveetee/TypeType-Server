@@ -26,6 +26,7 @@ internal object SabrDemandAttemptFinisher {
             if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
             holder.clearSegmentDemands()
             val message = "SABR demand stalled for ${demand.request.summary()}"
+            SabrPumpLogger.expired(holder, demand.request, recoverable)
             holder.failTerminal(if (recoverable) sabrRecoverableFailureMessage(message) else message)
             true
         }
@@ -40,6 +41,7 @@ internal object SabrDemandAttemptFinisher {
         if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
         val current = holder.nextSegmentDemand() ?: return@synchronized false
         if (!current.matches(request) || holder.segmentDemandIdentity(current) != identity) return@synchronized false
+        SabrPumpLogger.expired(holder, request, recoverable)
         fail(holder, request, identity, recoverable)
     }
 

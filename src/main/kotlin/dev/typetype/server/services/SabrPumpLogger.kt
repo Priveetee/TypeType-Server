@@ -52,6 +52,21 @@ internal object SabrPumpLogger {
         )
     }
 
+    fun expired(holder: SabrSessionHolder, request: SabrSegmentRequest, recoverable: Boolean): Unit {
+        logger.warn(
+            "sabr_pump event=demand_expired videoId={} request={} recoverable={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
+            holder.key.videoId,
+            request.summary(),
+            recoverable,
+            holder.playbackState(),
+            holder.session.requestNumber,
+            holder.session.streamState.getMinBufferedEndMs(),
+            holder.readerHeadMs(),
+            holder.readerTailMs(),
+            holder.session.cachedBytes,
+        )
+    }
+
     fun recovery(holder: SabrSessionHolder, action: SabrDemandRecoveryAction, request: SabrSegmentRequest): Unit {
         logger.info(
             "sabr_pump event=demand_recovery videoId={} request={} action={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
