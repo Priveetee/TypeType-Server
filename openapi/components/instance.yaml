@@ -20,6 +20,7 @@ InstanceResponse:
     - oidcAutoRedirect
     - youtubeRemoteLoginEnabled
     - youtubeRemoteLoginReady
+    - parentalControlsEnabled
     - rss
   properties:
     name: { type: string, example: TypeType }
@@ -50,6 +51,9 @@ InstanceResponse:
       type: string
       nullable: true
       enum: [disabled, not_configured, token_unreachable]
+    parentalControlsEnabled:
+      type: boolean
+      description: True when the instance-wide allow-list policy is enabled.
     rss:
       $ref: '#/RssInstanceCapability'
 RssInstanceCapability:
