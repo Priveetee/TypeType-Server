@@ -8,8 +8,11 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
+import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
@@ -28,8 +31,11 @@ class SabrProgressivePlaybackWindowTest {
         every { state.getSegmentEndMs(audio, 1) } returns 9_985L
         every { state.getSegmentEndMs(video, 1) } returns 4_000L
         val session = mockk<YoutubeSabrSession>(relaxed = true)
+        val audioSegment = readableSegment(audio, durationMs = 9_985L)
+        val videoSegment = readableSegment(video, durationMs = 4_000L)
         every { session.streamState } returns state
-        every { session.getReadableSegment(any()) } returns null
+        every { session.getReadableSegment(match { it.format == audio }) } returns audioSegment
+        every { session.getReadableSegment(match { it.format == video }) } returns videoSegment
         every { session.getCachedSegment(any()) } returns null
         val holder = holder(session, audio, video)
         val store = mockk<SabrSessionStore>()
@@ -41,8 +47,23 @@ class SabrProgressivePlaybackWindowTest {
 
         assertTrue(result.isReady)
         assertTrue(result.blockedRequests.isEmpty())
+        assertFalse(audioSegment.isComplete)
+        assertFalse(videoSegment.isComplete)
         assertEquals(4_000L, requireNotNull(result.response.video).segments.single().durationMs)
         assertEquals(9_985L, result.response.audio.segments.single().durationMs)
+    }
+
+    private fun readableSegment(format: YoutubeSabrFormat, durationMs: Long): SabrMediaSegment {
+        val header = mockk<SabrMediaHeader>()
+        every { header.itag } returns format.itag
+        every { header.isInitSegment } returns false
+        every { header.sequenceNumber } returns 1
+        every { header.startMs } returns 0L
+        every { header.durationMs } returns durationMs
+        return mockk<SabrMediaSegment>().also {
+            every { it.header } returns header
+            every { it.isComplete } returns false
+        }
     }
 
     private fun holder(
