@@ -6,6 +6,18 @@ SubscriptionItem:
     name: { type: string }
     avatarUrl: { type: string }
     subscribedAt: { type: integer, format: int64 }
+SubscriptionGroupMembershipItem:
+  type: object
+  required: [channelUrl, name, avatarUrl, subscribedAt, groupIds]
+  properties:
+    channelUrl: { type: string, minLength: 1 }
+    name: { type: string }
+    avatarUrl: { type: string }
+    subscribedAt: { type: integer, format: int64 }
+    groupIds:
+      type: array
+      uniqueItems: true
+      items: { type: string, format: uuid }
 SubscriptionCreateRequest:
   type: object
   required: [channelUrl, name, avatarUrl]

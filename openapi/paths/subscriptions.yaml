@@ -52,6 +52,20 @@ Subscriptions:
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
+SubscriptionGroupMemberships:
+  get:
+    tags: [user-data]
+    summary: List subscriptions with their group memberships
+    description: Returns every current subscription once, with all account-owned group IDs assigned to that channel. Ungrouped subscriptions have an empty groupIds array.
+    responses:
+      '200':
+        description: Account-scoped subscriptions and their complete group memberships.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipItem }
+      '401': { $ref: ../components/common.yaml#/JsonError }
 SubscriptionGroups:
   get:
     tags: [user-data]
