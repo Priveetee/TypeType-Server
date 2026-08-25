@@ -28,11 +28,12 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         if (effectiveRequest.audioOnly) return buildAudioOnly(holder, effectiveRequest, live?.toResponse())
         val video = buildTrack(holder, holder.videoFormat, effectiveRequest, effectiveRequest.playerTimeMs, live?.active == true)
         val decodeStartMs = video.track.segments.firstOrNull()?.startMs ?: effectiveRequest.playerTimeMs
+        val audioStartMs = if (live?.active == true) minOf(effectiveRequest.playerTimeMs, decodeStartMs) else effectiveRequest.playerTimeMs
         val audio = buildTrack(
             holder,
             holder.audioFormat,
             effectiveRequest,
-            minOf(effectiveRequest.playerTimeMs, decodeStartMs),
+            audioStartMs,
             live?.active == true,
         )
         val playbackStartMs = resolvedPlaybackStartMs(
@@ -191,7 +192,6 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
             atEnd = atEnd,
         )
     }
-
     private fun CachedSabrSegment.toWindowSegment(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,

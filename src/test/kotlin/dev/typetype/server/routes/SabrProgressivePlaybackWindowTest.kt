@@ -22,6 +22,34 @@ import java.time.Instant
 
 class SabrProgressivePlaybackWindowTest {
     @Test
+    fun `vod audio starts at the playhead rather than the preceding video keyframe`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { state.getSegmentNumberAtOrAfterTimeMs(video, 100_000L) } returns 16
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 100_000L) } returns 11
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.getReadableSegment(match { it.format == video && it.sequenceNumber == 16 }) } returns
+            readableSegment(video, sequence = 16, startMs = 95_000L, durationMs = 7_000L)
+        every { session.getReadableSegment(match { it.format == audio && it.sequenceNumber == 11 }) } returns
+            readableSegment(audio, sequence = 11, startMs = 99_845L, durationMs = 9_985L)
+        every { session.getCachedSegment(any()) } returns null
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(0L, 100_000L, video.itag, audio.itag, bufferGoalMs = 1_000L),
+        )
+
+        assertTrue(result.isReady)
+        assertEquals(95_000L, requireNotNull(result.response.video).segments.single().startMs)
+        assertEquals(99_845L, result.response.audio.segments.single().startMs)
+    }
+
+    @Test
     fun `vod window exposes timeline segments before their payload completes`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(308, isAudio = false)
@@ -53,12 +81,17 @@ class SabrProgressivePlaybackWindowTest {
         assertEquals(9_985L, result.response.audio.segments.single().durationMs)
     }
 
-    private fun readableSegment(format: YoutubeSabrFormat, durationMs: Long): SabrMediaSegment {
+    private fun readableSegment(
+        format: YoutubeSabrFormat,
+        sequence: Int = 1,
+        startMs: Long = 0L,
+        durationMs: Long,
+    ): SabrMediaSegment {
         val header = mockk<SabrMediaHeader>()
         every { header.itag } returns format.itag
         every { header.isInitSegment } returns false
-        every { header.sequenceNumber } returns 1
-        every { header.startMs } returns 0L
+        every { header.sequenceNumber } returns sequence
+        every { header.startMs } returns startMs
         every { header.durationMs } returns durationMs
         return mockk<SabrMediaSegment>().also {
             every { it.header } returns header
