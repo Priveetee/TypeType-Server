@@ -128,6 +128,7 @@ internal class SabrPlaybackHandler(
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
+        if (!access.profile.enabled) return true
         return when (val result = accessValidator.resolve(access.userId, videoId)) {
             is ExtractionResult.Success -> {
                 val allowed = !access.profile.enabled ||
