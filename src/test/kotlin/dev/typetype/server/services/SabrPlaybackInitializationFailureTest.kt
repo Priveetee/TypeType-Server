@@ -3,7 +3,6 @@ package dev.typetype.server.services
 import dev.typetype.server.routes.SabrPlaybackRecovery
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -49,6 +48,10 @@ class SabrPlaybackInitializationFailureTest {
             delay(Long.MAX_VALUE)
             null
         }
+        coEvery { store.fetchInitializationData(holder, audio) } coAnswers {
+            delay(Long.MAX_VALUE)
+            null
+        }
         coEvery { store.invalidatePlaybackInfo("video") } returns Unit
 
         val result = SabrPlaybackSessionService(store).prepare(
@@ -65,7 +68,7 @@ class SabrPlaybackInitializationFailureTest {
         assertEquals(SabrPlaybackState.TERMINAL, holder.playbackState())
         assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
         verify(exactly = 0) { store.startPump(any()) }
-        coVerify(exactly = 0) { store.fetchInitializationData(holder, audio) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, audio) }
     }
 
     @Test
@@ -113,10 +116,8 @@ class SabrPlaybackInitializationFailureTest {
         assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
         verify(exactly = 0) { store.startPump(any()) }
         coVerify(exactly = 1) { store.invalidatePlaybackInfo("video") }
-        coVerifyOrder {
-            store.fetchInitializationData(holder, video)
-            store.fetchInitializationData(holder, audio)
-        }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, video) }
+        coVerify(exactly = 1) { store.fetchInitializationData(holder, audio) }
     }
 
     @Test

@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 
 internal data class SabrPlaybackInitializationPreloadResult(
@@ -23,10 +25,12 @@ internal object SabrPlaybackInitializationPreloader {
         audioOnly: Boolean,
         timeoutMs: Long,
     ): SabrPlaybackInitializationPreloadResult = withTimeoutOrNull(timeoutMs) {
-        val video = holder.videoFormat
-            .takeUnless { audioOnly }
-            ?.let { sessionStore.fetchInitializationData(holder, it) }
-        val audio = sessionStore.fetchInitializationData(holder, holder.audioFormat)
-        SabrPlaybackInitializationPreloadResult(video, audio)
+        coroutineScope {
+            val video = holder.videoFormat
+                .takeUnless { audioOnly }
+                ?.let { format -> async { sessionStore.fetchInitializationData(holder, format) } }
+            val audio = async { sessionStore.fetchInitializationData(holder, holder.audioFormat) }
+            SabrPlaybackInitializationPreloadResult(video?.await(), audio.await())
+        }
     } ?: SabrPlaybackInitializationPreloadResult(null, null)
 }
