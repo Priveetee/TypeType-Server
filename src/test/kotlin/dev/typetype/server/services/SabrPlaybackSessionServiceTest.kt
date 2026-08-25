@@ -7,7 +7,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -107,19 +106,19 @@ class SabrPlaybackSessionServiceTest {
     }
 
     @Test
-    fun `cached media segment after demand returns bytes`() = runTest {
+    fun `readable media segment after demand returns progressive stream`() = runTest {
         val audio = format(140, isAudio = true)
         val holder = holder(audio, format(137, isAudio = false))
-        val segment = cachedSegment(140, 4, byteArrayOf(1, 2, 3))
+        val segment = mockk<SabrMediaSegment>()
+        every { holder.session.awaitReadableSegment(any(), any()) } returns segment
         val store = mockk<SabrSessionStore>()
-        coEvery { store.cachedSegment(holder, any()) } returnsMany listOf(null, segment)
         every { store.requestSegmentDemand(holder, any(), 0L) } returns Unit
 
         val result = SabrPlaybackSessionService(store).fetchMedia(holder, audio, sequence = 4, timeoutMs = 50L, generation = 0L)
 
-        val ready = result as SabrPlaybackSegmentResult.Ready
-        assertEquals("audio/mp4", ready.mimeType)
-        assertArrayEquals(byteArrayOf(1, 2, 3), ready.bytes)
+        val stream = result as SabrPlaybackSegmentResult.Stream
+        assertEquals("audio/mp4", stream.mimeType)
+        assertSame(segment, stream.segment)
         verify(exactly = 1) { store.requestSegmentDemand(holder, any(), 0L) }
     }
 
@@ -245,6 +244,8 @@ class SabrPlaybackSessionServiceTest {
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } returns null
+        every { session.awaitReadableSegment(any(), any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
         every { session.prepareForInitialization(any()) } returns Unit
         every { state.setActiveTrackTypes(any(), any()) } returns Unit

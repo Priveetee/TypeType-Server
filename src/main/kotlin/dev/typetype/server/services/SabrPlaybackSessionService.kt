@@ -1,11 +1,11 @@
 package dev.typetype.server.services
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
+    private val mediaFetcher = SabrPlaybackMediaFetcher(sessionStore)
     suspend fun prepare(
         videoId: String,
         userId: String,
@@ -145,48 +145,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
         if (generation > activeGeneration) return SabrPlaybackSegmentResult.InvalidGeneration
         val request = SabrSegmentRequest.media(format, sequence)
         if (generation < activeGeneration) return staleMedia(holder, request)
-        sessionStore.cachedSegment(holder, request)?.let {
-            holder.markServed(it, generation)
-            return SabrPlaybackSegmentResult.Ready(it.mimeType, it.bytes)
-        }
-        sessionStore.requestSegmentDemand(holder, request, generation)
-        val segment = awaitCachedSegment(holder, request, timeoutMs)
-        return if (segment == null) SabrPlaybackSegmentResult.Retry(holder, REPOSITIONING) else {
-            holder.clearSegmentDemand(request)
-            holder.markServed(segment, generation)
-            SabrPlaybackSegmentResult.Ready(segment.mimeType, segment.bytes)
-        }
-    }
-
-    private suspend fun awaitCachedSegment(
-        holder: SabrSessionHolder,
-        request: SabrSegmentRequest,
-        timeoutMs: Long,
-    ): CachedSabrSegment? = withTimeoutOrNull(timeoutMs) {
-        var segment = sessionStore.cachedSegment(holder, request)
-        while (segment == null && holder.terminalFailure() == null && holder.networkFailure() == null) {
-            delay(SEGMENT_WAIT_MS)
-            segment = sessionStore.cachedSegment(holder, request)
-            if (segment == null && holder.livePlaybackSnapshot()?.active == true) {
-                val targetMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
-                val following = sessionStore.findCachedPlaybackMediaAt(
-                    holder = holder,
-                    format = request.format,
-                    targetMs = targetMs,
-                    predictedSequence = request.sequenceNumber,
-                    allowFollowing = true,
-                )
-                segment = following?.takeUnless {
-                    holder.failLivePlaybackDiscontinuity(
-                        request.format,
-                        targetMs,
-                        it,
-                        holder.lastServedSequence(request.format) != null,
-                    )
-                }
-            }
-        }
-        segment
+        return mediaFetcher.fetch(holder, request, timeoutMs, generation)
     }
 
     private suspend fun staleMedia(holder: SabrSessionHolder, request: SabrSegmentRequest): SabrPlaybackSegmentResult =
@@ -199,9 +158,7 @@ internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionS
 
     private companion object {
         const val PREPARING = "preparing"
-        const val REPOSITIONING = "repositioning"
         const val INITIALIZATION_PRELOAD_TIMEOUT_MS = 6_000L
-        const val SEGMENT_WAIT_MS = 250L
         const val LIVE_INITIAL_PUMPS = 8
         const val OFFICIAL_LIVE_EDGE_PLAYER_TIME_MS = 9_007_199_254_740_991L
     }

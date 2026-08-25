@@ -119,7 +119,7 @@ class SabrPlaybackGranularRoutesTest {
     }
 
     @Test
-    fun `window queues missing first video without direct fetch`() = testApplication {
+    fun `window advertises missing first video without direct fetch`() = testApplication {
         val store = audioOnlyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -130,13 +130,13 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody())
         }
 
-        assertEquals(HttpStatusCode.Accepted, response.status)
-        assertTrue(response.bodyAsText().contains("video:136:1 pending"))
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("segment/1"))
         verify(atLeast = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
     }
 
     @Test
-    fun `window queues video first when blocked tracks have equal coverage`() = testApplication {
+    fun `window keeps stale timeline pending and queues both tracks`() = testApplication {
         val store = emptyStore()
         val holder = holder()
         every { store.lookupByToken("session-token") } returns holder
@@ -147,9 +147,7 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody(340_000L))
         }
 
-        val body = response.bodyAsText()
         assertEquals(HttpStatusCode.Accepted, response.status)
-        assertTrue(body.contains("video:136:1 pending"))
         verify(exactly = 2) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
         coVerify(exactly = 0) { store.fetchInitializationData(holder, any()) }
     }
@@ -232,6 +230,7 @@ class SabrPlaybackGranularRoutesTest {
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
         every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
         every { state.setActiveTrackTypes(true, true) } returns Unit
         every { state.setPlaybackRate(any()) } returns Unit

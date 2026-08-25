@@ -11,6 +11,9 @@ internal class SabrSegmentCache {
     fun put(holder: SabrSessionHolder, segment: SabrMediaSegment): Unit {
         val format = holder.formatForItag(segment.header.itag) ?: return
         holder.observeMediaSegment(segment)
+        if (holder.key.purpose == SabrSessionPurpose.PLAYBACK &&
+            !holder.expectsLive() && !segment.header.isInitSegment
+        ) return
         val mimeType = format.mimeType.orEmpty()
         val mediaParts = segment.takeIf { holder.expectsLive() && !it.header.isInitSegment }
             ?.let { SabrLiveMediaNormalizer.split(mimeType, it.data) }
