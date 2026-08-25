@@ -18,3 +18,9 @@ internal data class TokenYoutubeSession(
     val isLiveContent: Boolean,
     val hlsUrl: String = "",
 )
+
+internal fun TokenYoutubeSession.preparedSabrInfo(): SabrPreparedInfo? {
+    val boundToken = token?.takeIf { it.visitorData == info.visitorData } ?: return null
+    return SabrPreparedInfo(info, boundToken, isLive, isLiveContent)
+        .takeIf(SabrPreparedInfo::hasAudioAndVideoFormats)
+}

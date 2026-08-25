@@ -134,10 +134,8 @@ internal class ExtractionServiceRegistry(
         ),
         YouTubeSubtitleCache(cache),
     )
-    val youtubeSabrBootstrapStreamService = CachedStreamService(
-        YoutubeScopedStreamService(SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient)),
-        cache,
-        "stream-youtube-sabr-bootstrap:v1",
+    val youtubeSabrBootstrapStreamService = YoutubeScopedStreamService(
+        SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient),
     )
     val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
     val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v1")

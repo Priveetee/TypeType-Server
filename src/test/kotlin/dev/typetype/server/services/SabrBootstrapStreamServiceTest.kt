@@ -17,8 +17,9 @@ class SabrBootstrapStreamServiceTest {
         val sessionStore = mockk<SabrSessionStore>()
         val tokenClient = mockk<TypetypeTokenYoutubeSessionClient>()
         val prepared = preparedInfo()
-        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns prepared
-        coEvery { tokenClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession(prepared.info)
+        val session = tokenSession(prepared.info, tokenBundle())
+        coEvery { sessionStore.rememberPreparedInfo(VIDEO_ID, any()) } returns Unit
+        coEvery { tokenClient.fetchPlaybackSession(VIDEO_ID) } returns session
         val service = SabrBootstrapStreamService(sessionStore, tokenClient)
 
         val result = service.getStreamInfo(YOUTUBE_URL)
@@ -27,7 +28,8 @@ class SabrBootstrapStreamServiceTest {
         assertEquals("Bootstrap title", response.title)
         assertEquals(listOf(137), response.videoOnlyStreams.map { it.itag })
         assertEquals(listOf(140), response.audioStreams.map { it.itag })
-        coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
+        coVerify(exactly = 0) { sessionStore.fetchInfo(any(), any()) }
+        coVerify(exactly = 1) { sessionStore.rememberPreparedInfo(VIDEO_ID, any()) }
         coVerify(exactly = 1) { tokenClient.fetchPlaybackSession(VIDEO_ID) }
     }
 
@@ -58,12 +60,22 @@ class SabrBootstrapStreamServiceTest {
         every { audio.audioTrackId } returns "en.4"
         val info = mockk<YoutubeSabrInfo>()
         every { info.formats } returns listOf(video, audio)
+        every { info.visitorData } returns VISITOR_DATA
         return SabrPreparedInfo(info, null)
     }
 
-    private fun tokenSession(info: YoutubeSabrInfo): TokenYoutubeSession = TokenYoutubeSession(
+    private fun tokenBundle() = SabrTokenBundle(
+        videoId = VIDEO_ID,
+        visitorBoundPoToken = "player-token",
+        visitorBoundPoTokenBytes = byteArrayOf(1),
+        visitorData = VISITOR_DATA,
+        videoBoundPoToken = "media-token",
+        videoBoundPoTokenBytes = byteArrayOf(2),
+    )
+
+    private fun tokenSession(info: YoutubeSabrInfo, token: SabrTokenBundle? = null): TokenYoutubeSession = TokenYoutubeSession(
         info = info,
-        token = null,
+        token = token,
         title = "Bootstrap title",
         author = "Bootstrap channel",
         channelId = "channel-id",
@@ -80,5 +92,6 @@ class SabrBootstrapStreamServiceTest {
     private companion object {
         const val VIDEO_ID = "f6f3PhauXyg"
         const val YOUTUBE_URL = "https://www.youtube.com/watch?v=$VIDEO_ID"
+        const val VISITOR_DATA = "visitor-data"
     }
 }

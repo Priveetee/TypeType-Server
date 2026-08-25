@@ -59,9 +59,12 @@ internal class SabrInfoFetcher(
 
     suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit {
         repository.rememberInitialization(videoId, info)
-        fetchInfoOnce(videoId, startTimeMs = 0L)
-            ?.takeIf { it.hasAudioAndVideoFormats() }
-            ?.let { repository.putPrepared(videoId, startTimeMs = 0L, it) }
+        fetchInfo(videoId, startTimeMs = 0L, cachedFirst = true)
+    }
+
+    suspend fun rememberPreparedInfo(videoId: String, prepared: SabrPreparedInfo): Unit {
+        repository.rememberInitialization(videoId, prepared.info)
+        repository.putPrepared(videoId, startTimeMs = 0L, prepared)
     }
 
     suspend fun invalidatePlayback(videoId: String): Unit = repository.invalidatePlayback(videoId)
@@ -87,13 +90,7 @@ internal class SabrInfoFetcher(
     ): SabrPreparedInfo? =
         withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
             val tokenSession = sessionClient?.fetchPlaybackSession(videoId, isolatedPlayback)
-            tokenSession?.token
-                ?.takeIf { it.visitorData == tokenSession.info.visitorData }
-                ?.let { sessionToken ->
-                    SabrPreparedInfo(tokenSession.info, sessionToken, tokenSession.isLive, tokenSession.isLiveContent)
-                        .takeIf { it.hasAudioAndVideoFormats() }
-                        ?.let { return@withTimeoutOrNull it }
-                }
+            tokenSession?.preparedSabrInfo()?.let { return@withTimeoutOrNull it }
             val token = tokenClient.fetch(videoId)
                 ?: return@withTimeoutOrNull null.also {
                     logger.warn(
