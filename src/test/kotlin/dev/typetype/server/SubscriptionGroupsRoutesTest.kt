@@ -163,6 +163,26 @@ class SubscriptionGroupsRoutesTest {
     }
 
     @Test
+    fun `membership deletion rejects query and body together`() = withApp {
+        val first = channel("one")
+        val second = channel("two")
+        listOf(first, second).forEach { url ->
+            subscriptions.add(TEST_USER_ID, SubscriptionItem(url, url.substringAfterLast('/'), ""))
+        }
+        val group = createGroup("Work")
+        listOf(first, second).forEach { url -> groups.addSubscription(TEST_USER_ID, group.id, url) }
+
+        assertEquals(HttpStatusCode.BadRequest, client.delete("/subscriptions/groups/${group.id}/channels") {
+            authorizeJson()
+            parameter("url", first)
+            setBody("""{"channelUrls":["$second"]}""")
+        }.status)
+        val grouped = authorizedGet("/subscriptions") { parameter("groupId", group.id) }.bodyAsText()
+        assertTrue(grouped.contains(first))
+        assertTrue(grouped.contains(second))
+    }
+
+    @Test
     fun `bulk membership addition changes nothing when a subscription is missing`() = withApp {
         val subscribed = channel("subscribed")
         subscriptions.add(TEST_USER_ID, SubscriptionItem(subscribed, "Subscribed", ""))

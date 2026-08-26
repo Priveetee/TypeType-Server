@@ -149,7 +149,7 @@ SubscriptionGroupChannels:
   delete:
     tags: [user-data]
     summary: Remove subscribed channels from a group
-    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored.
+    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored. Supplying both url and a request body returns 400.
     parameters:
       - name: url
         in: query

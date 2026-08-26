@@ -10,6 +10,7 @@ import dev.typetype.server.services.SubscriptionGroupsService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
@@ -60,6 +61,12 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
             val queryChannelUrl = call.request.queryParameters["url"]?.takeIf(String::isNotBlank)
             if (queryChannelUrl != null) {
+                if (call.receiveText().isNotBlank()) {
+                    return@withJwtAuth call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse("Specify either url or a request body, not both"),
+                    )
+                }
                 return@withJwtAuth call.respondMembership(
                     groupsService.removeSubscription(userId, groupId, queryChannelUrl),
                 )
