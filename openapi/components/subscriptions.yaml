@@ -43,7 +43,7 @@ SubscriptionGroupMembershipRequest:
   type: object
   required: [channelUrl]
   properties:
-    channelUrl: { type: string, minLength: 1 }
+    channelUrl: { type: string, minLength: 1, maxLength: 2048 }
 SubscriptionGroupMembershipBatchRequest:
   type: object
   required: [channelUrls]
@@ -52,7 +52,7 @@ SubscriptionGroupMembershipBatchRequest:
       type: array
       minItems: 1
       maxItems: 500
-      items: { type: string, minLength: 1 }
+      items: { type: string, minLength: 1, maxLength: 2048 }
 SubscriptionFeedResponse:
   type: object
   required: [videos, nextpage, generation, generatedAt, refreshing]

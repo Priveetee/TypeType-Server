@@ -132,7 +132,7 @@ SubscriptionGroupChannels:
   put:
     tags: [user-data]
     summary: Add subscribed channels to a group
-    description: Accepts the original singular channelUrl request or up to 500 channelUrls. Batch additions are atomic, canonicalized and deduplicated.
+    description: Accepts the original singular channelUrl request or up to 500 channelUrls. Batch additions are atomic, canonicalized and deduplicated. Request bodies are limited to 1 MiB.
     requestBody:
       required: true
       content:
@@ -145,16 +145,17 @@ SubscriptionGroupChannels:
       '204': { description: Membership exists. }
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
+      '413': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
   delete:
     tags: [user-data]
     summary: Remove subscribed channels from a group
-    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored. Supplying both url and a request body returns 400.
+    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored. Supplying both url and any non-empty request body returns 400. Request bodies are limited to 1 MiB.
     parameters:
       - name: url
         in: query
         required: false
-        schema: { type: string, minLength: 1 }
+        schema: { type: string, minLength: 1, maxLength: 2048 }
     requestBody:
       required: false
       content:
@@ -167,6 +168,7 @@ SubscriptionGroupChannels:
       '204': { description: Membership deleted. }
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
+      '413': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
 SubscriptionFeed:
   get:

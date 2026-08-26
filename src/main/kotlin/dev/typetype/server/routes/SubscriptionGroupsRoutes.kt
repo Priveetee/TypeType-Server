@@ -1,7 +1,6 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.models.SubscriptionGroupMembershipRequest
 import dev.typetype.server.models.SubscriptionGroupRequest
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
@@ -10,7 +9,6 @@ import dev.typetype.server.services.SubscriptionGroupsService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
@@ -46,7 +44,8 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
     put("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            when (val request = call.receiveMembershipChannels() ?: return@withJwtAuth) {
+            val body = call.receiveMembershipBody() ?: return@withJwtAuth
+            when (val request = call.receiveMembershipChannels(body) ?: return@withJwtAuth) {
                 is MembershipChannels.Single -> call.respondMembership(
                     groupsService.addSubscription(userId, groupId, request.channelUrl),
                 )
@@ -59,9 +58,13 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
     delete("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            val queryChannelUrl = call.request.queryParameters["url"]?.takeIf(String::isNotBlank)
+            val queryChannelUrl = call.request.queryParameters["url"]
+            if (queryChannelUrl != null && !queryChannelUrl.isValidMembershipChannelUrl()) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid channel URL"))
+            }
+            val body = call.receiveMembershipBody() ?: return@withJwtAuth
             if (queryChannelUrl != null) {
-                if (call.receiveText().isNotBlank()) {
+                if (body.isNotEmpty()) {
                     return@withJwtAuth call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse("Specify either url or a request body, not both"),
@@ -71,7 +74,7 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
                     groupsService.removeSubscription(userId, groupId, queryChannelUrl),
                 )
             }
-            when (val request = call.receiveMembershipChannels() ?: return@withJwtAuth) {
+            when (val request = call.receiveMembershipChannels(body) ?: return@withJwtAuth) {
                 is MembershipChannels.Single -> call.respondMembership(
                     groupsService.removeSubscription(userId, groupId, request.channelUrl),
                 )
@@ -90,26 +93,6 @@ private suspend fun ApplicationCall.receiveGroupRequest(): SubscriptionGroupRequ
         respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
         null
     }
-
-private sealed interface MembershipChannels {
-    data class Single(val channelUrl: String) : MembershipChannels
-    data class Batch(val channelUrls: List<String>) : MembershipChannels
-}
-
-private suspend fun ApplicationCall.receiveMembershipChannels(): MembershipChannels? {
-    val request = runCatching { receive<SubscriptionGroupMembershipRequest>() }.getOrNull()
-    val channelUrl = request?.channelUrl?.takeIf(String::isNotBlank)
-    val channelUrls = request?.channelUrls
-    val parsed = when {
-        channelUrl != null && channelUrls == null -> MembershipChannels.Single(channelUrl)
-        request?.channelUrl == null && channelUrls != null &&
-            channelUrls.size in 1..SubscriptionGroupsService.MAX_MEMBERSHIP_CHANNELS &&
-            channelUrls.all(String::isNotBlank) -> MembershipChannels.Batch(channelUrls)
-        else -> null
-    }
-    if (parsed == null) respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
-    return parsed
-}
 
 private suspend fun ApplicationCall.respondGroupWrite(result: SubscriptionGroupWriteResult, created: Boolean) {
     when (result) {
