@@ -131,12 +131,16 @@ SubscriptionGroupChannels:
       schema: { type: string, format: uuid }
   put:
     tags: [user-data]
-    summary: Add a subscribed channel to a group
+    summary: Add subscribed channels to a group
+    description: Accepts the original singular channelUrl request or up to 500 channelUrls. Batch additions are atomic, canonicalized and deduplicated.
     requestBody:
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+          schema:
+            oneOf:
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     responses:
       '204': { description: Membership exists. }
       '400': { $ref: ../components/common.yaml#/JsonError }
@@ -144,12 +148,21 @@ SubscriptionGroupChannels:
       '404': { $ref: ../components/common.yaml#/JsonError }
   delete:
     tags: [user-data]
-    summary: Remove a subscribed channel from a group
+    summary: Remove subscribed channels from a group
+    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored.
     parameters:
       - name: url
         in: query
-        required: true
+        required: false
         schema: { type: string, minLength: 1 }
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     responses:
       '204': { description: Membership deleted. }
       '400': { $ref: ../components/common.yaml#/JsonError }

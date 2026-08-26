@@ -45,21 +45,33 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
     put("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            val request = runCatching { call.receive<SubscriptionGroupMembershipRequest>() }.getOrElse {
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            when (val request = call.receiveMembershipChannels() ?: return@withJwtAuth) {
+                is MembershipChannels.Single -> call.respondMembership(
+                    groupsService.addSubscription(userId, groupId, request.channelUrl),
+                )
+                is MembershipChannels.Batch -> call.respondMembership(
+                    groupsService.addSubscriptions(userId, groupId, request.channelUrls),
+                )
             }
-            if (request.channelUrl.isBlank()) {
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("channelUrl must not be blank"))
-            }
-            call.respondMembership(groupsService.addSubscription(userId, groupId, request.channelUrl))
         }
     }
     delete("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            val channelUrl = call.request.queryParameters["url"]?.takeIf(String::isNotBlank)
-                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
-            call.respondMembership(groupsService.removeSubscription(userId, groupId, channelUrl))
+            val queryChannelUrl = call.request.queryParameters["url"]?.takeIf(String::isNotBlank)
+            if (queryChannelUrl != null) {
+                return@withJwtAuth call.respondMembership(
+                    groupsService.removeSubscription(userId, groupId, queryChannelUrl),
+                )
+            }
+            when (val request = call.receiveMembershipChannels() ?: return@withJwtAuth) {
+                is MembershipChannels.Single -> call.respondMembership(
+                    groupsService.removeSubscription(userId, groupId, request.channelUrl),
+                )
+                is MembershipChannels.Batch -> call.respondMembership(
+                    groupsService.removeSubscriptions(userId, groupId, request.channelUrls),
+                )
+            }
         }
     }
 }
@@ -71,6 +83,26 @@ private suspend fun ApplicationCall.receiveGroupRequest(): SubscriptionGroupRequ
         respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
         null
     }
+
+private sealed interface MembershipChannels {
+    data class Single(val channelUrl: String) : MembershipChannels
+    data class Batch(val channelUrls: List<String>) : MembershipChannels
+}
+
+private suspend fun ApplicationCall.receiveMembershipChannels(): MembershipChannels? {
+    val request = runCatching { receive<SubscriptionGroupMembershipRequest>() }.getOrNull()
+    val channelUrl = request?.channelUrl?.takeIf(String::isNotBlank)
+    val channelUrls = request?.channelUrls
+    val parsed = when {
+        channelUrl != null && channelUrls == null -> MembershipChannels.Single(channelUrl)
+        request?.channelUrl == null && channelUrls != null &&
+            channelUrls.size in 1..SubscriptionGroupsService.MAX_MEMBERSHIP_CHANNELS &&
+            channelUrls.all(String::isNotBlank) -> MembershipChannels.Batch(channelUrls)
+        else -> null
+    }
+    if (parsed == null) respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+    return parsed
+}
 
 private suspend fun ApplicationCall.respondGroupWrite(result: SubscriptionGroupWriteResult, created: Boolean) {
     when (result) {

@@ -133,6 +133,49 @@ class SubscriptionGroupsRoutesTest {
     }
 
     @Test
+    fun `membership routes add and remove multiple channels atomically`() = withApp {
+        val first = channel("one")
+        val second = channel("two")
+        val neverAdded = channel("three")
+        listOf(first, second, neverAdded).forEach { url ->
+            subscriptions.add(TEST_USER_ID, SubscriptionItem(url, url.substringAfterLast('/'), ""))
+        }
+        val group = createGroup("Work")
+
+        assertEquals(HttpStatusCode.NoContent, client.put("/subscriptions/groups/${group.id}/channels") {
+            authorizeJson()
+            setBody("""{"channelUrls":["$first","$second","$first"]}""")
+        }.status)
+        assertEquals(HttpStatusCode.NoContent, client.put("/subscriptions/groups/${group.id}/channels") {
+            authorizeJson()
+            setBody("""{"channelUrls":["$first","$second"]}""")
+        }.status)
+        val grouped = authorizedGet("/subscriptions") { parameter("groupId", group.id) }.bodyAsText()
+        assertTrue(grouped.contains(first))
+        assertTrue(grouped.contains(second))
+        assertTrue(!grouped.contains(neverAdded))
+
+        assertEquals(HttpStatusCode.NoContent, client.delete("/subscriptions/groups/${group.id}/channels") {
+            authorizeJson()
+            setBody("""{"channelUrls":["$first","$second","$neverAdded"]}""")
+        }.status)
+        assertEquals("[]", authorizedGet("/subscriptions") { parameter("groupId", group.id) }.bodyAsText())
+    }
+
+    @Test
+    fun `bulk membership addition changes nothing when a subscription is missing`() = withApp {
+        val subscribed = channel("subscribed")
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(subscribed, "Subscribed", ""))
+        val group = createGroup("Work")
+
+        assertEquals(HttpStatusCode.NotFound, client.put("/subscriptions/groups/${group.id}/channels") {
+            authorizeJson()
+            setBody("""{"channelUrls":["$subscribed","${channel("missing")}"]}""")
+        }.status)
+        assertEquals("[]", authorizedGet("/subscriptions") { parameter("groupId", group.id) }.bodyAsText())
+    }
+
+    @Test
     fun `group membership projection returns account scoped memberships with subscription data`() = withApp {
         val sharedChannel = channel("shared")
         subscriptions.add(TEST_USER_ID, SubscriptionItem(sharedChannel, "Shared", "avatar"))

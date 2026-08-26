@@ -165,6 +165,7 @@ components:
     SubscriptionGroupItem: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupItem }
     SubscriptionGroupRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupRequest }
     SubscriptionGroupMembershipRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+    SubscriptionGroupMembershipBatchRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
     RssFeedRequest: { $ref: ./openapi/components/rss.yaml#/RssFeedRequest }

@@ -9,6 +9,8 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -103,19 +105,31 @@ class SubscriptionGroupsService {
         userId: String,
         groupId: String,
         rawChannelUrl: String,
+    ): SubscriptionGroupMembershipResult = addSubscriptions(userId, groupId, listOf(rawChannelUrl))
+
+    suspend fun addSubscriptions(
+        userId: String,
+        groupId: String,
+        rawChannelUrls: List<String>,
     ): SubscriptionGroupMembershipResult = DatabaseFactory.query {
         SubscriptionMutationLock.acquire(userId)
         if (!groupExists(userId, groupId)) return@query SubscriptionGroupMembershipResult.GroupNotFound
-        val channelUrl = ChannelUrlCanonicalizer.canonicalize(rawChannelUrl)
-        val subscriptionExists = SubscriptionsTable.selectAll().where {
-            (SubscriptionsTable.userId eq userId) and (SubscriptionsTable.channelUrl eq channelUrl)
-        }.any()
-        if (!subscriptionExists) return@query SubscriptionGroupMembershipResult.SubscriptionNotFound
-        SubscriptionGroupMembershipsTable.insertIgnore {
-            it[SubscriptionGroupMembershipsTable.groupId] = groupId
-            it[SubscriptionGroupMembershipsTable.userId] = userId
-            it[SubscriptionGroupMembershipsTable.channelUrl] = channelUrl
-            it[addedAt] = System.currentTimeMillis()
+        val channelUrls = rawChannelUrls.mapTo(linkedSetOf(), ChannelUrlCanonicalizer::canonicalize)
+        val subscribed = SubscriptionsTable.selectAll().where {
+            (SubscriptionsTable.userId eq userId) and (SubscriptionsTable.channelUrl inList channelUrls)
+        }.mapTo(hashSetOf()) { it[SubscriptionsTable.channelUrl] }
+        if (subscribed.size != channelUrls.size) return@query SubscriptionGroupMembershipResult.SubscriptionNotFound
+        val existing = SubscriptionGroupMembershipsTable.selectAll().where {
+            (SubscriptionGroupMembershipsTable.groupId eq groupId) and
+                (SubscriptionGroupMembershipsTable.userId eq userId) and
+                (SubscriptionGroupMembershipsTable.channelUrl inList channelUrls)
+        }.mapTo(hashSetOf()) { it[SubscriptionGroupMembershipsTable.channelUrl] }
+        val addedAt = System.currentTimeMillis()
+        SubscriptionGroupMembershipsTable.batchInsert(channelUrls - existing, shouldReturnGeneratedValues = false) { url ->
+            this[SubscriptionGroupMembershipsTable.groupId] = groupId
+            this[SubscriptionGroupMembershipsTable.userId] = userId
+            this[SubscriptionGroupMembershipsTable.channelUrl] = url
+            this[SubscriptionGroupMembershipsTable.addedAt] = addedAt
         }
         SubscriptionGroupMembershipResult.Success
     }
@@ -136,6 +150,22 @@ class SubscriptionGroupsService {
         if (deleted > 0) SubscriptionGroupMembershipResult.Success else {
             SubscriptionGroupMembershipResult.MembershipNotFound
         }
+    }
+
+    suspend fun removeSubscriptions(
+        userId: String,
+        groupId: String,
+        rawChannelUrls: List<String>,
+    ): SubscriptionGroupMembershipResult = DatabaseFactory.query {
+        SubscriptionMutationLock.acquire(userId)
+        if (!groupExists(userId, groupId)) return@query SubscriptionGroupMembershipResult.GroupNotFound
+        val channelUrls = rawChannelUrls.mapTo(hashSetOf(), ChannelUrlCanonicalizer::canonicalize)
+        SubscriptionGroupMembershipsTable.deleteWhere {
+            (SubscriptionGroupMembershipsTable.groupId eq groupId) and
+                (SubscriptionGroupMembershipsTable.userId eq userId) and
+                (SubscriptionGroupMembershipsTable.channelUrl inList channelUrls)
+        }
+        SubscriptionGroupMembershipResult.Success
     }
 
     suspend fun getChannelUrls(userId: String, groupId: String): List<String> = DatabaseFactory.query {
@@ -182,6 +212,7 @@ class SubscriptionGroupsService {
 
     companion object {
         const val MAX_GROUP_NAME_LENGTH = 100
+        const val MAX_MEMBERSHIP_CHANNELS = 500
         private const val UNIQUE_VIOLATION_SQL_STATE = "23505"
     }
 }
