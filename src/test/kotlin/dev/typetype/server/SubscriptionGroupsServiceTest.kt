@@ -213,6 +213,40 @@ class SubscriptionGroupsServiceTest {
     }
 
     @Test
+    fun `membership projection shares the account subscription lock`() = runTest {
+        val userId = "projection-user"
+        val group = groups.create(userId, "Group").createdGroup()
+        subscriptions.add(userId, subscription("one"))
+        groups.addSubscription(userId, group.id, channel("one"))
+        val lockHeld = CountDownLatch(1)
+        val releaseLock = CountDownLatch(1)
+        val holder = async(Dispatchers.IO) {
+            DatabaseFactory.query {
+                TransactionManager.current().exec(subscriptionLockSql(userId))
+                lockHeld.countDown()
+                check(releaseLock.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertTrue(lockHeld.await(5, TimeUnit.SECONDS))
+
+        val projection = async(Dispatchers.IO) { subscriptions.getAllWithGroupMemberships(userId) }
+        val readWaited = try {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(2_000L) {
+                    while (!projection.isCompleted && waitingSubscriptionLocks(userId) == 0) yield()
+                    !projection.isCompleted
+                } ?: false
+            }
+        } finally {
+            releaseLock.countDown()
+        }
+
+        holder.await()
+        assertTrue(readWaited, "the membership projection must wait for the account-scoped lock")
+        assertEquals(listOf(group.id), projection.await().single().groupIds)
+    }
+
+    @Test
     fun `replacement imports retain only memberships for subscriptions still present`() = runTest {
         val group = groups.create("user", "Group").createdGroup()
         subscriptions.add("user", subscription("one"))

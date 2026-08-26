@@ -21,12 +21,14 @@ class SubscriptionsService {
         selection: SubscriptionSelection = SubscriptionSelection.All,
     ): List<SubscriptionItem> = DatabaseFactory.query {
         val selectedUrls = selectedChannelUrls(userId, selection)
-        subscriptionItems(userId)
+        val selectedItems = subscriptionItems(userId)
             .filter { selection == SubscriptionSelection.All || it.channelUrl in selectedUrls }
+        SubscriptionAvatarRepairer.repair(userId = userId, items = selectedItems)
     }
 
     suspend fun getAllWithGroupMemberships(userId: String): List<SubscriptionGroupMembershipItem> =
         DatabaseFactory.query {
+            SubscriptionMutationLock.acquire(userId)
             val groupIdsByChannel = SubscriptionGroupMembershipsTable
                 .innerJoin(SubscriptionGroupsTable)
                 .selectAll()
@@ -41,7 +43,7 @@ class SubscriptionsService {
                     valueTransform = { it[SubscriptionGroupMembershipsTable.groupId] },
                 )
                 .mapValues { (_, groupIds) -> groupIds.sorted() }
-            subscriptionItems(userId).map { item ->
+            SubscriptionAvatarRepairer.repair(userId = userId, items = subscriptionItems(userId)).map { item ->
                 SubscriptionGroupMembershipItem(
                     channelUrl = item.channelUrl,
                     name = item.name,
@@ -81,11 +83,10 @@ class SubscriptionsService {
     }
 
     private fun subscriptionItems(userId: String): List<SubscriptionItem> {
-        val items = SubscriptionsTable.selectAll()
+        return SubscriptionsTable.selectAll()
             .where { SubscriptionsTable.userId eq userId }
             .orderBy(SubscriptionsTable.subscribedAt to SortOrder.DESC)
             .map { it.toItem() }
-        return SubscriptionAvatarRepairer.repair(userId = userId, items = items)
     }
 
     private fun selectedChannelUrls(userId: String, selection: SubscriptionSelection): Set<String> {
