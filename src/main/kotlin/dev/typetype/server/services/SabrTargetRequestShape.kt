@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 internal inline fun <T> withTargetedRequestShape(
     holder: SabrSessionHolder,
     request: SabrSegmentRequest,
+    prepareSession: Boolean = true,
     block: () -> T,
 ): T {
     val companion = holder.companionFormat(request.format)
@@ -16,7 +17,7 @@ internal inline fun <T> withTargetedRequestShape(
     val requestStartMs = holder.playbackSegmentStartMs(request.format, request.sequenceNumber)
     val targetPlayerTimeMs = request.targetPlayerTimeMs(holder, requestStartMs)
     val ranges = listOf(request.targetRange(holder), companion.targetCompanionRange(holder, targetPlayerTimeMs))
-    holder.session.prepareForMediaSegment(request)
+    if (prepareSession) holder.session.prepareForMediaSegment(request)
     state.setPlayerTimeMs(targetPlayerTimeMs)
     state.setRequestTrackMode(request.trackMode(), true, true)
     state.setSelectVideoFormatBeforeAudio(request.format.isAudio)

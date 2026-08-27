@@ -183,7 +183,7 @@ internal class SabrSessionPumpLoop(
             if (holder.isHistoricalLiveRequest(request)) {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.prepareForHistoricalLiveRewind(request)
-                return withTargetedRequestShape(holder, request) {
+                return withTargetedRequestShape(holder, request, prepareSession = false) {
                     pumpUntilCached(holder, localization, request, runtime)
                 }
             }
