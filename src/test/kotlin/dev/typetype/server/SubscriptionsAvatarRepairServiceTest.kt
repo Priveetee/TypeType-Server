@@ -3,12 +3,19 @@ package dev.typetype.server
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
+import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.services.SubscriptionAvatarRepairer
+import dev.typetype.server.services.SubscriptionGroupWriteResult
+import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.SubscriptionSelection
 import dev.typetype.server.services.SubscriptionsService
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -16,6 +23,7 @@ import org.junit.jupiter.api.Test
 
 class SubscriptionsAvatarRepairServiceTest {
     private val service = SubscriptionsService()
+    private val groups = SubscriptionGroupsService()
 
     companion object {
         const val WATCH_CHANNEL_URL = "https://www.youtube.com/channel/UCWatch"
@@ -63,6 +71,28 @@ class SubscriptionsAvatarRepairServiceTest {
     }
 
     @Test
+    fun `filtered getAll repairs avatars only for selected subscriptions`() = runTest {
+        repeat(25) { index ->
+            val channelUrl = "https://www.youtube.com/channel/UCUnselected$index"
+            addSubscription(channelUrl)
+            addHistory(
+                channelUrl = channelUrl,
+                avatarUrl = "https://avatar.test/unselected-$index.jpg",
+                watchedAt = (index + 1).toLong(),
+            )
+        }
+        addSubscription(WATCH_CHANNEL_URL)
+        addHistory(channelUrl = WATCH_CHANNEL_URL, avatarUrl = WATCH_AVATAR_URL, watchedAt = 0)
+        val group = (groups.create(TEST_USER_ID, "Selected") as SubscriptionGroupWriteResult.Success).group
+        groups.addSubscription(TEST_USER_ID, group.id, WATCH_CHANNEL_URL)
+
+        val selected = service.getAll(TEST_USER_ID, SubscriptionSelection.Group(group.id)).single()
+
+        assertEquals(WATCH_AVATAR_URL, selected.avatarUrl)
+        assertEquals("", storedAvatar("https://www.youtube.com/channel/UCUnselected0"))
+    }
+
+    @Test
     fun `avatar repair scans past unrepairable empty subscriptions`() = runTest {
         addWatchLater(channelUrl = WATCH_CHANNEL_URL, avatarUrl = WATCH_AVATAR_URL)
         val items = (0 until 25).map { index ->
@@ -76,6 +106,12 @@ class SubscriptionsAvatarRepairServiceTest {
 
     private suspend fun addSubscription(channelUrl: String): Unit {
         service.add(TEST_USER_ID, SubscriptionItem(channelUrl = channelUrl, name = "Channel", avatarUrl = ""))
+    }
+
+    private suspend fun storedAvatar(channelUrl: String): String = DatabaseFactory.query {
+        SubscriptionsTable.selectAll().where {
+            (SubscriptionsTable.userId eq TEST_USER_ID) and (SubscriptionsTable.channelUrl eq channelUrl)
+        }.single()[SubscriptionsTable.avatarUrl]
     }
 
     private suspend fun addWatchLater(channelUrl: String, avatarUrl: String): Unit = DatabaseFactory.query {

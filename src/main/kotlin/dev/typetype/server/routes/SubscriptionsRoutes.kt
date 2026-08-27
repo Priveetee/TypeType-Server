@@ -27,6 +27,11 @@ fun Route.subscriptionsRoutes(
     warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup,
     groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
 ) {
+    get("/subscriptions/group-memberships") {
+        call.withJwtAuth(authService) { userId ->
+            call.respond(subscriptionsService.getAllWithGroupMemberships(userId))
+        }
+    }
     get("/subscriptions") {
         call.withJwtAuth(authService) { userId ->
             val parsed = call.parseSubscriptionSelection()

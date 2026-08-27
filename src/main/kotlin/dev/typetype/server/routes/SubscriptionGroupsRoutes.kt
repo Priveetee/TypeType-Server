@@ -1,7 +1,6 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.models.SubscriptionGroupMembershipRequest
 import dev.typetype.server.models.SubscriptionGroupRequest
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
@@ -45,21 +44,44 @@ fun Route.subscriptionGroupsRoutes(groupsService: SubscriptionGroupsService, aut
     put("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            val request = runCatching { call.receive<SubscriptionGroupMembershipRequest>() }.getOrElse {
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            val body = call.receiveMembershipBody() ?: return@withJwtAuth
+            when (val request = call.receiveMembershipChannels(body) ?: return@withJwtAuth) {
+                is MembershipChannels.Single -> call.respondMembership(
+                    groupsService.addSubscription(userId, groupId, request.channelUrl),
+                )
+                is MembershipChannels.Batch -> call.respondMembership(
+                    groupsService.addSubscriptions(userId, groupId, request.channelUrls),
+                )
             }
-            if (request.channelUrl.isBlank()) {
-                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("channelUrl must not be blank"))
-            }
-            call.respondMembership(groupsService.addSubscription(userId, groupId, request.channelUrl))
         }
     }
     delete("/subscriptions/groups/{groupId}/channels") {
         call.withJwtAuth(authService) { userId ->
             val groupId = call.groupId() ?: return@withJwtAuth call.respondMissingGroupId()
-            val channelUrl = call.request.queryParameters["url"]?.takeIf(String::isNotBlank)
-                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
-            call.respondMembership(groupsService.removeSubscription(userId, groupId, channelUrl))
+            val queryChannelUrl = call.request.queryParameters["url"]
+            if (queryChannelUrl != null && !queryChannelUrl.isValidMembershipChannelUrl()) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid channel URL"))
+            }
+            val body = call.receiveMembershipBody() ?: return@withJwtAuth
+            if (queryChannelUrl != null) {
+                if (body.isNotEmpty()) {
+                    return@withJwtAuth call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse("Specify either url or a request body, not both"),
+                    )
+                }
+                return@withJwtAuth call.respondMembership(
+                    groupsService.removeSubscription(userId, groupId, queryChannelUrl),
+                )
+            }
+            when (val request = call.receiveMembershipChannels(body) ?: return@withJwtAuth) {
+                is MembershipChannels.Single -> call.respondMembership(
+                    groupsService.removeSubscription(userId, groupId, request.channelUrl),
+                )
+                is MembershipChannels.Batch -> call.respondMembership(
+                    groupsService.removeSubscriptions(userId, groupId, request.channelUrls),
+                )
+            }
         }
     }
 }

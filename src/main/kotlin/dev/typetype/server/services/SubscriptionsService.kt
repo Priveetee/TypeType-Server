@@ -2,7 +2,9 @@ package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
+import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
+import dev.typetype.server.models.SubscriptionGroupMembershipItem
 import dev.typetype.server.models.SubscriptionItem
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -19,13 +21,38 @@ class SubscriptionsService {
         selection: SubscriptionSelection = SubscriptionSelection.All,
     ): List<SubscriptionItem> = DatabaseFactory.query {
         val selectedUrls = selectedChannelUrls(userId, selection)
-        val items = SubscriptionsTable.selectAll()
-            .where { SubscriptionsTable.userId eq userId }
-            .orderBy(SubscriptionsTable.subscribedAt to SortOrder.DESC)
-            .map { it.toItem() }
+        val selectedItems = subscriptionItems(userId)
             .filter { selection == SubscriptionSelection.All || it.channelUrl in selectedUrls }
-        SubscriptionAvatarRepairer.repair(userId = userId, items = items)
+        SubscriptionAvatarRepairer.repair(userId = userId, items = selectedItems)
     }
+
+    suspend fun getAllWithGroupMemberships(userId: String): List<SubscriptionGroupMembershipItem> =
+        DatabaseFactory.query {
+            SubscriptionMutationLock.acquire(userId)
+            val groupIdsByChannel = SubscriptionGroupMembershipsTable
+                .innerJoin(SubscriptionGroupsTable)
+                .selectAll()
+                .where {
+                    (SubscriptionGroupMembershipsTable.userId eq userId) and
+                        (SubscriptionGroupsTable.userId eq userId)
+                }
+                .groupBy(
+                    keySelector = {
+                        ChannelUrlCanonicalizer.canonicalize(it[SubscriptionGroupMembershipsTable.channelUrl])
+                    },
+                    valueTransform = { it[SubscriptionGroupMembershipsTable.groupId] },
+                )
+                .mapValues { (_, groupIds) -> groupIds.sorted() }
+            SubscriptionAvatarRepairer.repair(userId = userId, items = subscriptionItems(userId)).map { item ->
+                SubscriptionGroupMembershipItem(
+                    channelUrl = item.channelUrl,
+                    name = item.name,
+                    avatarUrl = item.avatarUrl,
+                    subscribedAt = item.subscribedAt,
+                    groupIds = groupIdsByChannel[item.channelUrl].orEmpty(),
+                )
+            }
+        }
 
     suspend fun getChannelUrls(userId: String, selection: SubscriptionSelection): Set<String> =
         DatabaseFactory.query { selectedChannelUrls(userId, selection) }
@@ -53,6 +80,13 @@ class SubscriptionsService {
                 (SubscriptionGroupMembershipsTable.channelUrl eq canonicalUrl)
         }
         SubscriptionsTable.deleteWhere { SubscriptionsTable.channelUrl eq canonicalUrl and (SubscriptionsTable.userId eq userId) } > 0
+    }
+
+    private fun subscriptionItems(userId: String): List<SubscriptionItem> {
+        return SubscriptionsTable.selectAll()
+            .where { SubscriptionsTable.userId eq userId }
+            .orderBy(SubscriptionsTable.subscribedAt to SortOrder.DESC)
+            .map { it.toItem() }
     }
 
     private fun selectedChannelUrls(userId: String, selection: SubscriptionSelection): Set<String> {

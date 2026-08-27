@@ -3,4 +3,7 @@ package dev.typetype.server.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SubscriptionGroupMembershipRequest(val channelUrl: String)
+data class SubscriptionGroupMembershipRequest(
+    val channelUrl: String? = null,
+    val channelUrls: List<String>? = null,
+)
