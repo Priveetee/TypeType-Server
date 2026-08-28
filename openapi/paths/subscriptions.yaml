@@ -52,6 +52,20 @@ Subscriptions:
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
+SubscriptionGroupMemberships:
+  get:
+    tags: [user-data]
+    summary: List subscriptions with their group memberships
+    description: Returns every current subscription once, with all account-owned group IDs assigned to that channel. Ungrouped subscriptions have an empty groupIds array.
+    responses:
+      '200':
+        description: Account-scoped subscriptions and their complete group memberships.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipItem }
+      '401': { $ref: ../components/common.yaml#/JsonError }
 SubscriptionGroups:
   get:
     tags: [user-data]
@@ -117,29 +131,44 @@ SubscriptionGroupChannels:
       schema: { type: string, format: uuid }
   put:
     tags: [user-data]
-    summary: Add a subscribed channel to a group
+    summary: Add subscribed channels to a group
+    description: Accepts the original singular channelUrl request or up to 500 channelUrls. Batch additions are atomic, canonicalized and deduplicated. Request bodies are limited to 1 MiB.
     requestBody:
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+          schema:
+            oneOf:
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     responses:
       '204': { description: Membership exists. }
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
+      '413': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
   delete:
     tags: [user-data]
-    summary: Remove a subscribed channel from a group
+    summary: Remove subscribed channels from a group
+    description: The url query parameter preserves the original singular contract. A JSON request body can remove one channel or up to 500 channelUrls atomically; absent batch memberships are ignored. Supplying both url and any non-empty request body returns 400. Request bodies are limited to 1 MiB.
     parameters:
       - name: url
         in: query
-        required: true
-        schema: { type: string, minLength: 1 }
+        required: false
+        schema: { type: string, minLength: 1, maxLength: 2048 }
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     responses:
       '204': { description: Membership deleted. }
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
+      '413': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
 SubscriptionFeed:
   get:

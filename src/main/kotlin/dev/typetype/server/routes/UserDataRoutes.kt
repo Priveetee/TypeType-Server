@@ -6,6 +6,7 @@ import dev.typetype.server.services.AvatarService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.portability.PortabilityEngine
 import io.ktor.server.routing.Route
 
 internal fun Route.userDataRoutes(
@@ -15,6 +16,7 @@ internal fun Route.userDataRoutes(
     avatarService: AvatarService,
     bugReportService: BugReportService,
     restoreService: PipePipeBackupImporterService,
+    portabilityEngine: PortabilityEngine,
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionGroupsRoutes(svc.subscriptionGroupsService, authService)
@@ -50,6 +52,7 @@ internal fun Route.userDataRoutes(
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
     typeTypeBackupRoutes(svc.typeTypeBackupService, authService)
+    portabilityRoutes(portabilityEngine, authService)
     homeRecommendationRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
     homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
 }

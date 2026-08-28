@@ -170,7 +170,7 @@ class SabrSeekRepositionPumpTest {
             SabrSessionPumpLoop().run({ rounds++ < 1 }, holder, intervalMs = 0L)
 
             verify(exactly = 1) { session.prepareForRewind(request) }
-            verify(exactly = 1) { session.prepareForMediaSegment(request) }
+            verify(exactly = 0) { session.prepareForMediaSegment(request) }
             verify(exactly = 1) { state.setBufferedRangesOverride(null) }
             verify(exactly = 1) { session.pumpOnceStreamingForDemand(any(), request) }
         } finally {

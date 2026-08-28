@@ -83,6 +83,22 @@ class BugReportRoutesTest {
     }
 
     @Test
+    fun `POST bug report accepts bounded device diagnostics`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { bugReportRoutes(service, auth) }
+        }
+        val response = client.post("/bug-reports") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"category":"ui","description":"Responsive issue","context":{"route":"/settings","timestamp":1774200000000,"userAgent":"Mozilla","browserLanguage":"fr-FR","viewportWidth":390,"viewportHeight":844,"screenWidth":430,"screenHeight":932,"devicePixelRatio":3.0,"online":true,"timezone":"Europe/Paris"}}""",
+            )
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+    }
+
+    @Test
     fun `POST bug report with invalid category returns 400`() = testApplication {
         application {
             install(ContentNegotiation) { json() }

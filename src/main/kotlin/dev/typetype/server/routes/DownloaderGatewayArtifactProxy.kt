@@ -10,27 +10,38 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondOutputStream
 import okhttp3.Response
+import java.net.URI
 
 suspend fun forwardDownloaderArtifactRequest(
     call: ApplicationCall,
     gateway: DownloaderGatewayService,
-    response: DownloaderGatewayResponse,
+    method: String,
+    path: String,
+    query: String?,
     requestHeaders: Map<String, String>,
     forceDownload: Boolean,
 ) {
-    val location = artifactHeader(response, HttpHeaders.Location)
-    if (location == null) {
-        call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
-        return
-    }
-
-    val upstream = runCatching { gateway.openFetchAbsolute(location, requestHeaders) }
+    val upstream = runCatching { gateway.openForward(method, path, query, requestHeaders, null) }
         .getOrElse {
             call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
             return
         }
+    val artifact = if (shouldProxyArtifact(upstream)) {
+        val location = upstream.header(HttpHeaders.Location)
+        upstream.close()
+        if (location == null) {
+            call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
+            return
+        }
+        runCatching { gateway.openFetchAbsolute(location, method, requestHeaders) }
+            .getOrElse {
+                call.respond(HttpStatusCode.BadGateway, ErrorResponse("artifact unavailable"))
+                return
+            }
+    } else {
+        upstream
+    }
 
-    val artifact = upstream
     val headers = artifactHeaders(artifact)
     headers.forEach { (name, value) ->
         if (shouldForwardArtifactResponseHeader(name, forceDownload)) {
@@ -44,8 +55,10 @@ suspend fun forwardDownloaderArtifactRequest(
     try {
         call.respondOutputStream(contentType = contentType, status = status) {
             artifact.use { response ->
-                response.body.byteStream().use { input ->
-                    input.copyTo(this, DEFAULT_BUFFER_SIZE)
+                if (method != "HEAD") {
+                    response.body.byteStream().use { input ->
+                        input.copyTo(this, DEFAULT_BUFFER_SIZE)
+                    }
                 }
             }
         }
@@ -54,9 +67,6 @@ suspend fun forwardDownloaderArtifactRequest(
         throw error
     }
 }
-
-private fun artifactHeader(response: DownloaderGatewayResponse, name: String): String? =
-    response.headers.firstOrNull { it.first.equals(name, ignoreCase = true) }?.second
 
 private fun artifactHeaders(response: Response): List<Pair<String, String>> =
     response.headers.names().flatMap { name -> response.headers(name).map { name to it } }
@@ -69,11 +79,25 @@ private fun artifactResponse(response: Response, headers: List<Pair<String, Stri
         body = ByteArray(0),
     )
 
-private fun artifactContentType(response: Response, forceDownload: Boolean): ContentType {
-    if (forceDownload) return ContentType.Application.OctetStream
-    return response.header(HttpHeaders.ContentType)
+private fun artifactContentType(response: Response, forceDownload: Boolean): ContentType =
+    if (forceDownload) {
+        ContentType.Application.OctetStream
+    } else {
+        response.header(HttpHeaders.ContentType)
         ?.let { runCatching { ContentType.parse(it) }.getOrNull() }
         ?: ContentType.Application.OctetStream
+    }
+
+private fun shouldProxyArtifact(response: Response): Boolean {
+    if (response.code != 302 && response.code != 307) return false
+    val location = response.header(HttpHeaders.Location) ?: return false
+    val markedInternal = response.header(INTERNAL_ARTIFACT_PROXY_HEADER) == "1"
+    return markedInternal || isLegacyInternalHost(location)
+}
+
+private fun isLegacyInternalHost(location: String): Boolean {
+    val host = runCatching { URI(location).host }.getOrNull() ?: return false
+    return host.equals("garage", ignoreCase = true)
 }
 
 private fun shouldForwardArtifactResponseHeader(name: String, forceDownload: Boolean): Boolean {
@@ -82,3 +106,5 @@ private fun shouldForwardArtifactResponseHeader(name: String, forceDownload: Boo
     if (lower == "content-length") return true
     return shouldForwardGatewayResponseHeader(name, forceDownload)
 }
+
+private const val INTERNAL_ARTIFACT_PROXY_HEADER = "X-TypeType-Artifact-Proxy"

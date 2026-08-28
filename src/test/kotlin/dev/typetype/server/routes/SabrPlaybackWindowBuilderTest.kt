@@ -31,7 +31,7 @@ class SabrPlaybackWindowBuilderTest {
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns streamState
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 491_203L) } returns 98
-        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 488_200L) } returns 49
+        every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 491_203L) } returns 49
         every { session.getCachedSegment(any()) } answers {
             firstArg<SabrSegmentRequest>().takeIf { it.format.itag == 299 && it.sequenceNumber == 101 }
                 ?.let { mediaSegment(sequence = 101, startMs = 488_200L, durationMs = 6_500L) }

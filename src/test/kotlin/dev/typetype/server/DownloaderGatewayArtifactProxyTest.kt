@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer
 import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.services.DownloaderGatewayService
 import io.ktor.client.request.get
+import io.ktor.client.request.head
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
@@ -20,6 +21,39 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DownloaderGatewayArtifactProxyTest {
+    @Test
+    fun `direct artifact head preserves metadata without a response body`() = testApplication {
+        val requestedMethod = AtomicReference<String>()
+        val upstream = HttpServer.create(InetSocketAddress(0), 0)
+        upstream.createContext("/jobs/test/artifact") { exchange ->
+            requestedMethod.set(exchange.requestMethod)
+            exchange.responseHeaders.add(HttpHeaders.ContentType, "video/mp4")
+            exchange.responseHeaders.add(HttpHeaders.ContentLength, "4096")
+            exchange.responseHeaders.add(HttpHeaders.AcceptRanges, "bytes")
+            exchange.responseHeaders.add(HttpHeaders.ETag, "\"artifact-v1\"")
+            exchange.responseHeaders.add(HttpHeaders.LastModified, "Sat, 22 Aug 2026 10:00:00 GMT")
+            exchange.sendResponseHeaders(200, -1)
+            exchange.close()
+        }
+        upstream.start()
+        application {
+            routing { downloaderGatewayRoutes(DownloaderGatewayService("http://127.0.0.1:${upstream.address.port}")) }
+        }
+
+        try {
+            val response = client.head("/downloader/jobs/test/artifact")
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("HEAD", requestedMethod.get())
+            assertEquals("4096", response.headers[HttpHeaders.ContentLength])
+            assertEquals("bytes", response.headers[HttpHeaders.AcceptRanges])
+            assertEquals("\"artifact-v1\"", response.headers[HttpHeaders.ETag])
+            assertEquals("Sat, 22 Aug 2026 10:00:00 GMT", response.headers[HttpHeaders.LastModified])
+            assertEquals("", response.bodyAsText())
+        } finally {
+            upstream.stop(0)
+        }
+    }
+
     @Test
     fun `internal artifact redirect streams range response`() = testApplication {
         val requestedRange = AtomicReference<String>()
@@ -86,6 +120,32 @@ class DownloaderGatewayArtifactProxyTest {
             val response = noRedirectClient.get("/downloader/jobs/test/artifact")
             assertEquals(HttpStatusCode.Found, response.status)
             assertEquals("https://downloads.example.com/object", response.headers[HttpHeaders.Location])
+        } finally {
+            upstream.stop(0)
+        }
+    }
+
+    @Test
+    fun `direct artifact preserves unsatisfied range response`() = testApplication {
+        val upstream = HttpServer.create(InetSocketAddress(0), 0)
+        upstream.createContext("/jobs/test/artifact") { exchange ->
+            exchange.responseHeaders.add(HttpHeaders.ContentRange, "bytes */6")
+            exchange.responseHeaders.add(HttpHeaders.AcceptRanges, "bytes")
+            exchange.sendResponseHeaders(416, -1)
+            exchange.close()
+        }
+        upstream.start()
+        application {
+            routing { downloaderGatewayRoutes(DownloaderGatewayService("http://127.0.0.1:${upstream.address.port}")) }
+        }
+
+        try {
+            val response = client.get("/downloader/jobs/test/artifact") {
+                header(HttpHeaders.Range, "bytes=20-30")
+            }
+            assertEquals(HttpStatusCode.fromValue(416), response.status)
+            assertEquals("bytes */6", response.headers[HttpHeaders.ContentRange])
+            assertEquals("bytes", response.headers[HttpHeaders.AcceptRanges])
         } finally {
             upstream.stop(0)
         }

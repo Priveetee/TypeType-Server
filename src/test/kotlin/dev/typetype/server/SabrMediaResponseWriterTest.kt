@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.respondSabrMediaBytes
+import dev.typetype.server.routes.respondSabrMediaStream
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsBytes
@@ -13,6 +14,8 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayInputStream
+import java.util.concurrent.atomic.AtomicInteger
 
 class SabrMediaResponseWriterTest {
     @Test
@@ -40,10 +43,32 @@ class SabrMediaResponseWriterTest {
         assertArrayEquals(byteArrayOf(2, 3, 4, 5), response.bodyAsBytes())
     }
 
-    private fun ApplicationTestBuilder.installApp(): Unit = application {
+    @Test
+    fun `sabr media stream honors byte ranges without buffering the body`() = testApplication {
+        val opened = AtomicInteger()
+        installApp(opened)
+
+        val response = client.get("/stream") { header(HttpHeaders.Range, "bytes=3-7") }
+
+        assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertEquals("bytes 3-7/10", response.headers[HttpHeaders.ContentRange])
+        assertEquals("5", response.headers[HttpHeaders.ContentLength])
+        assertArrayEquals(byteArrayOf(3, 4, 5, 6, 7), response.bodyAsBytes())
+        assertEquals(1, opened.get())
+    }
+
+    private fun ApplicationTestBuilder.installApp(opened: AtomicInteger = AtomicInteger()): Unit = application {
         routing {
             get("/media") {
                 call.respondSabrMediaBytes("video/mp4; codecs=\"avc1.640028\"", ByteArray(10) { it.toByte() })
+            }
+            get("/stream") {
+                call.respondSabrMediaStream(
+                    "video/mp4; codecs=\"avc1.640028\"",
+                    10L,
+                    { ByteArrayInputStream(ByteArray(10) { it.toByte() }) },
+                    opened::incrementAndGet,
+                )
             }
         }
     }

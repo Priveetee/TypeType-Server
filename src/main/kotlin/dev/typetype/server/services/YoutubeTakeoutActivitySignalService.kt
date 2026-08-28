@@ -20,12 +20,16 @@ object YoutubeTakeoutActivitySignalService {
                 val normalized = entry.name.lowercase()
                 if (entry.isDirectory || !normalized.endsWith(".html") || !normalized.contains("youtube")) return@forEach
                 val html = zip.getInputStream(entry).bufferedReader().use { it.readText() }.replace("\u00a0", " ")
-                subscriptions += parseSubscriptions(html)
-                favorites += parseFavorites(html)
+                val parsed = parseHtml(html)
+                subscriptions += parsed.first
+                favorites += parsed.second
             }
         }
         return subscriptions.distinctBy { it.channelUrl } to favorites.distinctBy { it.videoUrl }
     }
+
+    internal fun parseHtml(html: String): Pair<List<SubscriptionItem>, List<FavoriteItem>> =
+        parseSubscriptions(html) to parseFavorites(html)
 
     private fun parseSubscriptions(html: String): List<SubscriptionItem> {
         return subscribedRegex.findAll(html).mapNotNull { match ->

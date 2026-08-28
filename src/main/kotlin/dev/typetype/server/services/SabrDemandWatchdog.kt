@@ -78,5 +78,5 @@ internal class SabrDemandWatchdog(
     }
 
     private fun nextCheckDelayMs(backoffRemainingMs: Long, futureLiveRequest: Boolean): Long =
-        maxOf(intervalMs, backoffRemainingMs, LIVE_EDGE_POLL_MS.takeIf { futureLiveRequest } ?: 0L)
+        maxOf(intervalMs, LIVE_EDGE_POLL_MS.takeIf { futureLiveRequest } ?: 0L)
 }

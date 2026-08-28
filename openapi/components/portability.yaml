@@ -1,0 +1,125 @@
+PortabilityFormat:
+  type: string
+  enum: [typetype, pipepipe, newpipe, invidious, piped, libretube, viewtube, materialious, youtube-local, flow, skytube, grayjay, youtube-takeout, opml]
+PortabilityCategory:
+  type: string
+  enum: [subscriptions, subscriptionGroups, history, playlists, watchLater, favorites, progress, searchHistory, savedPlaylists, settings, contentFilters]
+PortabilityCapability:
+  type: object
+  required: [category, directions, fidelity]
+  properties:
+    category: { $ref: '#/PortabilityCategory' }
+    directions:
+      type: array
+      uniqueItems: true
+      items: { type: string, enum: [import, export] }
+    fidelity: { type: string, enum: [complete, partial] }
+PortabilityAdapterDescriptor:
+  type: object
+  required: [format, adapterVersion, capabilities, defaultExtension, contentType]
+  properties:
+    format: { $ref: '#/PortabilityFormat' }
+    adapterVersion: { type: integer, minimum: 1 }
+    capabilities:
+      type: array
+      uniqueItems: true
+      items: { $ref: '#/PortabilityCapability' }
+    defaultExtension: { type: string }
+    contentType: { type: string }
+PortabilityIssue:
+  type: object
+  required: [category, code, message, count]
+  properties:
+    category:
+      allOf: [{ $ref: '#/PortabilityCategory' }]
+      nullable: true
+    code: { type: string }
+    message: { type: string }
+    count: { type: integer, format: int64, minimum: 1 }
+PortabilityDetection:
+  type: object
+  required: [format, formatVersion, adapterVersion, confidence, evidence]
+  properties:
+    format: { $ref: '#/PortabilityFormat' }
+    formatVersion: { type: string, nullable: true }
+    adapterVersion: { type: integer, minimum: 1 }
+    confidence: { type: integer, minimum: 1, maximum: 100 }
+    evidence: { type: string }
+PortabilityPreview:
+  type: object
+  required: [detection, counts, duplicates, issues]
+  properties:
+    detection: { $ref: '#/PortabilityDetection' }
+    counts:
+      type: object
+      additionalProperties: { type: integer, format: int64, minimum: 0 }
+    duplicates: { type: integer, format: int64, minimum: 0 }
+    issues:
+      type: array
+      items: { $ref: '#/PortabilityIssue' }
+PortabilityJobSnapshot:
+  type: object
+  required: [id, kind, state, createdAt, updatedAt]
+  properties:
+    id: { type: string, format: uuid }
+    kind: { type: string, enum: [import, export] }
+    state: { type: string, enum: [queued, analyzing, ready, applying, encoding, completed, failed, cancelled] }
+    createdAt: { type: integer, format: int64 }
+    updatedAt: { type: integer, format: int64 }
+    requestId: { type: string, nullable: true }
+    preview:
+      allOf: [{ $ref: '#/PortabilityPreview' }]
+      nullable: true
+    result:
+      type: object
+      nullable: true
+      additionalProperties: { type: integer, format: int64, minimum: 0 }
+    progress:
+      allOf: [{ $ref: '#/PortabilityJobProgress' }]
+      nullable: true
+    errorCode: { type: string, nullable: true }
+    errorMessage: { type: string, nullable: true }
+PortabilityJobProgress:
+  type: object
+  required: [phase, unit, processed, total]
+  properties:
+    phase: { type: string, enum: [analyzing, collecting, applying, encoding] }
+    unit: { type: string, enum: [records, categories, bytes] }
+    processed: { type: integer, format: int64, minimum: 0 }
+    total: { type: integer, format: int64, minimum: 0, nullable: true }
+PortabilityJobReport:
+  type: object
+  required: [id, state]
+  properties:
+    id: { type: string, format: uuid }
+    state: { type: string, enum: [queued, analyzing, ready, applying, encoding, completed, failed, cancelled] }
+    requestId: { type: string, nullable: true }
+    preview:
+      allOf: [{ $ref: '#/PortabilityPreview' }]
+      nullable: true
+    result:
+      type: object
+      nullable: true
+      additionalProperties: { type: integer, format: int64, minimum: 0 }
+    errorCode: { type: string, nullable: true }
+    errorMessage: { type: string, nullable: true }
+PortabilityImportRequest:
+  type: object
+  required: [categories]
+  properties:
+    categories:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: { $ref: '#/PortabilityCategory' }
+    duplicatePolicy: { type: string, enum: [skip, replace], default: skip }
+PortabilityExportRequest:
+  type: object
+  required: [format, categories]
+  properties:
+    format: { $ref: '#/PortabilityFormat' }
+    categories:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: { $ref: '#/PortabilityCategory' }

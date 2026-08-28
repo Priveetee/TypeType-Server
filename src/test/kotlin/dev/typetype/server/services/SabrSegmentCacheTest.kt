@@ -2,9 +2,10 @@ package dev.typetype.server.services
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
@@ -17,27 +18,19 @@ import java.time.Instant
 
 class SabrSegmentCacheTest {
     @Test
-    fun `cache stores and reads segment metadata and bytes`() {
+    fun `vod cache observes media without copying segment bytes`() {
         val segmentCache = SabrSegmentCache()
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
-        val holder = holder(audio, video)
+        val holder = holder(audio, video, SabrSessionPurpose.PLAYBACK)
         val bytes = byteArrayOf(1, 2, 3)
         val segment = segment(itag = 140, sequence = 4, bytes = bytes)
         val request = SabrSegmentRequest.media(audio, 4)
 
         segmentCache.put(holder, segment)
-        val cached = segmentCache.get(holder, request)
-
-        requireNotNull(cached)
-        assertEquals(140, cached.itag)
-        assertEquals(4, cached.sequence)
-        assertEquals(1234L, cached.startMs)
-        assertEquals(9985L, cached.durationMs)
-        assertEquals("audio/mp4", cached.mimeType)
-        assertArrayEquals(byteArrayOf(1, 2, 3), cached.bytes)
-        assertSame(bytes, cached.bytes)
+        assertNull(segmentCache.get(holder, request))
         assertEquals(4, holder.observedMediaSegment(audio)?.header?.sequenceNumber)
+        verify(exactly = 0) { segment.data }
     }
 
     @Test
@@ -56,7 +49,11 @@ class SabrSegmentCacheTest {
         assertArrayEquals(media, requireNotNull(segmentCache.get(holder, request)).bytes)
     }
 
-    private fun holder(audio: YoutubeSabrFormat, video: YoutubeSabrFormat): SabrSessionHolder {
+    private fun holder(
+        audio: YoutubeSabrFormat,
+        video: YoutubeSabrFormat,
+        purpose: SabrSessionPurpose = SabrSessionPurpose.MANIFEST,
+    ): SabrSessionHolder {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
@@ -67,7 +64,7 @@ class SabrSegmentCacheTest {
             audioFormat = audio,
             videoFormat = video,
             sessionToken = "token",
-            key = SabrSessionKey("video", "user", 140, null, 137, 0L),
+            key = SabrSessionKey("video", "user", 140, null, 137, 0L, purpose),
             lastRequestAt = Instant.EPOCH,
         )
     }

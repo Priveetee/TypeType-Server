@@ -2,7 +2,9 @@ package dev.typetype.server.services
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runInterruptible
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
@@ -22,7 +24,12 @@ internal class AuthenticatedSabrInfoService(
         if (userId == null || userId.startsWith("guest:")) return AuthenticatedSabrInfoResult.NotConnected
         val credentials = youtubeSessionService.connectedCredentials(userId)
             ?: return AuthenticatedSabrInfoResult.NotConnected
-        return cache.getOrLoad(credentials, videoId) { fetchUncached(credentials, videoId) }
+        return try {
+            cache.getOrLoad(credentials, videoId) { fetchUncached(credentials, videoId) }
+        } catch (error: TimeoutCancellationException) {
+            logger.warn("authenticated_sabr_probe event=timeout videoId={}", videoId)
+            AuthenticatedSabrInfoResult.TimedOut
+        }
     }
 
     private suspend fun fetchUncached(
@@ -32,10 +39,10 @@ internal class AuthenticatedSabrInfoService(
         return try {
             val prepared = YoutubeSessionTokenScope.withCredentials(credentials) {
                 withContext(Dispatchers.IO) {
-                    val sessionBinding = visitorDataFetcher()
-                    val token = tokenClient.fetchSession(videoId, sessionBinding)
+                    val sessionBinding = runInterruptible(Dispatchers.IO) { visitorDataFetcher() }
+                    val token = runInterruptible(Dispatchers.IO) { tokenClient.fetchSession(videoId, sessionBinding) }
                         ?: error("Token service did not return authenticated SABR tokens")
-                    val info = probe.fetch(videoId, token.youtubeSessionPoToken())
+                    val info = runInterruptible(Dispatchers.IO) { probe.fetch(videoId, token.youtubeSessionPoToken()) }
                     SabrPreparedInfo(
                         info = info,
                         initialToken = token,
@@ -67,6 +74,7 @@ internal class AuthenticatedSabrInfoService(
 internal sealed interface AuthenticatedSabrInfoResult {
     data object NotConnected : AuthenticatedSabrInfoResult
     data object Failed : AuthenticatedSabrInfoResult
+    data object TimedOut : AuthenticatedSabrInfoResult
     data class Ready(val prepared: SabrPreparedInfo) : AuthenticatedSabrInfoResult
 }
 

@@ -29,6 +29,17 @@ internal object BugReportValidation {
         if (context.apiErrors.any { it.endpoint.isBlank() || it.timestamp <= 0 || it.status <= 0 }) {
             return "Invalid api error entry"
         }
+        val dimensions = listOf(
+            context.viewportWidth,
+            context.viewportHeight,
+            context.screenWidth,
+            context.screenHeight,
+        ).filterNotNull()
+        if (dimensions.any { it !in 1..100_000 }) return "Invalid display dimensions"
+        if (context.devicePixelRatio != null && context.devicePixelRatio !in 0.1..100.0) {
+            return "Invalid device pixel ratio"
+        }
+        if (context.timezone != null && context.timezone.length > 128) return "Invalid timezone"
         return null
     }
 }

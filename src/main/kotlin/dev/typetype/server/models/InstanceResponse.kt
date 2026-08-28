@@ -24,6 +24,7 @@ data class InstanceResponse(
     val youtubeRemoteLoginEnabled: Boolean = false,
     val youtubeRemoteLoginReady: Boolean = false,
     val youtubeRemoteLoginUnavailableReason: String? = null,
+    val parentalControlsEnabled: Boolean = false,
     val rss: RssInstanceCapability = RssInstanceCapability(),
 )
 

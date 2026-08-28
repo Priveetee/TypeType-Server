@@ -89,6 +89,16 @@ JobArtifact:
       '200': { description: Artifact bytes. }
       '206': { description: Partial artifact bytes. }
       '302': { description: Redirect to public artifact storage. }
+      '416': { description: Requested byte range is outside the artifact. }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  head:
+    tags: [downloader]
+    summary: Inspect a completed artifact without transferring its body
+    responses:
+      '200': { description: Artifact metadata. }
+      '206': { description: Partial artifact metadata. }
+      '302': { description: Redirect to public artifact storage. }
+      '416': { description: Requested byte range is outside the artifact. }
       '404': { $ref: ../components/common.yaml#/JsonError }
 JobCancel:
   parameters:

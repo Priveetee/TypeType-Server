@@ -14,6 +14,7 @@ import dev.typetype.server.services.SabrPlaybackInfoResolver
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.markServed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -118,6 +119,11 @@ internal class SabrPlaybackHandler(
 
     private suspend fun respondSegment(call: ApplicationCall, result: SabrPlaybackSegmentResult): Unit = when (result) {
         is SabrPlaybackSegmentResult.Ready -> call.respondSabrMediaBytes(result.mimeType, result.bytes)
+        is SabrPlaybackSegmentResult.Stream -> call.respondSabrMediaStream(
+            result.mimeType,
+            result.segment.length.toLong(),
+            result.segment::openStream,
+        ) { result.holder.markServed(result.segment, result.generation) }
         is SabrPlaybackSegmentResult.Retry -> call.respond(
             HttpStatusCode.Accepted,
             result.holder.toRetryPlaybackResponse(result.status, RETRY_AFTER_MS),
@@ -128,6 +134,7 @@ internal class SabrPlaybackHandler(
     }
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
+        if (!access.profile.enabled) return true
         return when (val result = accessValidator.resolve(access.userId, videoId)) {
             is ExtractionResult.Success -> {
                 val allowed = !access.profile.enabled ||

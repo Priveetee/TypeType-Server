@@ -72,6 +72,7 @@ class InstanceRoutesTest {
         assertEquals(false, root["oidcEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(false, root["youtubeRemoteLoginReady"]?.jsonPrimitive?.boolean)
+        assertEquals(false, root["parentalControlsEnabled"]?.jsonPrimitive?.boolean)
         assertEquals("disabled", root["youtubeRemoteLoginUnavailableReason"]?.jsonPrimitive?.contentOrNull)
         val rss = root["rss"]?.jsonObject
         assertEquals(false, rss?.get("enabled")?.jsonPrimitive?.boolean)
@@ -93,6 +94,7 @@ class InstanceRoutesTest {
             localLoginEnabled = false,
             oidcAutoRedirect = true,
             youtubeRemoteLoginEnabled = true,
+            accessMode = "allow_list",
             rssEnabled = true,
             rssPublicBaseUrl = "https://video.example/",
             rssMaxFeedsPerUser = 4,
@@ -123,6 +125,7 @@ class InstanceRoutesTest {
         assertEquals(true, root["oidcAutoRedirect"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["youtubeRemoteLoginEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(true, root["youtubeRemoteLoginReady"]?.jsonPrimitive?.boolean)
+        assertEquals(true, root["parentalControlsEnabled"]?.jsonPrimitive?.boolean)
         assertEquals(null, root["youtubeRemoteLoginUnavailableReason"]?.jsonPrimitive?.contentOrNull)
         val rss = root["rss"]!!.jsonObject
         assertEquals(true, rss["enabled"]?.jsonPrimitive?.boolean)

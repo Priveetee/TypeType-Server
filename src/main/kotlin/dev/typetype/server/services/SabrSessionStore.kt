@@ -151,7 +151,7 @@ internal class SabrSessionStore(
 
     internal suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
         infoFetcher.rememberExtractedInfo(videoId, info)
-
+    internal suspend fun rememberPreparedInfo(videoId: String, prepared: SabrPreparedInfo): Unit = infoFetcher.rememberPreparedInfo(videoId, prepared)
     internal suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
 
     internal suspend fun recoverProtectedPlaybackInfo(holder: SabrSessionHolder): Unit =

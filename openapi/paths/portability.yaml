@@ -1,0 +1,148 @@
+PortabilityFormats:
+  get:
+    tags: [portability]
+    summary: List supported portability adapters
+    responses:
+      '200':
+        description: Adapter capabilities and fidelity
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/portability.yaml#/PortabilityAdapterDescriptor }
+      '401': { description: Missing or invalid token }
+      '403': { description: Guest account }
+PortabilityImports:
+  post:
+    tags: [portability]
+    summary: Upload and analyze an account backup
+    parameters:
+      - name: format
+        in: query
+        required: false
+        description: Optional explicit source format. The engine auto-detects when omitted.
+        schema: { $ref: ../components/portability.yaml#/PortabilityFormat }
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary }
+    responses:
+      '202':
+        description: Analysis job created
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
+      '400': { description: Invalid or unrecognized backup }
+      '401': { description: Missing or invalid token }
+      '413': { description: Upload exceeds the configured limit }
+PortabilityExports:
+  post:
+    tags: [portability]
+    summary: Create an account export
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/portability.yaml#/PortabilityExportRequest }
+    responses:
+      '202':
+        description: Export job created
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
+      '400': { description: Unsupported format or category }
+      '401': { description: Missing or invalid token }
+PortabilityJob:
+  parameters:
+    - $ref: '#/JobId'
+  get:
+    tags: [portability]
+    summary: Read an owned portability job
+    responses:
+      '200':
+        description: Current job state
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
+      '401': { description: Missing or invalid token }
+      '404': { description: Job not found for this account }
+  delete:
+    tags: [portability]
+    summary: Delete an owned portability job and its temporary files
+    responses:
+      '204': { description: Job deleted }
+      '401': { description: Missing or invalid token }
+      '404': { description: Job not found for this account }
+PortabilityApply:
+  parameters:
+    - $ref: '#/JobId'
+  post:
+    tags: [portability]
+    summary: Apply selected previewed categories
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/portability.yaml#/PortabilityImportRequest }
+    responses:
+      '202':
+        description: Transactional import started
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
+      '400': { description: Invalid category selection }
+      '409': { description: Job is not ready }
+PortabilityCancel:
+  parameters:
+    - $ref: '#/JobId'
+  post:
+    tags: [portability]
+    summary: Cancel an active portability job
+    responses:
+      '200':
+        description: Cancelled or already terminal job
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
+      '404': { description: Job not found for this account }
+PortabilityReport:
+  parameters:
+    - $ref: '#/JobId'
+  get:
+    tags: [portability]
+    summary: Read the durable result and compatibility report for an owned job
+    responses:
+      '200':
+        description: Current or final portability report
+        content:
+          application/json:
+            schema: { $ref: ../components/portability.yaml#/PortabilityJobReport }
+      '401': { description: Missing or invalid token }
+      '404': { description: Job not found for this account }
+PortabilityArtifact:
+  parameters:
+    - $ref: '#/JobId'
+  get:
+    tags: [portability]
+    summary: Download a completed export artifact
+    responses:
+      '200':
+        description: Generated export
+        headers:
+          Content-Disposition:
+            schema: { type: string }
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '404': { description: Job not found for this account }
+      '409': { description: Export is not complete }
+JobId:
+  name: id
+  in: path
+  required: true
+  schema: { type: string, format: uuid }
