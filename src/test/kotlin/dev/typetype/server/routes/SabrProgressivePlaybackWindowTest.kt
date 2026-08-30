@@ -81,6 +81,46 @@ class SabrProgressivePlaybackWindowTest {
         assertEquals(9_985L, result.response.audio.segments.single().durationMs)
     }
 
+    @Test
+    fun `vod window includes enough progressive segments to satisfy the buffer goal`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { state.getSegmentNumberAtOrAfterTimeMs(any(), 5_731_077L) } returns 1
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } answers {
+            val request = firstArg<SabrSegmentRequest>()
+            val durationMs = if (request.format.isAudio) 10_000L else 6_000L
+            readableSegment(
+                request.format,
+                sequence = request.sequenceNumber,
+                startMs = 5_731_000L + (request.sequenceNumber - 1L) * durationMs,
+                durationMs = durationMs,
+            )
+        }
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(
+                generation = 0L,
+                playerTimeMs = 5_731_077L,
+                videoItag = video.itag,
+                audioItag = audio.itag,
+                bufferGoalMs = 30_000L,
+            ),
+        )
+
+        assertTrue(result.isReady)
+        assertTrue(result.blockedRequests.isEmpty())
+        assertEquals(6, requireNotNull(result.response.video).segments.size)
+        assertEquals(4, result.response.audio.segments.size)
+    }
+
     private fun readableSegment(
         format: YoutubeSabrFormat,
         sequence: Int = 1,
