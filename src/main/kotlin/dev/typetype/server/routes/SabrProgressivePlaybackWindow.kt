@@ -11,9 +11,14 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 internal data class SabrProgressiveWindowSegment(
     val sequence: Int,
     val response: SabrPlaybackWindowSegment,
+    val hasReadableMedia: Boolean,
 )
 
-internal data class SabrProgressiveWindowAppend(val nextSequence: Int, val coveredEndMs: Long)
+internal data class SabrProgressiveWindowAppend(
+    val nextSequence: Int,
+    val coveredEndMs: Long,
+    val hasReadableMedia: Boolean,
+)
 
 internal fun MutableList<SabrPlaybackWindowSegment>.appendProgressiveWindowSegment(
     holder: SabrSessionHolder,
@@ -27,6 +32,7 @@ internal fun MutableList<SabrPlaybackWindowSegment>.appendProgressiveWindowSegme
     return SabrProgressiveWindowAppend(
         segment.sequence + 1,
         segment.response.startMs + segment.response.durationMs,
+        segment.hasReadableMedia,
     )
 }
 
@@ -52,6 +58,7 @@ internal fun SabrSessionHolder.progressiveWindowSegment(
             startMs = startMs,
             durationMs = durationMs,
         ),
+        actual != null,
     )
 }
 

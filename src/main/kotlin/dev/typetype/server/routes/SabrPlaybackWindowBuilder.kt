@@ -15,6 +15,8 @@ import dev.typetype.server.services.resolvePlaybackStartMs
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
 
+private const val MAX_SEGMENTS_PER_TRACK = 12
+
 internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessionStore) {
     suspend fun build(
         holder: SabrSessionHolder,
@@ -140,6 +142,7 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
                     seq = progressive.nextSequence
                     coveredEndMs = progressive.coveredEndMs
                     if (coveredEndMs >= goalEndMs) break
+                    if (progressive.hasReadableMedia) continue
                     blockedRequest = SabrSegmentRequest.media(format, seq)
                     blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
                     break
@@ -213,8 +216,5 @@ internal class SabrPlaybackWindowBuilder(private val sabrSessionStore: SabrSessi
         val atEnd: Boolean,
     ) {
         fun covers(requiredEndMs: Long): Boolean = (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
-    }
-    private companion object {
-        const val MAX_SEGMENTS_PER_TRACK = 12
     }
 }
